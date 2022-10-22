@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "class-parser",
+    "classfile",
+    "parser-test",
+]

@@ -1,9 +1,6 @@
-# Project Name
+# JVM
 <!--
-[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/Serial-ATA/REPO_NAME/CI?style=for-the-badge&logo=github)](https://github.com/Serial-ATA/REPO_NAME/actions/workflows/ci.yml)
-[![Downloads](https://img.shields.io/crates/d/CRATE_NAME?style=for-the-badge&logo=rust)](https://crates.io/crates/CRATE_NAME)
-[![Version](https://img.shields.io/crates/v/CRATE_NAME?style=for-the-badge&logo=rust)](https://crates.io/crates/CRATE_NAME)
-[![Documentation](https://img.shields.io/badge/docs.rs-CRATE_NAME-informational?style=for-the-badge&logo=read-the-docs)](https://docs.rs/CRATE_NAME/)
+[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/Serial-ATA/jvm/CI?style=for-the-badge&logo=github)](https://github.com/Serial-ATA/jvm/actions/workflows/ci.yml)
 -->
 
 ## License

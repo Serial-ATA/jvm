@@ -6,4 +6,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/Serial-ATA/REPO_NAME/compare/master...HEAD
+[Unreleased]: https://github.com/Serial-ATA/jvm/compare/master...HEAD
