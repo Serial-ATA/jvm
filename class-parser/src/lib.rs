@@ -12,9 +12,7 @@ where
 	R: Read + Seek,
 {
 	let magic = reader.read_u4();
-	if magic != 0xCAFEBABE {
-		panic!("No magic found!");
-	}
+	assert_eq!(magic, 0xCAFE_BABE, "No magic found!");
 
 	let minor_version = reader.read_u2();
 	let major_version = reader.read_u2();
