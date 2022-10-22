@@ -1,11 +1,11 @@
+mod attribute;
 mod constant_pool;
 mod fieldinfo;
-mod attribute;
 mod methodinfo;
 
 use std::io::{Read, Seek};
 
-use classfile::{ClassFile, ConstantPool, u1, u2, u4};
+use classfile::{u1, u2, u4, ClassFile, ConstantPool};
 
 pub fn parse_class<R>(reader: &mut R) -> ClassFile
 where
@@ -41,24 +41,24 @@ where
 	let mut fields = Vec::with_capacity(fields_count as usize);
 
 	for _ in 0..fields_count {
-		fields.push(fieldinfo::read_field_info(reader));
+		fields.push(fieldinfo::read_field_info(reader, &constant_pool));
 	}
 
 	let methods_count = reader.read_u2();
 	let mut methods = Vec::with_capacity(methods_count as usize);
 
 	for _ in 0..methods_count {
-		methods.push(methodinfo::read_method_info(reader));
+		methods.push(methodinfo::read_method_info(reader, &constant_pool));
 	}
 
 	let attributes_count = reader.read_u2();
 	let mut attributes = Vec::with_capacity(attributes_count as usize);
 
 	for _ in 0..attributes_count {
-		attributes.push(attribute::read_attribute(reader));
+		attributes.push(attribute::read_attribute(reader, &constant_pool));
 	}
 
-	return ClassFile {
+	ClassFile {
 		minor_version,
 		major_version,
 		constant_pool,
@@ -68,8 +68,8 @@ where
 		interfaces,
 		fields,
 		methods,
-		attributes
-	};
+		attributes,
+	}
 }
 
 trait JavaReadExt: Read {

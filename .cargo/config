@@ -1,0 +1,2 @@
+[aliases]
+clippy = "clippy --all-features -- -Dclippy::all -Dclippy::pedantic"

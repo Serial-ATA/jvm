@@ -1,13 +1,17 @@
+mod attribute;
 mod classfile;
 mod constant_pool;
-mod types;
 mod fieldinfo;
-mod attribute;
 mod methodinfo;
+mod types;
 
+pub use attribute::{
+	Annotation, Attribute, AttributeTag, AttributeType, BootstrapMethod, CodeException, ElementTag,
+	ElementValue, ElementValuePair, InnerClass, LineNumber, LocalVariable, MethodParameter,
+	StackMapFrame, VerificationTypeInfo,
+};
 pub use classfile::ClassFile;
 pub use constant_pool::{ConstantPool, ConstantPoolTag, ConstantPoolValueInfo};
-pub use types::*;
-pub use methodinfo::MethodInfo;
 pub use fieldinfo::FieldInfo;
-pub use attribute::Attribute;
+pub use methodinfo::MethodInfo;
+pub use types::*;
