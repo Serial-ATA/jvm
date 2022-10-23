@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use classfile::{ConstantPool, u1};
 use instructions::{DefaultStack, OpCode, StackLike};
 use class_parser::JavaReadExt;
@@ -189,8 +190,30 @@ impl<'a> Interpreter<'a> {
                 OpCode::lxor => {}
                 OpCode::iinc => {}
                 OpCode::lcmp => {}
-                OpCode::fcmpl => {}
-                OpCode::fcmpg => {}
+                OpCode::fcmpl | OpCode::fcmpg => {
+                    // Both value1 and value2 must be of type float.
+                    // The values are popped from the operand stack and a floating-point comparison is performed:
+                    let lhs = self.stack.pop();
+                    let rhs = self.stack.pop();
+
+                    match lhs.partial_cmp(&rhs) {
+                        // If value1 is greater than value2, the int value 1 is pushed onto the operand stack.
+                        Some(Ordering::Greater) => self.stack.push_int(1),
+                        // Otherwise, if value1 is equal to value2, the int value 0 is pushed onto the operand stack.
+                        Some(Ordering::Equal) => self.stack.push_int(0),
+                        // Otherwise, if value1 is less than value2, the int value -1 is pushed onto the operand stack.
+                        Some(Ordering::Less) => self.stack.push_int(-1),
+                        // Otherwise, at least one of value1 or value2 is NaN.
+                        // The fcmpg instruction pushes the int value 1 onto the operand stack and the fcmpl instruction pushes the int value -1 onto the operand stack.
+                        _ => {
+                            if opcode == OpCode::fcmpg {
+                                self.stack.push_int(1);
+                            } else {
+                                self.stack.push_int(-1);
+                            }
+                        },
+                    }
+                }
                 OpCode::dcmpl => {}
                 OpCode::dcmpg => {}
                 OpCode::ifeq => {}
@@ -282,7 +305,7 @@ impl<'a> Interpreter<'a> {
                         i2b, i2c, i2s
                     }
 
-                    unimplemented!();
+                    unimplemented!("{:?}", opcode);
                 }
             }
         }

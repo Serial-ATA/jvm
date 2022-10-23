@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::ops::Neg;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -233,6 +234,18 @@ impl Operand {
 				*self = Operand::Long(*f as i64)
 			},
 			_ => panic!("Invalid operand type for `f2l` instruction: {:?}", self)
+		}
+	}
+}
+
+impl PartialOrd for Operand {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		match (self, other) {
+			(Operand::Int(lhs), Operand::Int(rhs)) => lhs.partial_cmp(rhs),
+			(Operand::Float(lhs), Operand::Float(rhs)) => lhs.partial_cmp(rhs),
+			(Operand::Double(lhs), Operand::Double(rhs)) => lhs.partial_cmp(rhs),
+			(Operand::Long(lhs), Operand::Long(rhs)) => lhs.partial_cmp(rhs),
+			_ => panic!("Invalid operand type for `cmp` instruction: {:?} cmp {:?}", self, other)
 		}
 	}
 }

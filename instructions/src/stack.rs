@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use crate::operand::Operand;
 
 pub trait StackLike {
