@@ -70,7 +70,7 @@ where
 	}
 }
 
-trait JavaReadExt: Read {
+pub trait JavaReadExt: Read {
 	fn read_u1(&mut self) -> u1 {
 		let mut buf = [0u8; 1];
 		self.read_exact(&mut buf).unwrap();

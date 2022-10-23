@@ -2,5 +2,6 @@
 members = [
     "class-parser",
     "classfile",
+    "instructions",
     "parser-test",
 ]
