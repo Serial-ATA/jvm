@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use crate::operand::Operand;
 
 pub trait StackLike {
@@ -40,18 +39,6 @@ impl DefaultStack {
 }
 
 impl StackLike for DefaultStack {
-	fn pop(&mut self) -> Operand {
-		match self.inner.pop() {
-			Some(op) => op,
-			_ => panic!("Stack underflow error!")
-		}
-	}
-
-	fn pop2(&mut self) {
-		self.inner.pop();
-		self.inner.pop();
-	}
-
 	fn push_op(&mut self, op: Operand) {
 		self.inner.push(op);
 	}
@@ -70,6 +57,18 @@ impl StackLike for DefaultStack {
 
 	fn push_long(&mut self, long: i64) {
 		self.inner.push(Operand::Long(long));
+	}
+
+	fn pop(&mut self) -> Operand {
+		match self.inner.pop() {
+			Some(op) => op,
+			_ => panic!("Stack underflow error!")
+		}
+	}
+
+	fn pop2(&mut self) {
+		self.inner.pop();
+		self.inner.pop();
 	}
 
 	fn pop_int(&mut self) -> i32 {
