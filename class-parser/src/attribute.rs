@@ -290,7 +290,6 @@ where
 	local_variable_table
 }
 
-#[rustfmt::skip]
 fn read_attribute_runtime_annotations<R>(reader: &mut R) -> Vec<Annotation>
     where
         R: Read,
@@ -327,39 +326,22 @@ where
 	}
 }
 
+#[rustfmt::skip]
 fn read_element_value<R>(reader: &mut R, tag: ElementTag) -> ElementValue
 where
 	R: Read,
 {
 	match tag {
 		// The const_value_index item is used if the tag item is one of B, C, D, F, I, J, S, Z, or s.
-		ElementTag::Byte => ElementValue::Byte {
-			const_value_index: reader.read_u2(),
-		},
-		ElementTag::Char => ElementValue::Char {
-			const_value_index: reader.read_u2(),
-		},
-		ElementTag::Double => ElementValue::Double {
-			const_value_index: reader.read_u2(),
-		},
-		ElementTag::Float => ElementValue::Float {
-			const_value_index: reader.read_u2(),
-		},
-		ElementTag::Int => ElementValue::Int {
-			const_value_index: reader.read_u2(),
-		},
-		ElementTag::Long => ElementValue::Long {
-			const_value_index: reader.read_u2(),
-		},
-		ElementTag::Short => ElementValue::Short {
-			const_value_index: reader.read_u2(),
-		},
-		ElementTag::Boolean => ElementValue::Boolean {
-			const_value_index: reader.read_u2(),
-		},
-		ElementTag::String => ElementValue::String {
-			const_value_index: reader.read_u2(),
-		},
+		ElementTag::Byte    => ElementValue::Byte    { const_value_index: reader.read_u2() },
+		ElementTag::Char    => ElementValue::Char    { const_value_index: reader.read_u2() },
+		ElementTag::Double  => ElementValue::Double  { const_value_index: reader.read_u2() },
+		ElementTag::Float   => ElementValue::Float   { const_value_index: reader.read_u2() },
+		ElementTag::Int     => ElementValue::Int     { const_value_index: reader.read_u2() },
+		ElementTag::Long    => ElementValue::Long    { const_value_index: reader.read_u2() },
+		ElementTag::Short   => ElementValue::Short   { const_value_index: reader.read_u2() },
+		ElementTag::Boolean => ElementValue::Boolean { const_value_index: reader.read_u2() },
+		ElementTag::String  => ElementValue::String  { const_value_index: reader.read_u2() },
 
 		// The enum_const_value item is used if the tag item is e.
 		ElementTag::Enum => ElementValue::Enum {
