@@ -1,3 +1,5 @@
+use std::ops::Neg;
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Operand {
 	Constm1,
@@ -18,6 +20,72 @@ pub enum Operand {
 }
 
 impl Operand {
+	/// Add rhs to self
+	pub fn add(&mut self, rhs: Operand) {
+		match (&self, rhs) {
+			(Operand::Int(lhs), Operand::Int(rhs)) => *self = Operand::Int(lhs.overflowing_add(rhs).0),
+			(Operand::Long(lhs), Operand::Long(rhs)) => *self = Operand::Long(lhs.overflowing_add(rhs).0),
+			(Operand::Float(lhs), Operand::Float(rhs)) => *self = Operand::Float(lhs + rhs),
+			(Operand::Double(lhs), Operand::Double(rhs)) => *self = Operand::Double(lhs + rhs),
+			_ => panic!("Invalid operand type for `add` instruction")
+		}
+	}
+
+	/// Subtract rhs from self
+	pub fn sub(&mut self, rhs: Operand) {
+		match (&self, rhs) {
+			(Operand::Int(lhs), Operand::Int(rhs)) => *self = Operand::Int(lhs.overflowing_sub(rhs).0),
+			(Operand::Long(lhs), Operand::Long(rhs)) => *self = Operand::Long(lhs.overflowing_sub(rhs).0),
+			(Operand::Float(lhs), Operand::Float(rhs)) => *self = Operand::Float(lhs - rhs),
+			(Operand::Double(lhs), Operand::Double(rhs)) => *self = Operand::Double(lhs - rhs),
+			_ => panic!("Invalid operand type for `sub` instruction")
+		}
+	}
+
+	/// Multiply self by rhs
+	pub fn mul(&mut self, rhs: Operand) {
+		match (&self, rhs) {
+			(Operand::Int(lhs), Operand::Int(rhs)) => *self = Operand::Int(lhs.overflowing_mul(rhs).0),
+			(Operand::Long(lhs), Operand::Long(rhs)) => *self = Operand::Long(lhs.overflowing_mul(rhs).0),
+			(Operand::Float(lhs), Operand::Float(rhs)) => *self = Operand::Float(lhs * rhs),
+			(Operand::Double(lhs), Operand::Double(rhs)) => *self = Operand::Double(lhs * rhs),
+			_ => panic!("Invalid operand type for `mul` instruction")
+		}
+	}
+
+	/// Divide self by rhs
+	pub fn div(&mut self, rhs: Operand) {
+		match (&self, rhs) {
+			(Operand::Int(lhs), Operand::Int(rhs)) => *self = Operand::Int(lhs.overflowing_div(rhs).0),
+			(Operand::Long(lhs), Operand::Long(rhs)) => *self = Operand::Long(lhs.overflowing_div(rhs).0),
+			(Operand::Float(lhs), Operand::Float(rhs)) => *self = Operand::Float(lhs / rhs),
+			(Operand::Double(lhs), Operand::Double(rhs)) => *self = Operand::Double(lhs / rhs),
+			_ => panic!("Invalid operand type for `div` instruction")
+		}
+	}
+
+	/// Remainder of self / rhs
+	pub fn rem(&mut self, rhs: Operand) {
+		match (&self, rhs) {
+			(Operand::Int(lhs), Operand::Int(rhs)) => *self = Operand::Int(lhs.overflowing_rem(rhs).0),
+			(Operand::Long(lhs), Operand::Long(rhs)) => *self = Operand::Long(lhs.overflowing_rem(rhs).0),
+			(Operand::Float(lhs), Operand::Float(rhs)) => *self = Operand::Float(lhs / rhs),
+			(Operand::Double(lhs), Operand::Double(rhs)) => *self = Operand::Double(lhs / rhs),
+			_ => panic!("Invalid operand type for `rem` instruction")
+		}
+	}
+
+	/// Negates self
+	pub fn neg(&mut self) {
+		match &self {
+			Operand::Int(lhs) => *self = Operand::Int(lhs.neg()),
+			Operand::Long(lhs) => *self = Operand::Long(lhs.neg()),
+			Operand::Float(lhs) => *self = Operand::Float(lhs.neg()),
+			Operand::Double(lhs) => *self = Operand::Double(lhs.neg()),
+			_ => panic!("Invalid operand type for `neg` instruction")
+		}
+	}
+
 	/// Convert int to byte
 	pub fn i2b(&mut self) {
 		match self {

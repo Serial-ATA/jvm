@@ -9,7 +9,7 @@ macro_rules! push_const {
                 $(
                     $(
                         OpCode:: [<$instruction _ $value>] => {
-                            let mut val = $stack.push_op(instructions::Operand:: [<Const $value>]);
+                            $stack.push_op(instructions::Operand:: [<Const $value>]);
                             continue;
                         }
                     ),+
@@ -25,11 +25,36 @@ macro_rules! stack_operations {
         match $opcode {
             $(
                 OpCode::$instruction => {
-                    let mut val = $stack.$instruction();
+                    $stack.$instruction();
                     continue;
                 }
             ),+
             _ => {}
+        }
+    }
+}
+
+macro_rules! arithmetic {
+    (
+        STACK: $stack:expr,
+        OPCODE: $opcode:ident,
+        $($type:ident => [$($instruction:ident),+]),+
+    ) => {
+        paste::paste! {
+            match $opcode {
+                $(
+                    $(
+                        OpCode:: [<$type $instruction>] => {
+                            let mut val = $stack.pop();
+                            let rhs = $stack.pop();
+                            val.$instruction(rhs);
+                            $stack.push_op(val);
+                            continue;
+                        }
+                    ),+
+                )+
+                _ => {}
+            }
         }
     }
 }
@@ -144,30 +169,12 @@ impl<'a> Interpreter<'a> {
                 OpCode::bastore => {}
                 OpCode::castore => {}
                 OpCode::sastore => {}
-                OpCode::iadd => {}
-                OpCode::ladd => {}
-                OpCode::fadd => {}
-                OpCode::dadd => {}
-                OpCode::isub => {}
-                OpCode::lsub => {}
-                OpCode::fsub => {}
-                OpCode::dsub => {}
-                OpCode::imul => {}
-                OpCode::lmul => {}
-                OpCode::fmul => {}
-                OpCode::dmul => {}
-                OpCode::idiv => {}
-                OpCode::ldiv => {}
-                OpCode::fdiv => {}
-                OpCode::ddiv => {}
-                OpCode::irem => {}
-                OpCode::lrem => {}
-                OpCode::frem => {}
-                OpCode::drem => {}
-                OpCode::ineg => {}
-                OpCode::lneg => {}
-                OpCode::fneg => {}
-                OpCode::dneg => {}
+                OpCode::ineg | OpCode::lneg | OpCode::fneg | OpCode::dneg => {
+                    let mut val = self.stack.pop();
+                    val.neg();
+                    self.stack.push_op(val);
+                    continue;
+                }
                 OpCode::ishl => {}
                 OpCode::lshl => {}
                 OpCode::ishr => {}
@@ -254,6 +261,15 @@ impl<'a> Interpreter<'a> {
                         dup, dup_x1, dup_x2,
                         dup2, dup2_x1, dup2_x2,
                         swap
+                    }
+
+                    arithmetic! {
+                        STACK: self.stack,
+                        OPCODE: opcode,
+                        i => [add, sub, mul, div, rem],
+                        l => [add, sub, mul, div, rem],
+                        f => [add, sub, mul, div, rem],
+                        d => [add, sub, mul, div, rem]
                     }
 
                     conversion_instructions! {
