@@ -1,0 +1,12 @@
+[package]
+name = "runtime"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+class-parser = { path = "../class-parser" }
+classfile = { path = "../classfile" }
+instructions = { path = "../instructions" }
+paste = "1.0.9"
