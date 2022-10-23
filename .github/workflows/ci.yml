@@ -51,7 +51,7 @@ jobs:
           toolchain: nightly
           override: true
       - run: rustup component add clippy
-      - run: cargo clippy --all-features -- -Dclippy::all -Dclippy::pedantic
+      - run: cargo clippy --all-features
   style:
     name: Style
     runs-on: ubuntu-latest

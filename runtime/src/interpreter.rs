@@ -1,7 +1,7 @@
-use std::cmp::Ordering;
-use classfile::{ConstantPool, u1};
-use instructions::{DefaultStack, OpCode, StackLike};
 use class_parser::JavaReadExt;
+use classfile::{u1, ConstantPool, ConstantPoolValueInfo};
+use instructions::{DefaultStack, OpCode, StackLike};
+use std::cmp::Ordering;
 
 macro_rules! push_const {
     (STACK: $stack:expr, OPCODE: $opcode:ident, $($instruction:ident: [$($value:tt),+]),+) => {
@@ -77,25 +77,28 @@ macro_rules! conversion_instructions {
 }
 
 pub struct Interpreter<'a> {
-    stack: DefaultStack,
-    constant_pool: &'a ConstantPool,
-    code: &'a [u1],
+	stack: DefaultStack,
+	constant_pool: &'a ConstantPool,
+	code: &'a [u1],
 }
 
 impl<'a> Interpreter<'a> {
-    pub fn new(stack_size: usize, pool: &'a ConstantPool, code: &'a [u1]) -> Self {
-        Self {
-            stack: DefaultStack::new(stack_size),
-            constant_pool: pool,
-            code,
-        }
-    }
+	pub fn new(stack_size: usize, pool: &'a ConstantPool, code: &'a [u1]) -> Self {
+		Self {
+			stack: DefaultStack::new(stack_size),
+			constant_pool: pool,
+			code,
+		}
+	}
 
-    pub fn run(&mut self) {
+    #[rustfmt::skip]
+	pub fn run(&mut self) {
         let code_reader = &mut self.code;
 
         loop {
             let opcode = OpCode::from(code_reader.read_u1());
+
+            if opcode == OpCode::nop { continue }
 
             push_const! {
                 STACK: self.stack,
@@ -135,12 +138,10 @@ impl<'a> Interpreter<'a> {
             }
 
             match opcode {
-                OpCode::nop => {}
                 OpCode::ineg | OpCode::lneg | OpCode::fneg | OpCode::dneg => {
                     let mut val = self.stack.pop();
                     val.neg();
                     self.stack.push_op(val);
-                    continue;
                 }
                 OpCode::fcmpl | OpCode::fcmpg => {
                     // Both value1 and value2 must be of type float.

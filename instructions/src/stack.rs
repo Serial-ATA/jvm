@@ -27,13 +27,13 @@ pub trait StackLike {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DefaultStack {
-	inner: Vec<Operand>
+	inner: Vec<Operand>,
 }
 
 impl DefaultStack {
 	pub fn new(capacity: usize) -> Self {
 		Self {
-			inner: Vec::with_capacity(capacity)
+			inner: Vec::with_capacity(capacity),
 		}
 	}
 }
@@ -62,7 +62,7 @@ impl StackLike for DefaultStack {
 	fn pop(&mut self) -> Operand {
 		match self.inner.pop() {
 			Some(op) => op,
-			_ => panic!("Stack underflow error!")
+			_ => panic!("Stack underflow error!"),
 		}
 	}
 
@@ -82,7 +82,7 @@ impl StackLike for DefaultStack {
 			Operand::Const4 => 4,
 			Operand::Const5 => 5,
 			Operand::Int(int) => int,
-			_ => panic!("Unexpected operand type, wanted `int` got {:?}", op)
+			_ => panic!("Unexpected operand type, wanted `int` got {:?}", op),
 		}
 	}
 
@@ -97,7 +97,7 @@ impl StackLike for DefaultStack {
 			Operand::Const4 => 4.0,
 			Operand::Const5 => 5.0,
 			Operand::Float(float) => float,
-			_ => panic!("Unexpected operand type, wanted `float` got {:?}", op)
+			_ => panic!("Unexpected operand type, wanted `float` got {:?}", op),
 		}
 	}
 
@@ -112,7 +112,7 @@ impl StackLike for DefaultStack {
 			Operand::Const4 => 4.0,
 			Operand::Const5 => 5.0,
 			Operand::Double(double) => double,
-			_ => panic!("Unexpected operand type, wanted `double` got {:?}", op)
+			_ => panic!("Unexpected operand type, wanted `double` got {:?}", op),
 		}
 	}
 
@@ -127,7 +127,7 @@ impl StackLike for DefaultStack {
 			Operand::Const4 => 4,
 			Operand::Const5 => 5,
 			Operand::Long(long) => long,
-			_ => panic!("Unexpected operand type, wanted `long` got {:?}", op)
+			_ => panic!("Unexpected operand type, wanted `long` got {:?}", op),
 		}
 	}
 
