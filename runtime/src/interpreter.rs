@@ -1,6 +1,6 @@
 use class_parser::JavaReadExt;
-use classfile::{u1, ConstantPool, ConstantPoolValueInfo};
-use instructions::{DefaultStack, OpCode, StackLike};
+use classfile::{u1, ConstantPool};
+use instructions::{DefaultStack, OpCode, Operand, StackLike};
 use std::cmp::Ordering;
 
 macro_rules! push_const {
@@ -96,7 +96,12 @@ impl<'a> Interpreter<'a> {
         let code_reader = &mut self.code;
 
         loop {
+            // The opcodes are broken into sections as defined here:
+            // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-7.html
+            
             let opcode = OpCode::from(code_reader.read_u1());
+
+            // ========= Constants =========
 
             if opcode == OpCode::nop { continue }
 
@@ -109,6 +114,26 @@ impl<'a> Interpreter<'a> {
                 dconst: [0, 1]
             }
 
+            match opcode {
+                OpCode::bipush => {
+                    self.stack.push_op(Operand::Byte(code_reader.read_u1() as i8));
+                    continue;
+                },
+                OpCode::sipush => {
+                    self.stack.push_op(Operand::Short(code_reader.read_u2() as i16));
+                    continue;
+                },
+                _ => {}
+            }
+
+            // ========= Loads =========
+            // TODO
+
+            // ========= Stores =========
+            // TODO
+
+            // ========= Stack =========
+
             stack_operations! {
                 STACK: self.stack,
                 OPCODE: opcode,
@@ -118,6 +143,9 @@ impl<'a> Interpreter<'a> {
                 swap
             }
 
+            // ========= Math =========
+            // TODO: shl, ushr, and, or, xor, inc
+
             arithmetic! {
                 STACK: self.stack,
                 OPCODE: opcode,
@@ -126,6 +154,16 @@ impl<'a> Interpreter<'a> {
                 f => [add, sub, mul, div, rem],
                 d => [add, sub, mul, div, rem]
             }
+
+            if let OpCode::ineg | OpCode::lneg | OpCode::fneg | OpCode::dneg = opcode {
+                let mut val = self.stack.pop();
+                val.neg();
+                self.stack.push_op(val);
+
+                continue;
+            }
+
+            // ========= Conversions =========
 
             conversion_instructions! {
                 STACK: self.stack,
@@ -137,12 +175,12 @@ impl<'a> Interpreter<'a> {
                 i2b, i2c, i2s
             }
 
+            // ========= Comparisons =========
+            // TODO: lcmp, dcmpl, dcmpg, ifeq, ifne, iflt, ifgt,
+            //       ifle, if_icmpeq, if_icmpne, if_icmplt, if_icmpge,
+            //       if_icmpgt, if_icmple, if_acmpeq, if_acmpne
+            
             match opcode {
-                OpCode::ineg | OpCode::lneg | OpCode::fneg | OpCode::dneg => {
-                    let mut val = self.stack.pop();
-                    val.neg();
-                    self.stack.push_op(val);
-                }
                 OpCode::fcmpl | OpCode::fcmpg => {
                     // Both value1 and value2 must be of type float.
                     // The values are popped from the operand stack and a floating-point comparison is performed:
@@ -166,10 +204,29 @@ impl<'a> Interpreter<'a> {
                             }
                         },
                     }
-                }
-                OpCode::r#return => return,
-                _ => unimplemented!("{:?}", opcode)
+                },
+                _ => {}
             }
+
+            // ========= References =========
+            // TODO
+
+            // ========= Control =========
+            // TODO: goto, jsr, ret, tableswitch, lookupswitch,
+            //       ireturn, lreturn, freturn, dreturn, areturn
+
+            match opcode {
+                OpCode::r#return => return,
+                _ => {}
+            }
+
+            // ========= Extended =========
+            // TODO
+
+            // ========= Reserved =========
+            // TODO
+
+            unimplemented!("{:?}", opcode)
         }
     }
 }
