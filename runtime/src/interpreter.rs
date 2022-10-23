@@ -80,6 +80,7 @@ pub struct Interpreter<'a> {
 	stack: DefaultStack,
 	constant_pool: &'a ConstantPool,
 	code: &'a [u1],
+    widen: bool,
 }
 
 impl<'a> Interpreter<'a> {
@@ -88,6 +89,7 @@ impl<'a> Interpreter<'a> {
 			stack: DefaultStack::new(stack_size),
 			constant_pool: pool,
 			code,
+            widen: false,
 		}
 	}
 
@@ -209,7 +211,11 @@ impl<'a> Interpreter<'a> {
             }
 
             // ========= References =========
-            // TODO
+            // TODO: getstatic, putstatic, getfield, putfield,
+            //       invokevirtual, invokespecial, invokestatic,
+            //       invokeinterface, invokedynamic, new, newarray,
+            //       anewarray, arraylength, athrow, checkcast, instanceof,
+            //       monitorenter, monitorexit
 
             // ========= Control =========
             // TODO: goto, jsr, ret, tableswitch, lookupswitch,
@@ -221,10 +227,15 @@ impl<'a> Interpreter<'a> {
             }
 
             // ========= Extended =========
-            // TODO
+            // TODO: multianewarray, ifnull, ifnonnull,
+            //       goto_w, jsr_w
+
+            if opcode == OpCode::wide {
+                self.widen = true;
+            }
 
             // ========= Reserved =========
-            // TODO
+            // TODO: breakpoint, impdep1, impdep2
 
             unimplemented!("{:?}", opcode)
         }
