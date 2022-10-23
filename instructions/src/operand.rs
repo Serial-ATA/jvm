@@ -1,6 +1,6 @@
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Operand {
-	ConstM1,
+	Constm1,
 	Const0,
 	Const1,
 	Const2,

@@ -1,11 +1,14 @@
 use crate::operand::Operand;
 
 pub trait StackLike {
+	fn push_op(&mut self, op: Operand);
 	fn push_int(&mut self, int: i32);
 	fn push_float(&mut self, float: f32);
 	fn push_double(&mut self, double: f64);
 	fn push_long(&mut self, long: i64);
 
+	fn pop(&mut self) -> Operand;
+	fn pop2(&mut self);
 	fn pop_int(&mut self) -> i32;
 	fn pop_float(&mut self) -> f32;
 	fn pop_double(&mut self) -> f64;
@@ -28,15 +31,30 @@ pub struct DefaultStack {
 }
 
 impl DefaultStack {
-	pub fn pop(&mut self) -> Operand {
-		match self.inner.pop() {
-			Some(op) => op,
-			_ => panic!("Stack underflow error!")
+	pub fn new(capacity: usize) -> Self {
+		Self {
+			inner: Vec::with_capacity(capacity)
 		}
 	}
 }
 
 impl StackLike for DefaultStack {
+	fn pop(&mut self) -> Operand {
+		match self.inner.pop() {
+			Some(op) => op,
+			_ => panic!("Stack underflow error!")
+		}
+	}
+
+	fn pop2(&mut self) {
+		self.inner.pop();
+		self.inner.pop();
+	}
+
+	fn push_op(&mut self, op: Operand) {
+		self.inner.push(op);
+	}
+
 	fn push_int(&mut self, int: i32) {
 		self.inner.push(Operand::Int(int));
 	}
@@ -56,7 +74,7 @@ impl StackLike for DefaultStack {
 	fn pop_int(&mut self) -> i32 {
 		let op = self.pop();
 		match op {
-			Operand::ConstM1 => -1,
+			Operand::Constm1 => -1,
 			Operand::Const0 => 0,
 			Operand::Const1 => 1,
 			Operand::Const2 => 2,
@@ -71,7 +89,7 @@ impl StackLike for DefaultStack {
 	fn pop_float(&mut self) -> f32 {
 		let op = self.pop();
 		match op {
-			Operand::ConstM1 => -1.0,
+			Operand::Constm1 => -1.0,
 			Operand::Const0 => 0.0,
 			Operand::Const1 => 1.0,
 			Operand::Const2 => 2.0,
@@ -86,7 +104,7 @@ impl StackLike for DefaultStack {
 	fn pop_double(&mut self) -> f64 {
 		let op = self.pop();
 		match op {
-			Operand::ConstM1 => -1.0,
+			Operand::Constm1 => -1.0,
 			Operand::Const0 => 0.0,
 			Operand::Const1 => 1.0,
 			Operand::Const2 => 2.0,
@@ -101,7 +119,7 @@ impl StackLike for DefaultStack {
 	fn pop_long(&mut self) -> i64 {
 		let op = self.pop();
 		match op {
-			Operand::ConstM1 => -1,
+			Operand::Constm1 => -1,
 			Operand::Const0 => 0,
 			Operand::Const1 => 1,
 			Operand::Const2 => 2,
