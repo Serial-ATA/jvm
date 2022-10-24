@@ -1,6 +1,6 @@
+use crate::frame::Frame;
 use class_parser::JavaReadExt;
-use classfile::{u1, ConstantPool};
-use instructions::{DefaultStack, OpCode, Operand, StackLike};
+use instructions::{OpCode, Operand, StackLike};
 use std::cmp::Ordering;
 
 macro_rules! push_const {
@@ -77,30 +77,26 @@ macro_rules! conversion_instructions {
 }
 
 pub struct Interpreter<'a> {
-	stack: DefaultStack,
-	constant_pool: &'a ConstantPool,
-	code: &'a [u1],
-    widen: bool,
+	frame: Frame<'a>,
+	widen: bool,
 }
 
 impl<'a> Interpreter<'a> {
-	pub fn new(stack_size: usize, pool: &'a ConstantPool, code: &'a [u1]) -> Self {
+	pub fn new(frame: Frame<'a>) -> Self {
 		Self {
-			stack: DefaultStack::new(stack_size),
-			constant_pool: pool,
-			code,
-            widen: false,
+			frame,
+			widen: false,
 		}
 	}
 
     #[rustfmt::skip]
 	pub fn run(&mut self) {
-        let code_reader = &mut self.code;
+        let code_reader = &mut self.frame.code;
 
         loop {
             // The opcodes are broken into sections as defined here:
             // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-7.html
-            
+
             let opcode = OpCode::from(code_reader.read_u1());
 
             // ========= Constants =========
@@ -108,7 +104,7 @@ impl<'a> Interpreter<'a> {
             if opcode == OpCode::nop { continue }
 
             push_const! {
-                STACK: self.stack,
+                STACK: self.frame.stack,
                 OPCODE: opcode,
                 iconst: [m1, 0, 1, 2 , 3, 4, 5],
                 lconst: [0, 1],
@@ -118,11 +114,11 @@ impl<'a> Interpreter<'a> {
 
             match opcode {
                 OpCode::bipush => {
-                    self.stack.push_op(Operand::Byte(code_reader.read_u1() as i8));
+                    self.frame.stack.push_op(Operand::Byte(code_reader.read_u1() as i8));
                     continue;
                 },
                 OpCode::sipush => {
-                    self.stack.push_op(Operand::Short(code_reader.read_u2() as i16));
+                    self.frame.stack.push_op(Operand::Short(code_reader.read_u2() as i16));
                     continue;
                 },
                 _ => {}
@@ -137,7 +133,7 @@ impl<'a> Interpreter<'a> {
             // ========= Stack =========
 
             stack_operations! {
-                STACK: self.stack,
+                STACK: self.frame.stack,
                 OPCODE: opcode,
                 pop, pop2,
                 dup, dup_x1, dup_x2,
@@ -149,7 +145,7 @@ impl<'a> Interpreter<'a> {
             // TODO: shl, ushr, and, or, xor, inc
 
             arithmetic! {
-                STACK: self.stack,
+                STACK: self.frame.stack,
                 OPCODE: opcode,
                 i => [add, sub, mul, div, rem],
                 l => [add, sub, mul, div, rem],
@@ -158,9 +154,9 @@ impl<'a> Interpreter<'a> {
             }
 
             if let OpCode::ineg | OpCode::lneg | OpCode::fneg | OpCode::dneg = opcode {
-                let mut val = self.stack.pop();
+                let mut val = self.frame.stack.pop();
                 val.neg();
-                self.stack.push_op(val);
+                self.frame.stack.push_op(val);
 
                 continue;
             }
@@ -168,7 +164,7 @@ impl<'a> Interpreter<'a> {
             // ========= Conversions =========
 
             conversion_instructions! {
-                STACK: self.stack,
+                STACK: self.frame.stack,
                 OPCODE: opcode,
                 i2l, i2f, i2d,
                 l2i, l2f, l2d,
@@ -181,28 +177,28 @@ impl<'a> Interpreter<'a> {
             // TODO: lcmp, dcmpl, dcmpg, ifeq, ifne, iflt, ifgt,
             //       ifle, if_icmpeq, if_icmpne, if_icmplt, if_icmpge,
             //       if_icmpgt, if_icmple, if_acmpeq, if_acmpne
-            
+
             match opcode {
                 OpCode::fcmpl | OpCode::fcmpg => {
                     // Both value1 and value2 must be of type float.
                     // The values are popped from the operand stack and a floating-point comparison is performed:
-                    let lhs = self.stack.pop();
-                    let rhs = self.stack.pop();
+                    let lhs = self.frame.stack.pop();
+                    let rhs = self.frame.stack.pop();
 
                     match lhs.partial_cmp(&rhs) {
                         // If value1 is greater than value2, the int value 1 is pushed onto the operand stack.
-                        Some(Ordering::Greater) => self.stack.push_int(1),
+                        Some(Ordering::Greater) => self.frame.stack.push_int(1),
                         // Otherwise, if value1 is equal to value2, the int value 0 is pushed onto the operand stack.
-                        Some(Ordering::Equal) => self.stack.push_int(0),
+                        Some(Ordering::Equal) => self.frame.stack.push_int(0),
                         // Otherwise, if value1 is less than value2, the int value -1 is pushed onto the operand stack.
-                        Some(Ordering::Less) => self.stack.push_int(-1),
+                        Some(Ordering::Less) => self.frame.stack.push_int(-1),
                         // Otherwise, at least one of value1 or value2 is NaN.
                         // The fcmpg instruction pushes the int value 1 onto the operand stack and the fcmpl instruction pushes the int value -1 onto the operand stack.
                         _ => {
                             if opcode == OpCode::fcmpg {
-                                self.stack.push_int(1);
+                                self.frame.stack.push_int(1);
                             } else {
-                                self.stack.push_int(-1);
+                                self.frame.stack.push_int(-1);
                             }
                         },
                     }

@@ -291,17 +291,17 @@ where
 }
 
 fn read_attribute_runtime_annotations<R>(reader: &mut R) -> Vec<Annotation>
-    where
-        R: Read,
+where
+	R: Read,
 {
-    let num_annotations = reader.read_u2();
-    let mut annotations = Vec::with_capacity(num_annotations as usize);
+	let num_annotations = reader.read_u2();
+	let mut annotations = Vec::with_capacity(num_annotations as usize);
 
-    for _ in 0..num_annotations {
-        annotations.push(read_annotation(reader));
-    }
+	for _ in 0..num_annotations {
+		annotations.push(read_annotation(reader));
+	}
 
-    annotations
+	annotations
 }
 
 fn read_annotation<R>(reader: &mut R) -> Annotation

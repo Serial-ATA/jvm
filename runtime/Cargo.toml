@@ -10,3 +10,4 @@ class-parser = { path = "../class-parser" }
 classfile = { path = "../classfile" }
 instructions = { path = "../instructions" }
 paste = "1.0.9"
+once_cell = "1.15.0"
