@@ -76,6 +76,33 @@ macro_rules! conversion_instructions {
     }
 }
 
+macro_rules! comparisons {
+    (
+        STACK: $stack:expr,
+        OPCODE: $opcode:ident,
+        FRAME: $frame:expr,
+        [$($instruction:ident: $operator:tt),+]
+    ) => {
+        match $opcode {
+            $(
+                OpCode::$instruction => {
+                    let rhs = $stack.pop_int();
+                    let lhs = $stack.pop_int();
+
+                    if lhs $operator rhs {
+                        todo!();
+                    } else {
+                        let _ = $frame.pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
+                    }
+
+                    continue;
+                }
+            ),+
+            _ => {}
+        }
+    }
+}
+
 pub struct Interpreter<'a> {
 	frame: Frame<'a>,
 	widen: bool,
@@ -91,13 +118,11 @@ impl<'a> Interpreter<'a> {
 
     #[rustfmt::skip]
 	pub fn run(&mut self) {
-        let code_reader = &mut self.frame.code;
-
         loop {
             // The opcodes are broken into sections as defined here:
             // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-7.html
 
-            let opcode = OpCode::from(code_reader.read_u1());
+            let opcode = OpCode::from(self.frame.read_byte());
 
             // ========= Constants =========
 
@@ -114,11 +139,13 @@ impl<'a> Interpreter<'a> {
 
             match opcode {
                 OpCode::bipush => {
-                    self.frame.stack.push_op(Operand::Byte(code_reader.read_u1() as i8));
+                    let byte = self.frame.read_byte() as i8;
+                    self.frame.stack.push_op(Operand::Byte(byte));
                     continue;
                 },
                 OpCode::sipush => {
-                    self.frame.stack.push_op(Operand::Short(code_reader.read_u2() as i16));
+                    let short = self.frame.read_byte2() as i16;
+                    self.frame.stack.push_op(Operand::Short(short));
                     continue;
                 },
                 _ => {}
@@ -174,9 +201,27 @@ impl<'a> Interpreter<'a> {
             }
 
             // ========= Comparisons =========
-            // TODO: lcmp, dcmpl, dcmpg, ifeq, ifne, iflt, ifgt,
-            //       ifle, if_icmpeq, if_icmpne, if_icmplt, if_icmpge,
-            //       if_icmpgt, if_icmple, if_acmpeq, if_acmpne
+            // TODO: lcmp, dcmpl, dcmpg, if_acmpeq, if_acmpne
+
+            comparisons! {
+                STACK: self.frame.stack,
+                OPCODE: opcode,
+                FRAME: self.frame,
+                [
+                    ifeq: ==,
+                    ifne: !=,
+                    iflt: <,
+                    ifge: >=,
+                    ifgt: >,
+                    ifle: <=,
+                    if_icmpeq: ==,
+                    if_icmpne: !=,
+                    if_icmplt: <,
+                    if_icmpge: >=,
+                    if_icmpgt: >,
+                    if_icmple: <=
+                ]
+            }
 
             match opcode {
                 OpCode::fcmpl | OpCode::fcmpg => {
