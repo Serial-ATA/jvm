@@ -81,26 +81,50 @@ macro_rules! comparisons {
         STACK: $stack:expr,
         OPCODE: $opcode:ident,
         FRAME: $frame:expr,
-        [$($instruction:ident: $operator:tt),+]
+        [$($instruction:ident: $operator:tt $((RHS = $rhs:literal))?),+]
     ) => {
         match $opcode {
             $(
                 OpCode::$instruction => {
-                    let rhs = $stack.pop_int();
-                    let lhs = $stack.pop_int();
-
-                    if lhs $operator rhs {
-                        todo!();
-                    } else {
-                        let _ = $frame.pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
+                    comparisons! {
+                        @CREATE_BODY
+                        $stack, $frame,
+                        $instruction: $operator $($rhs)?
                     }
-
-                    continue;
                 }
             ),+
             _ => {}
         }
-    }
+    };
+    (
+        @CREATE_BODY
+        $stack:expr,
+        $frame:expr,
+        $instruction:ident: $operator:tt $rhs:literal
+    ) => {{
+        let lhs = $stack.pop_int();
+
+        if lhs $operator $rhs {
+            todo!();
+        } else {
+            let _ = $frame.pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
+        }
+    }};
+    (
+        @CREATE_BODY
+        $stack:expr,
+        $frame:expr,
+        $instruction:ident: $operator:tt
+    ) => {{
+        let rhs = $stack.pop_int();
+        let lhs = $stack.pop_int();
+
+        if lhs $operator rhs {
+            todo!();
+        } else {
+            let _ = $frame.pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
+        }
+    }}
 }
 
 pub struct Interpreter<'a> {
@@ -208,12 +232,12 @@ impl<'a> Interpreter<'a> {
                 OPCODE: opcode,
                 FRAME: self.frame,
                 [
-                    ifeq: ==,
-                    ifne: !=,
-                    iflt: <,
-                    ifge: >=,
-                    ifgt: >,
-                    ifle: <=,
+                    ifeq: == (RHS = 0),
+                    ifne: != (RHS = 0),
+                    iflt: <  (RHS = 0),
+                    ifge: >= (RHS = 0),
+                    ifgt: >  (RHS = 0),
+                    ifle: <= (RHS = 0),
                     if_icmpeq: ==,
                     if_icmpne: !=,
                     if_icmplt: <,
