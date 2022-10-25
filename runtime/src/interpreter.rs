@@ -2,6 +2,8 @@ use crate::frame::Frame;
 use class_parser::JavaReadExt;
 use instructions::{OpCode, Operand, StackLike};
 use std::cmp::Ordering;
+use std::sync::atomic::Ordering as MemOrdering;
+use classfile::u4;
 
 macro_rules! push_const {
     (STACK: $stack:expr, OPCODE: $opcode:ident, $($instruction:ident: [$($value:tt),+]),+) => {
@@ -283,20 +285,37 @@ impl<'a> Interpreter<'a> {
             //       monitorenter, monitorexit
 
             // ========= Control =========
-            // TODO: goto, jsr, ret, tableswitch, lookupswitch,
+            // TODO: jsr, ret, tableswitch, lookupswitch,
             //       ireturn, lreturn, freturn, dreturn, areturn
 
             match opcode {
+                OpCode::goto => {
+                    let address = self.frame.read_byte2();
+                    let _ = self.frame.pc.fetch_add(address as usize, MemOrdering::Relaxed);
+
+                    continue;
+                },
                 OpCode::r#return => return,
                 _ => {}
             }
 
             // ========= Extended =========
             // TODO: multianewarray, ifnull, ifnonnull,
-            //       goto_w, jsr_w
+            //       jsr_w
 
-            if opcode == OpCode::wide {
-                self.widen = true;
+            match opcode {
+                OpCode::wide => {
+                    self.widen = true;
+                    continue;
+                },
+                OpCode::goto_w => {
+                    let address = self.frame.read_byte4();
+                    assert!(address <= u4::from(u16::MAX), "goto_w offset too large!");
+
+                    let _ = self.frame.pc.fetch_add(address as usize, MemOrdering::Relaxed);
+                    continue;
+                },
+                _ => {}
             }
 
             // ========= Reserved =========

@@ -14,7 +14,9 @@ pub enum Operand {
 	Float(f32),
 	Double(f64),
 	Long(i64),
-	Empty, // Used by local variable stack
+	// Used by local variable stack, both as the initial value and
+	// for storing longs/doubles since those are expected to take up two indices according to spec
+	Empty,
 	// TODO: References
 }
 
@@ -118,7 +120,7 @@ impl Operand {
 	/// Convert int to char
 	pub fn i2c(&mut self) {
 		match self {
-			Operand::Int(i) => *self = Operand::Int(*i as u16 as i32),
+			Operand::Int(i) => *self = Operand::Int(i32::from(*i as u16)),
 			_ => panic!("Invalid operand type for `i2c` instruction: {:?}", self),
 		}
 	}

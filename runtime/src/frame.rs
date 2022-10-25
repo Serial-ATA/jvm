@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
-use classfile::{u1, ConstantPool, u2};
+use classfile::{u1, ConstantPool, u2, u4};
 use instructions::{LocalStack, OperandStack};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6
@@ -42,5 +42,14 @@ impl<'a> Frame<'a> {
         let b2 = u2::from(self.read_byte());
 
         b1 << 8 | b2
+    }
+
+    pub fn read_byte4(&mut self) -> u4 {
+        let b1 = u4::from(self.read_byte());
+        let b2 = u4::from(self.read_byte());
+        let b3 = u4::from(self.read_byte());
+        let b4 = u4::from(self.read_byte());
+
+        b1 << 24 | b2 << 16 | b3 << 8 | b4
     }
 }
