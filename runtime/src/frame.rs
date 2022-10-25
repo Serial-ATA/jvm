@@ -3,12 +3,21 @@ use classfile::{u1, ConstantPool, u2};
 use instructions::DefaultStack;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6
+#[rustfmt::skip]
 pub struct Frame<'a> {
+    // Each frame has:
+
 	// TODO
+    // its own array of local variables (§2.6.1)
 	// pub locals: Vec<Local>,
+    // its own operand stack (§2.6.2)
 	pub stack: DefaultStack,
+    // and a reference to the run-time constant pool (§2.5.5)
 	pub constant_pool: &'a ConstantPool,
 	pub code: &'a [u1],
+    // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
+    // Each Java Virtual Machine thread has its own pc (program counter) register [...]
+    // the pc register contains the address of the Java Virtual Machine instruction currently being executed
     pub pc: AtomicUsize, // Address of the currently executed instruction
 }
 
