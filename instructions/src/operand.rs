@@ -10,8 +10,6 @@ pub enum Operand {
 	Const3,
 	Const4,
 	Const5,
-	Byte(i8),
-	Short(i16),
 	Char(u16),
 	Int(i32),
 	Float(f32),
@@ -110,7 +108,9 @@ impl Operand {
 	/// Convert int to byte
 	pub fn i2b(&mut self) {
 		match self {
-			Operand::Int(i) => *self = Operand::Byte(*i as i8),
+			// The value on the top of the operand stack must be of type int.
+			// It is popped from the operand stack, truncated to a byte, then sign-extended to an int result.
+			Operand::Int(i) => *self = Operand::Int(i32::from(*i as i8)),
 			_ => panic!("Invalid operand type for `i2b` instruction: {:?}", self),
 		}
 	}
@@ -150,7 +150,9 @@ impl Operand {
 	/// Convert int to short
 	pub fn i2s(&mut self) {
 		match self {
-			Operand::Int(i) => *self = Operand::Short(*i as i16),
+			// The value on the top of the operand stack must be of type int.
+			// It is popped from the operand stack, truncated to a short, then sign-extended to an int result.
+			Operand::Int(i) => *self = Operand::Int(i32::from(*i as i16)),
 			_ => panic!("Invalid operand type for `i2s` instruction: {:?}", self),
 		}
 	}

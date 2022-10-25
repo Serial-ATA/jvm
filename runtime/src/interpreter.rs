@@ -164,12 +164,12 @@ impl<'a> Interpreter<'a> {
             match opcode {
                 OpCode::bipush => {
                     let byte = self.frame.read_byte() as i8;
-                    self.frame.stack.push_op(Operand::Byte(byte));
+                    self.frame.stack.push_op(Operand::Int(i32::from(byte)));
                     continue;
                 },
                 OpCode::sipush => {
                     let short = self.frame.read_byte2() as i16;
-                    self.frame.stack.push_op(Operand::Short(short));
+                    self.frame.stack.push_op(Operand::Int(i32::from(short)));
                     continue;
                 },
                 _ => {}
