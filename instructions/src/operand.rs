@@ -234,28 +234,28 @@ impl Operand {
 	pub fn expect_int(&self) -> i32 {
 		match self {
 			Operand::Int(i) => *i,
-			_ => panic!("Expected operand type `int`")
+			_ => panic!("Expected operand type `int`"),
 		}
 	}
 
 	pub fn expect_float(&self) -> f32 {
 		match self {
 			Operand::Float(f) => *f,
-			_ => panic!("Expected operand type `float`")
+			_ => panic!("Expected operand type `float`"),
 		}
 	}
 
 	pub fn expect_double(&self) -> f64 {
 		match self {
 			Operand::Double(d) => *d,
-			_ => panic!("Expected operand type `double`")
+			_ => panic!("Expected operand type `double`"),
 		}
 	}
 
 	pub fn expect_long(&self) -> i64 {
 		match self {
 			Operand::Long(l) => *l,
-			_ => panic!("Expected operand type `long`")
+			_ => panic!("Expected operand type `long`"),
 		}
 	}
 }

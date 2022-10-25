@@ -1,9 +1,9 @@
 use crate::frame::Frame;
 use class_parser::JavaReadExt;
+use classfile::u4;
 use instructions::{OpCode, Operand, StackLike};
 use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
-use classfile::u4;
 
 macro_rules! push_const {
     (STACK: $stack:expr, OPCODE: $opcode:ident, $($instruction:ident: [$($value:tt),+]),+) => {
@@ -134,6 +134,7 @@ pub struct Interpreter<'a> {
 	widen: bool,
 }
 
+#[rustfmt::skip]
 impl<'a> Interpreter<'a> {
 	pub fn new(frame: Frame<'a>) -> Self {
 		Self {
@@ -142,7 +143,6 @@ impl<'a> Interpreter<'a> {
 		}
 	}
 
-    #[rustfmt::skip]
 	pub fn run(&mut self) {
         loop {
             // The opcodes are broken into sections as defined here:

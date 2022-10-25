@@ -1,6 +1,6 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
-use classfile::{u1, ConstantPool, u2, u4};
+use classfile::{u1, u2, u4, ConstantPool};
 use instructions::{LocalStack, OperandStack};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6
 #[rustfmt::skip]
@@ -22,34 +22,39 @@ pub struct Frame<'a> {
 }
 
 impl<'a> Frame<'a> {
-	pub fn new(max_stack: usize, max_locals: usize, constant_pool: &'a ConstantPool, code: &'a [u1]) -> Self {
+	pub fn new(
+		max_stack: usize,
+		max_locals: usize,
+		constant_pool: &'a ConstantPool,
+		code: &'a [u1],
+	) -> Self {
 		Self {
-            locals: LocalStack::new(max_locals),
-            stack: OperandStack::new(max_stack),
+			locals: LocalStack::new(max_locals),
+			stack: OperandStack::new(max_stack),
 			constant_pool,
 			code,
-            pc: AtomicUsize::new(0)
+			pc: AtomicUsize::new(0),
 		}
 	}
 
-    pub fn read_byte(&mut self) -> u1 {
-        let pc = self.pc.fetch_add(1, Ordering::Relaxed);
-        self.code[pc]
-    }
+	pub fn read_byte(&mut self) -> u1 {
+		let pc = self.pc.fetch_add(1, Ordering::Relaxed);
+		self.code[pc]
+	}
 
-    pub fn read_byte2(&mut self) -> u2 {
-        let b1 = u2::from(self.read_byte());
-        let b2 = u2::from(self.read_byte());
+	pub fn read_byte2(&mut self) -> u2 {
+		let b1 = u2::from(self.read_byte());
+		let b2 = u2::from(self.read_byte());
 
-        b1 << 8 | b2
-    }
+		b1 << 8 | b2
+	}
 
-    pub fn read_byte4(&mut self) -> u4 {
-        let b1 = u4::from(self.read_byte());
-        let b2 = u4::from(self.read_byte());
-        let b3 = u4::from(self.read_byte());
-        let b4 = u4::from(self.read_byte());
+	pub fn read_byte4(&mut self) -> u4 {
+		let b1 = u4::from(self.read_byte());
+		let b2 = u4::from(self.read_byte());
+		let b3 = u4::from(self.read_byte());
+		let b4 = u4::from(self.read_byte());
 
-        b1 << 24 | b2 << 16 | b3 << 8 | b4
-    }
+		b1 << 24 | b2 << 16 | b3 << 8 | b4
+	}
 }
