@@ -25,12 +25,13 @@ pub trait StackLike {
 	fn swap(&mut self);
 }
 
+// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6.2
 #[derive(Debug, Clone, PartialEq)]
-pub struct DefaultStack {
+pub struct OperandStack {
 	inner: Vec<Operand>,
 }
 
-impl DefaultStack {
+impl OperandStack {
 	pub fn new(capacity: usize) -> Self {
 		Self {
 			inner: Vec::with_capacity(capacity),
@@ -38,7 +39,7 @@ impl DefaultStack {
 	}
 }
 
-impl StackLike for DefaultStack {
+impl StackLike for OperandStack {
 	fn push_op(&mut self, op: Operand) {
 		self.inner.push(op);
 	}

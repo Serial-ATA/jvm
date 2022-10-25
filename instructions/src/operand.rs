@@ -10,11 +10,11 @@ pub enum Operand {
 	Const3,
 	Const4,
 	Const5,
-	Char(u16),
 	Int(i32),
 	Float(f32),
 	Double(f64),
 	Long(i64),
+	Empty, // Used by local variable stack
 	// TODO: References
 }
 
@@ -118,7 +118,7 @@ impl Operand {
 	/// Convert int to char
 	pub fn i2c(&mut self) {
 		match self {
-			Operand::Int(i) => *self = Operand::Char(*i as u16),
+			Operand::Int(i) => *self = Operand::Int(*i as u16 as i32),
 			_ => panic!("Invalid operand type for `i2c` instruction: {:?}", self),
 		}
 	}
@@ -226,6 +226,34 @@ impl Operand {
 		match self {
 			Operand::Float(f) => *self = Operand::Long(*f as i64),
 			_ => panic!("Invalid operand type for `f2l` instruction: {:?}", self),
+		}
+	}
+
+	pub fn expect_int(&self) -> i32 {
+		match self {
+			Operand::Int(i) => *i,
+			_ => panic!("Expected operand type `int`")
+		}
+	}
+
+	pub fn expect_float(&self) -> f32 {
+		match self {
+			Operand::Float(f) => *f,
+			_ => panic!("Expected operand type `float`")
+		}
+	}
+
+	pub fn expect_double(&self) -> f64 {
+		match self {
+			Operand::Double(d) => *d,
+			_ => panic!("Expected operand type `double`")
+		}
+	}
+
+	pub fn expect_long(&self) -> i64 {
+		match self {
+			Operand::Long(l) => *l,
+			_ => panic!("Expected operand type `long`")
 		}
 	}
 }
