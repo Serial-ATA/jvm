@@ -32,7 +32,17 @@ impl ClassLoader {
 
         // Otherwise, the Java Virtual Machine passes the argument N to an invocation of a method on
         // the bootstrap class loader [...] and then [...] create C, via the algorithm of §5.3.5.
-        ClassLoader::Bootstrap.load_class_by_name(name)
+        let classref = ClassLoader::Bootstrap.load_class_by_name(name);
+
+        // TODO:
+        // If no purported representation of C is found, the bootstrap class loader throws a ClassNotFoundException.
+        // The process of loading and creating C then fails with a NoClassDefFoundError whose cause is the ClassNotFoundException.
+
+        // If a purported representation of C is found, but deriving C from the purported representation fails,
+        // then the process of loading and creating C fails for the same reason.
+
+        // Otherwise, the process of loading and creating C succeeds.
+        classref
     }
 
     // Deriving a Class from a class File Representation
