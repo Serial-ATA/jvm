@@ -1,7 +1,9 @@
-use crate::heap::class::ClassPtr;
+use super::field::Field;
+use super::class::ClassPtr;
 
 use std::sync::Arc;
 
+pub type FieldRef = Arc<Field>;
 pub type ClassRef = Arc<ClassPtr>;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.4

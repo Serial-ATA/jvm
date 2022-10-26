@@ -1,9 +1,11 @@
 use super::method::Method;
-use super::reference::ClassRef;
+use super::reference::{ClassRef, FieldRef};
 use crate::classpath::classloader::ClassLoader;
+use super::field::Field;
 
-use classfile::{ClassFile, ConstantPool};
+use classfile::{ClassFile, ConstantPool, FieldType};
 use common::traits::PtrType;
+use common::types::u2;
 
 pub struct Class {
 	pub name: Vec<u8>,
@@ -11,9 +13,8 @@ pub struct Class {
 	pub constant_pool: ConstantPool,
 	pub super_class: Option<ClassRef>,
 	pub methods: Vec<Method>,
+    pub fields: Vec<Field>,
 	pub loader: ClassLoader,
-	// TODO
-	// pub fields: Vec<Field>,
 }
 
 impl Class {
@@ -43,6 +44,40 @@ impl Class {
 			loader,
 		}
 	}
+
+    // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.2
+    pub fn resolve_field(&self, name_and_type_index: u2) -> Option<FieldRef> {
+        let (name_index, descriptor_index) = self.constant_pool.get_name_and_type(name_and_type_index);
+
+        let field_name = self.constant_pool.get_constant_utf8(name_index);
+        let mut descriptor = self.constant_pool.get_constant_utf8(descriptor_index);
+
+        let field_type = FieldType::parse(&mut descriptor);
+
+        // When resolving a field reference, field resolution first attempts to look up
+        // the referenced field in C and its superclasses:
+
+        // 1. If C declares a field with the name and descriptor specified by the field reference,
+        //    field lookup succeeds. The declared field is the result of the field lookup.
+        for field in self.fields {
+            if field.name == field_name && field.descriptor == field_type {
+                return Some(FieldRef::new(field));
+            }
+        }
+
+        // TODO:
+        // 2. Otherwise, field lookup is applied recursively to the direct superinterfaces of the
+        //    specified class or interface C.
+
+        // 3. Otherwise, if C has a superclass S, field lookup is applied recursively to S.
+        if let Some(super_class) = &self.super_class {
+            let super_class = super_class.get();
+            super_class.resolve_field(name_and_type_index);
+        }
+
+        // 4. Otherwise, field lookup fails.
+        return None;
+    }
 }
 
 // A pointer to a Class instance
@@ -67,6 +102,10 @@ impl PtrType<Class, ClassRef> for ClassPtr {
 	fn as_mut_raw(&self) -> *mut Class {
 		self.0 as *mut Class
 	}
+
+    fn get(&self) -> &Class {
+        unsafe { &(*self.as_raw()) }
+    }
 }
 
 impl Drop for ClassPtr {

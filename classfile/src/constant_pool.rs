@@ -38,6 +38,24 @@ impl ConstantPool {
 			_ => panic!("Expected a constant value of \"Utf8\""),
 		}
 	}
+
+	pub fn get_field_ref(&self, idx: u2) -> (u2, u2) {
+		let constant = &self[idx];
+
+		match constant {
+			ConstantPoolValueInfo::Fieldref { class_index, name_and_type_index } => (*class_index, *name_and_type_index),
+			_ => panic!("Expected a constant value of \"Fieldref\""),
+		}
+	}
+
+	pub fn get_name_and_type(&self, idx: u2) -> (u2, u2) {
+		let constant = &self[idx];
+
+		match constant {
+			ConstantPoolValueInfo::NameAndType { name_index, descriptor_index } => (*name_index, *descriptor_index),
+			_ => panic!("Expected a constant value of \"NameAndType\""),
+		}
+	}
 }
 
 impl Index<u2> for ConstantPool {
