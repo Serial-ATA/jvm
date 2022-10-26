@@ -1,7 +1,7 @@
-mod frame;
-mod interpreter;
-mod heap;
 pub mod classpath;
+mod frame;
+mod heap;
+mod interpreter;
 pub mod stack;
 
 pub use frame::Frame;

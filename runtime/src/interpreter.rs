@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
 
 use common::types::u4;
-use instructions::{OpCode, StackLike, OperandLike};
+use instructions::{OpCode, OperandLike, StackLike};
 
 macro_rules! push_const {
     (STACK: $stack:expr, OPCODE: $opcode:ident, $($instruction:ident: [$($value:tt),+]),+) => {
