@@ -3,7 +3,7 @@ mod constant_pool;
 mod fieldinfo;
 mod methodinfo;
 
-use std::io::{Read, Seek};
+use std::io::Read;
 
 use classfile::{ClassFile, ConstantPool};
 use common::traits::JavaReadExt;
@@ -11,7 +11,7 @@ use common::types::u2;
 
 pub fn parse_class<R>(reader: &mut R) -> ClassFile
 where
-	R: Read + Seek,
+	R: Read,
 {
 	let magic = reader.read_u4();
 	assert_eq!(magic, 0xCAFE_BABE, "No magic found!");
