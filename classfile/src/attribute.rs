@@ -1,4 +1,4 @@
-use crate::types::{u1, u2};
+use common::types::{u1, u2};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7
 #[derive(Debug, Clone, PartialEq)]
@@ -78,13 +78,7 @@ pub enum AttributeType {
 		constantvalue_index: u2,
 	},
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.3
-	Code {
-		max_stack: u2,
-		max_locals: u2,
-		code: Vec<u1>,
-		exception_table: Vec<CodeException>,
-		attributes: Vec<Attribute>,
-	},
+	Code(Code),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.4
 	StackMapTable {
 		entries: Vec<StackMapFrame>,
@@ -169,6 +163,15 @@ pub enum AttributeType {
 	MethodParameters {
 		parameters: Vec<MethodParameter>,
 	},
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Code {
+	pub max_stack: u2,
+	pub max_locals: u2,
+	pub code: Vec<u1>,
+	pub exception_table: Vec<CodeException>,
+	pub attributes: Vec<Attribute>,
 }
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.3

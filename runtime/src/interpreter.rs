@@ -1,9 +1,10 @@
 use crate::frame::Frame;
-use class_parser::JavaReadExt;
-use classfile::u4;
-use instructions::{OpCode, Operand, StackLike};
+
 use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
+
+use common::types::u4;
+use instructions::{OpCode, Operand, StackLike};
 
 macro_rules! push_const {
     (STACK: $stack:expr, OPCODE: $opcode:ident, $($instruction:ident: [$($value:tt),+]),+) => {

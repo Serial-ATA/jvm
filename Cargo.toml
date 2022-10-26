@@ -4,5 +4,7 @@ members = [
     "classfile",
     "instructions",
     "runtime",
+    "common",
+    "heap",
     "parser-test",
 ]

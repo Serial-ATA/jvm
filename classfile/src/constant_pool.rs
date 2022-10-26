@@ -1,7 +1,7 @@
-use crate::types::{u1, u2, u4};
-
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, Index};
+
+use common::types::{u1, u2, u4};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4
 
@@ -19,6 +19,15 @@ impl ConstantPool {
 
 	pub fn push(&mut self, value: ConstantPoolValueInfo) {
 		self.inner.push(value);
+	}
+
+	pub fn get_class_name(&self, idx: u2) -> &[u1] {
+		let constant = &self[idx];
+
+		match constant {
+			ConstantPoolValueInfo::Class { name_index } => self.get_constant_utf8(*name_index),
+			_ => panic!("Expected a constant value of \"Class\""),
+		}
 	}
 
 	pub fn get_constant_utf8(&self, idx: u2) -> &[u1] {

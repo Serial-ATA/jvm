@@ -1,6 +1,8 @@
-use classfile::{u1, u2, u4, ConstantPool};
-use instructions::{LocalStack, OperandStack};
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+use classfile::ConstantPool;
+use common::types::{u1, u2, u4};
+use instructions::{LocalStack, OperandStack};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6
 #[rustfmt::skip]

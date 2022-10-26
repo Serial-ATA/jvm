@@ -1,12 +1,11 @@
-use crate::JavaReadExt;
-
 use std::io::Read;
 
 use classfile::{
-	Annotation, Attribute, AttributeTag, AttributeType, BootstrapMethod, CodeException,
+	Annotation, Attribute, AttributeTag, AttributeType, BootstrapMethod, Code, CodeException,
 	ConstantPool, ElementTag, ElementValue, ElementValuePair, InnerClass, LineNumber,
 	LocalVariable, MethodParameter, StackMapFrame, VerificationTypeInfo,
 };
+use common::traits::JavaReadExt;
 
 pub fn read_attribute<R>(reader: &mut R, constant_pool: &ConstantPool) -> Attribute
 where
@@ -119,13 +118,13 @@ where
 		attributes.push(read_attribute(reader, constant_pool));
 	}
 
-	AttributeType::Code {
+	AttributeType::Code(Code {
 		max_stack,
 		max_locals,
 		code,
 		exception_table,
 		attributes,
-	}
+	})
 }
 
 fn read_attribute_type_stack_map_table<R>(reader: &mut R) -> AttributeType
