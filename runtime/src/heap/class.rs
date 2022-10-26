@@ -1,8 +1,9 @@
-use crate::heap::method::Method;
+use super::method::Method;
+use super::reference::ClassRef;
 use crate::classpath::classloader::ClassLoader;
 
 use classfile::{ClassFile, ConstantPool};
-use common::traits::ReferenceType;
+use common::traits::PtrType;
 
 pub struct Class {
     pub name: Vec<u8>,
@@ -44,13 +45,17 @@ impl Class {
     }
 }
 
-pub struct ClassRef(usize);
+// A pointer to a Class instance
+//
+// This can *not* be constructed by hand, as dropping it will
+// deallocate the class.
+pub struct ClassPtr(usize);
 
-impl ReferenceType<Class> for ClassRef {
-    fn new(val: Class) -> Self {
+impl PtrType<Class, ClassRef> for ClassPtr {
+    fn new(val: Class) -> ClassRef {
         let boxed = Box::new(val);
         let ptr = Box::into_raw(boxed);
-        Self(ptr as usize)
+        ClassRef::new(Self(ptr as usize))
     }
 
     #[inline(always)]
@@ -64,7 +69,7 @@ impl ReferenceType<Class> for ClassRef {
     }
 }
 
-impl Drop for ClassRef {
+impl Drop for ClassPtr {
     fn drop(&mut self) {
         let _ = unsafe { Box::from_raw(self.0 as *mut Class) };
     }

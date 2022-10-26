@@ -1,13 +1,20 @@
-use crate::heap::class::{Class, ClassRef};
+use crate::heap::class::{Class, ClassPtr};
+use crate::heap::reference::ClassRef;
 
 use std::ops::RangeInclusive;
+use std::sync::Mutex;
+use std::collections::HashMap;
+use std::sync::Arc;
 
-use common::traits::ReferenceType;
+use once_cell::sync::Lazy;
 use common::types::u1;
+use common::traits::PtrType;
 
 const SUPPORTED_MAJOR_LOWER_BOUND: u1 = 45;
 const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 63;
 const SUPPORTED_MAJOR_VERSION_RANGE: RangeInclusive<u1> = SUPPORTED_MAJOR_LOWER_BOUND..=SUPPORTED_MAJOR_UPPER_BOUND;
+
+static BOOTSTRAP_LOADED_CLASSES: Lazy<Mutex<HashMap<Vec<u1>, ClassRef>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ClassLoader {
@@ -16,7 +23,21 @@ pub enum ClassLoader {
 }
 
 impl ClassLoader {
-    pub fn load(&self, name: &[u1]) -> ClassRef {
+    fn lookup_class(name: &[u1]) -> Option<ClassRef> {
+        let loaded_classes = BOOTSTRAP_LOADED_CLASSES.lock().unwrap();
+
+        let classref = loaded_classes.get(name);
+        classref.map(Arc::clone)
+    }
+
+    fn insert_bootstrapped_class(name: Vec<u1>, classref: ClassRef) {
+        let mut loaded_classes = BOOTSTRAP_LOADED_CLASSES.lock().unwrap();
+        loaded_classes.insert(name, classref);
+    }
+}
+
+impl ClassLoader {
+    pub fn load(&self, name: &[u1]) -> Option<ClassRef> {
         match self {
             ClassLoader::Bootstrap => Self::load_bootstrap(name),
             ClassLoader::UserDefined => unimplemented!("User defined loader")
@@ -24,11 +45,13 @@ impl ClassLoader {
     }
 
     // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.3.1
-    fn load_bootstrap(name: &[u1]) -> ClassRef {
-        // TODO:
+    fn load_bootstrap(name: &[u1]) -> Option<ClassRef> {
         // First, the Java Virtual Machine determines whether the bootstrap class loader has
         // already been recorded as an initiating loader of a class or interface denoted by N.
         // If so, this class or interface is C, and no class loading or creation is necessary.
+        if let ret @ Some(_) = Self::lookup_class(name) {
+            return ret;
+        }
 
         // Otherwise, the Java Virtual Machine passes the argument N to an invocation of a method on
         // the bootstrap class loader [...] and then [...] create C, via the algorithm of §5.3.5.
@@ -42,7 +65,7 @@ impl ClassLoader {
         // then the process of loading and creating C fails for the same reason.
 
         // Otherwise, the process of loading and creating C succeeds.
-        classref
+        Some(classref)
     }
 
     // Deriving a Class from a class File Representation
@@ -93,7 +116,11 @@ impl ClassLoader {
         // loader of C (§5.3.4), and creates C in the method area (§2.5.4).
 
         let class = Class::new(classfile, super_class, self);
-        ClassRef::new(class)
+        let classref = ClassPtr::new(class);
+
+        Self::insert_bootstrapped_class(name.to_vec(), Arc::clone(&classref));
+
+        classref
     }
 
     fn resolve_super_class(super_class_name: &[u1]) -> Option<ClassRef> {
