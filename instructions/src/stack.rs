@@ -1,13 +1,13 @@
-use crate::operand::Operand;
+use crate::operand::OperandLike;
 
-pub trait StackLike {
-	fn push_op(&mut self, op: Operand);
+pub trait StackLike<T: OperandLike> {
+	fn push_op(&mut self, op: T);
 	fn push_int(&mut self, int: i32);
 	fn push_float(&mut self, float: f32);
 	fn push_double(&mut self, double: f64);
 	fn push_long(&mut self, long: i64);
 
-	fn pop(&mut self) -> Operand;
+	fn pop(&mut self) -> T;
 	fn pop2(&mut self);
 	fn pop_int(&mut self) -> i32;
 	fn pop_float(&mut self) -> f32;
@@ -23,145 +23,4 @@ pub trait StackLike {
 	fn dup2_x2(&mut self);
 
 	fn swap(&mut self);
-}
-
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6.2
-#[derive(Debug, Clone, PartialEq)]
-pub struct OperandStack {
-	inner: Vec<Operand>,
-}
-
-impl OperandStack {
-	pub fn new(capacity: usize) -> Self {
-		Self {
-			inner: Vec::with_capacity(capacity),
-		}
-	}
-}
-
-impl StackLike for OperandStack {
-	fn push_op(&mut self, op: Operand) {
-		self.inner.push(op);
-	}
-
-	fn push_int(&mut self, int: i32) {
-		self.inner.push(Operand::Int(int));
-	}
-
-	fn push_float(&mut self, float: f32) {
-		self.inner.push(Operand::Float(float));
-	}
-
-	fn push_double(&mut self, double: f64) {
-		self.inner.push(Operand::Double(double));
-	}
-
-	fn push_long(&mut self, long: i64) {
-		self.inner.push(Operand::Long(long));
-	}
-
-	fn pop(&mut self) -> Operand {
-		match self.inner.pop() {
-			Some(op) => op,
-			_ => panic!("Stack underflow error!"),
-		}
-	}
-
-	fn pop2(&mut self) {
-		self.inner.pop();
-		self.inner.pop();
-	}
-
-	fn pop_int(&mut self) -> i32 {
-		let op = self.pop();
-		match op {
-			Operand::Constm1 => -1,
-			Operand::Const0 => 0,
-			Operand::Const1 => 1,
-			Operand::Const2 => 2,
-			Operand::Const3 => 3,
-			Operand::Const4 => 4,
-			Operand::Const5 => 5,
-			Operand::Int(int) => int,
-			_ => panic!("Unexpected operand type, wanted `int` got {:?}", op),
-		}
-	}
-
-	fn pop_float(&mut self) -> f32 {
-		let op = self.pop();
-		match op {
-			Operand::Constm1 => -1.0,
-			Operand::Const0 => 0.0,
-			Operand::Const1 => 1.0,
-			Operand::Const2 => 2.0,
-			Operand::Const3 => 3.0,
-			Operand::Const4 => 4.0,
-			Operand::Const5 => 5.0,
-			Operand::Float(float) => float,
-			_ => panic!("Unexpected operand type, wanted `float` got {:?}", op),
-		}
-	}
-
-	fn pop_double(&mut self) -> f64 {
-		let op = self.pop();
-		match op {
-			Operand::Constm1 => -1.0,
-			Operand::Const0 => 0.0,
-			Operand::Const1 => 1.0,
-			Operand::Const2 => 2.0,
-			Operand::Const3 => 3.0,
-			Operand::Const4 => 4.0,
-			Operand::Const5 => 5.0,
-			Operand::Double(double) => double,
-			_ => panic!("Unexpected operand type, wanted `double` got {:?}", op),
-		}
-	}
-
-	fn pop_long(&mut self) -> i64 {
-		let op = self.pop();
-		match op {
-			Operand::Constm1 => -1,
-			Operand::Const0 => 0,
-			Operand::Const1 => 1,
-			Operand::Const2 => 2,
-			Operand::Const3 => 3,
-			Operand::Const4 => 4,
-			Operand::Const5 => 5,
-			Operand::Long(long) => long,
-			_ => panic!("Unexpected operand type, wanted `long` got {:?}", op),
-		}
-	}
-
-	fn dup(&mut self) {
-		let top_of_stack = self.pop();
-		self.inner.push(top_of_stack);
-		self.inner.push(top_of_stack);
-	}
-
-	fn dup_x1(&mut self) {
-		todo!()
-	}
-
-	fn dup_x2(&mut self) {
-		todo!()
-	}
-
-	fn dup2(&mut self) {
-		todo!()
-	}
-
-	fn dup2_x1(&mut self) {
-		todo!()
-	}
-
-	fn dup2_x2(&mut self) {
-		todo!()
-	}
-
-	fn swap(&mut self) {
-		let val = self.pop();
-		let val2 = self.pop();
-		self.inner.push(val);
-		self.inner.push(val2);
-	}
 }

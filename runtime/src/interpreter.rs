@@ -1,10 +1,11 @@
 use crate::frame::Frame;
+use crate::stack::operand_stack::Operand;
 
 use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
 
 use common::types::u4;
-use instructions::{OpCode, Operand, StackLike};
+use instructions::{OpCode, StackLike, OperandLike};
 
 macro_rules! push_const {
     (STACK: $stack:expr, OPCODE: $opcode:ident, $($instruction:ident: [$($value:tt),+]),+) => {
@@ -13,7 +14,7 @@ macro_rules! push_const {
                 $(
                     $(
                         OpCode:: [<$instruction _ $value>] => {
-                            $stack.push_op(instructions::Operand:: [<Const $value>]);
+                            $stack.push_op(Operand:: [<Const $value>]);
                             continue;
                         }
                     ),+
