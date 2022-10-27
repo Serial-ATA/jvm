@@ -43,7 +43,10 @@ impl ConstantPool {
 		let constant = &self[idx];
 
 		match constant {
-			ConstantPoolValueInfo::Fieldref { class_index, name_and_type_index } => (*class_index, *name_and_type_index),
+			ConstantPoolValueInfo::Fieldref {
+				class_index,
+				name_and_type_index,
+			} => (*class_index, *name_and_type_index),
 			_ => panic!("Expected a constant value of \"Fieldref\""),
 		}
 	}
@@ -52,9 +55,65 @@ impl ConstantPool {
 		let constant = &self[idx];
 
 		match constant {
-			ConstantPoolValueInfo::NameAndType { name_index, descriptor_index } => (*name_index, *descriptor_index),
+			ConstantPoolValueInfo::NameAndType {
+				name_index,
+				descriptor_index,
+			} => (*name_index, *descriptor_index),
 			_ => panic!("Expected a constant value of \"NameAndType\""),
 		}
+	}
+
+	pub fn get_integer(&self, idx: u2) -> i32 {
+		let constant = &self[idx];
+
+		match constant {
+			ConstantPoolValueInfo::Integer { bytes } => (*bytes) as i32,
+			_ => panic!("Expected a constant value of \"Integer\""),
+		}
+	}
+
+	pub fn get_float(&self, idx: u2) -> f32 {
+		let constant = &self[idx];
+
+		match constant {
+			ConstantPoolValueInfo::Float { bytes } => (*bytes) as i32 as f32,
+			_ => panic!("Expected a constant value of \"Float\""),
+		}
+	}
+
+	pub fn get_long(&self, idx: u2) -> i64 {
+		let constant = &self[idx];
+
+		match constant {
+			ConstantPoolValueInfo::Long {
+				high_bytes,
+				low_bytes,
+			} => (i64::from(*high_bytes) << 32) + i64::from(*low_bytes),
+			_ => panic!("Expected a constant value of \"Long\""),
+		}
+	}
+
+	pub fn get_double(&self, idx: u2) -> f64 {
+		let constant = &self[idx];
+
+		match constant {
+			ConstantPoolValueInfo::Double {
+				high_bytes,
+				low_bytes,
+			} => {
+				let high = high_bytes.to_be_bytes();
+				let low = low_bytes.to_be_bytes();
+
+				f64::from_be_bytes([
+					high[0], high[1], high[2], high[3], low[0], low[1], low[2], low[3],
+				])
+			},
+			_ => panic!("Expected a constant value of \"Double\""),
+		}
+	}
+
+	pub fn get_string(&self, idx: u2) -> f64 {
+		unimplemented!()
 	}
 }
 

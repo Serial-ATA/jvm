@@ -1,9 +1,11 @@
 use crate::frame::Frame;
+use crate::heap::class::ClassInitializationState;
 use crate::stack::operand_stack::Operand;
 
 use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
 
+use common::traits::PtrType;
 use common::types::u4;
 use instructions::{OpCode, OperandLike, StackLike};
 
@@ -280,11 +282,24 @@ impl<'a> Interpreter<'a> {
             }
 
             // ========= References =========
-            // TODO: getstatic, putstatic, getfield, putfield,
+            // TODO: putstatic, getfield, putfield,
             //       invokevirtual, invokespecial, invokestatic,
             //       invokeinterface, invokedynamic, new, newarray,
             //       anewarray, arraylength, athrow, checkcast, instanceof,
             //       monitorenter, monitorexit
+            if opcode == OpCode::getstatic {
+                let idx = self.frame.read_byte2();
+                let (class_name_index, name_and_type_index) = self.frame.constant_pool.get_field_ref(idx - 1);
+
+                let class = self.frame.method.class.get_mut();
+                if class.initialization_state() == ClassInitializationState::Uninit {
+                    class.initialize();
+                }
+
+                let field = self.frame.method.class.get().resolve_field(name_and_type_index).unwrap();
+                self.frame.stack.push_op(field.get_static_value());
+                continue;
+            }
 
             // ========= Control =========
             // TODO: jsr, ret, tableswitch, lookupswitch,

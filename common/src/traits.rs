@@ -29,4 +29,5 @@ pub trait PtrType<T, RefType> {
 	fn as_raw(&self) -> *const T;
 	fn as_mut_raw(&self) -> *mut T;
 	fn get(&self) -> &T;
+	fn get_mut(&self) -> &mut T;
 }

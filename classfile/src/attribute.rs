@@ -165,7 +165,7 @@ pub enum AttributeType {
 	},
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Code {
 	pub max_stack: u2,
 	pub max_locals: u2,

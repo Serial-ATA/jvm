@@ -1,11 +1,10 @@
-use crate::heap::class::{Class, ClassPtr};
+use crate::heap::class::Class;
 use crate::heap::reference::ClassRef;
 
 use std::collections::HashMap;
 use std::ops::RangeInclusive;
 use std::sync::{Arc, Mutex};
 
-use common::traits::PtrType;
 use common::types::u1;
 use once_cell::sync::Lazy;
 
@@ -120,11 +119,10 @@ impl ClassLoader {
 		// loader of C (§5.3.4), and creates C in the method area (§2.5.4).
 
 		let class = Class::new(classfile, super_class, self);
-		let classref = ClassPtr::new(class);
 
-		Self::insert_bootstrapped_class(name.to_vec(), Arc::clone(&classref));
+		Self::insert_bootstrapped_class(name.to_vec(), Arc::clone(&class));
 
-		classref
+		class
 	}
 
 	fn resolve_super_class(super_class_name: &[u1]) -> Option<ClassRef> {

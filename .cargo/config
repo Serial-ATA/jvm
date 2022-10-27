@@ -44,6 +44,8 @@ rustflags = [
     "-Aclippy::uninlined_format_args",
     "-Aclippy::inline_always",
     "-Aclippy::new-ret-no-self",
+    "-Aclippy::mut-from-ref",
+    "-Aclippy::used_underscore_binding",
     # TODO: Remove this
     "-Aclippy::missing-panics-doc"
 ]

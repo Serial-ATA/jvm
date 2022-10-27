@@ -1,7 +1,7 @@
 mod attribute;
 mod classfile;
 mod constant_pool;
-mod fieldinfo;
+pub mod fieldinfo;
 mod methodinfo;
 
 pub use attribute::{

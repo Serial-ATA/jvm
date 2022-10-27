@@ -1,8 +1,10 @@
-use super::field::Field;
 use super::class::ClassPtr;
+use super::field::Field;
+use super::method::Method;
 
 use std::sync::Arc;
 
+pub type MethodRef = Arc<Method>;
 pub type FieldRef = Arc<Field>;
 pub type ClassRef = Arc<ClassPtr>;
 

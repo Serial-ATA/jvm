@@ -1,4 +1,4 @@
 pub mod class;
-mod field;
-mod method;
+pub mod field;
+pub mod method;
 pub mod reference;

@@ -1,29 +1,36 @@
-use classfile::{Code, ConstantPool, MethodDescriptor, MethodInfo};
+use super::reference::ClassRef;
+
+use classfile::{Code, MethodDescriptor, MethodInfo};
+use common::traits::PtrType;
 use common::types::{u1, u2};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Method {
+	pub class: ClassRef,
 	pub access_flags: u2,
 	pub name: Vec<u1>,
 	pub descriptor: MethodDescriptor,
-	pub code: Option<Code>,
+	pub code: Code,
 }
 
 impl Method {
-	pub fn new(method_info: &MethodInfo, constant_pool: &ConstantPool) -> Self {
+	pub fn new(class: ClassRef, method_info: &MethodInfo) -> Self {
+		let constant_pool = &class.get().constant_pool;
+
 		let access_flags = method_info.access_flags;
 
 		let name_index = method_info.name_index;
-		let name = constant_pool.get_class_name(name_index).to_vec();
+		let name = constant_pool.get_constant_utf8(name_index - 1).to_vec();
 
 		let descriptor_index = method_info.descriptor_index;
-		let mut descriptor_bytes = constant_pool.get_constant_utf8(descriptor_index);
+		let mut descriptor_bytes = constant_pool.get_constant_utf8(descriptor_index - 1);
 
 		let descriptor = MethodDescriptor::parse(&mut descriptor_bytes);
 
-		let code = method_info.get_code_attribute();
+		let code = method_info.get_code_attribute().unwrap_or_default();
 
 		Self {
+			class,
 			access_flags,
 			name,
 			descriptor,

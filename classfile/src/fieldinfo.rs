@@ -1,9 +1,12 @@
-use crate::attribute::Attribute;
+use crate::attribute::{Attribute, AttributeType};
 
 use std::io::Read;
 
 use common::traits::JavaReadExt;
 use common::types::u2;
+
+// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.5
+pub const ACC_STATIC: u2 = 0x0008;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.5
 #[derive(Debug, Clone, PartialEq)]
@@ -12,6 +15,25 @@ pub struct FieldInfo {
 	pub name_index: u2,
 	pub descriptor_index: u2,
 	pub attributes: Vec<Attribute>,
+}
+
+impl FieldInfo {
+	pub fn get_constant_value_attribute(&self) -> Option<u2> {
+		for attr in &self.attributes {
+			if let AttributeType::ConstantValue {
+				constantvalue_index,
+			} = attr.info
+			{
+				return Some(constantvalue_index);
+			}
+		}
+
+		None
+	}
+
+	pub fn is_static(&self) -> bool {
+		self.access_flags & ACC_STATIC == ACC_STATIC
+	}
 }
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.3.2

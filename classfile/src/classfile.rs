@@ -31,7 +31,7 @@ impl ClassFile {
 		// If the value of the super_class item is zero, then this class file must represent
 		// the class Object, the only class or interface without a direct superclass.
 		if super_class_index != 0 {
-			super_class_name = Some(self.constant_pool.get_class_name(super_class_index));
+			super_class_name = Some(self.constant_pool.get_class_name(super_class_index - 1));
 		}
 
 		super_class_name

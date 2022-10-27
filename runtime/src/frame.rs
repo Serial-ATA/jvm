@@ -1,3 +1,4 @@
+use crate::heap::reference::MethodRef;
 use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::OperandStack;
 
@@ -17,7 +18,7 @@ pub struct Frame<'a> {
 	pub stack: OperandStack,
     // and a reference to the run-time constant pool (§2.5.5)
 	pub constant_pool: &'a ConstantPool,
-	pub code: &'a [u1],
+	pub method: MethodRef,
     // TODO: move to thread
     // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
     // Each Java Virtual Machine thread has its own pc (program counter) register [...]
@@ -26,24 +27,22 @@ pub struct Frame<'a> {
 }
 
 impl<'a> Frame<'a> {
-	pub fn new(
-		max_stack: usize,
-		max_locals: usize,
-		constant_pool: &'a ConstantPool,
-		code: &'a [u1],
-	) -> Self {
+	pub fn new(method: MethodRef, constant_pool: &'a ConstantPool) -> Self {
+		let max_stack = method.code.max_stack;
+		let max_locals = method.code.max_locals;
+
 		Self {
-			locals: LocalStack::new(max_locals),
-			stack: OperandStack::new(max_stack),
+			locals: LocalStack::new(max_locals as usize),
+			stack: OperandStack::new(max_stack as usize),
 			constant_pool,
-			code,
+			method,
 			pc: AtomicUsize::new(0),
 		}
 	}
 
 	pub fn read_byte(&mut self) -> u1 {
 		let pc = self.pc.fetch_add(1, Ordering::Relaxed);
-		self.code[pc]
+		self.method.code.code[pc]
 	}
 
 	pub fn read_byte2(&mut self) -> u2 {
