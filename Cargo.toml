@@ -5,6 +5,5 @@ members = [
     "instructions",
     "runtime",
     "common",
-    "heap",
     "parser-test",
 ]
