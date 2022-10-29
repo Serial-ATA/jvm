@@ -71,6 +71,10 @@ impl ClassLoader {
 	// Deriving a Class from a class File Representation
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.3.5
 	fn load_class_by_name(self, name: &[u1]) -> ClassRef {
+		if let Some(class) = Self::lookup_class(name) {
+			return class;
+		}
+
 		// TODO:
 		// 1. First, the Java Virtual Machine determines whether L has already been recorded
 		//    as an initiating loader of a class or interface denoted by N. If so, this derivation
@@ -107,7 +111,7 @@ impl ClassLoader {
 		let mut super_class = None;
 
 		if let Some(super_class_name) = classfile.get_super_class() {
-			super_class = Self::resolve_super_class(super_class_name);
+			super_class = Some(self.resolve_super_class(super_class_name));
 		}
 
 		// TODO:
@@ -125,7 +129,7 @@ impl ClassLoader {
 		class
 	}
 
-	fn resolve_super_class(super_class_name: &[u1]) -> Option<ClassRef> {
+	fn resolve_super_class(self, super_class_name: &[u1]) -> ClassRef {
 		// Any exception that can be thrown as a result of failure of class or interface resolution
 		// can be thrown as a result of derivation. In addition, derivation must detect the following problems:
 
@@ -153,8 +157,6 @@ impl ClassLoader {
 		//     Otherwise, if C is a class and some instance method declared in C can override (§5.4.5)
 		//     a final instance method declared in a superclass of C, derivation throws an IncompatibleClassChangeError.
 
-		panic!("Attempted to load super class: {}", unsafe {
-			std::str::from_utf8_unchecked(super_class_name)
-		});
+		self.load_class_by_name(super_class_name)
 	}
 }
