@@ -25,7 +25,7 @@ impl ConstantPool {
 		let constant = &self[idx];
 
 		match constant {
-			ConstantPoolValueInfo::Class { name_index } => self.get_constant_utf8(*name_index),
+			ConstantPoolValueInfo::Class { name_index } => self.get_constant_utf8(*name_index - 1),
 			_ => panic!("Expected a constant value of \"Class\""),
 		}
 	}
