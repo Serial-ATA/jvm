@@ -152,36 +152,38 @@ impl Deref for ConstantPool {
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[rustfmt::skip]
 pub enum ConstantPoolTag {
+	Utf8               = 1,
+	Integer            = 3,
+	Float              = 4,
+	Long               = 5,
+	Double             = 6,
     Class              = 7,
+	String             = 8,
     FieldRef           = 9,
     MethodRef          = 10,
     InterfaceMethodref = 11,
-    String             = 8,
-    Integer            = 3,
-    Float              = 4,
-    Long               = 5,
-    Double             = 6,
     NameAndType        = 12,
-    Utf8               = 1,
     MethodHandle       = 15,
     MethodType         = 16,
     InvokeDynamic      = 18,
+	// TODO: CONSTANT_Module
+	// TODO: CONSTANT_Package
 }
 
 impl From<u8> for ConstantPoolTag {
 	fn from(value: u8) -> Self {
 		match value {
-			7 => ConstantPoolTag::Class,
-			9 => ConstantPoolTag::FieldRef,
-			10 => ConstantPoolTag::MethodRef,
-			11 => ConstantPoolTag::InterfaceMethodref,
-			8 => ConstantPoolTag::String,
+			1 => ConstantPoolTag::Utf8,
 			3 => ConstantPoolTag::Integer,
 			4 => ConstantPoolTag::Float,
 			5 => ConstantPoolTag::Long,
 			6 => ConstantPoolTag::Double,
+			7 => ConstantPoolTag::Class,
+			8 => ConstantPoolTag::String,
+			9 => ConstantPoolTag::FieldRef,
+			10 => ConstantPoolTag::MethodRef,
+			11 => ConstantPoolTag::InterfaceMethodref,
 			12 => ConstantPoolTag::NameAndType,
-			1 => ConstantPoolTag::Utf8,
 			15 => ConstantPoolTag::MethodHandle,
 			16 => ConstantPoolTag::MethodType,
 			18 => ConstantPoolTag::InvokeDynamic,
