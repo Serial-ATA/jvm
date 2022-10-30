@@ -152,21 +152,21 @@ impl Deref for ConstantPool {
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[rustfmt::skip]
 pub enum ConstantPoolTag {
-	Unusable, // Used when storing longs/doubles (https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.5)
+	Unusable, /* Used when storing longs/doubles (https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.5) */
 	Utf8               = 1,
 	Integer            = 3,
 	Float              = 4,
 	Long               = 5,
 	Double             = 6,
-    Class              = 7,
+	Class              = 7,
 	String             = 8,
-    FieldRef           = 9,
-    MethodRef          = 10,
-    InterfaceMethodref = 11,
-    NameAndType        = 12,
-    MethodHandle       = 15,
-    MethodType         = 16,
-    InvokeDynamic      = 18,
+	FieldRef           = 9,
+	MethodRef          = 10,
+	InterfaceMethodref = 11,
+	NameAndType        = 12,
+	MethodHandle       = 15,
+	MethodType         = 16,
+	InvokeDynamic      = 18,
 	// TODO: CONSTANT_Module
 	// TODO: CONSTANT_Package
 }
