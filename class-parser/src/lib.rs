@@ -22,9 +22,7 @@ where
 	let constant_pool_count = reader.read_u2().saturating_sub(1);
 	let mut constant_pool = ConstantPool::with_capacity(constant_pool_count as usize);
 
-	for _ in 0..constant_pool_count {
-		constant_pool.push(constant_pool::read_cp_info(reader));
-	}
+	constant_pool::read_cp_info(reader, &mut constant_pool, constant_pool_count);
 
 	let access_flags = reader.read_u2();
 	let this_class = reader.read_u2();

@@ -33,7 +33,7 @@ impl ClassFile {
 		if super_class_index == 0 {
 			assert_eq!(self.constant_pool.get_class_name(self.this_class), b"java/lang/Object", "Only java/lang/Object can have no superclass!");
 		} else {
-			super_class_name = Some(self.constant_pool.get_class_name(super_class_index - 1));
+			super_class_name = Some(self.constant_pool.get_class_name(super_class_index));
 		}
 
 		super_class_name

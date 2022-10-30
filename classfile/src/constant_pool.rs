@@ -25,7 +25,7 @@ impl ConstantPool {
 		let constant = &self[idx];
 
 		match constant {
-			ConstantPoolValueInfo::Class { name_index } => self.get_constant_utf8(*name_index - 1),
+			ConstantPoolValueInfo::Class { name_index } => self.get_constant_utf8(*name_index),
 			_ => panic!("Expected a constant value of \"Class\""),
 		}
 	}
@@ -152,6 +152,7 @@ impl Deref for ConstantPool {
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[rustfmt::skip]
 pub enum ConstantPoolTag {
+	Unusable, // Used when storing longs/doubles (https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.5)
 	Utf8               = 1,
 	Integer            = 3,
 	Float              = 4,
@@ -194,6 +195,7 @@ impl From<u8> for ConstantPoolTag {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConstantPoolValueInfo {
+	Unusable,
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.1
 	Class {
 		name_index: u2,

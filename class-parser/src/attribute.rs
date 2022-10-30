@@ -12,7 +12,7 @@ where
 	R: Read,
 {
 	let attribute_name_index = reader.read_u2();
-	let attribute_name = constant_pool.get_constant_utf8(attribute_name_index - 1);
+	let attribute_name = constant_pool.get_constant_utf8(attribute_name_index);
 
 	let attribute_length = reader.read_u4();
 
