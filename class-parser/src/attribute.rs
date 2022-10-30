@@ -2,11 +2,11 @@ use std::io::Read;
 
 use classfile::{
 	Annotation, Attribute, AttributeTag, AttributeType, BootstrapMethod, Code, CodeException,
-	ConstantPool, ElementTag, ElementValue, ElementValuePair, InnerClass, LineNumber,
-	LocalVariable, MethodParameter, StackMapFrame, VerificationTypeInfo,
+	ConstantPool, ElementValueTag, ElementValueType, ElementValuePair, InnerClass, LineNumber,
+	LocalVariable, MethodParameter, StackMapFrame, VerificationTypeInfo, ElementValue
 };
 use common::traits::JavaReadExt;
-use common::types::u2;
+use common::types::{u1, u2};
 
 pub fn read_attribute<R>(reader: &mut R, constant_pool: &ConstantPool) -> Attribute
 where
@@ -53,29 +53,29 @@ where
 		},
 		AttributeTag::Deprecated => AttributeType::Deprecated,
 		AttributeTag::RuntimeVisibleAnnotations => AttributeType::RuntimeVisibleAnnotations {
-			annotations: read_attribute_runtime_annotations(reader),
+			annotations: read_attribute_runtime_annotations(reader, constant_pool),
 		},
 		AttributeTag::RuntimeInvisibleAnnotations => AttributeType::RuntimeInvisibleAnnotations {
-			annotations: read_attribute_runtime_annotations(reader),
+			annotations: read_attribute_runtime_annotations(reader, constant_pool),
 		},
 		AttributeTag::RuntimeVisibleParameterAnnotations => {
 			AttributeType::RuntimeVisibleParameterAnnotations {
-				annotations: read_attribute_runtime_annotations(reader),
+				annotations: read_attribute_runtime_annotations(reader, constant_pool),
 			}
 		},
 		AttributeTag::RuntimeInvisibleParameterAnnotations => {
 			AttributeType::RuntimeInvisibleParameterAnnotations {
-				annotations: read_attribute_runtime_annotations(reader),
+				annotations: read_attribute_runtime_annotations(reader, constant_pool),
 			}
 		},
 		AttributeTag::RuntimeVisibleTypeAnnotations => {
 			AttributeType::RuntimeVisibleTypeAnnotations {
-				annotations: read_attribute_runtime_annotations(reader),
+				annotations: read_attribute_runtime_annotations(reader, constant_pool),
 			}
 		},
 		AttributeTag::RuntimeInvisibleTypeAnnotations => {
 			AttributeType::RuntimeInvisibleTypeAnnotations {
-				annotations: read_attribute_runtime_annotations(reader),
+				annotations: read_attribute_runtime_annotations(reader, constant_pool),
 			}
 		},
 		AttributeTag::AnnotationDefault => todo!(),
@@ -293,7 +293,7 @@ where
 	local_variable_table
 }
 
-fn read_attribute_runtime_annotations<R>(reader: &mut R) -> Vec<Annotation>
+fn read_attribute_runtime_annotations<R>(reader: &mut R, constant_pool: &ConstantPool) -> Vec<Annotation>
 where
 	R: Read,
 {
@@ -301,13 +301,13 @@ where
 	let mut annotations = Vec::with_capacity(num_annotations as usize);
 
 	for _ in 0..num_annotations {
-		annotations.push(read_annotation(reader));
+		annotations.push(read_annotation(reader, constant_pool));
 	}
 
 	annotations
 }
 
-fn read_annotation<R>(reader: &mut R) -> Annotation
+fn read_annotation<R>(reader: &mut R, constant_pool: &ConstantPool) -> Annotation
 where
 	R: Read,
 {
@@ -317,10 +317,12 @@ where
 	let mut element_value_pairs = Vec::with_capacity(num_element_value_pairs as usize);
 
 	for _ in 0..num_element_value_pairs {
-		let tag = ElementTag::from(reader.read_u1());
-		let value = read_element_value(reader, tag);
+		let element_name_index = reader.read_u2();
 
-		element_value_pairs.push(ElementValuePair { tag, value })
+		let tag = ElementValueTag::from(reader.read_u1());
+		let value = read_element_value_type(reader, tag, constant_pool);
+
+		element_value_pairs.push(ElementValuePair { element_name_index, value: ElementValue { tag, ty: value } })
 	}
 
 	Annotation {
@@ -330,48 +332,48 @@ where
 }
 
 #[rustfmt::skip]
-fn read_element_value<R>(reader: &mut R, tag: ElementTag) -> ElementValue
+fn read_element_value_type<R>(reader: &mut R, tag: ElementValueTag, constant_pool: &ConstantPool) -> ElementValueType
 where
 	R: Read,
 {
 	match tag {
 		// The const_value_index item is used if the tag item is one of B, C, D, F, I, J, S, Z, or s.
-		ElementTag::Byte    => ElementValue::Byte    { const_value_index: reader.read_u2() },
-		ElementTag::Char    => ElementValue::Char    { const_value_index: reader.read_u2() },
-		ElementTag::Double  => ElementValue::Double  { const_value_index: reader.read_u2() },
-		ElementTag::Float   => ElementValue::Float   { const_value_index: reader.read_u2() },
-		ElementTag::Int     => ElementValue::Int     { const_value_index: reader.read_u2() },
-		ElementTag::Long    => ElementValue::Long    { const_value_index: reader.read_u2() },
-		ElementTag::Short   => ElementValue::Short   { const_value_index: reader.read_u2() },
-		ElementTag::Boolean => ElementValue::Boolean { const_value_index: reader.read_u2() },
-		ElementTag::String  => ElementValue::String  { const_value_index: reader.read_u2() },
+		ElementValueTag::Byte    => ElementValueType::Byte    { const_value_index: reader.read_u2() },
+		ElementValueTag::Char    => ElementValueType::Char    { const_value_index: reader.read_u2() },
+		ElementValueTag::Double  => ElementValueType::Double  { const_value_index: reader.read_u2() },
+		ElementValueTag::Float   => ElementValueType::Float   { const_value_index: reader.read_u2() },
+		ElementValueTag::Int     => ElementValueType::Int     { const_value_index: reader.read_u2() },
+		ElementValueTag::Long    => ElementValueType::Long    { const_value_index: reader.read_u2() },
+		ElementValueTag::Short   => ElementValueType::Short   { const_value_index: reader.read_u2() },
+		ElementValueTag::Boolean => ElementValueType::Boolean { const_value_index: reader.read_u2() },
+		ElementValueTag::String  => ElementValueType::String  { const_value_index: reader.read_u2() },
 
 		// The enum_const_value item is used if the tag item is e.
-		ElementTag::Enum => ElementValue::Enum {
+		ElementValueTag::Enum => ElementValueType::Enum {
 			type_name_index: reader.read_u2(),
 			const_value_index: reader.read_u2(),
 		},
 
 		// The class_info_index item is used if the tag item is c.
-		ElementTag::Class => ElementValue::Class {
+		ElementValueTag::Class => ElementValueType::Class {
 			class_info_index: reader.read_u2(),
 		},
 
 		// The annotation_value item is used if the tag item is @.
-		ElementTag::Annotation => ElementValue::Annotation {
-			annotation: read_annotation(reader),
+		ElementValueTag::Annotation => ElementValueType::Annotation {
+			annotation: read_annotation(reader, constant_pool),
 		},
 
 		// The array_value item is used if the tag item is [.
-		ElementTag::Array => {
+		ElementValueTag::Array => {
 			let num_values = reader.read_u2();
 			let mut values = Vec::with_capacity(num_values as usize);
 
 			for _ in 0..num_values {
-				values.push(read_element_value(reader, tag));
+				values.push(read_element_value_type(reader, tag, constant_pool));
 			}
 
-			ElementValue::Array { values }
+			ElementValueType::Array { values }
 		},
 	}
 }

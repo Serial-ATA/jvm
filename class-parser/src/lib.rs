@@ -19,7 +19,7 @@ where
 	let minor_version = reader.read_u2();
 	let major_version = reader.read_u2();
 
-	let constant_pool_count = reader.read_u2().saturating_sub(1);
+	let constant_pool_count = reader.read_u2();
 	let mut constant_pool = ConstantPool::with_capacity(constant_pool_count as usize);
 
 	constant_pool::read_cp_info(reader, &mut constant_pool, constant_pool_count);

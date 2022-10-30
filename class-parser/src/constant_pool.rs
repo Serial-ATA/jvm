@@ -13,7 +13,7 @@ where
 
 	let mut i = 0;
 
-	while i < constant_pool_count {
+	while i < constant_pool_count - 1 {
 		let tag = ConstantPoolTag::from(reader.read_u1());
 
 		let cp_value_info = match tag {

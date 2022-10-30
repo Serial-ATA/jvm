@@ -264,13 +264,20 @@ pub struct Annotation {
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.16
 #[derive(Debug, Clone, PartialEq)]
 pub struct ElementValuePair {
-	pub tag: ElementTag,
+	pub element_name_index: u2,
 	pub value: ElementValue,
 }
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.16.1
+#[derive(Debug, Clone, PartialEq)]
+pub struct ElementValue {
+	pub tag: ElementValueTag,
+	pub ty: ElementValueType,
+}
+
+// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.16.1
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum ElementTag {
+pub enum ElementValueTag {
 	Byte,
 	Char,
 	Double,
@@ -286,22 +293,22 @@ pub enum ElementTag {
 	Array,
 }
 
-impl From<u1> for ElementTag {
+impl From<u1> for ElementValueTag {
 	fn from(value: u1) -> Self {
 		match value {
-			b'B' => ElementTag::Byte,
-			b'C' => ElementTag::Char,
-			b'D' => ElementTag::Double,
-			b'F' => ElementTag::Float,
-			b'I' => ElementTag::Int,
-			b'J' => ElementTag::Long,
-			b'S' => ElementTag::Short,
-			b'Z' => ElementTag::Boolean,
-			b's' => ElementTag::String,
-			b'e' => ElementTag::Enum,
-			b'c' => ElementTag::Class,
-			b'@' => ElementTag::Annotation,
-			b'[' => ElementTag::Array,
+			b'B' => ElementValueTag::Byte,
+			b'C' => ElementValueTag::Char,
+			b'D' => ElementValueTag::Double,
+			b'F' => ElementValueTag::Float,
+			b'I' => ElementValueTag::Int,
+			b'J' => ElementValueTag::Long,
+			b'S' => ElementValueTag::Short,
+			b'Z' => ElementValueTag::Boolean,
+			b's' => ElementValueTag::String,
+			b'e' => ElementValueTag::Enum,
+			b'c' => ElementValueTag::Class,
+			b'@' => ElementValueTag::Annotation,
+			b'[' => ElementValueTag::Array,
 			_ => panic!("Invalid element tag encountered: {}", value),
 		}
 	}
@@ -310,7 +317,7 @@ impl From<u1> for ElementTag {
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.16.1
 #[derive(Debug, Clone, PartialEq)]
 #[rustfmt::skip]
-pub enum ElementValue {
+pub enum ElementValueType {
     Byte    { const_value_index: u2 },
     Char    { const_value_index: u2 },
     Double  { const_value_index: u2 },
@@ -331,7 +338,7 @@ pub enum ElementValue {
         annotation: Annotation,
     },
     Array {
-        values: Vec<ElementValue>
+        values: Vec<ElementValueType>
     },
 }
 

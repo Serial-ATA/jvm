@@ -5,9 +5,9 @@ pub mod fieldinfo;
 mod methodinfo;
 
 pub use attribute::{
-	Annotation, Attribute, AttributeTag, AttributeType, BootstrapMethod, Code, CodeException,
-	ElementTag, ElementValue, ElementValuePair, InnerClass, LineNumber, LocalVariable,
-	MethodParameter, StackMapFrame, VerificationTypeInfo,
+    Annotation, Attribute, AttributeTag, AttributeType, BootstrapMethod, Code, CodeException,
+    ElementValueTag, ElementValueType, ElementValue, ElementValuePair, InnerClass, LineNumber, LocalVariable,
+    MethodParameter, StackMapFrame, VerificationTypeInfo,
 };
 pub use classfile::ClassFile;
 pub use constant_pool::{ConstantPool, ConstantPoolTag, ConstantPoolValueInfo};
