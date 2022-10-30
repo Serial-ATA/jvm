@@ -35,9 +35,11 @@ where
 						class_index,
 						name_and_type_index,
 					},
-					ConstantPoolTag::InterfaceMethodref => ConstantPoolValueInfo::InterfaceMethodref {
-						class_index,
-						name_and_type_index,
+					ConstantPoolTag::InterfaceMethodref => {
+						ConstantPoolValueInfo::InterfaceMethodref {
+							class_index,
+							name_and_type_index,
+						}
 					},
 					_ => unreachable!(),
 				}

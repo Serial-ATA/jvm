@@ -2,11 +2,11 @@ use std::io::Read;
 
 use classfile::{
 	Annotation, Attribute, AttributeTag, AttributeType, BootstrapMethod, Code, CodeException,
-	ConstantPool, ElementValueTag, ElementValueType, ElementValuePair, InnerClass, LineNumber,
-	LocalVariable, MethodParameter, StackMapFrame, VerificationTypeInfo, ElementValue
+	ConstantPool, ElementValue, ElementValuePair, ElementValueTag, ElementValueType, InnerClass,
+	LineNumber, LocalVariable, MethodParameter, StackMapFrame, VerificationTypeInfo,
 };
 use common::traits::JavaReadExt;
-use common::types::{u1, u2};
+use common::types::u2;
 
 pub fn read_attribute<R>(reader: &mut R, constant_pool: &ConstantPool) -> Attribute
 where
@@ -139,7 +139,9 @@ where
 		let frame_type = reader.read_u1();
 
 		let stack_map_frame = match frame_type {
-			0..=63 => StackMapFrame::SameFrame { offset_delta: u2::from(frame_type) },
+			0..=63 => StackMapFrame::SameFrame {
+				offset_delta: u2::from(frame_type),
+			},
 			64..=127 => StackMapFrame::SameLocals1StackItemFrame {
 				offset_delta: u2::from(frame_type - 64),
 				verification_type_info: [read_attribute_verification_type_info(reader)],
@@ -148,8 +150,12 @@ where
 				offset_delta: reader.read_u2(),
 				verification_type_info: [read_attribute_verification_type_info(reader)],
 			},
-			248..=250 => StackMapFrame::ChopFrame { offset_delta: reader.read_u2() },
-			251 => StackMapFrame::SameFrameExtended { offset_delta: reader.read_u2() },
+			248..=250 => StackMapFrame::ChopFrame {
+				offset_delta: reader.read_u2(),
+			},
+			251 => StackMapFrame::SameFrameExtended {
+				offset_delta: reader.read_u2(),
+			},
 			252..=254 => {
 				let offset_delta = reader.read_u2();
 
@@ -293,7 +299,10 @@ where
 	local_variable_table
 }
 
-fn read_attribute_runtime_annotations<R>(reader: &mut R, constant_pool: &ConstantPool) -> Vec<Annotation>
+fn read_attribute_runtime_annotations<R>(
+	reader: &mut R,
+	constant_pool: &ConstantPool,
+) -> Vec<Annotation>
 where
 	R: Read,
 {
@@ -322,7 +331,10 @@ where
 		let tag = ElementValueTag::from(reader.read_u1());
 		let value = read_element_value_type(reader, tag, constant_pool);
 
-		element_value_pairs.push(ElementValuePair { element_name_index, value: ElementValue { tag, ty: value } })
+		element_value_pairs.push(ElementValuePair {
+			element_name_index,
+			value: ElementValue { tag, ty: value },
+		})
 	}
 
 	Annotation {

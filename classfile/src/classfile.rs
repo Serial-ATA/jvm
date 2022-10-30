@@ -31,7 +31,11 @@ impl ClassFile {
 		// If the value of the super_class item is zero, then this class file must represent
 		// the class Object, the only class or interface without a direct superclass.
 		if super_class_index == 0 {
-			assert_eq!(self.constant_pool.get_class_name(self.this_class), b"java/lang/Object", "Only java/lang/Object can have no superclass!");
+			assert_eq!(
+				self.constant_pool.get_class_name(self.this_class),
+				b"java/lang/Object",
+				"Only java/lang/Object can have no superclass!"
+			);
 		} else {
 			super_class_name = Some(self.constant_pool.get_class_name(super_class_index));
 		}

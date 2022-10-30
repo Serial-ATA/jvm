@@ -1,6 +1,6 @@
 use super::field::Field;
 use super::method::Method;
-use super::reference::{ClassRef, FieldRef};
+use super::reference::ClassRef;
 use crate::classpath::classloader::ClassLoader;
 use crate::stack::operand_stack::Operand;
 
@@ -121,9 +121,8 @@ impl Class {
 	// TODO: Actual field resolution
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.2
 	pub fn resolve_field(&self, name_and_type_index: u2) -> Option<&Field> {
-		let (name_index, descriptor_index) = self
-			.constant_pool
-			.get_name_and_type(name_and_type_index);
+		let (name_index, descriptor_index) =
+			self.constant_pool.get_name_and_type(name_and_type_index);
 
 		let field_name = self.constant_pool.get_constant_utf8(name_index);
 		let mut descriptor = self.constant_pool.get_constant_utf8(descriptor_index);
