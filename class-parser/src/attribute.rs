@@ -6,6 +6,7 @@ use classfile::{
 	LocalVariable, MethodParameter, StackMapFrame, VerificationTypeInfo,
 };
 use common::traits::JavaReadExt;
+use common::types::u2;
 
 pub fn read_attribute<R>(reader: &mut R, constant_pool: &ConstantPool) -> Attribute
 where
@@ -136,21 +137,22 @@ where
 
 	for _ in 0..number_of_entries {
 		let frame_type = reader.read_u1();
-		let offset_delta = reader.read_u2();
 
 		let stack_map_frame = match frame_type {
-			0..=63 => StackMapFrame::SameFrame { offset_delta },
+			0..=63 => StackMapFrame::SameFrame { offset_delta: u2::from(frame_type) },
 			64..=127 => StackMapFrame::SameLocals1StackItemFrame {
-				offset_delta,
+				offset_delta: u2::from(frame_type - 64),
 				verification_type_info: [read_attribute_verification_type_info(reader)],
 			},
 			247 => StackMapFrame::SameLocals1StackItemFrameExtended {
-				offset_delta,
+				offset_delta: reader.read_u2(),
 				verification_type_info: [read_attribute_verification_type_info(reader)],
 			},
-			248..=250 => StackMapFrame::ChopFrame { offset_delta },
-			251 => StackMapFrame::SameFrameExtended { offset_delta },
+			248..=250 => StackMapFrame::ChopFrame { offset_delta: reader.read_u2() },
+			251 => StackMapFrame::SameFrameExtended { offset_delta: reader.read_u2() },
 			252..=254 => {
+				let offset_delta = reader.read_u2();
+
 				let locals_len = frame_type - 251;
 				let mut locals = Vec::with_capacity(locals_len as usize);
 
@@ -164,6 +166,8 @@ where
 				}
 			},
 			255 => {
+				let offset_delta = reader.read_u2();
+
 				let number_of_locals = reader.read_u2();
 				let mut locals = Vec::with_capacity(number_of_locals as usize);
 
