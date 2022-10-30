@@ -20,10 +20,10 @@ impl Method {
 		let access_flags = method_info.access_flags;
 
 		let name_index = method_info.name_index;
-		let name = constant_pool.get_constant_utf8(name_index - 1).to_vec();
+		let name = constant_pool.get_constant_utf8(name_index).to_vec();
 
 		let descriptor_index = method_info.descriptor_index;
-		let mut descriptor_bytes = constant_pool.get_constant_utf8(descriptor_index - 1);
+		let mut descriptor_bytes = constant_pool.get_constant_utf8(descriptor_index);
 
 		let descriptor = MethodDescriptor::parse(&mut descriptor_bytes);
 

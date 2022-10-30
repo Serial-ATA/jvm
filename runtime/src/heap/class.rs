@@ -67,7 +67,7 @@ impl Class {
 		let class_name_index = parsed_file.this_class;
 		let name = parsed_file
 			.constant_pool
-			.get_class_name(class_name_index - 1)
+			.get_class_name(class_name_index)
 			.to_vec();
 
 		let constant_pool = parsed_file.constant_pool;
@@ -123,10 +123,10 @@ impl Class {
 	pub fn resolve_field(&self, name_and_type_index: u2) -> Option<&Field> {
 		let (name_index, descriptor_index) = self
 			.constant_pool
-			.get_name_and_type(name_and_type_index - 1);
+			.get_name_and_type(name_and_type_index);
 
-		let field_name = self.constant_pool.get_constant_utf8(name_index - 1);
-		let mut descriptor = self.constant_pool.get_constant_utf8(descriptor_index - 1);
+		let field_name = self.constant_pool.get_constant_utf8(name_index);
+		let mut descriptor = self.constant_pool.get_constant_utf8(descriptor_index);
 
 		let field_type = FieldType::parse(&mut descriptor);
 

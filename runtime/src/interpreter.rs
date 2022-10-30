@@ -289,7 +289,7 @@ impl<'a> Interpreter<'a> {
             //       monitorenter, monitorexit
             if opcode == OpCode::getstatic {
                 let idx = self.frame.read_byte2();
-                let (class_name_index, name_and_type_index) = self.frame.constant_pool.get_field_ref(idx - 1);
+                let (class_name_index, name_and_type_index) = self.frame.constant_pool.get_field_ref(idx);
 
                 let class = self.frame.method.class.get_mut();
                 if class.initialization_state() == ClassInitializationState::Uninit {
