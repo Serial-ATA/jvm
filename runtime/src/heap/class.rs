@@ -1,6 +1,6 @@
 use super::field::Field;
 use super::method::Method;
-use super::reference::ClassRef;
+use super::reference::{ClassRef, FieldRef};
 use crate::classpath::classloader::ClassLoader;
 use crate::stack::operand_stack::Operand;
 
@@ -49,7 +49,7 @@ pub struct Class {
 	pub constant_pool: ConstantPool,
 	pub super_class: Option<ClassRef>,
 	pub methods: Vec<Method>,
-	pub fields: Vec<Field>,
+	pub fields: Vec<FieldRef>,
 	pub static_field_slots: Box<[Operand]>,
 	pub loader: ClassLoader,
 	init_state: ClassInitializationState,
@@ -118,14 +118,20 @@ impl Class {
 		classref
 	}
 
-	// TODO: Actual field resolution
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.2
-	pub fn resolve_field(&self, name_and_type_index: u2) -> Option<&Field> {
-		let (name_index, descriptor_index) =
-			self.constant_pool.get_name_and_type(name_and_type_index);
+	pub fn resolve_field(constant_pool: &ConstantPool, field_ref_idx: u2) -> Option<FieldRef> {
+		let (class_name_index, name_and_type_index) = constant_pool.get_field_ref(field_ref_idx);
 
-		let field_name = self.constant_pool.get_constant_utf8(name_index);
-		let mut descriptor = self.constant_pool.get_constant_utf8(descriptor_index);
+		let class_name = constant_pool.get_class_name(class_name_index);
+		let classref = ClassLoader::Bootstrap.load(class_name).unwrap();
+
+		let class = classref.get();
+
+		let (name_index, descriptor_index) =
+			constant_pool.get_name_and_type(name_and_type_index);
+
+		let field_name = constant_pool.get_constant_utf8(name_index);
+		let mut descriptor = constant_pool.get_constant_utf8(descriptor_index);
 
 		let field_type = FieldType::parse(&mut descriptor);
 
@@ -134,9 +140,9 @@ impl Class {
 
 		// 1. If C declares a field with the name and descriptor specified by the field reference,
 		//    field lookup succeeds. The declared field is the result of the field lookup.
-		for field in &self.fields {
+		for field in &class.fields {
 			if field.name == field_name && field.descriptor == field_type {
-				return Some(field);
+				return Some(Arc::clone(field));
 			}
 		}
 
@@ -145,9 +151,9 @@ impl Class {
 		//    specified class or interface C.
 
 		// 3. Otherwise, if C has a superclass S, field lookup is applied recursively to S.
-		if let Some(super_class) = &self.super_class {
+		if let Some(super_class) = &class.super_class {
 			let super_class = super_class.get();
-			super_class.resolve_field(name_and_type_index);
+			Class::resolve_field(&super_class.constant_pool, field_ref_idx);
 		}
 
 		// 4. Otherwise, field lookup fails.

@@ -1,4 +1,4 @@
-use super::reference::ClassRef;
+use super::reference::{ClassRef, FieldRef};
 use crate::stack::operand_stack::Operand;
 
 use classfile::fieldinfo::ACC_STATIC;
@@ -23,7 +23,7 @@ impl Field {
 		class: ClassRef,
 		field_info: &FieldInfo,
 		constant_pool: &ConstantPool,
-	) -> Self {
+	) -> FieldRef {
 		let access_flags = field_info.access_flags;
 
 		let name_index = field_info.name_index;
@@ -35,14 +35,14 @@ impl Field {
 		let descriptor = FieldType::parse(&mut descriptor_bytes);
 		let constant_value_index = field_info.get_constant_value_attribute();
 
-		Self {
+		FieldRef::new(Self {
 			idx,
 			class,
 			access_flags,
 			name,
 			descriptor,
 			constant_value_index,
-		}
+		})
 	}
 
 	pub fn is_static(&self) -> bool {

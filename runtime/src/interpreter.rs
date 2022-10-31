@@ -8,6 +8,7 @@ use std::sync::atomic::Ordering as MemOrdering;
 use classfile::traits::PtrType;
 use classfile::types::u4;
 use instructions::{OpCode, OperandLike, StackLike};
+use crate::class::Class;
 
 macro_rules! push_const {
     (STACK: $stack:expr, OPCODE: $opcode:ident, $($instruction:ident: [$($value:tt),+]),+) => {
@@ -288,15 +289,14 @@ impl<'a> Interpreter<'a> {
             //       anewarray, arraylength, athrow, checkcast, instanceof,
             //       monitorenter, monitorexit
             if opcode == OpCode::getstatic {
-                let idx = self.frame.read_byte2();
-                let (_class_name_index, name_and_type_index) = self.frame.constant_pool.get_field_ref(idx);
+                let field_ref_idx = self.frame.read_byte2();
 
                 let class = self.frame.method.class.get_mut();
                 if class.initialization_state() == ClassInitializationState::Uninit {
                     class.initialize();
                 }
 
-                let field = self.frame.method.class.get().resolve_field(name_and_type_index).unwrap();
+                let field = Class::resolve_field(&self.frame.method.class.get().constant_pool, field_ref_idx).unwrap();
                 self.frame.stack.push_op(field.get_static_value());
                 continue;
             }
