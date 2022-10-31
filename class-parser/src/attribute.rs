@@ -81,6 +81,16 @@ where
 		AttributeTag::AnnotationDefault => todo!(),
 		AttributeTag::BootstrapMethods => read_attribute_bootstrap_methods(reader),
 		AttributeTag::MethodParameters => read_attribute_method_parameters(reader),
+		AttributeTag::NestMembers => {
+			let number_of_classes = reader.read_u2();
+			let mut classes = Vec::with_capacity(number_of_classes as usize);
+
+			for _ in 0..number_of_classes {
+				classes.push(reader.read_u2())
+			}
+
+			AttributeType::NestMembers { classes }
+		}
 	};
 
 	Attribute {
