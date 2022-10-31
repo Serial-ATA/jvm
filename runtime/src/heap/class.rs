@@ -7,9 +7,9 @@ use crate::stack::operand_stack::Operand;
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
+use classfile::traits::PtrType;
+use classfile::types::u2;
 use classfile::{ClassFile, ConstantPool, FieldType};
-use common::traits::PtrType;
-use common::types::u2;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]

@@ -3,7 +3,7 @@ pub mod classloader;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
-use common::types::u1;
+use classfile::types::u1;
 use once_cell::sync::Lazy;
 
 static CLASSPATH: Lazy<RwLock<ClassPath>> = Lazy::new(|| RwLock::new(ClassPath::default()));

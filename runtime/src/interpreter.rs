@@ -5,8 +5,8 @@ use crate::stack::operand_stack::Operand;
 use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
 
-use common::traits::PtrType;
-use common::types::u4;
+use classfile::traits::PtrType;
+use classfile::types::u4;
 use instructions::{OpCode, OperandLike, StackLike};
 
 macro_rules! push_const {

@@ -2,9 +2,9 @@ use super::reference::ClassRef;
 use crate::stack::operand_stack::Operand;
 
 use classfile::fieldinfo::ACC_STATIC;
+use classfile::traits::PtrType;
+use classfile::types::u2;
 use classfile::{ConstantPool, FieldInfo, FieldType};
-use common::traits::PtrType;
-use common::types::u2;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {

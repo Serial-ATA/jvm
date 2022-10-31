@@ -1,8 +1,8 @@
 use super::reference::ClassRef;
 
+use classfile::traits::PtrType;
+use classfile::types::{u1, u2};
 use classfile::{Code, MethodDescriptor, MethodInfo};
-use common::traits::PtrType;
-use common::types::{u1, u2};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Method {

@@ -2,8 +2,7 @@ use crate::attribute::Attribute;
 use crate::constant_pool::ConstantPool;
 use crate::fieldinfo::FieldInfo;
 use crate::methodinfo::MethodInfo;
-
-use common::types::{u1, u2};
+use crate::types::{u1, u2};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.1
 #[derive(Debug, Clone, PartialEq)]

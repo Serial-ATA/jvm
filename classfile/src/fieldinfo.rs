@@ -1,9 +1,8 @@
 use crate::attribute::{Attribute, AttributeType};
+use crate::traits::JavaReadExt;
+use crate::types::u2;
 
 use std::io::Read;
-
-use common::traits::JavaReadExt;
-use common::types::u2;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.5
 pub const ACC_STATIC: u2 = 0x0008;

@@ -1,12 +1,12 @@
 use std::io::Read;
 
+use classfile::traits::JavaReadExt;
+use classfile::types::u2;
 use classfile::{
 	Annotation, Attribute, AttributeTag, AttributeType, BootstrapMethod, Code, CodeException,
 	ConstantPool, ElementValue, ElementValuePair, ElementValueTag, ElementValueType, InnerClass,
 	LineNumber, LocalVariable, MethodParameter, StackMapFrame, VerificationTypeInfo,
 };
-use common::traits::JavaReadExt;
-use common::types::u2;
 
 pub fn read_attribute<R>(reader: &mut R, constant_pool: &ConstantPool) -> Attribute
 where

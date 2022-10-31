@@ -2,8 +2,8 @@ use crate::attribute;
 
 use std::io::Read;
 
+use classfile::traits::JavaReadExt;
 use classfile::{ConstantPool, FieldInfo};
-use common::traits::JavaReadExt;
 
 pub fn read_field_info<R>(reader: &mut R, constant_pool: &ConstantPool) -> FieldInfo
 where

@@ -1,8 +1,7 @@
 use crate::attribute::{Attribute, AttributeType, Code};
 use crate::fieldinfo::FieldType;
-
-use common::traits::JavaReadExt;
-use common::types::u2;
+use crate::traits::JavaReadExt;
+use crate::types::u2;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.6
 #[derive(Debug, Clone, PartialEq)]
