@@ -188,27 +188,34 @@ impl<'a> Interpreter<'a> {
             // TODO: iload{_[0-3]}, lload{_[0-3]}, fload{_[0-3]}, dload{_[0-3]},
             //       aload{_[0-3]}
 
-            if opcode == OpCode::ldc {
-                let idx = u2::from(self.frame.read_byte());
+            match opcode {
+                op @ (OpCode::ldc | OpCode::ldc_w) => {
+                    let idx = match op {
+                        OpCode::ldc => u2::from(self.frame.read_byte()),
+                        OpCode::ldc_w => self.frame.read_byte2(),
+                        _ => unreachable!()
+                    };
 
-                let class = self.frame.method.class.get();
-                let constant = &class.constant_pool[idx];
+                    let class = self.frame.method.class.get();
+                    let constant = &class.constant_pool[idx];
 
-                match constant {
-                    ConstantPoolValueInfo::Integer { bytes } => self.frame.stack.push_int((*bytes) as i32),
-                    ConstantPoolValueInfo::Float { bytes } => self.frame.stack.push_float(f32::from_be_bytes(bytes.to_be_bytes())),
-                    ConstantPoolValueInfo::String { .. } => todo!("string in ldc"),
-                    ConstantPoolValueInfo::Class { name_index } => {
-                        let class_name = class.constant_pool.get_class_name(*name_index);
-                        let classref = class.loader.load(class_name).unwrap();
-                        self.frame.stack.push_reference(Reference::Class(classref));
+                    match constant {
+                        ConstantPoolValueInfo::Integer { bytes } => self.frame.stack.push_int((*bytes) as i32),
+                        ConstantPoolValueInfo::Float { bytes } => self.frame.stack.push_float(f32::from_be_bytes(bytes.to_be_bytes())),
+                        ConstantPoolValueInfo::String { .. } => todo!("string in ldc"),
+                        ConstantPoolValueInfo::Class { name_index } => {
+                            let class_name = class.constant_pool.get_class_name(*name_index);
+                            let classref = class.loader.load(class_name).unwrap();
+                            self.frame.stack.push_reference(Reference::Class(classref));
+                        }
+                        ConstantPoolValueInfo::MethodHandle { .. } => {}
+                        ConstantPoolValueInfo::MethodType { .. } => {}
+                        ConstantPoolValueInfo::Long { .. }
+                        | ConstantPoolValueInfo::Double { .. } => panic!("ldx called with index to long/double"),
+                        _ => unreachable!()
                     }
-                    ConstantPoolValueInfo::MethodHandle { .. } => {}
-                    ConstantPoolValueInfo::MethodType { .. } => {}
-                    ConstantPoolValueInfo::Long { .. }
-                    | ConstantPoolValueInfo::Double { .. } => panic!("ldx called with index to long/double"),
-                    _ => unreachable!()
-                }
+                },
+                _ => {}
             }
 
             // ========= Stores =========
