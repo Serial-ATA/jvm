@@ -1,14 +1,16 @@
+use crate::class::Class;
 use crate::frame::Frame;
 use crate::heap::class::ClassInitializationState;
 use crate::stack::operand_stack::Operand;
 
+use classfile::ConstantPoolValueInfo;
 use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
 
+use crate::reference::Reference;
 use classfile::traits::PtrType;
-use classfile::types::u4;
+use classfile::types::{u2, u4};
 use instructions::{OpCode, OperandLike, StackLike};
-use crate::class::Class;
 
 macro_rules! push_const {
     (STACK: $stack:expr, OPCODE: $opcode:ident, $($instruction:ident: [$($value:tt),+]),+) => {
@@ -183,7 +185,31 @@ impl<'a> Interpreter<'a> {
             }
 
             // ========= Loads =========
-            // TODO
+            // TODO: iload{_[0-3]}, lload{_[0-3]}, fload{_[0-3]}, dload{_[0-3]},
+            //       aload{_[0-3]}
+
+            if opcode == OpCode::ldc {
+                let idx = u2::from(self.frame.read_byte());
+
+                let class = self.frame.method.class.get();
+                let constant = &class.constant_pool[idx];
+
+                match constant {
+                    ConstantPoolValueInfo::Integer { bytes } => self.frame.stack.push_int((*bytes) as i32),
+                    ConstantPoolValueInfo::Float { bytes } => self.frame.stack.push_float(f32::from_be_bytes(bytes.to_be_bytes())),
+                    ConstantPoolValueInfo::String { .. } => todo!("string in ldc"),
+                    ConstantPoolValueInfo::Class { name_index } => {
+                        let class_name = class.constant_pool.get_class_name(*name_index);
+                        let classref = class.loader.load(class_name).unwrap();
+                        self.frame.stack.push_reference(Reference::Class(classref));
+                    }
+                    ConstantPoolValueInfo::MethodHandle { .. } => {}
+                    ConstantPoolValueInfo::MethodType { .. } => {}
+                    ConstantPoolValueInfo::Long { .. }
+                    | ConstantPoolValueInfo::Double { .. } => panic!("ldx called with index to long/double"),
+                    _ => unreachable!()
+                }
+            }
 
             // ========= Stores =========
             // TODO

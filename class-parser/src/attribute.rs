@@ -90,7 +90,7 @@ where
 			}
 
 			AttributeType::NestMembers { classes }
-		}
+		},
 	};
 
 	Attribute {

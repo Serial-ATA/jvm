@@ -1,11 +1,12 @@
 use crate::operand::OperandLike;
 
-pub trait StackLike<T: OperandLike> {
+pub trait StackLike<T: OperandLike, Reference> {
 	fn push_op(&mut self, op: T);
 	fn push_int(&mut self, int: i32);
 	fn push_float(&mut self, float: f32);
 	fn push_double(&mut self, double: f64);
 	fn push_long(&mut self, long: i64);
+	fn push_reference(&mut self, reference: Reference);
 
 	fn pop(&mut self) -> T;
 	fn pop2(&mut self);

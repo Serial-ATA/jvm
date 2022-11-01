@@ -127,8 +127,7 @@ impl Class {
 
 		let class = classref.get();
 
-		let (name_index, descriptor_index) =
-			constant_pool.get_name_and_type(name_and_type_index);
+		let (name_index, descriptor_index) = constant_pool.get_name_and_type(name_and_type_index);
 
 		let field_name = constant_pool.get_constant_utf8(name_index);
 		let mut descriptor = constant_pool.get_constant_utf8(descriptor_index);

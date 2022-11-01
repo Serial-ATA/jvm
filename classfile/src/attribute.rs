@@ -38,30 +38,30 @@ pub enum AttributeTag {
 impl From<&[u8]> for AttributeTag {
 	fn from(bytes: &[u8]) -> Self {
 		match bytes {
-			b"ConstantValue"                        => Self::ConstantValue,
-			b"Code"                                 => Self::Code,
-			b"StackMapTable"                        => Self::StackMapTable,
-			b"Exceptions"                           => Self::Exceptions,
-			b"InnerClasses"                         => Self::InnerClasses,
-			b"EnclosingMethod"                      => Self::EnclosingMethod,
-			b"Synthetic"                            => Self::Synthetic,
-			b"Signature"                            => Self::Signature,
-			b"SourceFile"                           => Self::SourceFile,
-			b"SourceDebugExtension"                 => Self::SourceDebugExtension,
-			b"LineNumberTable"                      => Self::LineNumberTable,
-			b"LocalVariableTable"                   => Self::LocalVariableTable,
-			b"LocalVariableTypeTable"               => Self::LocalVariableTypeTable,
-			b"Deprecated"                           => Self::Deprecated,
-			b"RuntimeVisibleAnnotations"            => Self::RuntimeVisibleAnnotations,
-			b"RuntimeInvisibleAnnotations"          => Self::RuntimeInvisibleAnnotations,
-			b"RuntimeVisibleParameterAnnotations"   => Self::RuntimeVisibleParameterAnnotations,
+			b"ConstantValue" => Self::ConstantValue,
+			b"Code" => Self::Code,
+			b"StackMapTable" => Self::StackMapTable,
+			b"Exceptions" => Self::Exceptions,
+			b"InnerClasses" => Self::InnerClasses,
+			b"EnclosingMethod" => Self::EnclosingMethod,
+			b"Synthetic" => Self::Synthetic,
+			b"Signature" => Self::Signature,
+			b"SourceFile" => Self::SourceFile,
+			b"SourceDebugExtension" => Self::SourceDebugExtension,
+			b"LineNumberTable" => Self::LineNumberTable,
+			b"LocalVariableTable" => Self::LocalVariableTable,
+			b"LocalVariableTypeTable" => Self::LocalVariableTypeTable,
+			b"Deprecated" => Self::Deprecated,
+			b"RuntimeVisibleAnnotations" => Self::RuntimeVisibleAnnotations,
+			b"RuntimeInvisibleAnnotations" => Self::RuntimeInvisibleAnnotations,
+			b"RuntimeVisibleParameterAnnotations" => Self::RuntimeVisibleParameterAnnotations,
 			b"RuntimeInvisibleParameterAnnotations" => Self::RuntimeInvisibleParameterAnnotations,
-			b"RuntimeVisibleTypeAnnotations"        => Self::RuntimeVisibleTypeAnnotations,
-			b"RuntimeInvisibleTypeAnnotations"      => Self::RuntimeInvisibleTypeAnnotations,
-			b"AnnotationDefault"                    => Self::AnnotationDefault,
-			b"BootstrapMethods"                     => Self::BootstrapMethods,
-			b"MethodParameters"                     => Self::MethodParameters,
-			b"NestMembers"                          => Self::NestMembers,
+			b"RuntimeVisibleTypeAnnotations" => Self::RuntimeVisibleTypeAnnotations,
+			b"RuntimeInvisibleTypeAnnotations" => Self::RuntimeInvisibleTypeAnnotations,
+			b"AnnotationDefault" => Self::AnnotationDefault,
+			b"BootstrapMethods" => Self::BootstrapMethods,
+			b"MethodParameters" => Self::MethodParameters,
+			b"NestMembers" => Self::NestMembers,
 			_ => unsafe {
 				panic!(
 					"Encountered unknown attribute type: {}",
@@ -169,7 +169,7 @@ pub enum AttributeType {
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.29
 	NestMembers {
 		classes: Vec<u2>,
-	}
+	},
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

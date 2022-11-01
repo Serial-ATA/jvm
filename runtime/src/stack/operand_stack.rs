@@ -1,3 +1,5 @@
+use crate::reference::Reference;
+
 use std::cmp::Ordering;
 use std::ops::Neg;
 
@@ -17,7 +19,7 @@ impl OperandStack {
 	}
 }
 
-impl StackLike<Operand> for OperandStack {
+impl StackLike<Operand, Reference> for OperandStack {
 	fn push_op(&mut self, op: Operand) {
 		self.inner.push(op);
 	}
@@ -36,6 +38,10 @@ impl StackLike<Operand> for OperandStack {
 
 	fn push_long(&mut self, long: i64) {
 		self.inner.push(Operand::Long(long));
+	}
+
+	fn push_reference(&mut self, reference: Reference) {
+		self.inner.push(Operand::Reference(reference))
 	}
 
 	fn pop(&mut self) -> Operand {
@@ -112,7 +118,7 @@ impl StackLike<Operand> for OperandStack {
 
 	fn dup(&mut self) {
 		let top_of_stack = self.pop();
-		self.inner.push(top_of_stack);
+		self.inner.push(top_of_stack.clone());
 		self.inner.push(top_of_stack);
 	}
 
@@ -144,7 +150,7 @@ impl StackLike<Operand> for OperandStack {
 	}
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Operand {
 	Constm1,
 	Const0,
@@ -157,10 +163,10 @@ pub enum Operand {
 	Float(f32),
 	Double(f64),
 	Long(i64),
+	Reference(Reference),
 	// Used by local variable stack, both as the initial value and
 	// for storing longs/doubles since those are expected to take up two indices according to spec
 	Empty,
-	// TODO: References
 }
 
 impl OperandLike for Operand {

@@ -51,6 +51,6 @@ impl Field {
 
 	pub fn get_static_value(&self) -> Operand {
 		assert!(self.is_static());
-		self.class.get().static_field_slots[self.idx]
+		self.class.get().static_field_slots[self.idx].clone()
 	}
 }
