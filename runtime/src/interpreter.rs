@@ -189,32 +189,8 @@ impl<'a> Interpreter<'a> {
             //       aload{_[0-3]}
 
             match opcode {
-                op @ (OpCode::ldc | OpCode::ldc_w) => {
-                    let idx = match op {
-                        OpCode::ldc => u2::from(self.frame.read_byte()),
-                        OpCode::ldc_w => self.frame.read_byte2(),
-                        _ => unreachable!()
-                    };
-
-                    let class = self.frame.method.class.get();
-                    let constant = &class.constant_pool[idx];
-
-                    match constant {
-                        ConstantPoolValueInfo::Integer { bytes } => self.frame.stack.push_int((*bytes) as i32),
-                        ConstantPoolValueInfo::Float { bytes } => self.frame.stack.push_float(f32::from_be_bytes(bytes.to_be_bytes())),
-                        ConstantPoolValueInfo::String { .. } => todo!("string in ldc"),
-                        ConstantPoolValueInfo::Class { name_index } => {
-                            let class_name = class.constant_pool.get_class_name(*name_index);
-                            let classref = class.loader.load(class_name).unwrap();
-                            self.frame.stack.push_reference(Reference::Class(classref));
-                        }
-                        ConstantPoolValueInfo::MethodHandle { .. } => {}
-                        ConstantPoolValueInfo::MethodType { .. } => {}
-                        ConstantPoolValueInfo::Long { .. }
-                        | ConstantPoolValueInfo::Double { .. } => panic!("ldx called with index to long/double"),
-                        _ => unreachable!()
-                    }
-                },
+                OpCode::ldc => self.ldc(false),
+                OpCode::ldc_w => self.ldc(true),
                 _ => {}
             }
 
@@ -288,30 +264,8 @@ impl<'a> Interpreter<'a> {
             }
 
             match opcode {
-                OpCode::fcmpl | OpCode::fcmpg => {
-                    // Both value1 and value2 must be of type float.
-                    // The values are popped from the operand stack and a floating-point comparison is performed:
-                    let lhs = self.frame.stack.pop();
-                    let rhs = self.frame.stack.pop();
-
-                    match lhs.partial_cmp(&rhs) {
-                        // If value1 is greater than value2, the int value 1 is pushed onto the operand stack.
-                        Some(Ordering::Greater) => self.frame.stack.push_int(1),
-                        // Otherwise, if value1 is equal to value2, the int value 0 is pushed onto the operand stack.
-                        Some(Ordering::Equal) => self.frame.stack.push_int(0),
-                        // Otherwise, if value1 is less than value2, the int value -1 is pushed onto the operand stack.
-                        Some(Ordering::Less) => self.frame.stack.push_int(-1),
-                        // Otherwise, at least one of value1 or value2 is NaN.
-                        // The fcmpg instruction pushes the int value 1 onto the operand stack and the fcmpl instruction pushes the int value -1 onto the operand stack.
-                        _ => {
-                            if opcode == OpCode::fcmpg {
-                                self.frame.stack.push_int(1);
-                            } else {
-                                self.frame.stack.push_int(-1);
-                            }
-                        },
-                    }
-                },
+                OpCode::fcmpl => self.fcmp(Ordering::Less),
+                OpCode::fcmpg => self.fcmp(Ordering::Greater),
                 _ => {}
             }
 
@@ -372,6 +326,76 @@ impl<'a> Interpreter<'a> {
             // TODO: breakpoint, impdep1, impdep2
 
             unimplemented!("{:?}", opcode)
+        }
+    }
+
+    // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.ldc
+    fn ldc(&mut self, wide: bool) {
+        let idx = if wide {
+            self.frame.read_byte2()
+        } else {
+            u2::from(self.frame.read_byte())
+        };
+
+        let class = self.frame.method.class.get();
+        let constant = &class.constant_pool[idx];
+
+        // The run-time constant pool entry at index must be loadable (§5.1),
+        match constant {
+            // and not any of the following:
+            ConstantPoolValueInfo::Long { .. }
+            | ConstantPoolValueInfo::Double { .. } => panic!("ldx called with index to long/double"),
+
+            // If the run-time constant pool entry is a numeric constant of type int or float,
+            // then the value of that numeric constant is pushed onto the operand stack as an int or float, respectively.
+            ConstantPoolValueInfo::Integer { bytes } => self.frame.stack.push_int((*bytes) as i32),
+            ConstantPoolValueInfo::Float { bytes } => self.frame.stack.push_float(f32::from_be_bytes(bytes.to_be_bytes())),
+
+            // Otherwise, if the run-time constant pool entry is a string constant, that is,
+            // a reference to an instance of class String, then value, a reference to that instance, is pushed onto the operand stack.
+            ConstantPoolValueInfo::String { .. } => todo!("string in ldc"),
+
+            // Otherwise, if the run-time constant pool entry is a symbolic reference to a class or interface,
+            // then the named class or interface is resolved (§5.4.3.1) and value, a reference to the Class object
+            // representing that class or interface, is pushed onto the operand stack.
+            ConstantPoolValueInfo::Class { name_index } => {
+                let class_name = class.constant_pool.get_class_name(*name_index);
+                let classref = class.loader.load(class_name).unwrap();
+                self.frame.stack.push_reference(Reference::Class(classref));
+            },
+
+            // Otherwise, the run-time constant pool entry is a symbolic reference to a method type, a method handle,
+            // or a dynamically-computed constant. The symbolic reference is resolved (§5.4.3.5, §5.4.3.6) and value,
+            // the result of resolution, is pushed onto the operand stack.
+            ConstantPoolValueInfo::MethodHandle { .. } => {}
+            ConstantPoolValueInfo::MethodType { .. } => {}
+            _ => unreachable!()
+        }
+    }
+
+    // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.fcmp_op
+    fn fcmp(&mut self, ordering: Ordering) {
+        // Both value1 and value2 must be of type float.
+        // The values are popped from the operand stack and a floating-point comparison is performed:
+        let lhs = self.frame.stack.pop();
+        let rhs = self.frame.stack.pop();
+
+        match lhs.partial_cmp(&rhs) {
+            // If value1 is greater than value2, the int value 1 is pushed onto the operand stack.
+            Some(Ordering::Greater) => self.frame.stack.push_int(1),
+            // Otherwise, if value1 is equal to value2, the int value 0 is pushed onto the operand stack.
+            Some(Ordering::Equal) => self.frame.stack.push_int(0),
+            // Otherwise, if value1 is less than value2, the int value -1 is pushed onto the operand stack.
+            Some(Ordering::Less) => self.frame.stack.push_int(-1),
+            // Otherwise, at least one of value1 or value2 is NaN.
+            // The fcmpg instruction pushes the int value 1 onto the operand stack and the fcmpl instruction pushes the int value -1 onto the operand stack.
+            _ => {
+                match ordering {
+                    Ordering::Greater => self.frame.stack.push_int(1),
+                    Ordering::Less => self.frame.stack.push_int(-1),
+                    _ => unreachable!()
+                }
+            },
         }
     }
 }
