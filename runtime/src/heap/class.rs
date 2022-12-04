@@ -9,7 +9,7 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 use classfile::traits::PtrType;
 use classfile::types::u2;
-use classfile::{ClassFile, ConstantPool, FieldType};
+use classfile::{ClassFile, ConstantPoolRef, FieldType};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
@@ -46,7 +46,7 @@ impl InitializationLock {
 pub struct Class {
 	pub name: Vec<u8>,
 	pub access_flags: u16,
-	pub constant_pool: ConstantPool,
+	pub constant_pool: ConstantPoolRef,
 	pub super_class: Option<ClassRef>,
 	pub methods: Vec<Method>,
 	pub fields: Vec<FieldRef>,
@@ -119,7 +119,7 @@ impl Class {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.2
-	pub fn resolve_field(constant_pool: &ConstantPool, field_ref_idx: u2) -> Option<FieldRef> {
+	pub fn resolve_field(constant_pool: ConstantPoolRef, field_ref_idx: u2) -> Option<FieldRef> {
 		let (class_name_index, name_and_type_index) = constant_pool.get_field_ref(field_ref_idx);
 
 		let class_name = constant_pool.get_class_name(class_name_index);
@@ -152,7 +152,7 @@ impl Class {
 		// 3. Otherwise, if C has a superclass S, field lookup is applied recursively to S.
 		if let Some(super_class) = &class.super_class {
 			let super_class = super_class.get();
-			Class::resolve_field(&super_class.constant_pool, field_ref_idx);
+			Class::resolve_field(super_class.constant_pool.clone(), field_ref_idx);
 		}
 
 		// 4. Otherwise, field lookup fails.

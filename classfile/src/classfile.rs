@@ -1,5 +1,5 @@
 use crate::attribute::Attribute;
-use crate::constant_pool::ConstantPool;
+use crate::constant_pool::ConstantPoolRef;
 use crate::fieldinfo::FieldInfo;
 use crate::methodinfo::MethodInfo;
 use crate::types::{u1, u2};
@@ -9,7 +9,7 @@ use crate::types::{u1, u2};
 pub struct ClassFile {
 	pub minor_version: u2,
 	pub major_version: u2,
-	pub constant_pool: ConstantPool,
+	pub constant_pool: ConstantPoolRef,
 	pub access_flags: u2,
 	pub this_class: u2,
 	pub super_class: u2,

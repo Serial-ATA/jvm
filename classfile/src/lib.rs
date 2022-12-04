@@ -12,6 +12,6 @@ pub use attribute::{
 	LocalVariable, MethodParameter, StackMapFrame, VerificationTypeInfo,
 };
 pub use classfile::ClassFile;
-pub use constant_pool::{ConstantPool, ConstantPoolTag, ConstantPoolValueInfo};
+pub use constant_pool::{ConstantPool, ConstantPoolTag, ConstantPoolValueInfo, ConstantPoolRef};
 pub use fieldinfo::{FieldInfo, FieldType};
 pub use methodinfo::{MethodDescriptor, MethodInfo};

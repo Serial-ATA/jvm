@@ -4,12 +4,12 @@ use crate::stack::operand_stack::OperandStack;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use classfile::ConstantPoolRef;
 use classfile::types::{u1, u2, u4};
-use classfile::ConstantPool;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6
 #[rustfmt::skip]
-pub struct Frame<'a> {
+pub struct Frame {
     // Each frame has:
 
     // its own array of local variables (§2.6.1)
@@ -17,7 +17,7 @@ pub struct Frame<'a> {
     // its own operand stack (§2.6.2)
 	pub stack: OperandStack,
     // and a reference to the run-time constant pool (§2.5.5)
-	pub constant_pool: &'a ConstantPool,
+	pub constant_pool: ConstantPoolRef,
 	pub method: MethodRef,
     // TODO: move to thread
     // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
@@ -26,8 +26,8 @@ pub struct Frame<'a> {
     pub pc: AtomicUsize,
 }
 
-impl<'a> Frame<'a> {
-	pub fn new(method: MethodRef, constant_pool: &'a ConstantPool) -> Self {
+impl Frame {
+	pub fn new(method: MethodRef, constant_pool: ConstantPoolRef) -> Self {
 		let max_stack = method.code.max_stack;
 		let max_locals = method.code.max_locals;
 

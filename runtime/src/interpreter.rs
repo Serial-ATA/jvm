@@ -5,6 +5,7 @@ use crate::stack::operand_stack::Operand;
 
 use classfile::ConstantPoolValueInfo;
 use std::cmp::Ordering;
+use std::sync::Arc;
 use std::sync::atomic::Ordering as MemOrdering;
 
 use crate::reference::Reference;
@@ -136,14 +137,14 @@ macro_rules! comparisons {
     }}
 }
 
-pub struct Interpreter<'a> {
-	frame: Frame<'a>,
+pub struct Interpreter {
+	frame: Frame,
 	widen: bool,
 }
 
 #[rustfmt::skip]
-impl<'a> Interpreter<'a> {
-	pub fn new(frame: Frame<'a>) -> Self {
+impl Interpreter {
+	pub fn new(frame: Frame) -> Self {
 		Self {
 			frame,
 			widen: false,
@@ -283,7 +284,7 @@ impl<'a> Interpreter<'a> {
                     class.initialize();
                 }
 
-                let field = Class::resolve_field(&self.frame.method.class.get().constant_pool, field_ref_idx).unwrap();
+                let field = Class::resolve_field(Arc::clone(&self.frame.method.class.get().constant_pool), field_ref_idx).unwrap();
                 self.frame.stack.push_op(field.get_static_value());
                 continue;
             }

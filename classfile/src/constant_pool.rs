@@ -2,10 +2,14 @@ use crate::types::{u1, u2, u4};
 
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, Index};
+use std::sync::Arc;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4
 
+pub type ConstantPoolRef = Arc<ConstantPool>;
+
 #[derive(PartialEq, Clone)]
+#[repr(transparent)]
 pub struct ConstantPool {
 	inner: Vec<ConstantPoolValueInfo>,
 }

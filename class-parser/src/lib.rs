@@ -7,7 +7,7 @@ use std::io::Read;
 
 use classfile::traits::JavaReadExt;
 use classfile::types::u2;
-use classfile::{ClassFile, ConstantPool};
+use classfile::{ClassFile, ConstantPool, ConstantPoolRef};
 
 pub fn parse_class<R>(reader: &mut R) -> ClassFile
 where
@@ -59,7 +59,7 @@ where
 	ClassFile {
 		minor_version,
 		major_version,
-		constant_pool,
+		constant_pool: ConstantPoolRef::new(constant_pool),
 		access_flags,
 		this_class,
 		super_class,
