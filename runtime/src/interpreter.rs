@@ -5,8 +5,8 @@ use crate::stack::operand_stack::Operand;
 
 use classfile::ConstantPoolValueInfo;
 use std::cmp::Ordering;
-use std::sync::Arc;
 use std::sync::atomic::Ordering as MemOrdering;
+use std::sync::Arc;
 
 use crate::reference::Reference;
 use classfile::traits::PtrType;

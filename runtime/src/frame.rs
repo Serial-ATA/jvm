@@ -1,15 +1,15 @@
-use std::fmt::{Debug, Formatter};
 use crate::heap::reference::MethodRef;
 use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::OperandStack;
 use crate::thread::ThreadRef;
+use std::fmt::{Debug, Formatter};
 
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use classfile::ConstantPoolRef;
 use classfile::traits::PtrType;
 use classfile::types::{u1, u2, u4};
+use classfile::ConstantPoolRef;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6
 #[rustfmt::skip]
