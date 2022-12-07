@@ -1,5 +1,5 @@
 use crate::class::Class;
-use crate::frame::Frame;
+use crate::frame::FrameRef;
 use crate::heap::class::ClassInitializationState;
 use crate::stack::operand_stack::Operand;
 
@@ -117,7 +117,7 @@ macro_rules! comparisons {
         if lhs $operator $rhs {
             todo!();
         } else {
-            let _ = $frame.pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
+            let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
         }
     }};
     (
@@ -132,19 +132,19 @@ macro_rules! comparisons {
         if lhs $operator rhs {
             todo!();
         } else {
-            let _ = $frame.pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
+            let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
         }
     }}
 }
 
 pub struct Interpreter {
-	frame: Frame,
+	frame: FrameRef,
 	widen: bool,
 }
 
 #[rustfmt::skip]
 impl Interpreter {
-	pub fn new(frame: Frame) -> Self {
+	pub fn new(frame: FrameRef) -> Self {
 		Self {
 			frame,
 			widen: false,
@@ -163,7 +163,7 @@ impl Interpreter {
             if opcode == OpCode::nop { continue }
 
             push_const! {
-                STACK: self.frame.stack,
+                STACK: self.frame.get_operand_stack_mut(),
                 OPCODE: opcode,
                 iconst: [m1, 0, 1, 2 , 3, 4, 5],
                 lconst: [0, 1],
@@ -174,12 +174,12 @@ impl Interpreter {
             match opcode {
                 OpCode::bipush => {
                     let byte = self.frame.read_byte() as i8;
-                    self.frame.stack.push_op(Operand::Int(i32::from(byte)));
+                    self.frame.get_operand_stack_mut().push_op(Operand::Int(i32::from(byte)));
                     continue;
                 },
                 OpCode::sipush => {
                     let short = self.frame.read_byte2() as i16;
-                    self.frame.stack.push_op(Operand::Int(i32::from(short)));
+                    self.frame.get_operand_stack_mut().push_op(Operand::Int(i32::from(short)));
                     continue;
                 },
                 _ => {}
@@ -201,7 +201,7 @@ impl Interpreter {
             // ========= Stack =========
 
             stack_operations! {
-                STACK: self.frame.stack,
+                STACK: self.frame.get_operand_stack_mut(),
                 OPCODE: opcode,
                 pop, pop2,
                 dup, dup_x1, dup_x2,
@@ -213,7 +213,7 @@ impl Interpreter {
             // TODO: shl, ushr, and, or, xor, inc
 
             arithmetic! {
-                STACK: self.frame.stack,
+                STACK: self.frame.get_operand_stack_mut(),
                 OPCODE: opcode,
                 i => [add, sub, mul, div, rem],
                 l => [add, sub, mul, div, rem],
@@ -222,9 +222,9 @@ impl Interpreter {
             }
 
             if let OpCode::ineg | OpCode::lneg | OpCode::fneg | OpCode::dneg = opcode {
-                let mut val = self.frame.stack.pop();
+                let mut val = self.frame.get_operand_stack_mut().pop();
                 val.neg();
-                self.frame.stack.push_op(val);
+                self.frame.get_operand_stack_mut().push_op(val);
 
                 continue;
             }
@@ -232,7 +232,7 @@ impl Interpreter {
             // ========= Conversions =========
 
             conversion_instructions! {
-                STACK: self.frame.stack,
+                STACK: self.frame.get_operand_stack_mut(),
                 OPCODE: opcode,
                 i2l, i2f, i2d,
                 l2i, l2f, l2d,
@@ -245,7 +245,7 @@ impl Interpreter {
             // TODO: lcmp, dcmpl, dcmpg, if_acmpeq, if_acmpne
 
             comparisons! {
-                STACK: self.frame.stack,
+                STACK: self.frame.get_operand_stack_mut(),
                 OPCODE: opcode,
                 FRAME: self.frame,
                 [
@@ -279,13 +279,14 @@ impl Interpreter {
             if opcode == OpCode::getstatic {
                 let field_ref_idx = self.frame.read_byte2();
 
-                let class = self.frame.method.class.get_mut();
+                let method = self.frame.method();
+                let class = method.class.get_mut();
                 if class.initialization_state() == ClassInitializationState::Uninit {
                     class.initialize();
                 }
 
-                let field = Class::resolve_field(Arc::clone(&self.frame.method.class.get().constant_pool), field_ref_idx).unwrap();
-                self.frame.stack.push_op(field.get_static_value());
+                let field = Class::resolve_field(Arc::clone(&class.constant_pool), field_ref_idx).unwrap();
+                self.frame.get_operand_stack_mut().push_op(field.get_static_value());
                 continue;
             }
 
@@ -296,7 +297,7 @@ impl Interpreter {
             match opcode {
                 OpCode::goto => {
                     let address = self.frame.read_byte2();
-                    let _ = self.frame.pc.fetch_add(address as usize, MemOrdering::Relaxed);
+                    let _ = self.frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
 
                     continue;
                 },
@@ -317,7 +318,7 @@ impl Interpreter {
                     let address = self.frame.read_byte4();
                     assert!(address <= u4::from(u16::MAX), "goto_w offset too large!");
 
-                    let _ = self.frame.pc.fetch_add(address as usize, MemOrdering::Relaxed);
+                    let _ = self.frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
                     continue;
                 },
                 _ => {}
@@ -338,7 +339,8 @@ impl Interpreter {
             u2::from(self.frame.read_byte())
         };
 
-        let class = self.frame.method.class.get();
+        let method = self.frame.method();
+        let class = method.class.get();
         let constant = &class.constant_pool[idx];
 
         // The run-time constant pool entry at index must be loadable (§5.1),
@@ -349,8 +351,8 @@ impl Interpreter {
 
             // If the run-time constant pool entry is a numeric constant of type int or float,
             // then the value of that numeric constant is pushed onto the operand stack as an int or float, respectively.
-            ConstantPoolValueInfo::Integer { bytes } => self.frame.stack.push_int((*bytes) as i32),
-            ConstantPoolValueInfo::Float { bytes } => self.frame.stack.push_float(f32::from_be_bytes(bytes.to_be_bytes())),
+            ConstantPoolValueInfo::Integer { bytes } => self.frame.get_operand_stack_mut().push_int((*bytes) as i32),
+            ConstantPoolValueInfo::Float { bytes } => self.frame.get_operand_stack_mut().push_float(f32::from_be_bytes(bytes.to_be_bytes())),
 
             // Otherwise, if the run-time constant pool entry is a string constant, that is,
             // a reference to an instance of class String, then value, a reference to that instance, is pushed onto the operand stack.
@@ -362,7 +364,7 @@ impl Interpreter {
             ConstantPoolValueInfo::Class { name_index } => {
                 let class_name = class.constant_pool.get_class_name(*name_index);
                 let classref = class.loader.load(class_name).unwrap();
-                self.frame.stack.push_reference(Reference::Class(classref));
+                self.frame.get_operand_stack_mut().push_reference(Reference::Class(classref));
             },
 
             // Otherwise, the run-time constant pool entry is a symbolic reference to a method type, a method handle,
@@ -376,24 +378,26 @@ impl Interpreter {
 
     // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.fcmp_op
     fn fcmp(&mut self, ordering: Ordering) {
+        let operand_stack = self.frame.get_operand_stack_mut();
+
         // Both value1 and value2 must be of type float.
         // The values are popped from the operand stack and a floating-point comparison is performed:
-        let lhs = self.frame.stack.pop();
-        let rhs = self.frame.stack.pop();
+        let lhs = operand_stack.pop();
+        let rhs = operand_stack.pop();
 
         match lhs.partial_cmp(&rhs) {
             // If value1 is greater than value2, the int value 1 is pushed onto the operand stack.
-            Some(Ordering::Greater) => self.frame.stack.push_int(1),
+            Some(Ordering::Greater) => operand_stack.push_int(1),
             // Otherwise, if value1 is equal to value2, the int value 0 is pushed onto the operand stack.
-            Some(Ordering::Equal) => self.frame.stack.push_int(0),
+            Some(Ordering::Equal) => operand_stack.push_int(0),
             // Otherwise, if value1 is less than value2, the int value -1 is pushed onto the operand stack.
-            Some(Ordering::Less) => self.frame.stack.push_int(-1),
+            Some(Ordering::Less) => operand_stack.push_int(-1),
             // Otherwise, at least one of value1 or value2 is NaN.
             // The fcmpg instruction pushes the int value 1 onto the operand stack and the fcmpl instruction pushes the int value -1 onto the operand stack.
             _ => {
                 match ordering {
-                    Ordering::Greater => self.frame.stack.push_int(1),
-                    Ordering::Less => self.frame.stack.push_int(-1),
+                    Ordering::Greater => operand_stack.push_int(1),
+                    Ordering::Less => operand_stack.push_int(-1),
                     _ => unreachable!()
                 }
             },
