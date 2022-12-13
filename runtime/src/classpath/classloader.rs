@@ -6,8 +6,8 @@ use std::ops::RangeInclusive;
 use std::sync::{Arc, Mutex};
 
 use classfile::types::u1;
-use once_cell::sync::Lazy;
 use classfile::FieldType;
+use once_cell::sync::Lazy;
 
 const SUPPORTED_MAJOR_LOWER_BOUND: u1 = 45;
 const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 63;

@@ -1,19 +1,19 @@
 use crate::class::Class;
+use crate::class_instance::ClassInstance;
 use crate::frame::FrameRef;
 use crate::heap::class::ClassInitializationState;
-use crate::stack::operand_stack::Operand;
 use crate::reference::Reference;
+use crate::stack::operand_stack::Operand;
 use crate::string_interner::StringInterner;
 
 use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
 use std::sync::Arc;
 
-use classfile::ConstantPoolValueInfo;
 use classfile::traits::PtrType;
 use classfile::types::{u2, u4};
+use classfile::ConstantPoolValueInfo;
 use instructions::{OpCode, OperandLike, StackLike};
-use crate::class_instance::ClassInstance;
 
 macro_rules! push_const {
     (STACK: $stack:expr, OPCODE: $opcode:ident, $($instruction:ident: [$($value:tt),+]),+) => {

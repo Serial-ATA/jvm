@@ -4,8 +4,8 @@ mod heap;
 mod interpreter;
 mod native;
 pub mod stack;
-mod thread;
 mod string_interner;
+mod thread;
 
 pub use frame::Frame;
 pub use heap::*;

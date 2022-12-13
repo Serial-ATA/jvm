@@ -3,9 +3,9 @@ use super::method::Method;
 use super::reference::{ClassRef, FieldRef};
 use crate::classpath::classloader::ClassLoader;
 use crate::reference::MethodRef;
+use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::Operand;
 use crate::thread::ThreadRef;
-use crate::stack::local_stack::LocalStack;
 use crate::Thread;
 
 use std::fmt::{Debug, Formatter};
@@ -204,7 +204,8 @@ impl Class {
 
 	pub fn get_method(&self, name: &[u1], descriptor: &[u1], flags: u2) -> Option<MethodRef> {
 		if let ClassType::Instance(class_instance) = &self.class_ty {
-			return class_instance.methods
+			return class_instance
+				.methods
 				.iter()
 				.find(|method| {
 					method.name == name
@@ -249,7 +250,10 @@ impl Class {
 
 		// 3. Otherwise, if C has a superclass S, field lookup is applied recursively to S.
 		if let Some(super_class) = &class_instance.super_class {
-			Class::resolve_field(super_class.unwrap_class_instance().constant_pool.clone(), field_ref_idx);
+			Class::resolve_field(
+				super_class.unwrap_class_instance().constant_pool.clone(),
+				field_ref_idx,
+			);
 		}
 
 		// 4. Otherwise, field lookup fails.
@@ -311,12 +315,18 @@ impl Class {
 				| FieldType::Short
 				| FieldType::Boolean
 				| FieldType::Int => {
-					class_instance.static_field_slots[idx] =
-						Operand::Int(class_instance.constant_pool.get_integer(constant_value_index))
+					class_instance.static_field_slots[idx] = Operand::Int(
+						class_instance
+							.constant_pool
+							.get_integer(constant_value_index),
+					)
 				},
 				FieldType::Double => {
-					class_instance.static_field_slots[idx] =
-						Operand::Double(class_instance.constant_pool.get_double(constant_value_index))
+					class_instance.static_field_slots[idx] = Operand::Double(
+						class_instance
+							.constant_pool
+							.get_double(constant_value_index),
+					)
 				},
 				FieldType::Float => {
 					class_instance.static_field_slots[idx] =
@@ -378,11 +388,14 @@ impl Class {
 			return;
 		}
 
-		let method = class.get().get_method(
-			CONSTRUCTOR_METHOD_NAME,   /* It has the special name <init>. */
-			descriptor,                      /* It is void (§4.3.3). */
-			Class::ANY_FLAGS
-		).unwrap();
+		let method = class
+			.get()
+			.get_method(
+				CONSTRUCTOR_METHOD_NAME, // It has the special name <init>.
+				descriptor,              // It is void (§4.3.3).
+				Class::ANY_FLAGS,
+			)
+			.unwrap();
 
 		// Pass along the constructor arguments
 		let mut local_stack = LocalStack::new(method.code.max_locals as usize);
@@ -391,7 +404,7 @@ impl Class {
 		for arg in args {
 			let operand_size = match arg {
 				Operand::Double(_) | Operand::Long(_) => 2,
-				_ => 1
+				_ => 1,
 			};
 
 			local_stack[pos_in_stack] = arg;
@@ -450,14 +463,14 @@ impl ClassPtr {
 	pub fn unwrap_class_instance(&self) -> &ClassDescriptor {
 		match self.get().class_ty {
 			ClassType::Instance(ref instance) => instance,
-			_ => unreachable!()
+			_ => unreachable!(),
 		}
 	}
 
 	pub fn unwrap_class_instance_mut(&self) -> &mut ClassDescriptor {
 		match self.get_mut().class_ty {
 			ClassType::Instance(ref mut instance) => instance,
-			_ => unreachable!()
+			_ => unreachable!(),
 		}
 	}
 }
