@@ -9,7 +9,7 @@ use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 use classfile::traits::PtrType;
-use classfile::types::u2;
+use classfile::types::{u1, u2};
 use classfile::{ClassFile, ConstantPoolRef, FieldType, MethodDescriptor};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
@@ -58,6 +58,19 @@ pub struct Class {
 }
 
 impl Class {
+	// Access flags
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.1-200-E.1
+
+	pub const ACC_PUBLIC    : u2 = 0x0001; /* Declared public; may be accessed from outside its package. */
+	pub const ACC_FINAL     : u2 = 0x0010; /* Declared final; no subclasses allowed. */
+	pub const ACC_SUPER     : u2 = 0x0020; /* Treat superclass methods specially when invoked by the invokespecial instruction. */
+	pub const ACC_INTERFACE : u2 = 0x0200; /* Is an interface, not a class. */
+	pub const ACC_ABSTRACT  : u2 = 0x0400; /* Declared abstract; must not be instantiated. */
+	pub const ACC_SYNTHETIC : u2 = 0x1000; /* Declared synthetic; not present in the source code. */
+	pub const ACC_ANNOTATION: u2 = 0x2000; /* Declared as an annotation interface. */
+	pub const ACC_ENUM      : u2 = 0x4000; /* Declared as an enum class. */
+	pub const ACC_MODULE    : u2 = 0x8000; /* Is a module, not a class or interface. */
+
 	pub fn new(
 		parsed_file: ClassFile,
 		super_class: Option<ClassRef>,
@@ -120,7 +133,7 @@ impl Class {
 	}
 
 	pub fn get_main_method(&self) -> Option<MethodRef> {
-		const MAIN_METHOD_NAME: &[u8] = b"main";
+		const MAIN_METHOD_NAME: &[u1] = b"main";
 
 		if let Some(method) = self.methods.iter().find(|method| {
 			method.name == MAIN_METHOD_NAME
