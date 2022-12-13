@@ -3,13 +3,14 @@ use super::method::Method;
 use super::reference::{ClassRef, FieldRef};
 use crate::classpath::classloader::ClassLoader;
 use crate::stack::operand_stack::Operand;
+use crate::reference::MethodRef;
 
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 use classfile::traits::PtrType;
 use classfile::types::u2;
-use classfile::{ClassFile, ConstantPoolRef, FieldType};
+use classfile::{ClassFile, ConstantPoolRef, FieldType, MethodDescriptor};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
@@ -48,7 +49,7 @@ pub struct Class {
 	pub access_flags: u16,
 	pub constant_pool: ConstantPoolRef,
 	pub super_class: Option<ClassRef>,
-	pub methods: Vec<Method>,
+	pub methods: Vec<MethodRef>,
 	pub fields: Vec<FieldRef>,
 	pub static_field_slots: Box<[Operand]>,
 	pub loader: ClassLoader,
@@ -116,6 +117,29 @@ impl Class {
 			.collect();
 
 		classref
+	}
+
+	pub fn get_main_method(&self) -> Option<MethodRef> {
+		const MAIN_METHOD_NAME: &[u8] = b"main";
+
+		if let Some(method) = self.methods.iter().find(|method| {
+			method.name == MAIN_METHOD_NAME
+				&& method.access_flags & 0x0001 > 0
+				&& method.access_flags & 0x0008 > 0
+		}) {
+			let main_method_descriptor = MethodDescriptor {
+				parameters: Box::new([FieldType::Array(Box::new(FieldType::Object(
+					String::from("java/lang/String"),
+				)))]),
+				return_type: FieldType::Void,
+			};
+
+			if method.descriptor == main_method_descriptor {
+				return Some(Arc::clone(method));
+			}
+		}
+
+		None
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.2

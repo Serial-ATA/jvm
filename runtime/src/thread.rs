@@ -3,12 +3,14 @@ use crate::interpreter::Interpreter;
 use crate::reference::MethodRef;
 use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::OperandStack;
+use crate::classpath::classloader::ClassLoader;
 
 use std::fmt::{Debug, Formatter};
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 use classfile::traits::PtrType;
+use classfile::types::u1;
 
 pub type ThreadRef = Arc<ThreadPtr>;
 
@@ -29,6 +31,16 @@ impl Thread {
 		};
 
 		ThreadPtr::new(thread)
+	}
+
+	pub fn new_main(class_name: &[u1]) -> ThreadRef {
+		let class = ClassLoader::Bootstrap.load(class_name).unwrap();
+		let main_method = class.get().get_main_method().unwrap();
+
+		let thread = Thread::new();
+		Thread::invoke_method(&thread, main_method);
+
+		thread
 	}
 
 	pub fn invoke_method(thread: &ThreadRef, method: MethodRef) {

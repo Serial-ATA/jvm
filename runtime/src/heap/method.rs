@@ -1,4 +1,5 @@
 use super::reference::ClassRef;
+use crate::reference::MethodRef;
 
 use classfile::traits::PtrType;
 use classfile::types::{u1, u2};
@@ -14,7 +15,7 @@ pub struct Method {
 }
 
 impl Method {
-	pub fn new(class: ClassRef, method_info: &MethodInfo) -> Self {
+	pub fn new(class: ClassRef, method_info: &MethodInfo) -> MethodRef {
 		let constant_pool = &class.get().constant_pool;
 
 		let access_flags = method_info.access_flags;
@@ -29,12 +30,14 @@ impl Method {
 
 		let code = method_info.get_code_attribute().unwrap_or_default();
 
-		Self {
+		let method = Self {
 			class,
 			access_flags,
 			name,
 			descriptor,
 			code,
-		}
+		};
+
+		MethodRef::new(method)
 	}
 }

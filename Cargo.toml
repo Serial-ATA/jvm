@@ -4,5 +4,6 @@ members = [
     "classfile",
     "instructions",
     "runtime",
+    "jvm",
     "parser-test",
 ]
