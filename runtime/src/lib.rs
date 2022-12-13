@@ -5,6 +5,7 @@ mod interpreter;
 mod native;
 pub mod stack;
 mod thread;
+mod string_interner;
 
 pub use frame::Frame;
 pub use heap::*;

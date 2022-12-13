@@ -12,6 +12,7 @@ use classfile::ConstantPoolValueInfo;
 use classfile::traits::PtrType;
 use classfile::types::{u2, u4};
 use instructions::{OpCode, OperandLike, StackLike};
+use crate::class_instance::ClassInstance;
 
 macro_rules! push_const {
     (STACK: $stack:expr, OPCODE: $opcode:ident, $($instruction:ident: [$($value:tt),+]),+) => {
@@ -119,6 +120,8 @@ macro_rules! comparisons {
         } else {
             let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
         }
+
+        continue;
     }};
     (
         @CREATE_BODY
@@ -134,6 +137,8 @@ macro_rules! comparisons {
         } else {
             let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
         }
+
+        continue;
     }}
 }
 
@@ -190,8 +195,8 @@ impl Interpreter {
             //       aload{_[0-3]}
 
             match opcode {
-                OpCode::ldc => self.ldc(false),
-                OpCode::ldc_w => self.ldc(true),
+                OpCode::ldc => { self.ldc(false); continue; },
+                OpCode::ldc_w => { self.ldc(true); continue; },
                 _ => {}
             }
 
@@ -368,7 +373,9 @@ impl Interpreter {
 
                 let class_name = constant_pool.get_class_name(*name_index);
                 let classref = class.loader.load(class_name).unwrap();
-                self.frame.get_operand_stack_mut().push_reference(Reference::Class(classref));
+
+                let new_class_instance = ClassInstance::new(classref);
+                self.frame.get_operand_stack_mut().push_reference(Reference::Class(new_class_instance));
             },
 
             // Otherwise, the run-time constant pool entry is a symbolic reference to a method type, a method handle,

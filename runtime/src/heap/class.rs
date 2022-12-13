@@ -60,21 +60,22 @@ pub struct Class {
 
 #[derive(Debug, Clone)]
 pub enum ClassType {
-	Instance(ClassInstance),
-	Array(ArrayInstance),
+	Instance(ClassDescriptor),
+	Array(ArrayDescriptor),
 }
 
 #[derive(Debug, Clone)]
-pub struct ClassInstance {
+pub struct ClassDescriptor {
 	pub constant_pool: ConstantPoolRef,
 	pub super_class: Option<ClassRef>,
 	pub methods: Vec<MethodRef>,
 	pub fields: Vec<FieldRef>,
 	pub static_field_slots: Box<[Operand]>,
+	pub instance_field_count: u32,
 }
 
 #[derive(Debug, Clone)]
-pub struct ArrayInstance {
+pub struct ArrayDescriptor {
 	pub dimensions: u1,
 	pub component: FieldType,
 }
@@ -119,13 +120,19 @@ impl Class {
 			.count();
 		let static_field_slots = vec![Operand::Empty; static_field_count].into_boxed_slice();
 
+		let instance_field_count = match super_class {
+			Some(ref super_class) => super_class.unwrap_class_instance().instance_field_count,
+			_ => 0,
+		};
+
 		// We need the Class instance to create our methods and fields
-		let class_instance = ClassInstance {
+		let class_instance = ClassDescriptor {
 			constant_pool,
 			super_class,
 			methods: Vec::new(),
 			fields: Vec::new(),
 			static_field_slots,
+			instance_field_count,
 		};
 
 		let class = Self {
@@ -160,6 +167,8 @@ impl Class {
 					)
 				})
 				.collect();
+
+			class_instance.instance_field_count += class_instance.fields.len() as u32;
 		}
 
 		classref
@@ -168,7 +177,7 @@ impl Class {
 	pub fn new_array(name: &[u1], component: FieldType, loader: ClassLoader) -> ClassRef {
 		let dimensions = name.iter().take_while(|char_| **char_ == b'[').count() as u8;
 
-		let array_instance = ArrayInstance {
+		let array_instance = ArrayDescriptor {
 			dimensions,
 			component,
 		};
@@ -193,14 +202,14 @@ impl Class {
 		self.get_method(MAIN_METHOD_NAME, MAIN_METHOD_DESCRIPTOR, MAIN_METHOD_FLAGS)
 	}
 
-	pub fn get_method(&self, name: &[u1], mut descriptor: &[u1], flags: u2) -> Option<MethodRef> {
+	pub fn get_method(&self, name: &[u1], descriptor: &[u1], flags: u2) -> Option<MethodRef> {
 		if let ClassType::Instance(class_instance) = &self.class_ty {
 			return class_instance.methods
 				.iter()
 				.find(|method| {
 					method.name == name
 						&& (flags == 0 || method.access_flags & flags == flags)
-						&& method.descriptor == MethodDescriptor::parse(&mut descriptor)
+						&& method.descriptor == MethodDescriptor::parse(&mut &descriptor[..])
 				})
 				.map(Arc::clone);
 		}
@@ -438,14 +447,14 @@ impl Clone for Class {
 pub struct ClassPtr(usize);
 
 impl ClassPtr {
-	pub fn unwrap_class_instance(&self) -> &ClassInstance {
+	pub fn unwrap_class_instance(&self) -> &ClassDescriptor {
 		match self.get().class_ty {
 			ClassType::Instance(ref instance) => instance,
 			_ => unreachable!()
 		}
 	}
 
-	pub fn unwrap_class_instance_mut(&self) -> &mut ClassInstance {
+	pub fn unwrap_class_instance_mut(&self) -> &mut ClassDescriptor {
 		match self.get_mut().class_ty {
 			ClassType::Instance(ref mut instance) => instance,
 			_ => unreachable!()
