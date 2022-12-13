@@ -73,6 +73,8 @@ impl Class {
 	pub const ACC_ANNOTATION: u2 = 0x2000; /* Declared as an annotation interface. */
 	pub const ACC_ENUM      : u2 = 0x4000; /* Declared as an enum class. */
 	pub const ACC_MODULE    : u2 = 0x8000; /* Is a module, not a class or interface. */
+
+	pub const ANY_FLAGS     : u2 = 0x0000; /* NOT PART OF SPEC, used internally when access flags do not matter */
 }
 
 impl Class {
@@ -150,7 +152,7 @@ impl Class {
 			.iter()
 			.find(|method| {
 				method.name == name
-					&& method.access_flags & flags == flags
+					&& (flags == 0 || method.access_flags & flags == flags)
 					&& method.descriptor == MethodDescriptor::parse(&mut descriptor)
 			})
 			.map(Arc::clone)
@@ -301,6 +303,29 @@ impl Class {
 		//     procedure abruptly with reason E or its replacement as determined in the previous step.
 		class.init_state = ClassInitializationState::Failed;
 		class.init_lock.notify_all();
+	}
+
+	// Instance initialization method
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.1
+	pub fn construct(class: &ClassRef, thread: &ThreadRef, descriptor: &[u1]) {
+		const CONSTRUCTOR_METHOD_NAME: &[u1] = b"<init>";
+
+		// A class has zero or more instance initialization methods, each typically corresponding to a constructor written in the Java programming language.
+
+		// A method is an instance initialization method if all of the following are true:
+
+		//     It is defined in a class (not an interface).
+		if class.get().access_flags & Class::ACC_INTERFACE > 0 {
+			return;
+		}
+
+		let method = class.get().get_method(
+			CONSTRUCTOR_METHOD_NAME,   /* It has the special name <init>. */
+			descriptor,                      /* It is void (§4.3.3). */
+			Class::ANY_FLAGS
+		).unwrap();
+
+		Thread::invoke_method(thread, method);
 	}
 
 	// Class initialization method
