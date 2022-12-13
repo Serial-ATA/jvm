@@ -57,6 +57,7 @@ pub struct Class {
 	init_lock: Arc<InitializationLock>,
 }
 
+#[rustfmt::skip]
 impl Class {
 	// Access flags
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.1-200-E.1
@@ -70,7 +71,9 @@ impl Class {
 	pub const ACC_ANNOTATION: u2 = 0x2000; /* Declared as an annotation interface. */
 	pub const ACC_ENUM      : u2 = 0x4000; /* Declared as an enum class. */
 	pub const ACC_MODULE    : u2 = 0x8000; /* Is a module, not a class or interface. */
+}
 
+impl Class {
 	pub fn new(
 		parsed_file: ClassFile,
 		super_class: Option<ClassRef>,

@@ -17,6 +17,7 @@ pub struct Field {
 	// TODO
 }
 
+#[rustfmt::skip]
 impl Field {
 	// Access flags
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.5-200-A.1
@@ -30,7 +31,9 @@ impl Field {
 	pub const ACC_TRANSIENT: u2 = 0x0080; /* Declared transient; not written or read by a persistent object manager. */
 	pub const ACC_SYNTHETIC: u2 = 0x1000; /* Declared synthetic; not present in the source code. */
 	pub const ACC_ENUM 	   : u2 = 0x4000; /* Declared as an element of an enum class. */
+}
 
+impl Field {
 	pub fn new(
 		idx: usize,
 		class: ClassRef,

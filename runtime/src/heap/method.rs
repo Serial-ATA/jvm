@@ -14,6 +14,7 @@ pub struct Method {
 	pub code: Code,
 }
 
+#[rustfmt::skip]
 impl Method {
 	// Access flags
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.6-200-A.1
@@ -30,7 +31,9 @@ impl Method {
 	pub const ACC_ABSTRACT    : u2 = 0x0400; /* Declared abstract; no implementation is provided. */
 	pub const ACC_STRICT      : u2 = 0x0800; /* In a class file whose major version number is at least 46 and at most 60: Declared strictfp. */
 	pub const ACC_SYNTHETIC   : u2 = 0x1000; /* Declared synthetic; not present in the source code. */
+}
 
+impl Method {
 	pub fn new(class: ClassRef, method_info: &MethodInfo) -> MethodRef {
 		let constant_pool = &class.get().constant_pool;
 
