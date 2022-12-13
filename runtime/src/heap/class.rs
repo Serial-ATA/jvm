@@ -4,6 +4,7 @@ use super::reference::{ClassRef, FieldRef};
 use crate::classpath::classloader::ClassLoader;
 use crate::reference::MethodRef;
 use crate::stack::operand_stack::Operand;
+use crate::thread::ThreadRef;
 
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
@@ -11,6 +12,7 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use classfile::traits::PtrType;
 use classfile::types::{u1, u2};
 use classfile::{ClassFile, ConstantPoolRef, FieldType, MethodDescriptor};
+use crate::Thread;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
@@ -196,15 +198,17 @@ impl Class {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
-	pub fn initialize(&mut self) {
+	pub fn initialize(class_ref: &ClassRef, thread: ThreadRef) {
+		let class = class_ref.get_mut();
+
 		// 1. Synchronize on the initialization lock, LC, for C. This involves waiting until the current thread can acquire LC.
-		let mut _guard = self.init_lock.lock();
+		let mut _guard = class.init_lock.lock();
 
 		// 2. If the Class object for C indicates that initialization is in progress for C by some other thread
-		if self.init_state == ClassInitializationState::InProgress {
+		if class.init_state == ClassInitializationState::InProgress {
 			// then release LC and block the current thread until informed that the in-progress initialization
 			// has completed, at which time repeat this procedure.
-			_guard = self.init_lock.wait(_guard);
+			_guard = class.init_lock.wait(_guard);
 		}
 
 		// TODO:
@@ -213,26 +217,26 @@ impl Class {
 
 		// 4. If the Class object for C indicates that C has already been initialized, then no further action
 		//    is required. Release LC and complete normally.
-		if self.init_state == ClassInitializationState::Init {
+		if class.init_state == ClassInitializationState::Init {
 			return;
 		}
 
 		// TODO:
 		// 5. If the Class object for C is in an erroneous state, then initialization is not possible.
 		//    Release LC and throw a NoClassDefFoundError.
-		if self.init_state == ClassInitializationState::Failed {
+		if class.init_state == ClassInitializationState::Failed {
 			panic!("NoClassDefFoundError");
 		}
 
 		// TODO: Need to specify thread
 		// 6. Otherwise, record the fact that initialization of the Class object for C is in progress
 		//    by the current thread, and release LC.
-		self.init_state = ClassInitializationState::InProgress;
+		class.init_state = ClassInitializationState::InProgress;
 		drop(_guard);
 
 		//  Then, initialize each final static field of C with the constant value in its ConstantValue attribute (§4.7.2),
 		//  in the order the fields appear in the ClassFile structure.
-		for (idx, field) in self
+		for (idx, field) in class
 			.fields
 			.iter_mut()
 			.filter(|field| field.is_static())
@@ -246,20 +250,20 @@ impl Class {
 				| FieldType::Short
 				| FieldType::Boolean
 				| FieldType::Int => {
-					self.static_field_slots[idx] =
-						Operand::Int(self.constant_pool.get_integer(constant_value_index))
+					class.static_field_slots[idx] =
+						Operand::Int(class.constant_pool.get_integer(constant_value_index))
 				},
 				FieldType::Double => {
-					self.static_field_slots[idx] =
-						Operand::Double(self.constant_pool.get_double(constant_value_index))
+					class.static_field_slots[idx] =
+						Operand::Double(class.constant_pool.get_double(constant_value_index))
 				},
 				FieldType::Float => {
-					self.static_field_slots[idx] =
-						Operand::Float(self.constant_pool.get_float(constant_value_index))
+					class.static_field_slots[idx] =
+						Operand::Float(class.constant_pool.get_float(constant_value_index))
 				},
 				FieldType::Long => {
-					self.static_field_slots[idx] =
-						Operand::Long(self.constant_pool.get_long(constant_value_index))
+					class.static_field_slots[idx] =
+						Operand::Long(class.constant_pool.get_long(constant_value_index))
 				},
 				FieldType::Object(ref obj) if obj == "java/lang/String" => {
 					unimplemented!()
@@ -282,9 +286,10 @@ impl Class {
 		// TODO:
 		// 8. Next, determine whether assertions are enabled for C by querying its defining loader.
 
-		// TODO:
 		// 9. Next, execute the class or interface initialization method of C.
+		Self::clinit(class_ref, thread);
 
+		// TODO: We have no way of telling if the method successfully executed
 		// 10. If the execution of the class or interface initialization method completes normally,
 		//     then acquire LC, label the Class object for C as fully initialized, notify all waiting threads,
 		//     release LC, and complete this procedure normally.
@@ -294,8 +299,28 @@ impl Class {
 
 		// 12. Acquire LC, label the Class object for C as erroneous, notify all waiting threads, release LC, and complete this
 		//     procedure abruptly with reason E or its replacement as determined in the previous step.
-		self.init_state = ClassInitializationState::Failed;
-		self.init_lock.notify_all();
+		class.init_state = ClassInitializationState::Failed;
+		class.init_lock.notify_all();
+	}
+
+	// Class initialization method
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.2
+	#[rustfmt::skip]
+	pub fn clinit(class: &ClassRef, thread: ThreadRef) {
+		// A class or interface has at most one class or interface initialization method and is initialized
+		// by the Java Virtual Machine invoking that method (§5.5).
+
+		// TODO: Check version number for flags and parameters
+		// A method is a class or interface initialization method if all of the following are true:
+		let method = class.get().get_method(
+			b"<clinit>",        /* It has the special name <clinit>. */
+			b"()V",        /* It is void (§4.3.3). */
+			Method::ACC_STATIC /* In a class file whose version number is 51.0 or above, the method has its ACC_STATIC flag set and takes no arguments (§4.6). */
+		);
+
+		if let Some(method) = method {
+			Thread::invoke_method(&thread, method);
+		}
 	}
 
 	pub fn initialization_state(&self) -> ClassInitializationState {

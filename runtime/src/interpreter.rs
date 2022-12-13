@@ -2,13 +2,13 @@ use crate::class::Class;
 use crate::frame::FrameRef;
 use crate::heap::class::ClassInitializationState;
 use crate::stack::operand_stack::Operand;
+use crate::reference::Reference;
 
-use classfile::ConstantPoolValueInfo;
 use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
 use std::sync::Arc;
 
-use crate::reference::Reference;
+use classfile::ConstantPoolValueInfo;
 use classfile::traits::PtrType;
 use classfile::types::{u2, u4};
 use instructions::{OpCode, OperandLike, StackLike};
@@ -280,12 +280,12 @@ impl Interpreter {
                 let field_ref_idx = self.frame.read_byte2();
 
                 let method = self.frame.method();
-                let class = method.class.get_mut();
-                if class.initialization_state() == ClassInitializationState::Uninit {
-                    class.initialize();
+                let class = Arc::clone(&method.class);
+                if class.get().initialization_state() == ClassInitializationState::Uninit {
+                    Class::initialize(&class, self.frame.thread());
                 }
 
-                let field = Class::resolve_field(Arc::clone(&class.constant_pool), field_ref_idx).unwrap();
+                let field = Class::resolve_field(Arc::clone(&class.get().constant_pool), field_ref_idx).unwrap();
                 self.frame.get_operand_stack_mut().push_op(field.get_static_value());
                 continue;
             }
