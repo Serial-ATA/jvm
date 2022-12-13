@@ -2,8 +2,8 @@ use super::field::Field;
 use super::method::Method;
 use super::reference::{ClassRef, FieldRef};
 use crate::classpath::classloader::ClassLoader;
-use crate::stack::operand_stack::Operand;
 use crate::reference::MethodRef;
+use crate::stack::operand_stack::Operand;
 
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
@@ -134,25 +134,21 @@ impl Class {
 
 	pub fn get_main_method(&self) -> Option<MethodRef> {
 		const MAIN_METHOD_NAME: &[u1] = b"main";
+		const MAIN_METHOD_DESCRIPTOR: &[u1] = b"([Ljava/lang/String;)V";
+		const MAIN_METHOD_FLAGS: u2 = Method::ACC_PUBLIC | Method::ACC_STATIC;
 
-		if let Some(method) = self.methods.iter().find(|method| {
-			method.name == MAIN_METHOD_NAME
-				&& method.access_flags & 0x0001 > 0
-				&& method.access_flags & 0x0008 > 0
-		}) {
-			let main_method_descriptor = MethodDescriptor {
-				parameters: Box::new([FieldType::Array(Box::new(FieldType::Object(
-					String::from("java/lang/String"),
-				)))]),
-				return_type: FieldType::Void,
-			};
+		self.get_method(MAIN_METHOD_NAME, MAIN_METHOD_DESCRIPTOR, MAIN_METHOD_FLAGS)
+	}
 
-			if method.descriptor == main_method_descriptor {
-				return Some(Arc::clone(method));
-			}
-		}
-
-		None
+	pub fn get_method(&self, name: &[u1], mut descriptor: &[u1], flags: u2) -> Option<MethodRef> {
+		self.methods
+			.iter()
+			.find(|method| {
+				method.name == name
+					&& method.access_flags & flags == flags
+					&& method.descriptor == MethodDescriptor::parse(&mut descriptor)
+			})
+			.map(Arc::clone)
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.2

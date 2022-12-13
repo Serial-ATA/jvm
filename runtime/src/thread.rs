@@ -1,9 +1,9 @@
+use crate::classpath::classloader::ClassLoader;
 use crate::frame::{Frame, FramePtr, FrameRef};
 use crate::interpreter::Interpreter;
 use crate::reference::MethodRef;
 use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::OperandStack;
-use crate::classpath::classloader::ClassLoader;
 
 use std::fmt::{Debug, Formatter};
 use std::sync::atomic::AtomicUsize;
