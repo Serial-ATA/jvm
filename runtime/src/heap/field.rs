@@ -2,7 +2,6 @@ use super::reference::{ClassRef, FieldRef};
 use crate::stack::operand_stack::Operand;
 
 use classfile::fieldinfo::ACC_STATIC;
-use classfile::traits::PtrType;
 use classfile::types::u2;
 use classfile::{ConstantPool, FieldInfo, FieldType};
 
@@ -67,6 +66,6 @@ impl Field {
 
 	pub fn get_static_value(&self) -> Operand {
 		assert!(self.is_static());
-		self.class.get().static_field_slots[self.idx].clone()
+		self.class.unwrap_class_instance().static_field_slots[self.idx].clone()
 	}
 }

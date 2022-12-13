@@ -285,7 +285,7 @@ impl Interpreter {
                     Class::initialize(&class, self.frame.thread());
                 }
 
-                let field = Class::resolve_field(Arc::clone(&class.get().constant_pool), field_ref_idx).unwrap();
+                let field = Class::resolve_field(Arc::clone(&class.unwrap_class_instance().constant_pool), field_ref_idx).unwrap();
                 self.frame.get_operand_stack_mut().push_op(field.get_static_value());
                 continue;
             }
@@ -340,8 +340,10 @@ impl Interpreter {
         };
 
         let method = self.frame.method();
-        let class = method.class.get();
-        let constant = &class.constant_pool[idx];
+        let class_ref = &method.class;
+
+        let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
+        let constant = &constant_pool[idx];
 
         // The run-time constant pool entry at index must be loadable (§5.1),
         match constant {
@@ -362,7 +364,9 @@ impl Interpreter {
             // then the named class or interface is resolved (§5.4.3.1) and value, a reference to the Class object
             // representing that class or interface, is pushed onto the operand stack.
             ConstantPoolValueInfo::Class { name_index } => {
-                let class_name = class.constant_pool.get_class_name(*name_index);
+                let class = class_ref.get();
+
+                let class_name = constant_pool.get_class_name(*name_index);
                 let classref = class.loader.load(class_name).unwrap();
                 self.frame.get_operand_stack_mut().push_reference(Reference::Class(classref));
             },

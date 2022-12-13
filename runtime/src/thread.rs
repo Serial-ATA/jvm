@@ -47,7 +47,7 @@ impl Thread {
 		let max_stack = method.code.max_stack;
 		let max_locals = method.code.max_locals;
 
-		let constant_pool = Arc::clone(&method.class.get().constant_pool);
+		let constant_pool = Arc::clone(&method.class.unwrap_class_instance().constant_pool);
 
 		let frame = Frame {
 			locals: LocalStack::new(max_locals as usize),
@@ -63,7 +63,7 @@ impl Thread {
 	pub fn invoke_method_with_local_stack(thread: &ThreadRef, method: MethodRef, locals: LocalStack) {
 		let max_stack = method.code.max_stack;
 
-		let constant_pool = Arc::clone(&method.class.get().constant_pool);
+		let constant_pool = Arc::clone(&method.class.unwrap_class_instance().constant_pool);
 
 		let frame = Frame {
 			locals,

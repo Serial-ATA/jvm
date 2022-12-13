@@ -1,7 +1,6 @@
 use super::reference::ClassRef;
 use crate::reference::MethodRef;
 
-use classfile::traits::PtrType;
 use classfile::types::{u1, u2};
 use classfile::{Code, MethodDescriptor, MethodInfo};
 
@@ -35,7 +34,7 @@ impl Method {
 
 impl Method {
 	pub fn new(class: ClassRef, method_info: &MethodInfo) -> MethodRef {
-		let constant_pool = &class.get().constant_pool;
+		let constant_pool = &class.unwrap_class_instance().constant_pool;
 
 		let access_flags = method_info.access_flags;
 

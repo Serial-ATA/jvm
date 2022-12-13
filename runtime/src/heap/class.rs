@@ -50,14 +50,33 @@ impl InitializationLock {
 pub struct Class {
 	pub name: Vec<u8>,
 	pub access_flags: u16,
+	pub loader: ClassLoader,
+
+	pub(crate) class_ty: ClassType,
+
+	init_state: ClassInitializationState,
+	init_lock: Arc<InitializationLock>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ClassType {
+	Instance(ClassInstance),
+	Array(ArrayInstance),
+}
+
+#[derive(Debug, Clone)]
+pub struct ClassInstance {
 	pub constant_pool: ConstantPoolRef,
 	pub super_class: Option<ClassRef>,
 	pub methods: Vec<MethodRef>,
 	pub fields: Vec<FieldRef>,
 	pub static_field_slots: Box<[Operand]>,
-	pub loader: ClassLoader,
-	init_state: ClassInitializationState,
-	init_lock: Arc<InitializationLock>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ArrayInstance {
+	pub dimensions: u1,
+	pub component: FieldType,
 }
 
 #[rustfmt::skip]
@@ -85,7 +104,6 @@ impl Class {
 		loader: ClassLoader,
 	) -> ClassRef {
 		let access_flags = parsed_file.access_flags;
-
 		let class_name_index = parsed_file.this_class;
 		let name = parsed_file
 			.constant_pool
@@ -102,42 +120,69 @@ impl Class {
 		let static_field_slots = vec![Operand::Empty; static_field_count].into_boxed_slice();
 
 		// We need the Class instance to create our methods and fields
-		let class = Self {
-			name,
-			access_flags,
+		let class_instance = ClassInstance {
 			constant_pool,
 			super_class,
-			loader,
 			methods: Vec::new(),
 			fields: Vec::new(),
 			static_field_slots,
+		};
+
+		let class = Self {
+			name,
+			access_flags,
+			loader,
+			class_ty: ClassType::Instance(class_instance),
 			init_state: ClassInitializationState::default(),
 			init_lock: Arc::default(),
 		};
 
 		let classref = ClassPtr::new(class);
+		let class = classref.get_mut();
 
-		classref.get_mut().methods = parsed_file
-			.methods
-			.iter()
-			.map(|mi| Method::new(Arc::clone(&classref), mi))
-			.collect();
+		if let ClassType::Instance(ref mut class_instance) = class.class_ty {
+			class_instance.methods = parsed_file
+				.methods
+				.iter()
+				.map(|mi| Method::new(Arc::clone(&classref), mi))
+				.collect();
 
-		classref.get_mut().fields = parsed_file
-			.fields
-			.iter()
-			.enumerate()
-			.map(|(idx, fi)| {
-				Field::new(
-					idx,
-					Arc::clone(&classref),
-					fi,
-					&classref.get().constant_pool,
-				)
-			})
-			.collect();
+			class_instance.fields = parsed_file
+				.fields
+				.iter()
+				.enumerate()
+				.map(|(idx, fi)| {
+					Field::new(
+						idx,
+						Arc::clone(&classref),
+						fi,
+						&class_instance.constant_pool,
+					)
+				})
+				.collect();
+		}
 
 		classref
+	}
+
+	pub fn new_array(name: &[u1], component: FieldType, loader: ClassLoader) -> ClassRef {
+		let dimensions = name.iter().take_while(|char_| **char_ == b'[').count() as u8;
+
+		let array_instance = ArrayInstance {
+			dimensions,
+			component,
+		};
+
+		let class = Self {
+			name: name.to_vec(),
+			access_flags: 0,
+			loader,
+			class_ty: ClassType::Array(array_instance),
+			init_state: ClassInitializationState::default(),
+			init_lock: Arc::default(),
+		};
+
+		ClassPtr::new(class)
 	}
 
 	pub fn get_main_method(&self) -> Option<MethodRef> {
@@ -149,14 +194,18 @@ impl Class {
 	}
 
 	pub fn get_method(&self, name: &[u1], mut descriptor: &[u1], flags: u2) -> Option<MethodRef> {
-		self.methods
-			.iter()
-			.find(|method| {
-				method.name == name
-					&& (flags == 0 || method.access_flags & flags == flags)
-					&& method.descriptor == MethodDescriptor::parse(&mut descriptor)
-			})
-			.map(Arc::clone)
+		if let ClassType::Instance(class_instance) = &self.class_ty {
+			return class_instance.methods
+				.iter()
+				.find(|method| {
+					method.name == name
+						&& (flags == 0 || method.access_flags & flags == flags)
+						&& method.descriptor == MethodDescriptor::parse(&mut descriptor)
+				})
+				.map(Arc::clone);
+		}
+
+		None
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.2
@@ -165,8 +214,6 @@ impl Class {
 
 		let class_name = constant_pool.get_class_name(class_name_index);
 		let classref = ClassLoader::Bootstrap.load(class_name).unwrap();
-
-		let class = classref.get();
 
 		let (name_index, descriptor_index) = constant_pool.get_name_and_type(name_and_type_index);
 
@@ -180,7 +227,8 @@ impl Class {
 
 		// 1. If C declares a field with the name and descriptor specified by the field reference,
 		//    field lookup succeeds. The declared field is the result of the field lookup.
-		for field in &class.fields {
+		let class_instance = classref.unwrap_class_instance();
+		for field in &class_instance.fields {
 			if field.name == field_name && field.descriptor == field_type {
 				return Some(Arc::clone(field));
 			}
@@ -191,9 +239,8 @@ impl Class {
 		//    specified class or interface C.
 
 		// 3. Otherwise, if C has a superclass S, field lookup is applied recursively to S.
-		if let Some(super_class) = &class.super_class {
-			let super_class = super_class.get();
-			Class::resolve_field(super_class.constant_pool.clone(), field_ref_idx);
+		if let Some(super_class) = &class_instance.super_class {
+			Class::resolve_field(super_class.unwrap_class_instance().constant_pool.clone(), field_ref_idx);
 		}
 
 		// 4. Otherwise, field lookup fails.
@@ -237,9 +284,11 @@ impl Class {
 		class.init_state = ClassInitializationState::InProgress;
 		drop(_guard);
 
+		let class_instance = class_ref.unwrap_class_instance_mut();
+
 		//  Then, initialize each final static field of C with the constant value in its ConstantValue attribute (§4.7.2),
 		//  in the order the fields appear in the ClassFile structure.
-		for (idx, field) in class
+		for (idx, field) in class_instance
 			.fields
 			.iter_mut()
 			.filter(|field| field.is_static())
@@ -253,20 +302,20 @@ impl Class {
 				| FieldType::Short
 				| FieldType::Boolean
 				| FieldType::Int => {
-					class.static_field_slots[idx] =
-						Operand::Int(class.constant_pool.get_integer(constant_value_index))
+					class_instance.static_field_slots[idx] =
+						Operand::Int(class_instance.constant_pool.get_integer(constant_value_index))
 				},
 				FieldType::Double => {
-					class.static_field_slots[idx] =
-						Operand::Double(class.constant_pool.get_double(constant_value_index))
+					class_instance.static_field_slots[idx] =
+						Operand::Double(class_instance.constant_pool.get_double(constant_value_index))
 				},
 				FieldType::Float => {
-					class.static_field_slots[idx] =
-						Operand::Float(class.constant_pool.get_float(constant_value_index))
+					class_instance.static_field_slots[idx] =
+						Operand::Float(class_instance.constant_pool.get_float(constant_value_index))
 				},
 				FieldType::Long => {
-					class.static_field_slots[idx] =
-						Operand::Long(class.constant_pool.get_long(constant_value_index))
+					class_instance.static_field_slots[idx] =
+						Operand::Long(class_instance.constant_pool.get_long(constant_value_index))
 				},
 				FieldType::Object(ref obj) if obj == "java/lang/String" => {
 					unimplemented!()
@@ -373,11 +422,7 @@ impl Clone for Class {
 		Self {
 			name: self.name.clone(),
 			access_flags: self.access_flags,
-			constant_pool: self.constant_pool.clone(),
-			super_class: self.super_class.clone(),
-			methods: self.methods.clone(),
-			fields: self.fields.clone(),
-			static_field_slots: self.static_field_slots.clone(),
+			class_ty: self.class_ty.clone(),
 			loader: self.loader,
 			init_state: self.init_state,
 			init_lock: Arc::new(InitializationLock::default()),
@@ -391,6 +436,22 @@ impl Clone for Class {
 // deallocate the class.
 #[derive(PartialEq)]
 pub struct ClassPtr(usize);
+
+impl ClassPtr {
+	pub fn unwrap_class_instance(&self) -> &ClassInstance {
+		match self.get().class_ty {
+			ClassType::Instance(ref instance) => instance,
+			_ => unreachable!()
+		}
+	}
+
+	pub fn unwrap_class_instance_mut(&self) -> &mut ClassInstance {
+		match self.get_mut().class_ty {
+			ClassType::Instance(ref mut instance) => instance,
+			_ => unreachable!()
+		}
+	}
+}
 
 impl PtrType<Class, ClassRef> for ClassPtr {
 	fn new(val: Class) -> ClassRef {

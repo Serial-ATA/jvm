@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use classfile::types::u1;
 use once_cell::sync::Lazy;
+use classfile::FieldType;
 
 const SUPPORTED_MAJOR_LOWER_BOUND: u1 = 45;
 const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 63;
@@ -73,6 +74,10 @@ impl ClassLoader {
 	fn load_class_by_name(self, name: &[u1]) -> ClassRef {
 		if let Some(class) = Self::lookup_class(name) {
 			return class;
+		}
+
+		if name.first() == Some(&b'[') {
+			return self.create_array_class(name);
 		}
 
 		// TODO:
@@ -158,5 +163,46 @@ impl ClassLoader {
 		//     a final instance method declared in a superclass of C, derivation throws an IncompatibleClassChangeError.
 
 		self.load_class_by_name(super_class_name)
+	}
+
+	// Creating array classes
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.3.3
+	fn create_array_class(self, descriptor: &[u1]) -> ClassRef {
+		// The following steps are used to create the array class C denoted by the name N in association with the class loader L.
+		// L may be either the bootstrap class loader or a user-defined class loader.
+
+		// First, the Java Virtual Machine determines whether L has already been recorded as an initiating loader of an array class with
+		// the same component type as N. If so, this class is C, and no array class creation is necessary.
+		if let Some(ret) = Self::lookup_class(descriptor) {
+			return ret;
+		}
+
+		// Otherwise, the following steps are performed to create C:
+		//
+		//     If the component type is a reference type, the algorithm of this section (§5.3) is applied recursively using L in order to load and thereby create the component type of C.
+		let component = FieldType::parse(&mut &descriptor[..]);
+
+		if let FieldType::Object(ref obj) = component {
+			self.load(obj.as_bytes());
+		}
+
+		//     The Java Virtual Machine creates a new array class with the indicated component type and number of dimensions.
+		let array_class = Class::new_array(descriptor, component, self);
+
+		//     If the component type is a reference type, the Java Virtual Machine marks C to have the defining loader of the component type as its defining loader.
+		//     Otherwise, the Java Virtual Machine marks C to have the bootstrap class loader as its defining loader.
+
+		// (Already handled)
+
+		//     In any case, the Java Virtual Machine then records that L is an initiating loader for C (§5.3.4).
+
+		// (Already handled)
+
+		// TODO:
+		//     If the component type is a reference type, the accessibility of the array class is determined by the accessibility of its component type (§5.4.4).
+		//     Otherwise, the array class is accessible to all classes and interfaces.
+
+		Self::insert_bootstrapped_class(descriptor.to_vec(), Arc::clone(&array_class));
+		array_class
 	}
 }
