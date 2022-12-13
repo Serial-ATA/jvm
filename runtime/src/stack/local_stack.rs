@@ -1,6 +1,6 @@
 use super::operand_stack::Operand;
 
-use std::ops::Index;
+use std::ops::{Index, IndexMut};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6.1
 #[derive(Debug, Clone, PartialEq)]
@@ -25,5 +25,11 @@ impl Index<usize> for LocalStack {
 
 	fn index(&self, index: usize) -> &Self::Output {
 		&self.inner[index]
+	}
+}
+
+impl IndexMut<usize> for LocalStack {
+	fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+		self.inner.index_mut(index)
 	}
 }

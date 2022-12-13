@@ -60,6 +60,22 @@ impl Thread {
 		thread.get_mut().frame_stack.push(FramePtr::new(frame));
 	}
 
+	pub fn invoke_method_with_local_stack(thread: &ThreadRef, method: MethodRef, locals: LocalStack) {
+		let max_stack = method.code.max_stack;
+
+		let constant_pool = Arc::clone(&method.class.get().constant_pool);
+
+		let frame = Frame {
+			locals,
+			stack: OperandStack::new(max_stack as usize),
+			constant_pool,
+			method,
+			thread: Arc::clone(thread),
+		};
+
+		thread.get_mut().frame_stack.push(FramePtr::new(frame));
+	}
+
 	pub fn run(thread: &ThreadRef) {
 		let thread = thread.get_mut();
 		while let Some(frame) = thread.frame_stack.pop() {

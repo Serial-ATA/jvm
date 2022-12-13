@@ -5,6 +5,8 @@ use crate::classpath::classloader::ClassLoader;
 use crate::reference::MethodRef;
 use crate::stack::operand_stack::Operand;
 use crate::thread::ThreadRef;
+use crate::stack::local_stack::LocalStack;
+use crate::Thread;
 
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
@@ -12,7 +14,6 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use classfile::traits::PtrType;
 use classfile::types::{u1, u2};
 use classfile::{ClassFile, ConstantPoolRef, FieldType, MethodDescriptor};
-use crate::Thread;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
@@ -307,7 +308,7 @@ impl Class {
 
 	// Instance initialization method
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.1
-	pub fn construct(class: &ClassRef, thread: &ThreadRef, descriptor: &[u1]) {
+	pub fn construct(class: &ClassRef, thread: &ThreadRef, descriptor: &[u1], args: Vec<Operand>) {
 		const CONSTRUCTOR_METHOD_NAME: &[u1] = b"<init>";
 
 		// A class has zero or more instance initialization methods, each typically corresponding to a constructor written in the Java programming language.
@@ -325,7 +326,21 @@ impl Class {
 			Class::ANY_FLAGS
 		).unwrap();
 
-		Thread::invoke_method(thread, method);
+		// Pass along the constructor arguments
+		let mut local_stack = LocalStack::new(method.code.max_locals as usize);
+
+		let mut pos_in_stack = 0;
+		for arg in args {
+			let operand_size = match arg {
+				Operand::Double(_) | Operand::Long(_) => 2,
+				_ => 1
+			};
+
+			local_stack[pos_in_stack] = arg;
+			pos_in_stack += operand_size;
+		}
+
+		Thread::invoke_method_with_local_stack(thread, method, local_stack);
 	}
 
 	// Class initialization method
