@@ -296,7 +296,8 @@ impl Interpreter {
             return;
         }
 
-        if opcode == OpCode::invokevirtual {
+        // Static/virtual are differentiated in `MethodInvoker::invoke`
+        if opcode == OpCode::invokestatic || opcode == OpCode::invokevirtual {
             let method_ref_idx = frame.read_byte2();
 
             let method = frame.method();
