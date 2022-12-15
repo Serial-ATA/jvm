@@ -1,7 +1,6 @@
 use crate::class::Class;
 use crate::class_instance::ClassInstance;
 use crate::frame::FrameRef;
-use crate::heap::class::ClassInitializationState;
 use crate::reference::Reference;
 use crate::stack::operand_stack::Operand;
 use crate::string_interner::StringInterner;
@@ -10,6 +9,7 @@ use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
 use std::sync::Arc;
 
+use crate::method_invoker::MethodInvoker;
 use classfile::traits::PtrType;
 use classfile::types::{u2, u4};
 use classfile::ConstantPoolValueInfo;
@@ -287,12 +287,23 @@ impl Interpreter {
 
                 let method = self.frame.method();
                 let class = Arc::clone(&method.class);
-                if class.get().initialization_state() == ClassInitializationState::Uninit {
-                    Class::initialize(&class, self.frame.thread());
-                }
+                
+                let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
 
-                let field = Class::resolve_field(Arc::clone(&class.unwrap_class_instance().constant_pool), field_ref_idx).unwrap();
+                let field = Class::resolve_field(self.frame.thread(), constant_pool, field_ref_idx);
                 self.frame.get_operand_stack_mut().push_op(field.get_static_value());
+                continue;
+            }
+
+            if opcode == OpCode::invokevirtual {
+                let method_ref_idx = self.frame.read_byte2();
+
+                let method = self.frame.method();
+                let class = Arc::clone(&method.class);
+
+                let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
+                let method = Class::resolve_method(self.frame.thread(), constant_pool, method_ref_idx).unwrap();
+                MethodInvoker::invoke(FrameRef::clone(&self.frame), method);
                 continue;
             }
 

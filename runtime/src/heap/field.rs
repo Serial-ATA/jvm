@@ -1,7 +1,6 @@
 use super::reference::{ClassRef, FieldRef};
 use crate::stack::operand_stack::Operand;
 
-use classfile::fieldinfo::ACC_STATIC;
 use classfile::types::u2;
 use classfile::{ConstantPool, FieldInfo, FieldType};
 
@@ -61,7 +60,11 @@ impl Field {
 	}
 
 	pub fn is_static(&self) -> bool {
-		self.access_flags & ACC_STATIC == ACC_STATIC
+		self.access_flags & Field::ACC_STATIC != 0
+	}
+
+	pub fn is_final(&self) -> bool {
+		self.access_flags & Field::ACC_FINAL != 0
 	}
 
 	pub fn get_static_value(&self) -> Operand {

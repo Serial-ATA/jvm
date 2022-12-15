@@ -2,8 +2,8 @@ use super::field::Field;
 use super::method::Method;
 use super::reference::{ClassRef, FieldRef};
 use crate::classpath::classloader::ClassLoader;
+use crate::method_invoker::MethodInvoker;
 use crate::reference::MethodRef;
-use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::Operand;
 use crate::thread::ThreadRef;
 use crate::Thread;
@@ -11,7 +11,6 @@ use crate::Thread;
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
-use crate::method_invoker::MethodInvoker;
 use classfile::traits::PtrType;
 use classfile::types::{u1, u2};
 use classfile::{ClassFile, ConstantPoolRef, FieldType, MethodDescriptor};
@@ -220,11 +219,19 @@ impl Class {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.2
-	pub fn resolve_field(constant_pool: ConstantPoolRef, field_ref_idx: u2) -> Option<FieldRef> {
+	pub fn resolve_field(
+		thread: ThreadRef,
+		constant_pool: ConstantPoolRef,
+		field_ref_idx: u2,
+	) -> FieldRef {
 		let (class_name_index, name_and_type_index) = constant_pool.get_field_ref(field_ref_idx);
 
 		let class_name = constant_pool.get_class_name(class_name_index);
 		let classref = ClassLoader::Bootstrap.load(class_name).unwrap();
+
+		if classref.get().initialization_state() != ClassInitializationState::Init {
+			Class::initialize(&classref, Arc::clone(&thread));
+		}
 
 		let (name_index, descriptor_index) = constant_pool.get_name_and_type(name_and_type_index);
 
@@ -241,7 +248,7 @@ impl Class {
 		let class_instance = classref.unwrap_class_instance();
 		for field in &class_instance.fields {
 			if field.name == field_name && field.descriptor == field_type {
-				return Some(Arc::clone(field));
+				return Arc::clone(field);
 			}
 		}
 
@@ -252,12 +259,106 @@ impl Class {
 		// 3. Otherwise, if C has a superclass S, field lookup is applied recursively to S.
 		if let Some(super_class) = &class_instance.super_class {
 			Class::resolve_field(
+				thread,
 				super_class.unwrap_class_instance().constant_pool.clone(),
 				field_ref_idx,
 			);
 		}
 
 		// 4. Otherwise, field lookup fails.
+		panic!("NoSuchFieldError") // TODO
+	}
+
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.3
+	pub fn resolve_method(
+		thread: ThreadRef,
+		constant_pool: ConstantPoolRef,
+		method_ref_idx: u2,
+	) -> Option<MethodRef> {
+		let (class_name_index, name_and_type_index) = constant_pool.get_method_ref(method_ref_idx);
+
+		let class_name = constant_pool.get_class_name(class_name_index);
+		let classref = ClassLoader::Bootstrap.load(class_name).unwrap();
+
+		if classref.get().initialization_state() != ClassInitializationState::Init {
+			Class::initialize(&classref, thread);
+		}
+
+		let class_instance = classref.unwrap_class_instance();
+
+		let (method_name_index, method_descriptor_index) = class_instance
+			.constant_pool
+			.get_name_and_type(name_and_type_index);
+
+		let method_name = constant_pool.get_constant_utf8(method_name_index);
+		let descriptor = constant_pool.get_constant_utf8(method_descriptor_index);
+
+		// When resolving a method reference:
+
+		//  1. If C is an interface, method resolution throws an IncompatibleClassChangeError.
+		if classref.get().access_flags & Class::ACC_INTERFACE != 0 {
+			panic!("IncompatibleClassChangeError"); // TODO
+		}
+
+		//  2. Otherwise, method resolution attempts to locate the referenced method in C and its superclasses:
+		if let ret @ Some(_) =
+			Class::resolve_method_step_two(class_instance, method_name, descriptor)
+		{
+			return ret;
+		}
+
+		// TODO: Method resolution in superinterfaces
+		//  3. Otherwise, method resolution attempts to locate the referenced method in the superinterfaces of the specified class C:
+
+		//    3.1. If the maximally-specific superinterface methods of C for the name and descriptor specified by the method reference include
+		//         exactly one method that does not have its ACC_ABSTRACT flag set, then this method is chosen and method lookup succeeds.
+
+		//    3.2. Otherwise, if any superinterface of C declares a method with the name and descriptor specified by the method reference that
+		//         has neither its ACC_PRIVATE flag nor its ACC_STATIC flag set, one of these is arbitrarily chosen and method lookup succeeds.
+
+		//    3.3. Otherwise, method lookup fails.
+		panic!("NoSuchMethodError") // TODO
+	}
+
+	fn resolve_method_step_two(
+		class_instance: &ClassDescriptor,
+		method_name: &[u1],
+		descriptor: &[u1],
+	) -> Option<MethodRef> {
+		//    2.1. If C declares exactly one method with the name specified by the method reference, and the declaration
+		//         is a signature polymorphic method (§2.9.3), then method lookup succeeds. All the class names mentioned
+		//         in the descriptor are resolved (§5.4.3.1).
+		let searched_method = class_instance
+			.methods
+			.iter()
+			.find(|method| method.name == method_name);
+		if let Some(method) = searched_method {
+			if method.is_polymorphic() {
+				return Some(Arc::clone(method));
+			}
+		}
+
+		// 	  2.2. Otherwise, if C declares a method with the name and descriptor specified by the method reference, method lookup succeeds.
+		let parsed_descriptor = MethodDescriptor::parse(&mut &descriptor[..]);
+		let searched_method = class_instance
+			.methods
+			.iter()
+			.find(|method| method.name == method_name && method.descriptor == parsed_descriptor);
+		if let Some(method) = searched_method {
+			return Some(Arc::clone(method));
+		}
+
+		// 	  2.3. Otherwise, if C has a superclass, step 2 of method resolution is recursively invoked on the direct superclass of C.
+		if let Some(ref super_class) = class_instance.super_class {
+			if let Some(resolved_method) = Class::resolve_method_step_two(
+				super_class.unwrap_class_instance(),
+				method_name,
+				descriptor,
+			) {
+				return Some(Arc::clone(&resolved_method));
+			}
+		}
+
 		None
 	}
 
@@ -305,10 +406,12 @@ impl Class {
 		for (idx, field) in class_instance
 			.fields
 			.iter_mut()
-			.filter(|field| field.is_static())
+			.filter(|field| field.is_static() && field.is_final())
 			.enumerate()
 		{
-			let constant_value_index = field.constant_value_index.unwrap();
+			let Some(constant_value_index) = field.constant_value_index else {
+				continue
+			};
 
 			match field.descriptor {
 				FieldType::Byte
@@ -365,6 +468,9 @@ impl Class {
 		// 10. If the execution of the class or interface initialization method completes normally,
 		//     then acquire LC, label the Class object for C as fully initialized, notify all waiting threads,
 		//     release LC, and complete this procedure normally.
+		class.init_state = ClassInitializationState::Init;
+		class.init_lock.notify_all();
+		return;
 
 		// TODO:
 		// 11. Otherwise, the class or interface initialization method must have completed abruptly by throwing some exception E.
@@ -417,7 +523,7 @@ impl Class {
 		);
 
 		if let Some(method) = method {
-			Thread::invoke_method(&thread, method);
+			MethodInvoker::invoke_with_args(&thread, method, Vec::new());
 		}
 	}
 

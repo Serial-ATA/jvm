@@ -28,7 +28,7 @@ pub struct Frame {
 }
 
 #[repr(transparent)]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct FrameRef(Arc<FramePtr>);
 
 impl FrameRef {

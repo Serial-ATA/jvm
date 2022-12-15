@@ -6,7 +6,6 @@ use crate::stack::operand_stack::Operand;
 use crate::thread::ThreadRef;
 use crate::Thread;
 
-use classfile::traits::PtrType;
 use instructions::StackLike;
 
 pub struct MethodInvoker;

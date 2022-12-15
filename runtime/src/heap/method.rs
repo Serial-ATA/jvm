@@ -75,8 +75,11 @@ impl Method {
 			class.name == METHODHANDLE_CLASS_NAME || class.name == VARHANDLE_CLASS_NAME;
 
 		//     It has a single formal parameter of type Object[].
-		match &self.descriptor.parameters {
-			[FieldType::Array(FieldType::Object(ref obj))] if obj == "java/lang/Object" => {},
+		match &*self.descriptor.parameters {
+			[FieldType::Array(arr_ty)] => match &**arr_ty {
+				FieldType::Object(ref obj) if obj == "java/lang/Object" => {},
+				_ => return false,
+			},
 			_ => return false,
 		}
 
