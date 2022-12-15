@@ -1,8 +1,3 @@
-[package]
-name = "root"
-version = "0.1.0"
-build = "build.rs"
-
 [workspace]
 members = [
     "class-parser",
@@ -13,10 +8,3 @@ members = [
     "runtime/src/native/method-gen",
     "parser-test",
 ]
-
-[build-dependencies]
-method-gen = { path = "runtime/src/native/method-gen" }
-
-[[bin]]
-name = "jvm"
-path = "jvm/src/main.rs"
