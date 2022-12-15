@@ -56,6 +56,11 @@ impl StackLike<Operand, Reference> for OperandStack {
 		self.inner.pop();
 	}
 
+	fn popn(&mut self, count: usize) -> Vec<Operand> {
+		let split_pos = self.inner.len() - count;
+		self.inner.split_off(split_pos)
+	}
+
 	fn pop_int(&mut self) -> i32 {
 		let op = self.pop();
 		match op {
@@ -88,6 +93,12 @@ impl StackLike<Operand, Reference> for OperandStack {
 
 	fn pop_double(&mut self) -> f64 {
 		let op = self.pop();
+		assert_eq!(
+			self.pop(),
+			Operand::Empty,
+			"Double only occupied single slot on stack!"
+		);
+
 		match op {
 			Operand::Constm1 => -1.0,
 			Operand::Const0 => 0.0,
@@ -103,6 +114,12 @@ impl StackLike<Operand, Reference> for OperandStack {
 
 	fn pop_long(&mut self) -> i64 {
 		let op = self.pop();
+		assert_eq!(
+			self.pop(),
+			Operand::Empty,
+			"Long only occupied single slot on stack!"
+		);
+
 		match op {
 			Operand::Constm1 => -1,
 			Operand::Const0 => 0,
@@ -113,6 +130,15 @@ impl StackLike<Operand, Reference> for OperandStack {
 			Operand::Const5 => 5,
 			Operand::Long(long) => long,
 			_ => panic!("Unexpected operand type, wanted `long` got {:?}", op),
+		}
+	}
+
+	fn pop_reference(&mut self) -> Reference {
+		let op = self.pop();
+
+		match op {
+			Operand::Reference(ref_) => ref_,
+			_ => panic!("Unexpected operand type, wanted `reference` got {:?}", op),
 		}
 	}
 

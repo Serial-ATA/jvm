@@ -10,10 +10,12 @@ pub trait StackLike<T: OperandLike, Reference> {
 
 	fn pop(&mut self) -> T;
 	fn pop2(&mut self);
+	fn popn(&mut self, count: usize) -> Vec<T>;
 	fn pop_int(&mut self) -> i32;
 	fn pop_float(&mut self) -> f32;
 	fn pop_double(&mut self) -> f64;
 	fn pop_long(&mut self) -> i64;
+	fn pop_reference(&mut self) -> Reference;
 
 	fn dup(&mut self);
 	fn dup_x1(&mut self);
