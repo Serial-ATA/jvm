@@ -2,6 +2,7 @@ pub mod classpath;
 mod frame;
 mod heap;
 mod interpreter;
+mod method_invoker;
 mod native;
 pub mod stack;
 mod string_interner;

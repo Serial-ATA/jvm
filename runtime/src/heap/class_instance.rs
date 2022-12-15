@@ -5,8 +5,8 @@ use classfile::types::{u1, u2, u4};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassInstance {
-	class: ClassRef,
-	fields: Box<[Operand]>,
+	pub class: ClassRef,
+	pub fields: Box<[Operand]>,
 }
 
 impl ClassInstance {

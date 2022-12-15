@@ -11,6 +11,7 @@ use crate::Thread;
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
+use crate::method_invoker::MethodInvoker;
 use classfile::traits::PtrType;
 use classfile::types::{u1, u2};
 use classfile::{ClassFile, ConstantPoolRef, FieldType, MethodDescriptor};
@@ -397,21 +398,7 @@ impl Class {
 			)
 			.unwrap();
 
-		// Pass along the constructor arguments
-		let mut local_stack = LocalStack::new(method.code.max_locals as usize);
-
-		let mut pos_in_stack = 0;
-		for arg in args {
-			let operand_size = match arg {
-				Operand::Double(_) | Operand::Long(_) => 2,
-				_ => 1,
-			};
-
-			local_stack[pos_in_stack] = arg;
-			pos_in_stack += operand_size;
-		}
-
-		Thread::invoke_method_with_local_stack(thread, method, local_stack);
+		MethodInvoker::invoke_with_args(thread, method, args)
 	}
 
 	// Class initialization method
