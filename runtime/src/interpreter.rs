@@ -158,13 +158,13 @@ impl Interpreter {
         if opcode == OpCode::nop { return }
 
         push_const! {
-                STACK: frame.get_operand_stack_mut(),
-                OPCODE: opcode,
-                iconst: [m1, 0, 1, 2 , 3, 4, 5],
-                lconst: [0, 1],
-                fconst: [0, 1, 2],
-                dconst: [0, 1]
-            }
+            STACK: frame.get_operand_stack_mut(),
+            OPCODE: opcode,
+            iconst: [m1, 0, 1, 2 , 3, 4, 5],
+            lconst: [0, 1],
+            fconst: [0, 1, 2],
+            dconst: [0, 1]
+        }
 
         match opcode {
             OpCode::bipush => {
@@ -202,25 +202,25 @@ impl Interpreter {
         // ========= Stack =========
 
         stack_operations! {
-                STACK: frame.get_operand_stack_mut(),
-                OPCODE: opcode,
-                pop, pop2,
-                dup, dup_x1, dup_x2,
-                dup2, dup2_x1, dup2_x2,
-                swap
-            }
+            STACK: frame.get_operand_stack_mut(),
+            OPCODE: opcode,
+            pop, pop2,
+            dup, dup_x1, dup_x2,
+            dup2, dup2_x1, dup2_x2,
+            swap
+        }
 
         // ========= Math =========
         // TODO: shl, ushr, and, or, xor, inc
 
         arithmetic! {
-                STACK: frame.get_operand_stack_mut(),
-                OPCODE: opcode,
-                i => [add, sub, mul, div, rem],
-                l => [add, sub, mul, div, rem],
-                f => [add, sub, mul, div, rem],
-                d => [add, sub, mul, div, rem]
-            }
+            STACK: frame.get_operand_stack_mut(),
+            OPCODE: opcode,
+            i => [add, sub, mul, div, rem],
+            l => [add, sub, mul, div, rem],
+            f => [add, sub, mul, div, rem],
+            d => [add, sub, mul, div, rem]
+        }
 
         if let OpCode::ineg | OpCode::lneg | OpCode::fneg | OpCode::dneg = opcode {
             let mut val = frame.get_operand_stack_mut().pop();
@@ -233,37 +233,37 @@ impl Interpreter {
         // ========= Conversions =========
 
         conversion_instructions! {
-                STACK: frame.get_operand_stack_mut(),
-                OPCODE: opcode,
-                i2l, i2f, i2d,
-                l2i, l2f, l2d,
-                f2i, f2l, f2d,
-                d2i, d2l, d2f,
-                i2b, i2c, i2s
-            }
+            STACK: frame.get_operand_stack_mut(),
+            OPCODE: opcode,
+            i2l, i2f, i2d,
+            l2i, l2f, l2d,
+            f2i, f2l, f2d,
+            d2i, d2l, d2f,
+            i2b, i2c, i2s
+        }
 
         // ========= Comparisons =========
         // TODO: lcmp, dcmpl, dcmpg, if_acmpeq, if_acmpne
 
         comparisons! {
-                STACK: frame.get_operand_stack_mut(),
-                OPCODE: opcode,
-                FRAME: frame,
-                [
-                    ifeq: == (RHS = 0),
-                    ifne: != (RHS = 0),
-                    iflt: <  (RHS = 0),
-                    ifge: >= (RHS = 0),
-                    ifgt: >  (RHS = 0),
-                    ifle: <= (RHS = 0),
-                    if_icmpeq: ==,
-                    if_icmpne: !=,
-                    if_icmplt: <,
-                    if_icmpge: >=,
-                    if_icmpgt: >,
-                    if_icmple: <=
-                ]
-            }
+            STACK: frame.get_operand_stack_mut(),
+            OPCODE: opcode,
+            FRAME: frame,
+            [
+                ifeq: == (RHS = 0),
+                ifne: != (RHS = 0),
+                iflt: <  (RHS = 0),
+                ifge: >= (RHS = 0),
+                ifgt: >  (RHS = 0),
+                ifle: <= (RHS = 0),
+                if_icmpeq: ==,
+                if_icmpne: !=,
+                if_icmplt: <,
+                if_icmpge: >=,
+                if_icmpgt: >,
+                if_icmple: <=
+            ]
+        }
 
         match opcode {
             OpCode::fcmpl => {
