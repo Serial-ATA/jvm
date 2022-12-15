@@ -1,8 +1,9 @@
 use super::reference::ClassRef;
 use crate::reference::MethodRef;
 
+use classfile::traits::PtrType;
 use classfile::types::{u1, u2};
-use classfile::{Code, MethodDescriptor, MethodInfo};
+use classfile::{Code, FieldType, MethodDescriptor, MethodInfo};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Method {
@@ -57,5 +58,32 @@ impl Method {
 		};
 
 		MethodRef::new(method)
+	}
+
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.3
+	pub fn is_polymorphic(&self) -> bool {
+		const METHODHANDLE_CLASS_NAME: &[u1] = b"java/lang/invoke/MethodHandle";
+		const VARHANDLE_CLASS_NAME: &[u1] = b"java/lang/invoke/VarHandle";
+
+		let class = self.class.get();
+		let mut is_polymorphic = false;
+
+		// A method is signature polymorphic if all of the following are true:
+
+		//     It is declared in the java.lang.invoke.MethodHandle class or the java.lang.invoke.VarHandle class.
+		is_polymorphic |=
+			class.name == METHODHANDLE_CLASS_NAME || class.name == VARHANDLE_CLASS_NAME;
+
+		//     It has a single formal parameter of type Object[].
+		match &self.descriptor.parameters {
+			[FieldType::Array(FieldType::Object(ref obj))] if obj == "java/lang/Object" => {},
+			_ => return false,
+		}
+
+		//     It has the ACC_VARARGS and ACC_NATIVE flags set.
+		is_polymorphic |= self.access_flags & Method::ACC_VARARGS != 0
+			&& self.access_flags & Method::ACC_NATIVE != 0;
+
+		is_polymorphic
 	}
 }
