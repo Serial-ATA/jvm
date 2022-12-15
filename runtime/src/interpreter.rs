@@ -23,7 +23,7 @@ macro_rules! push_const {
                     $(
                         OpCode:: [<$instruction _ $value>] => {
                             $stack.push_op(Operand:: [<Const $value>]);
-                            continue;
+                            return;
                         }
                     ),+
                 )+
@@ -39,7 +39,7 @@ macro_rules! stack_operations {
             $(
                 OpCode::$instruction => {
                     $stack.$instruction();
-                    continue;
+                    return;
                 }
             ),+
             _ => {}
@@ -62,7 +62,7 @@ macro_rules! arithmetic {
                             let rhs = $stack.pop();
                             val.$instruction(rhs);
                             $stack.push_op(val);
-                            continue;
+                            return;
                         }
                     ),+
                 )+
@@ -80,7 +80,7 @@ macro_rules! conversion_instructions {
                     let mut val = $stack.pop();
                     val.$instruction();
                     $stack.push_op(val);
-                    continue;
+                    return;
                 }
             ),+
             _ => {}
@@ -122,7 +122,7 @@ macro_rules! comparisons {
             let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
         }
 
-        continue;
+        return;
     }};
     (
         @CREATE_BODY
@@ -139,37 +139,26 @@ macro_rules! comparisons {
             let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
         }
 
-        continue;
+        return;
     }}
 }
 
-pub struct Interpreter {
-	frame: FrameRef,
-	widen: bool,
-}
+pub struct Interpreter;
 
 #[rustfmt::skip]
 impl Interpreter {
-	pub fn new(frame: FrameRef) -> Self {
-		Self {
-			frame,
-			widen: false,
-		}
-	}
+	pub fn instruction(frame: FrameRef) {
+        // The opcodes are broken into sections as defined here:
+        // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-7.html
 
-	pub fn run(&mut self) {
-        loop {
-            // The opcodes are broken into sections as defined here:
-            // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-7.html
+        let opcode = OpCode::from(frame.read_byte());
 
-            let opcode = OpCode::from(self.frame.read_byte());
+        // ========= Constants =========
 
-            // ========= Constants =========
+        if opcode == OpCode::nop { return }
 
-            if opcode == OpCode::nop { continue }
-
-            push_const! {
-                STACK: self.frame.get_operand_stack_mut(),
+        push_const! {
+                STACK: frame.get_operand_stack_mut(),
                 OPCODE: opcode,
                 iconst: [m1, 0, 1, 2 , 3, 4, 5],
                 lconst: [0, 1],
@@ -177,37 +166,43 @@ impl Interpreter {
                 dconst: [0, 1]
             }
 
-            match opcode {
-                OpCode::bipush => {
-                    let byte = self.frame.read_byte() as i8;
-                    self.frame.get_operand_stack_mut().push_op(Operand::Int(i32::from(byte)));
-                    continue;
-                },
-                OpCode::sipush => {
-                    let short = self.frame.read_byte2() as i16;
-                    self.frame.get_operand_stack_mut().push_op(Operand::Int(i32::from(short)));
-                    continue;
-                },
-                _ => {}
-            }
+        match opcode {
+            OpCode::bipush => {
+                let byte = frame.read_byte() as i8;
+                frame.get_operand_stack_mut().push_op(Operand::Int(i32::from(byte)));
+                return;
+            },
+            OpCode::sipush => {
+                let short = frame.read_byte2() as i16;
+                frame.get_operand_stack_mut().push_op(Operand::Int(i32::from(short)));
+                return;
+            },
+            _ => {}
+        }
 
-            // ========= Loads =========
-            // TODO: iload{_[0-3]}, lload{_[0-3]}, fload{_[0-3]}, dload{_[0-3]},
-            //       aload{_[0-3]}
+        // ========= Loads =========
+        // TODO: iload{_[0-3]}, lload{_[0-3]}, fload{_[0-3]}, dload{_[0-3]},
+        //       aload{_[0-3]}
 
-            match opcode {
-                OpCode::ldc => { self.ldc(false); continue; },
-                OpCode::ldc_w => { self.ldc(true); continue; },
-                _ => {}
-            }
+        match opcode {
+            OpCode::ldc => {
+                Interpreter::ldc(frame, false);
+                return;
+            },
+            OpCode::ldc_w => {
+                Interpreter::ldc(frame, true);
+                return;
+            },
+            _ => {}
+        }
 
-            // ========= Stores =========
-            // TODO
+        // ========= Stores =========
+        // TODO
 
-            // ========= Stack =========
+        // ========= Stack =========
 
-            stack_operations! {
-                STACK: self.frame.get_operand_stack_mut(),
+        stack_operations! {
+                STACK: frame.get_operand_stack_mut(),
                 OPCODE: opcode,
                 pop, pop2,
                 dup, dup_x1, dup_x2,
@@ -215,11 +210,11 @@ impl Interpreter {
                 swap
             }
 
-            // ========= Math =========
-            // TODO: shl, ushr, and, or, xor, inc
+        // ========= Math =========
+        // TODO: shl, ushr, and, or, xor, inc
 
-            arithmetic! {
-                STACK: self.frame.get_operand_stack_mut(),
+        arithmetic! {
+                STACK: frame.get_operand_stack_mut(),
                 OPCODE: opcode,
                 i => [add, sub, mul, div, rem],
                 l => [add, sub, mul, div, rem],
@@ -227,18 +222,18 @@ impl Interpreter {
                 d => [add, sub, mul, div, rem]
             }
 
-            if let OpCode::ineg | OpCode::lneg | OpCode::fneg | OpCode::dneg = opcode {
-                let mut val = self.frame.get_operand_stack_mut().pop();
-                val.neg();
-                self.frame.get_operand_stack_mut().push_op(val);
+        if let OpCode::ineg | OpCode::lneg | OpCode::fneg | OpCode::dneg = opcode {
+            let mut val = frame.get_operand_stack_mut().pop();
+            val.neg();
+            frame.get_operand_stack_mut().push_op(val);
 
-                continue;
-            }
+            return;
+        }
 
-            // ========= Conversions =========
+        // ========= Conversions =========
 
-            conversion_instructions! {
-                STACK: self.frame.get_operand_stack_mut(),
+        conversion_instructions! {
+                STACK: frame.get_operand_stack_mut(),
                 OPCODE: opcode,
                 i2l, i2f, i2d,
                 l2i, l2f, l2d,
@@ -247,13 +242,13 @@ impl Interpreter {
                 i2b, i2c, i2s
             }
 
-            // ========= Comparisons =========
-            // TODO: lcmp, dcmpl, dcmpg, if_acmpeq, if_acmpne
+        // ========= Comparisons =========
+        // TODO: lcmp, dcmpl, dcmpg, if_acmpeq, if_acmpne
 
-            comparisons! {
-                STACK: self.frame.get_operand_stack_mut(),
+        comparisons! {
+                STACK: frame.get_operand_stack_mut(),
                 OPCODE: opcode,
-                FRAME: self.frame,
+                FRAME: frame,
                 [
                     ifeq: == (RHS = 0),
                     ifne: != (RHS = 0),
@@ -270,93 +265,101 @@ impl Interpreter {
                 ]
             }
 
-            match opcode {
-                OpCode::fcmpl => self.fcmp(Ordering::Less),
-                OpCode::fcmpg => self.fcmp(Ordering::Greater),
-                _ => {}
-            }
-
-            // ========= References =========
-            // TODO: putstatic, getfield, putfield,
-            //       invokevirtual, invokespecial, invokestatic,
-            //       invokeinterface, invokedynamic, new, newarray,
-            //       anewarray, arraylength, athrow, checkcast, instanceof,
-            //       monitorenter, monitorexit
-            if opcode == OpCode::getstatic {
-                let field_ref_idx = self.frame.read_byte2();
-
-                let method = self.frame.method();
-                let class = Arc::clone(&method.class);
-                
-                let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
-
-                let field = Class::resolve_field(self.frame.thread(), constant_pool, field_ref_idx);
-                self.frame.get_operand_stack_mut().push_op(field.get_static_value());
-                continue;
-            }
-
-            if opcode == OpCode::invokevirtual {
-                let method_ref_idx = self.frame.read_byte2();
-
-                let method = self.frame.method();
-                let class = Arc::clone(&method.class);
-
-                let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
-                let method = Class::resolve_method(self.frame.thread(), constant_pool, method_ref_idx).unwrap();
-                MethodInvoker::invoke(FrameRef::clone(&self.frame), method);
-                continue;
-            }
-
-            // ========= Control =========
-            // TODO: jsr, ret, tableswitch, lookupswitch,
-            //       ireturn, lreturn, freturn, dreturn, areturn
-
-            match opcode {
-                OpCode::goto => {
-                    let address = self.frame.read_byte2();
-                    let _ = self.frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
-
-                    continue;
-                },
-                OpCode::r#return => return,
-                _ => {}
-            }
-
-            // ========= Extended =========
-            // TODO: multianewarray, ifnull, ifnonnull,
-            //       jsr_w
-
-            match opcode {
-                OpCode::wide => {
-                    self.widen = true;
-                    continue;
-                },
-                OpCode::goto_w => {
-                    let address = self.frame.read_byte4();
-                    assert!(address <= u4::from(u16::MAX), "goto_w offset too large!");
-
-                    let _ = self.frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
-                    continue;
-                },
-                _ => {}
-            }
-
-            // ========= Reserved =========
-            // TODO: breakpoint, impdep1, impdep2
-
-            unimplemented!("{:?}", opcode)
+        match opcode {
+            OpCode::fcmpl => {
+                Interpreter::fcmp(frame, Ordering::Less);
+                return;
+            },
+            OpCode::fcmpg => {
+                Interpreter::fcmp(frame, Ordering::Greater);
+                return;
+            },
+            _ => {}
         }
+
+        // ========= References =========
+        // TODO: putstatic, getfield, putfield,
+        //       invokevirtual, invokespecial, invokestatic,
+        //       invokeinterface, invokedynamic, new, newarray,
+        //       anewarray, arraylength, athrow, checkcast, instanceof,
+        //       monitorenter, monitorexit
+        if opcode == OpCode::getstatic {
+            let field_ref_idx = frame.read_byte2();
+
+            let method = frame.method();
+            let class = Arc::clone(&method.class);
+
+            let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
+
+            let field = Class::resolve_field(frame.thread(), constant_pool, field_ref_idx);
+            frame.get_operand_stack_mut().push_op(field.get_static_value());
+            return;
+        }
+
+        if opcode == OpCode::invokevirtual {
+            let method_ref_idx = frame.read_byte2();
+
+            let method = frame.method();
+            let class = Arc::clone(&method.class);
+
+            let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
+            let method = Class::resolve_method(frame.thread(), constant_pool, method_ref_idx).unwrap();
+            MethodInvoker::invoke(FrameRef::clone(&frame), method);
+            return;
+        }
+
+        // ========= Control =========
+        // TODO: jsr, ret, tableswitch, lookupswitch,
+        //       ireturn, lreturn, freturn, dreturn, areturn
+
+        match opcode {
+            OpCode::goto => {
+                let address = frame.read_byte2();
+                let _ = frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
+
+                return;
+            },
+            OpCode::r#return => {
+                let _ = frame.thread().get_mut().drop_to_previous_frame();
+                return;
+            },
+            _ => {}
+        }
+
+        // ========= Extended =========
+        // TODO: multianewarray, ifnull, ifnonnull,
+        //       jsr_w
+
+        match opcode {
+            OpCode::wide => {
+                // TODO
+                return;
+            },
+            OpCode::goto_w => {
+                let address = frame.read_byte4();
+                assert!(address <= u4::from(u16::MAX), "goto_w offset too large!");
+
+                let _ = frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
+                return;
+            },
+            _ => {}
+        }
+
+        // ========= Reserved =========
+        // TODO: breakpoint, impdep1, impdep2
+
+        unimplemented!("{:?}", opcode)
     }
 
     // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.ldc
-    fn ldc(&mut self, wide: bool) {
+    fn ldc(frame: FrameRef, wide: bool) {
         let idx = if wide {
-            self.frame.read_byte2()
+            frame.read_byte2()
         } else {
-            u2::from(self.frame.read_byte())
+            u2::from(frame.read_byte())
         };
 
-        let method = self.frame.method();
+        let method = frame.method();
         let class_ref = &method.class;
 
         let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
@@ -370,16 +373,16 @@ impl Interpreter {
 
             // If the run-time constant pool entry is a numeric constant of type int or float,
             // then the value of that numeric constant is pushed onto the operand stack as an int or float, respectively.
-            ConstantPoolValueInfo::Integer { bytes } => self.frame.get_operand_stack_mut().push_int((*bytes) as i32),
-            ConstantPoolValueInfo::Float { bytes } => self.frame.get_operand_stack_mut().push_float(f32::from_be_bytes(bytes.to_be_bytes())),
+            ConstantPoolValueInfo::Integer { bytes } => frame.get_operand_stack_mut().push_int((*bytes) as i32),
+            ConstantPoolValueInfo::Float { bytes } => frame.get_operand_stack_mut().push_float(f32::from_be_bytes(bytes.to_be_bytes())),
 
             // Otherwise, if the run-time constant pool entry is a string constant, that is,
             // a reference to an instance of class String, then value, a reference to that instance, is pushed onto the operand stack.
             ConstantPoolValueInfo::String { string_index } => {
                 let bytes = constant_pool.get_constant_utf8(*string_index);
-                let interned_string = StringInterner::get_java_string(bytes, &self.frame.thread());
+                let interned_string = StringInterner::get_java_string(bytes, frame.thread());
 
-                self.frame.get_operand_stack_mut().push_reference(Reference::Class(interned_string));
+                frame.get_operand_stack_mut().push_reference(Reference::Class(interned_string));
             },
 
             // Otherwise, if the run-time constant pool entry is a symbolic reference to a class or interface,
@@ -392,7 +395,7 @@ impl Interpreter {
                 let classref = class.loader.load(class_name).unwrap();
 
                 let new_class_instance = ClassInstance::new(classref);
-                self.frame.get_operand_stack_mut().push_reference(Reference::Class(new_class_instance));
+                frame.get_operand_stack_mut().push_reference(Reference::Class(new_class_instance));
             },
 
             // Otherwise, the run-time constant pool entry is a symbolic reference to a method type, a method handle,
@@ -405,8 +408,8 @@ impl Interpreter {
     }
 
     // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.fcmp_op
-    fn fcmp(&mut self, ordering: Ordering) {
-        let operand_stack = self.frame.get_operand_stack_mut();
+    fn fcmp(frame: FrameRef, ordering: Ordering) {
+        let operand_stack = frame.get_operand_stack_mut();
 
         // Both value1 and value2 must be of type float.
         // The values are popped from the operand stack and a floating-point comparison is performed:

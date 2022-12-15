@@ -17,7 +17,7 @@ pub struct StringInterner;
 
 // TODO: Need to wipe the string pool when the instances fall out of scope
 impl StringInterner {
-	pub fn get_java_string(raw: &[u1], thread: &ThreadRef) -> ClassInstanceRef {
+	pub fn get_java_string(raw: &[u1], thread: ThreadRef) -> ClassInstanceRef {
 		if let Some(interned) = STRING_POOL.get(raw) {
 			return Arc::clone(interned);
 		}
@@ -25,7 +25,7 @@ impl StringInterner {
 		Self::intern_string(raw, thread)
 	}
 
-	pub fn intern_string(raw: &[u1], thread: &ThreadRef) -> ClassInstanceRef {
+	pub fn intern_string(raw: &[u1], thread: ThreadRef) -> ClassInstanceRef {
 		const STRING_CONSTRUCTOR_FROM_CHAR_ARRAY: &[u8] = b"([C)V";
 
 		// TODO: Error handling
@@ -48,7 +48,7 @@ impl StringInterner {
 		];
 
 		Class::construct(
-			&java_string_class,
+			java_string_class,
 			thread,
 			STRING_CONSTRUCTOR_FROM_CHAR_ARRAY,
 			constructor_args,

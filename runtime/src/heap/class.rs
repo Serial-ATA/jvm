@@ -6,7 +6,6 @@ use crate::method_invoker::MethodInvoker;
 use crate::reference::MethodRef;
 use crate::stack::operand_stack::Operand;
 use crate::thread::ThreadRef;
-use crate::Thread;
 
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
@@ -462,7 +461,7 @@ impl Class {
 		// 8. Next, determine whether assertions are enabled for C by querying its defining loader.
 
 		// 9. Next, execute the class or interface initialization method of C.
-		Self::clinit(class_ref, thread);
+		Self::clinit(Arc::clone(class_ref), thread);
 
 		// TODO: We have no way of telling if the method successfully executed
 		// 10. If the execution of the class or interface initialization method completes normally,
@@ -483,7 +482,7 @@ impl Class {
 
 	// Instance initialization method
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.1
-	pub fn construct(class: &ClassRef, thread: &ThreadRef, descriptor: &[u1], args: Vec<Operand>) {
+	pub fn construct(class: ClassRef, thread: ThreadRef, descriptor: &[u1], args: Vec<Operand>) {
 		const CONSTRUCTOR_METHOD_NAME: &[u1] = b"<init>";
 
 		// A class has zero or more instance initialization methods, each typically corresponding to a constructor written in the Java programming language.
@@ -510,7 +509,7 @@ impl Class {
 	// Class initialization method
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.2
 	#[rustfmt::skip]
-	pub fn clinit(class: &ClassRef, thread: ThreadRef) {
+	pub fn clinit(class: ClassRef, thread: ThreadRef) {
 		// A class or interface has at most one class or interface initialization method and is initialized
 		// by the Java Virtual Machine invoking that method (§5.5).
 
@@ -523,7 +522,7 @@ impl Class {
 		);
 
 		if let Some(method) = method {
-			MethodInvoker::invoke_with_args(&thread, method, Vec::new());
+			MethodInvoker::invoke_with_args(thread, method, Vec::new());
 		}
 	}
 

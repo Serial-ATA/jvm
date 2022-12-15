@@ -14,7 +14,7 @@ impl MethodInvoker {
 	/// Invoke a method with the provided args
 	///
 	/// This will not pop anything off of the stack of the current Frame
-	pub fn invoke_with_args(thread: &ThreadRef, method: MethodRef, args: Vec<Operand>) {
+	pub fn invoke_with_args(thread: ThreadRef, method: MethodRef, args: Vec<Operand>) {
 		let mut local_stack = LocalStack::new(method.code.max_locals as usize);
 		Self::construct_local_stack(&mut local_stack, args, true);
 
@@ -48,10 +48,10 @@ impl MethodInvoker {
 			local_stack[0] = Operand::Reference(this);
 		}
 
-		Thread::invoke_method_with_local_stack(&frame.thread(), method, local_stack);
+		Self::invoke_(frame.thread(), method, local_stack);
 	}
 
-	fn invoke_(thread: &ThreadRef, method: MethodRef, local_stack: LocalStack) {
+	fn invoke_(thread: ThreadRef, method: MethodRef, local_stack: LocalStack) {
 		Thread::invoke_method_with_local_stack(thread, method, local_stack);
 	}
 

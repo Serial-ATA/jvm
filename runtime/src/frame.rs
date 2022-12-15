@@ -4,7 +4,7 @@ use crate::stack::operand_stack::OperandStack;
 use crate::thread::ThreadRef;
 use std::fmt::{Debug, Formatter};
 
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use classfile::traits::PtrType;
@@ -25,6 +25,9 @@ pub struct Frame {
 	pub constant_pool: ConstantPoolRef,
 	pub method: MethodRef,
 	pub thread: ThreadRef,
+	
+	// Used to remember the last pc when we return to a frame after a method invocation
+	pub cached_pc: AtomicUsize,
 }
 
 #[repr(transparent)]
@@ -56,20 +59,31 @@ impl FrameRef {
 		frame.method.code.code[pc]
 	}
 
-	pub fn read_byte2(&mut self) -> u2 {
+	pub fn read_byte2(&self) -> u2 {
 		let b1 = u2::from(self.read_byte());
 		let b2 = u2::from(self.read_byte());
 
 		b1 << 8 | b2
 	}
 
-	pub fn read_byte4(&mut self) -> u4 {
+	pub fn read_byte4(&self) -> u4 {
 		let b1 = u4::from(self.read_byte());
 		let b2 = u4::from(self.read_byte());
 		let b3 = u4::from(self.read_byte());
 		let b4 = u4::from(self.read_byte());
 
 		b1 << 24 | b2 << 16 | b3 << 8 | b4
+	}
+
+	pub fn stash_pc(&self) {
+		let frame = self.0.get_mut();
+		let current_pc = frame.thread.get().pc.load(Ordering::Relaxed);
+		frame.cached_pc = AtomicUsize::from(current_pc);
+	}
+
+	pub fn get_stashed_pc(&self) -> usize {
+		let frame = self.0.get();
+		frame.cached_pc.load(Ordering::Relaxed)
 	}
 }
 

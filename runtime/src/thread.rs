@@ -6,7 +6,7 @@ use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::OperandStack;
 
 use std::fmt::{Debug, Formatter};
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use classfile::traits::PtrType;
@@ -38,30 +38,20 @@ impl Thread {
 		let main_method = class.get().get_main_method().unwrap();
 
 		let thread = Thread::new();
-		Thread::invoke_method(&thread, main_method);
+		Thread::invoke_method(Arc::clone(&thread), main_method);
 
 		thread
 	}
 
-	pub fn invoke_method(thread: &ThreadRef, method: MethodRef) {
-		let max_stack = method.code.max_stack;
+	pub fn invoke_method(thread: ThreadRef, method: MethodRef) {
 		let max_locals = method.code.max_locals;
+		let local_stack = LocalStack::new(max_locals as usize);
 
-		let constant_pool = Arc::clone(&method.class.unwrap_class_instance().constant_pool);
-
-		let frame = Frame {
-			locals: LocalStack::new(max_locals as usize),
-			stack: OperandStack::new(max_stack as usize),
-			constant_pool,
-			method,
-			thread: Arc::clone(thread),
-		};
-
-		thread.get_mut().frame_stack.push(FramePtr::new(frame));
+		Self::invoke_method_with_local_stack(thread, method, local_stack);
 	}
 
 	pub fn invoke_method_with_local_stack(
-		thread: &ThreadRef,
+		thread: ThreadRef,
 		method: MethodRef,
 		locals: LocalStack,
 	) {
@@ -74,17 +64,42 @@ impl Thread {
 			stack: OperandStack::new(max_stack as usize),
 			constant_pool,
 			method,
-			thread: Arc::clone(thread),
+			thread: Arc::clone(&thread),
+			cached_pc: Default::default(),
 		};
 
-		thread.get_mut().frame_stack.push(FramePtr::new(frame));
+		let thread = thread.get_mut();
+
+		thread.stash_and_reset_pc();
+		thread.frame_stack.push(FramePtr::new(frame));
+	}
+
+	pub fn stash_and_reset_pc(&mut self) {
+		if let Some(current_frame) = self.current_frame() {
+			current_frame.stash_pc()
+		}
+
+		self.pc.store(0, Ordering::Relaxed);
+	}
+
+	pub fn current_frame(&self) -> Option<FrameRef> {
+		let current_frame = self.frame_stack.last();
+		current_frame.map(FrameRef::clone)
+	}
+
+	pub fn drop_to_previous_frame(&mut self) {
+		self.frame_stack.pop();
+
+		if let Some(current_frame) = self.current_frame() {
+			let previous_pc = current_frame.get_stashed_pc();
+			self.pc.store(previous_pc, Ordering::Relaxed);
+		}
 	}
 
 	pub fn run(thread: &ThreadRef) {
 		let thread = thread.get_mut();
-		while let Some(frame) = thread.frame_stack.pop() {
-			let mut interpreter = Interpreter::new(frame);
-			interpreter.run();
+		while let Some(current_frame) = thread.current_frame() {
+			Interpreter::instruction(current_frame);
 		}
 	}
 }
