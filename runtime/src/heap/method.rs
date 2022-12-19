@@ -10,7 +10,8 @@ pub struct Method {
 	pub class: ClassRef,
 	pub access_flags: u2,
 	pub name: Vec<u1>,
-	pub descriptor: MethodDescriptor,
+	pub descriptor: Vec<u1>,
+	pub parameter_count: u1,
 	pub code: Code,
 }
 
@@ -43,9 +44,13 @@ impl Method {
 		let name = constant_pool.get_constant_utf8(name_index).to_vec();
 
 		let descriptor_index = method_info.descriptor_index;
-		let mut descriptor_bytes = constant_pool.get_constant_utf8(descriptor_index);
+		let descriptor_bytes = constant_pool.get_constant_utf8(descriptor_index).to_vec();
 
-		let descriptor = MethodDescriptor::parse(&mut descriptor_bytes);
+		let parameter_count: u8 = MethodDescriptor::parse(&mut &descriptor_bytes[..])
+			.parameters
+			.len()
+			.try_into()
+			.unwrap();
 
 		let code = method_info.get_code_attribute().unwrap_or_default();
 
@@ -53,7 +58,8 @@ impl Method {
 			class,
 			access_flags,
 			name,
-			descriptor,
+			descriptor: descriptor_bytes,
+			parameter_count,
 			code,
 		};
 
@@ -75,7 +81,8 @@ impl Method {
 			class.name == METHODHANDLE_CLASS_NAME || class.name == VARHANDLE_CLASS_NAME;
 
 		//     It has a single formal parameter of type Object[].
-		match &*self.descriptor.parameters {
+		let parsed_descriptor = MethodDescriptor::parse(&mut &self.descriptor[..]);
+		match &*parsed_descriptor.parameters {
 			[FieldType::Array(arr_ty)] => match &**arr_ty {
 				FieldType::Object(ref obj) if obj == "java/lang/Object" => {},
 				_ => return false,
@@ -88,5 +95,9 @@ impl Method {
 			&& self.access_flags & Method::ACC_NATIVE != 0;
 
 		is_polymorphic
+	}
+
+	pub fn is_native(&self) -> bool {
+		self.access_flags & Method::ACC_NATIVE > 0
 	}
 }

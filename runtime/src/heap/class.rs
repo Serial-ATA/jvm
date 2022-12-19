@@ -12,7 +12,7 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 use classfile::traits::PtrType;
 use classfile::types::{u1, u2};
-use classfile::{ClassFile, ConstantPoolRef, FieldType, MethodDescriptor};
+use classfile::{ClassFile, ConstantPoolRef, FieldType};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
@@ -209,7 +209,7 @@ impl Class {
 				.find(|method| {
 					method.name == name
 						&& (flags == 0 || method.access_flags & flags == flags)
-						&& method.descriptor == MethodDescriptor::parse(&mut &descriptor[..])
+						&& method.descriptor == descriptor
 				})
 				.map(Arc::clone);
 		}
@@ -338,11 +338,10 @@ impl Class {
 		}
 
 		// 	  2.2. Otherwise, if C declares a method with the name and descriptor specified by the method reference, method lookup succeeds.
-		let parsed_descriptor = MethodDescriptor::parse(&mut &descriptor[..]);
 		let searched_method = class_instance
 			.methods
 			.iter()
-			.find(|method| method.name == method_name && method.descriptor == parsed_descriptor);
+			.find(|method| method.name == method_name && method.descriptor == descriptor);
 		if let Some(method) = searched_method {
 			return Some(Arc::clone(method));
 		}

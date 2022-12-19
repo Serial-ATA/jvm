@@ -26,13 +26,13 @@ impl MethodInvoker {
 	/// This will pop the necessary number of arguments off of the current Frame's stack
 	pub fn invoke(frame: FrameRef, method: MethodRef) {
 		let is_static_method = method.access_flags & Method::ACC_STATIC != 0;
-		let parameter_count = method.descriptor.parameters.len();
+		let parameter_count = method.parameter_count;
 
 		let mut local_stack = LocalStack::new(method.code.max_locals as usize);
 
 		// Move the arguments from the previous frame into a new local stack
 		if parameter_count > 0 {
-			let args_from_frame = frame.get_operand_stack_mut().popn(parameter_count);
+			let args_from_frame = frame.get_operand_stack_mut().popn(parameter_count as usize);
 			Self::construct_local_stack(&mut local_stack, args_from_frame, is_static_method);
 		}
 
