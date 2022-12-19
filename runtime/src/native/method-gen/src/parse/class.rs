@@ -7,8 +7,8 @@ use combine::{choice, many, many1, EasyParser, ParseError, Parser, Stream};
 
 #[derive(Clone, Debug)]
 pub struct Class {
-	class_name: String,
-	methods: Vec<Method>,
+	pub class_name: String,
+	pub methods: Vec<Method>,
 }
 
 impl Class {

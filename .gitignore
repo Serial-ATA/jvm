@@ -3,3 +3,4 @@
 *.class
 Cargo.lock
 .idea
+runtime/src/native/native_init.rs

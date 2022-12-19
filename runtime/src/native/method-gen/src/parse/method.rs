@@ -86,8 +86,8 @@ impl ClassGenerics {
 #[derive(Clone, Debug)]
 pub struct Method {
 	modifiers: AccessFlags,
-	name: String,
-	signature: String,
+	pub name: String,
+	pub descriptor: String,
 }
 
 pub(crate) fn method<Input>() -> impl Parser<Input, Output = Method>
@@ -114,7 +114,7 @@ where
 			Method {
 				modifiers,
 				name,
-				signature,
+				descriptor: signature,
 			}
 		})
 }

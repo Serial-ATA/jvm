@@ -1,1 +1,1 @@
-mod lang;
+pub(super) mod lang;
