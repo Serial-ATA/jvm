@@ -1,6 +1,7 @@
 use crate::classpath::classloader::ClassLoader;
 use crate::frame::{Frame, FramePtr, FrameRef};
 use crate::interpreter::Interpreter;
+use crate::native::NativeMethodDef;
 use crate::reference::MethodRef;
 use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::OperandStack;
@@ -55,6 +56,18 @@ impl Thread {
 		method: MethodRef,
 		locals: LocalStack,
 	) {
+		// Native methods do not require a stack frame. We just call and leave the stack
+		// behind until we return.
+		if method.is_native() {
+			let fn_ptr = super::native::lookup_method(NativeMethodDef {
+				class: &method.class.get().name,
+				name: &method.name,
+				descriptor: &method.descriptor,
+			});
+
+			return fn_ptr(locals);
+		}
+
 		let max_stack = method.code.max_stack;
 
 		let constant_pool = Arc::clone(&method.class.unwrap_class_instance().constant_pool);
