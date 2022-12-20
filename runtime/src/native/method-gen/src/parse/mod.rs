@@ -7,6 +7,7 @@ use combine::{
 };
 
 pub use class::Class;
+pub use method::Method;
 
 fn lex<Input, P>(p: P) -> impl Parser<Input, Output = P::Output>
 where

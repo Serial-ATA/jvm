@@ -9,7 +9,7 @@ use combine::{
 };
 
 bitflags::bitflags! {
-	struct AccessFlags: u16 {
+	pub struct AccessFlags: u16 {
 		const ACC_PUBLIC       = 0x0001;
 		const ACC_PRIVATE      = 0x0002;
 		const ACC_PROTECTED    = 0x0004;
@@ -85,7 +85,7 @@ impl ClassGenerics {
 
 #[derive(Clone, Debug)]
 pub struct Method {
-	modifiers: AccessFlags,
+	pub modifiers: AccessFlags,
 	pub name: String,
 	pub descriptor: String,
 }

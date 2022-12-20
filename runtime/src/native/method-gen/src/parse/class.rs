@@ -1,4 +1,4 @@
-use crate::parse::method::Method;
+use crate::parse::method::{AccessFlags, Method};
 use crate::parse::{lex, word1};
 
 use combine::parser::char::{char, string};
@@ -13,7 +13,18 @@ pub struct Class {
 
 impl Class {
 	pub fn parse(text: String) -> Self {
-		class().easy_parse(PositionStream::new(&*text)).unwrap().0
+		let class = class().easy_parse(PositionStream::new(&*text)).unwrap().0;
+
+		for method in &class.methods {
+			assert!(
+				method.modifiers.contains(AccessFlags::ACC_NATIVE),
+				"Method `{}#{}` is not declared as native!",
+				class.class_name,
+				method.name
+			);
+		}
+
+		class
 	}
 }
 
