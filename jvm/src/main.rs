@@ -20,6 +20,23 @@ struct Args {
 		help = "The class search path(s) of directories and zip/jar files, semicolon separated"
 	)]
 	classpath: Option<String>,
+	// TODO: --module-path (alias: p): <module path>...
+	//                   A : separated list of directories, each directory
+	//                   is a directory of modules.
+	// TODO: --add-modules: <module name>[,<module name>...]
+	//                   root modules to resolve in addition to the initial module.
+	//                   <module name> can also be ALL-DEFAULT, ALL-SYSTEM,
+	//                   ALL-MODULE-PATH.
+	// TODO: --list-modules:
+	//                   list observable modules and exit
+	// TODO: --describe-module (alias: d): <module name>
+	//                   describe a module and exit
+	// TODO: --dry-run: create VM and load main class but do not execute main method.
+	// TODO: --validate-modules:
+	//                   validate all modules and exit
+	// TODO: -D<name>=<value>
+	//                   set a system property
+	// TODO: --show-version (alias: -showversion): print product version to the error stream and continue
 	#[arg(
 		required = true,
 		help = "The name of the main class with the `.class` extension omitted"
