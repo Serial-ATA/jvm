@@ -40,9 +40,8 @@ impl MethodInvoker {
 		// We need to check for null before proceeding.
 		if !is_static_method {
 			let this = frame.get_operand_stack_mut().pop_reference();
-			match this {
-				Reference::Null => panic!("NullPointerException"), // TODO
-				_ => {},
+			if this == Reference::Null {
+				panic!("NullPointerException")
 			}
 
 			local_stack[0] = Operand::Reference(this);
@@ -63,10 +62,7 @@ impl MethodInvoker {
 		// The starting position of the arguments depends on the method being static,
 		// due to us needing to reserve a spot for the `this` operand at the front of the
 		// stack if it is not.
-		let mut pos_in_stack = match is_static_method {
-			true => 0,
-			false => 1,
-		};
+		let mut pos_in_stack = if is_static_method { 0 } else { 1 };
 
 		for arg in existing_args {
 			let operand_size = match arg {

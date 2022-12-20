@@ -328,7 +328,7 @@ impl Interpreter {
                 return;
             },
             OpCode::r#return => {
-                let _ = frame.thread().get_mut().drop_to_previous_frame();
+                frame.thread().get_mut().drop_to_previous_frame();
                 return;
             },
             _ => {}
@@ -409,8 +409,8 @@ impl Interpreter {
             // Otherwise, the run-time constant pool entry is a symbolic reference to a method type, a method handle,
             // or a dynamically-computed constant. The symbolic reference is resolved (§5.4.3.5, §5.4.3.6) and value,
             // the result of resolution, is pushed onto the operand stack.
-            ConstantPoolValueInfo::MethodHandle { .. } => {}
-            ConstantPoolValueInfo::MethodType { .. } => {}
+            ConstantPoolValueInfo::MethodHandle { .. } => unimplemented!("MethodHandle in ldc"),
+            ConstantPoolValueInfo::MethodType { .. } => unimplemented!("MethodType in ldc"),
             _ => unreachable!()
         }
     }

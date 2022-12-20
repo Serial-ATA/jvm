@@ -361,6 +361,10 @@ impl Class {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
+	#[expect(
+		unreachable_code,
+		reason = "We have no way of checking of the <clinit> executed successfully yet"
+	)]
 	pub fn initialize(class_ref: &ClassRef, thread: ThreadRef) {
 		let class = class_ref.get_mut();
 

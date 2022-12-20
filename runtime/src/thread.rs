@@ -78,7 +78,7 @@ impl Thread {
 			constant_pool,
 			method,
 			thread: Arc::clone(&thread),
-			cached_pc: Default::default(),
+			cached_pc: AtomicUsize::default(),
 		};
 
 		let thread = thread.get_mut();
