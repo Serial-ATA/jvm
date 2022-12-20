@@ -6,11 +6,24 @@ use std::path::PathBuf;
 use clap::Parser;
 
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(
+	name = "jvm",
+	author = "Serial-ATA",
+	version,
+	about = "Serial's JVM - An implementation of the Java SE 19 Virtual Machine",
+	long_about = None
+)]
 struct Args {
-	#[arg(long, alias = "cp")]
+	#[arg(
+		long,
+		alias = "cp",
+		help = "The class search path(s) of directories and zip/jar files, semicolon separated"
+	)]
 	classpath: Option<String>,
-	#[arg(required = true)]
+	#[arg(
+		required = true,
+		help = "The name of the main class with the `.class` extension omitted."
+	)]
 	main_class: String,
 }
 
