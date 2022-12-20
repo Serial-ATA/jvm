@@ -1,0 +1,1 @@
+*.def eol=lf whitespace=tab-in-indent,trailing-space,tabwidth=4 linguist-language=Java
