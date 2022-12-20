@@ -1,0 +1,18 @@
+public class System {
+    private static native void registerNatives();
+
+    private static native void setIn0(InputStream in);
+    private static native void setOut0(PrintStream out);
+    private static native void setErr0(PrintStream err);
+
+    public static native long currentTimeMillis();
+    public static native long nanoTime();
+
+    public static native void arraycopy(Object src,  int  srcPos,
+                                        Object dest, int destPos,
+                                        int length);
+
+    public static native int identityHashCode(Object x);
+
+    public static native String mapLibraryName(String libname);
+}
