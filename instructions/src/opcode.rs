@@ -247,9 +247,11 @@ pub enum OpCode {
     goto_w             = 0xc8, // Branch always (wide index)
     jsr_w              = 0xc9, // Jump subroutine (wide index)
     breakpoint         = 0xca, // Intended to be used by debuggers to implement breakpoints
-    unknown                    // Covers any other currently unknown opcodes
-
-    // TODO: impdep1, impdep2; https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.2
+    unknown,                   // Covers any other currently unknown opcodes
+    
+    // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.2
+    impdep1            = 0xfe,
+    impdep2            = 0xff,
 }
 
 impl From<u8> for OpCode {
@@ -458,6 +460,8 @@ impl From<u8> for OpCode {
 			200 => OpCode::goto_w,
 			201 => OpCode::jsr_w,
 			202 => OpCode::breakpoint,
+			254 => OpCode::impdep1,
+			255 => OpCode::impdep2,
 			_ => OpCode::unknown,
 		}
 	}

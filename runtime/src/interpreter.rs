@@ -354,7 +354,7 @@ impl Interpreter {
         }
 
         // ========= Reserved =========
-        // TODO: breakpoint, impdep1, impdep2
+        // TODO: breakpoint
 
         unimplemented!("{:?}", opcode)
     }
