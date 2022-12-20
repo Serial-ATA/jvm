@@ -158,6 +158,11 @@ impl Interpreter {
 
         if opcode == OpCode::nop { return }
 
+        if opcode == OpCode::aconst_null {
+            frame.get_operand_stack_mut().push_reference(Reference::Null);
+            return;
+        }
+        
         push_const! {
             STACK: frame.get_operand_stack_mut(),
             OPCODE: opcode,
