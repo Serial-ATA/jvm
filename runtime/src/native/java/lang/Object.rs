@@ -1,25 +1,25 @@
 use crate::stack::local_stack::LocalStack;
 
 pub fn getClass(_: LocalStack) {
-	todo!()
+	unimplemented!()
 }
 
 pub fn hashCode(_: LocalStack) {
-	todo!()
+	unimplemented!()
 }
 
 pub fn clone(_: LocalStack) {
-	todo!()
+	unimplemented!()
 }
 
 pub fn notify(_: LocalStack) {
-	todo!()
+	unimplemented!()
 }
 
 pub fn notifyAll(_: LocalStack) {
-	todo!()
+	unimplemented!()
 }
 
 pub fn wait0(_: LocalStack) {
-	todo!()
+	unimplemented!()
 }
