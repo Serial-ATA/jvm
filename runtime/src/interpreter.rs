@@ -154,6 +154,7 @@ impl Interpreter {
         let opcode = OpCode::from(frame.read_byte());
 
         // ========= Constants =========
+        // TODO: ldc2_w
 
         if opcode == OpCode::nop { return }
 
@@ -179,11 +180,7 @@ impl Interpreter {
             },
             _ => {}
         }
-
-        // ========= Loads =========
-        // TODO: iload{_[0-3]}, lload{_[0-3]}, fload{_[0-3]}, dload{_[0-3]},
-        //       aload{_[0-3]}
-
+        
         match opcode {
             OpCode::ldc => {
                 Interpreter::ldc(frame, false);
@@ -195,6 +192,11 @@ impl Interpreter {
             },
             _ => {}
         }
+
+        // ========= Loads =========
+        // TODO: iload{_[0-3]}, lload{_[0-3]}, fload{_[0-3]}, dload{_[0-3]},
+        //       aload{_[0-3]}, iaload, laload, faload, daload, aaload, baload,
+        //       caload, saload
 
         // ========= Stores =========
         // TODO
