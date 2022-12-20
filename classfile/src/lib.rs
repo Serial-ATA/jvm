@@ -6,12 +6,12 @@ mod methodinfo;
 pub mod traits;
 pub mod types;
 
+pub use self::classfile::ClassFile;
 pub use attribute::{
 	Annotation, Attribute, AttributeTag, AttributeType, BootstrapMethod, Code, CodeException,
 	ElementValue, ElementValuePair, ElementValueTag, ElementValueType, InnerClass, LineNumber,
 	LocalVariable, MethodParameter, StackMapFrame, VerificationTypeInfo,
 };
-pub use classfile::ClassFile;
 pub use constant_pool::{ConstantPool, ConstantPoolRef, ConstantPoolTag, ConstantPoolValueInfo};
 pub use fieldinfo::{FieldInfo, FieldType};
 pub use methodinfo::{MethodDescriptor, MethodInfo};
