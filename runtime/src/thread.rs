@@ -34,10 +34,11 @@ impl Thread {
 		ThreadPtr::new(thread)
 	}
 
-	pub fn new_main(class_name: &[u1]) -> ThreadRef {
+	pub fn new_main(class_name: &[u1], _args: Vec<String>) -> ThreadRef {
 		let class = ClassLoader::Bootstrap.load(class_name).unwrap();
 		let main_method = class.get().get_main_method().unwrap();
 
+		// TODO: Convert rust string args to java strings to pass to main
 		let thread = Thread::new();
 		Thread::invoke_method(Arc::clone(&thread), main_method);
 

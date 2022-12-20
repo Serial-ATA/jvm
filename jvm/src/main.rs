@@ -22,9 +22,11 @@ struct Args {
 	classpath: Option<String>,
 	#[arg(
 		required = true,
-		help = "The name of the main class with the `.class` extension omitted."
+		help = "The name of the main class with the `.class` extension omitted"
 	)]
 	main_class: String,
+	#[arg(required = false, help = "Arguments passed to the main class")]
+	args: Vec<String>,
 }
 
 fn main() {
@@ -36,6 +38,6 @@ fn main() {
 		}
 	}
 
-	let thread = Thread::new_main(args.main_class.as_bytes());
+	let thread = Thread::new_main(args.main_class.as_bytes(), args.args);
 	Thread::run(&thread);
 }
