@@ -1,6 +1,7 @@
 use crate::class::Class;
 use crate::class_instance::ClassInstance;
 use crate::frame::FrameRef;
+use crate::method_invoker::MethodInvoker;
 use crate::reference::Reference;
 use crate::stack::operand_stack::Operand;
 use crate::string_interner::StringInterner;
@@ -9,7 +10,6 @@ use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
 use std::sync::Arc;
 
-use crate::method_invoker::MethodInvoker;
 use classfile::ConstantPoolValueInfo;
 use common::int_types::{u2, u4};
 use common::traits::PtrType;

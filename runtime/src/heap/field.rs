@@ -1,8 +1,8 @@
 use super::reference::{ClassRef, FieldRef};
 use crate::stack::operand_stack::Operand;
 
-use common::int_types::u2;
 use classfile::{ConstantPool, FieldInfo, FieldType};
+use common::int_types::u2;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {

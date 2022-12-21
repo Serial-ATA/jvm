@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::ops::RangeInclusive;
 use std::sync::{Arc, Mutex};
 
-use common::int_types::u1;
 use classfile::FieldType;
+use common::int_types::u1;
 use once_cell::sync::Lazy;
 
 const SUPPORTED_MAJOR_LOWER_BOUND: u1 = 45;
