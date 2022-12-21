@@ -1,10 +1,14 @@
 pub mod classloader;
+pub mod jar;
 
+use std::fs::File;
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::RwLock;
+use std::sync::{Mutex, RwLock};
 
 use classfile::types::u1;
 use once_cell::sync::Lazy;
+use zip::ZipArchive;
 
 static CLASSPATH: Lazy<RwLock<ClassPath>> = Lazy::new(|| RwLock::new(ClassPath::default()));
 
@@ -25,7 +29,14 @@ pub fn find_classpath_entry(name: &[u1]) -> Vec<u8> {
 					return std::fs::read(class_path).unwrap();
 				}
 			},
-			ClassPathEntry::Zip => unimplemented!("Zip classpath entries"),
+			ClassPathEntry::Zip(archive) => {
+				let mut archive = archive.lock().unwrap();
+				if let Ok(mut file) = archive.by_name(&name) {
+					let mut file_contents = Vec::with_capacity(file.size() as usize);
+					file.read_to_end(&mut file_contents).unwrap();
+					return file_contents;
+				};
+			},
 		}
 	}
 
@@ -34,7 +45,7 @@ pub fn find_classpath_entry(name: &[u1]) -> Vec<u8> {
 
 pub enum ClassPathEntry {
 	Dir(PathBuf),
-	Zip,
+	Zip(Mutex<ZipArchive<File>>),
 }
 
 impl ClassPathEntry {
@@ -43,11 +54,17 @@ impl ClassPathEntry {
 		assert!(path.exists());
 
 		if path.is_dir() {
-			Self::Dir(path.to_path_buf())
-		} else {
-			// TODO
-			Self::Zip
+			return Self::Dir(path.to_path_buf());
 		}
+
+		let extension = path.extension().map(|ext| ext.to_str().unwrap());
+		if extension == Some("jar") || extension == Some("zip") {
+			return Self::Zip(Mutex::new(
+				ZipArchive::new(File::open(path).unwrap()).unwrap(),
+			));
+		}
+
+		panic!("")
 	}
 }
 

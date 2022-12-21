@@ -1,9 +1,11 @@
-use runtime::classpath::{add_classpath_entry, ClassPathEntry};
+use runtime::classpath::{add_classpath_entry, jar, ClassPathEntry};
 use runtime::Thread;
-
-use std::path::PathBuf;
+use std::path::Path;
 
 use clap::Parser;
+
+static USAGE: &str = r"jvm [OPTIONS] <MAIN_CLASS> [ARGS]...    (to execute a class)
+   or  jvm [OPTIONS] --jar <JARFILE> [ARGS]... (to execute a jar file)";
 
 #[derive(Parser)]
 #[command(
@@ -11,9 +13,29 @@ use clap::Parser;
 	author = "Serial-ATA",
 	version,
 	about = "Serial's JVM - An implementation of the Java SE 19 Virtual Machine",
-	long_about = None
+	long_about = None,
+	override_usage = USAGE
 )]
 struct Args {
+	#[clap(flatten)]
+	options: JVMOptions,
+	#[arg(
+		long,
+		required_unless_present = "main_class",
+		help = "The name of the jar file to execute"
+	)]
+	jar: Option<String>,
+	#[arg(
+		required_unless_present = "jar",
+		help = "The name of the main class with the `.class` extension omitted"
+	)]
+	main_class: Option<String>,
+	#[arg(required = false, help = "Arguments passed to the main class")]
+	args: Vec<String>,
+}
+
+#[derive(Debug, clap::Args)]
+struct JVMOptions {
 	#[arg(
 		long,
 		alias = "cp",
@@ -37,24 +59,29 @@ struct Args {
 	// TODO: -D<name>=<value>
 	//                   set a system property
 	// TODO: --show-version (alias: -showversion): print product version to the error stream and continue
-	#[arg(
-		required = true,
-		help = "The name of the main class with the `.class` extension omitted"
-	)]
-	main_class: String,
-	#[arg(required = false, help = "Arguments passed to the main class")]
-	args: Vec<String>,
 }
 
 fn main() {
 	let args = Args::parse();
 
-	if let Some(classpath) = args.classpath.as_deref() {
+	// TODO: env!("CLASSPATH")
+	if let Some(classpath) = args.options.classpath.as_deref() {
 		for path in classpath.split(':') {
-			add_classpath_entry(ClassPathEntry::Dir(PathBuf::from(path)));
+			add_classpath_entry(ClassPathEntry::new(path));
 		}
 	}
 
-	let thread = Thread::new_main(args.main_class.as_bytes(), args.args);
+	let main_class = match args.main_class {
+		Some(main_class) => main_class,
+		None => match jar::main_class_from_jar_manifest(Path::new(&args.jar.unwrap())) {
+			Some(main_class) => main_class,
+			None => {
+				eprintln!("Unable to find main class in jar manifest!");
+				std::process::exit(1);
+			},
+		},
+	};
+
+	let thread = Thread::new_main(main_class.as_bytes(), args.args);
 	Thread::run(&thread);
 }
