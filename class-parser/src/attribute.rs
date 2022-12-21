@@ -97,6 +97,9 @@ where
 		AttributeTag::ModuleMainClass => AttributeType::ModuleMainClass {
 			main_class_index: reader.read_u2(),
 		},
+		AttributeTag::NestHost => AttributeType::NestHost {
+			host_class_index: reader.read_u2(),
+		},
 		AttributeTag::NestMembers => {
 			let number_of_classes = reader.read_u2();
 			let mut classes = Vec::with_capacity(number_of_classes as usize);

@@ -35,6 +35,7 @@ pub enum AttributeTag {
 	Module,
 	ModulePackages,
 	ModuleMainClass,
+	NestHost,
 	NestMembers,
 }
 
@@ -67,6 +68,7 @@ impl From<&[u8]> for AttributeTag {
 			b"Module" => Self::Module,
 			b"ModulePackages" => Self::ModulePackages,
 			b"ModuleMainClass" => Self::ModuleMainClass,
+			b"NestHost" => Self::NestHost,
 			b"NestMembers" => Self::NestMembers,
 			_ => unsafe {
 				panic!(
@@ -189,7 +191,10 @@ pub enum AttributeType {
 	ModuleMainClass {
 		main_class_index: u2,
 	},
-	// TODO: NestHost, Record, PermittedSubclasses
+	NestHost {
+		host_class_index: u2,
+	},
+	// TODO: Record, PermittedSubclasses
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.29
 	NestMembers {
