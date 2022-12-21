@@ -1,7 +1,7 @@
 use super::reference::{ClassRef, FieldRef};
 use crate::stack::operand_stack::Operand;
 
-use classfile::types::u2;
+use common::int_types::u2;
 use classfile::{ConstantPool, FieldInfo, FieldType};
 
 #[derive(Debug, Clone, PartialEq)]

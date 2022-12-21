@@ -10,8 +10,8 @@ use std::fmt::{Debug, Formatter};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use classfile::traits::PtrType;
-use classfile::types::u1;
+use common::int_types::u1;
+use common::traits::PtrType;
 
 pub type ThreadRef = Arc<ThreadPtr>;
 

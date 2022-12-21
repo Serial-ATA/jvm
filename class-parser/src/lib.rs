@@ -5,9 +5,9 @@ mod methodinfo;
 
 use std::io::Read;
 
-use classfile::traits::JavaReadExt;
-use classfile::types::u2;
 use classfile::{ClassFile, ConstantPool, ConstantPoolRef};
+use common::int_types::u2;
+use common::traits::JavaReadExt;
 
 pub fn parse_class<R>(reader: &mut R) -> ClassFile
 where

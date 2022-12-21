@@ -6,7 +6,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, RwLock};
 
-use classfile::types::u1;
+use common::int_types::u1;
 use once_cell::sync::Lazy;
 use zip::ZipArchive;
 

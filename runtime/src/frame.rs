@@ -7,9 +7,9 @@ use std::fmt::{Debug, Formatter};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use classfile::traits::PtrType;
-use classfile::types::{u1, u2, u4};
 use classfile::ConstantPoolRef;
+use common::int_types::{u1, u2, u4};
+use common::traits::PtrType;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6
 #[rustfmt::skip]

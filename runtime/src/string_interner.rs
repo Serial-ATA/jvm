@@ -8,8 +8,8 @@ use crate::thread::ThreadRef;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use classfile::types::{u1, u2};
 use once_cell::sync::Lazy;
+use common::int_types::{u1, u2};
 
 static STRING_POOL: Lazy<HashMap<Vec<u1>, ClassInstanceRef>> = Lazy::new(HashMap::new);
 

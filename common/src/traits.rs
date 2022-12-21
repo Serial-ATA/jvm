@@ -1,4 +1,4 @@
-use crate::types::{u1, u2, u4};
+use crate::int_types::{u1, u2, u4};
 
 use std::io::Read;
 

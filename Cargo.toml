@@ -6,4 +6,5 @@ members = [
     "runtime",
     "jvm",
     "runtime/src/native/method-gen",
+    "common",
 ]

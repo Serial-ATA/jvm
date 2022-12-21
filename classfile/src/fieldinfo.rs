@@ -1,6 +1,6 @@
 use crate::attribute::{Attribute, AttributeType};
-use crate::traits::JavaReadExt;
-use crate::types::u2;
+use common::int_types::u2;
+use common::traits::JavaReadExt;
 
 use std::io::Read;
 

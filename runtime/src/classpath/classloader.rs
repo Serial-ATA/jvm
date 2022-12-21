@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::ops::RangeInclusive;
 use std::sync::{Arc, Mutex};
 
-use classfile::types::u1;
+use common::int_types::u1;
 use classfile::FieldType;
 use once_cell::sync::Lazy;
 

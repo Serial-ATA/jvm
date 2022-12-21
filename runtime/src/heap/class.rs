@@ -10,9 +10,9 @@ use crate::thread::ThreadRef;
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
-use classfile::traits::PtrType;
-use classfile::types::{u1, u2};
 use classfile::{ClassFile, ConstantPoolRef, FieldType};
+use common::int_types::{u1, u2};
+use common::traits::PtrType;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]

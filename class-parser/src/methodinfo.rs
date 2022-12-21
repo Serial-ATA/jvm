@@ -2,8 +2,8 @@ use crate::attribute;
 
 use std::io::Read;
 
-use classfile::traits::JavaReadExt;
 use classfile::{ConstantPool, MethodInfo};
+use common::traits::JavaReadExt;
 
 pub fn read_method_info<R>(reader: &mut R, constant_pool: &ConstantPool) -> MethodInfo
 where

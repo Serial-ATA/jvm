@@ -9,6 +9,7 @@ build = "build.rs"
 [dependencies]
 class-parser = { path = "../class-parser" }
 classfile = { path = "../classfile" }
+common = { path = "../common" }
 instructions = { path = "../instructions" }
 paste = "1.0.9"
 once_cell = "1.15.0"

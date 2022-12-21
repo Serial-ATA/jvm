@@ -1,9 +1,9 @@
 use super::reference::ClassRef;
 use crate::reference::MethodRef;
 
-use classfile::traits::PtrType;
-use classfile::types::{u1, u2};
 use classfile::{Code, FieldType, MethodDescriptor, MethodInfo};
+use common::int_types::{u1, u2};
+use common::traits::PtrType;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Method {

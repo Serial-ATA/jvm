@@ -1,4 +1,4 @@
-use crate::types::{u1, u2};
+use common::int_types::{u1, u2};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7
 #[derive(Debug, Clone, PartialEq)]

@@ -10,9 +10,9 @@ use std::sync::atomic::Ordering as MemOrdering;
 use std::sync::Arc;
 
 use crate::method_invoker::MethodInvoker;
-use classfile::traits::PtrType;
-use classfile::types::{u2, u4};
 use classfile::ConstantPoolValueInfo;
+use common::int_types::{u2, u4};
+use common::traits::PtrType;
 use instructions::{OpCode, OperandLike, StackLike};
 
 macro_rules! push_const {

@@ -5,7 +5,7 @@ use crate::stack::local_stack::LocalStack;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-use classfile::types::u1;
+use common::int_types::u1;
 use once_cell::sync::Lazy;
 
 mod java;
