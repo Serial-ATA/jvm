@@ -37,6 +37,7 @@ pub enum AttributeTag {
 	ModuleMainClass,
 	NestHost,
 	NestMembers,
+	Record,
 }
 
 impl From<&[u8]> for AttributeTag {
@@ -70,6 +71,7 @@ impl From<&[u8]> for AttributeTag {
 			b"ModuleMainClass" => Self::ModuleMainClass,
 			b"NestHost" => Self::NestHost,
 			b"NestMembers" => Self::NestMembers,
+			b"Record" => Self::Record,
 			_ => unsafe {
 				panic!(
 					"Encountered unknown attribute type: {}",
@@ -188,18 +190,23 @@ pub enum AttributeType {
 	ModulePackages {
 		package_index: Vec<u2>,
 	},
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.27
 	ModuleMainClass {
 		main_class_index: u2,
 	},
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.28
 	NestHost {
 		host_class_index: u2,
 	},
-	// TODO: Record, PermittedSubclasses
-
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.29
 	NestMembers {
 		classes: Vec<u2>,
 	},
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.30
+	Record {
+		components: Vec<RecordComponentInfo>,
+	},
+	// TODO: PermittedSubclasses
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -419,4 +426,12 @@ pub struct ModuleOpen {
 pub struct ModuleProvide {
 	pub provides_index: u2,
 	pub provides_with_index: Vec<u2>,
+}
+
+// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.30
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecordComponentInfo {
+	pub name_index: u2,
+	pub descriptor_index: u2,
+	pub attributes: Vec<Attribute>,
 }
