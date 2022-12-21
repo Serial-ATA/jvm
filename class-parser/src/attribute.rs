@@ -85,6 +85,15 @@ where
 		AttributeTag::BootstrapMethods => read_attribute_bootstrap_methods(reader),
 		AttributeTag::MethodParameters => read_attribute_method_parameters(reader),
 		AttributeTag::Module => read_attribute_module(reader),
+		AttributeTag::ModulePackages => {
+			let package_count = reader.read_u2();
+			let mut package_index = Vec::with_capacity(package_count as usize);
+			for _ in 0..package_count {
+				package_index.push(reader.read_u2());
+			}
+
+			AttributeType::ModulePackages { package_index }
+		},
 		AttributeTag::NestMembers => {
 			let number_of_classes = reader.read_u2();
 			let mut classes = Vec::with_capacity(number_of_classes as usize);

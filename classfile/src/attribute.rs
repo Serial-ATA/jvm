@@ -33,6 +33,7 @@ pub enum AttributeTag {
 	BootstrapMethods,
 	MethodParameters,
 	Module,
+	ModulePackages,
 	NestMembers,
 }
 
@@ -63,6 +64,7 @@ impl From<&[u8]> for AttributeTag {
 			b"BootstrapMethods" => Self::BootstrapMethods,
 			b"MethodParameters" => Self::MethodParameters,
 			b"Module" => Self::Module,
+			b"ModulePackages" => Self::ModulePackages,
 			b"NestMembers" => Self::NestMembers,
 			_ => unsafe {
 				panic!(
@@ -164,6 +166,7 @@ pub enum AttributeType {
 	MethodParameters {
 		parameters: Vec<MethodParameter>,
 	},
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.25
 	Module {
 		module_name_index: u2,
 		module_flags: u2,
@@ -177,7 +180,11 @@ pub enum AttributeType {
 
 		provides: Vec<ModuleProvide>,
 	},
-	// TODO: ModulePackages, ModuleMainClass, NestHost, Record, PermittedSubclasses
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.26
+	ModulePackages {
+		package_index: Vec<u2>,
+	},
+	// TODO: ModuleMainClass, NestHost, Record, PermittedSubclasses
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.29
 	NestMembers {
