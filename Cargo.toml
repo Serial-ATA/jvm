@@ -7,4 +7,6 @@ members = [
     "jvm",
     "runtime/src/native/method-gen",
     "common",
+    "jimage",
+    "jimage-parser",
 ]
