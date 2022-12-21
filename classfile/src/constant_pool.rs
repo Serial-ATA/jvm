@@ -183,7 +183,7 @@ pub enum ConstantPoolTag {
 	MethodHandle       = 15,
 	MethodType         = 16,
 	InvokeDynamic      = 18,
-	// TODO: CONSTANT_Module
+	Module             = 19,
 	// TODO: CONSTANT_Package
 }
 
@@ -204,6 +204,7 @@ impl From<u8> for ConstantPoolTag {
 			15 => ConstantPoolTag::MethodHandle,
 			16 => ConstantPoolTag::MethodType,
 			18 => ConstantPoolTag::InvokeDynamic,
+			19 => ConstantPoolTag::Module,
 			_ => unreachable!(),
 		}
 	}
@@ -272,5 +273,9 @@ pub enum ConstantPoolValueInfo {
 	InvokeDynamic {
 		bootstrap_method_attr_index: u2,
 		name_and_type_index: u2,
+	},
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.11
+	Module {
+		name_index: u2,
 	},
 }

@@ -83,6 +83,9 @@ where
 				bootstrap_method_attr_index: reader.read_u2(),
 				name_and_type_index: reader.read_u2(),
 			},
+			ConstantPoolTag::Module => ConstantPoolValueInfo::Module {
+				name_index: reader.read_u2(),
+			},
 			// Doesn't actually exist
 			ConstantPoolTag::Unusable => unreachable!(),
 		};
