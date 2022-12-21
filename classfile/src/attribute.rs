@@ -32,6 +32,7 @@ pub enum AttributeTag {
 	AnnotationDefault,
 	BootstrapMethods,
 	MethodParameters,
+	Module,
 	NestMembers,
 }
 
@@ -61,6 +62,7 @@ impl From<&[u8]> for AttributeTag {
 			b"AnnotationDefault" => Self::AnnotationDefault,
 			b"BootstrapMethods" => Self::BootstrapMethods,
 			b"MethodParameters" => Self::MethodParameters,
+			b"Module" => Self::Module,
 			b"NestMembers" => Self::NestMembers,
 			_ => unsafe {
 				panic!(
@@ -150,9 +152,6 @@ pub enum AttributeType {
 	RuntimeInvisibleTypeAnnotations {
 		annotations: Vec<Annotation>,
 	},
-
-	// TODO: Module, ModulePackages, ModuleMainClass, NestHost, Record, PermittedSubclasses
-
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.22
 	AnnotationDefault {
 		default_value: ElementValue,
@@ -161,10 +160,24 @@ pub enum AttributeType {
 	BootstrapMethods {
 		bootstrap_methods: Vec<BootstrapMethod>,
 	},
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.23
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.24
 	MethodParameters {
 		parameters: Vec<MethodParameter>,
 	},
+	Module {
+		module_name_index: u2,
+		module_flags: u2,
+		module_version_index: u2,
+
+		requires: Vec<ModuleRequire>,
+		exports: Vec<ModuleExport>,
+		opens: Vec<ModuleOpen>,
+
+		uses_index: Vec<u2>,
+
+		provides: Vec<ModuleProvide>,
+	},
+	// TODO: ModulePackages, ModuleMainClass, NestHost, Record, PermittedSubclasses
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.29
 	NestMembers {
@@ -361,4 +374,32 @@ pub struct BootstrapMethod {
 pub struct MethodParameter {
 	pub name_index: u2,
 	pub access_flags: u2,
+}
+
+// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.25
+#[derive(Debug, Clone, PartialEq)]
+pub struct ModuleRequire {
+	pub requires_index: u2,
+	pub requires_flags: u2,
+	pub requires_version_index: u2,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ModuleExport {
+	pub exports_index: u2,
+	pub exports_flags: u2,
+	pub exports_to_index: Vec<u2>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ModuleOpen {
+	pub opens_index: u2,
+	pub opens_flags: u2,
+	pub opens_to_index: Vec<u2>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ModuleProvide {
+	pub provides_index: u2,
+	pub provides_with_index: Vec<u2>,
 }

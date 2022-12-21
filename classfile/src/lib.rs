@@ -10,7 +10,8 @@ pub use self::classfile::ClassFile;
 pub use attribute::{
 	Annotation, Attribute, AttributeTag, AttributeType, BootstrapMethod, Code, CodeException,
 	ElementValue, ElementValuePair, ElementValueTag, ElementValueType, InnerClass, LineNumber,
-	LocalVariable, MethodParameter, StackMapFrame, VerificationTypeInfo,
+	LocalVariable, MethodParameter, ModuleExport, ModuleOpen, ModuleProvide, ModuleRequire,
+	StackMapFrame, VerificationTypeInfo,
 };
 pub use constant_pool::{ConstantPool, ConstantPoolRef, ConstantPoolTag, ConstantPoolValueInfo};
 pub use fieldinfo::{FieldInfo, FieldType};

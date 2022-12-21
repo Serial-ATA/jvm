@@ -5,7 +5,8 @@ use classfile::types::u2;
 use classfile::{
 	Annotation, Attribute, AttributeTag, AttributeType, BootstrapMethod, Code, CodeException,
 	ConstantPool, ElementValue, ElementValuePair, ElementValueTag, ElementValueType, InnerClass,
-	LineNumber, LocalVariable, MethodParameter, StackMapFrame, VerificationTypeInfo,
+	LineNumber, LocalVariable, MethodParameter, ModuleExport, ModuleOpen, ModuleProvide,
+	ModuleRequire, StackMapFrame, VerificationTypeInfo,
 };
 
 pub fn read_attribute<R>(reader: &mut R, constant_pool: &ConstantPool) -> Attribute
@@ -83,6 +84,7 @@ where
 		},
 		AttributeTag::BootstrapMethods => read_attribute_bootstrap_methods(reader),
 		AttributeTag::MethodParameters => read_attribute_method_parameters(reader),
+		AttributeTag::Module => read_attribute_module(reader),
 		AttributeTag::NestMembers => {
 			let number_of_classes = reader.read_u2();
 			let mut classes = Vec::with_capacity(number_of_classes as usize);
@@ -452,4 +454,99 @@ where
 	}
 
 	AttributeType::MethodParameters { parameters }
+}
+
+fn read_attribute_module<R>(reader: &mut R) -> AttributeType
+where
+	R: Read,
+{
+	let module_name_index = reader.read_u2();
+	let module_flags = reader.read_u2();
+	let module_version_index = reader.read_u2();
+
+	let requires_count = reader.read_u2();
+	let mut requires = Vec::with_capacity(requires_count as usize);
+	for _ in 0..requires_count {
+		let requires_index = reader.read_u2();
+		let requires_flags = reader.read_u2();
+		let requires_version_index = reader.read_u2();
+
+		requires.push(ModuleRequire {
+			requires_index,
+			requires_flags,
+			requires_version_index,
+		});
+	}
+
+	let exports_count = reader.read_u2();
+	let mut exports = Vec::with_capacity(exports_count as usize);
+	for _ in 0..exports_count {
+		let exports_index = reader.read_u2();
+		let exports_flags = reader.read_u2();
+
+		let exports_to_count = reader.read_u2();
+		let mut exports_to_index = Vec::with_capacity(exports_to_count as usize);
+		for _ in 0..exports_to_count {
+			exports_to_index.push(reader.read_u2());
+		}
+
+		exports.push(ModuleExport {
+			exports_index,
+			exports_flags,
+			exports_to_index,
+		});
+	}
+
+	let opens_count = reader.read_u2();
+	let mut opens = Vec::with_capacity(opens_count as usize);
+	for _ in 0..opens_count {
+		let opens_index = reader.read_u2();
+		let opens_flags = reader.read_u2();
+
+		let opens_to_count = reader.read_u2();
+		let mut opens_to_index = Vec::with_capacity(opens_to_count as usize);
+		for _ in 0..opens_to_count {
+			opens_to_index.push(reader.read_u2());
+		}
+
+		opens.push(ModuleOpen {
+			opens_index,
+			opens_flags,
+			opens_to_index,
+		});
+	}
+
+	let uses_count = reader.read_u2();
+	let mut uses_index = Vec::with_capacity(uses_count as usize);
+	for _ in 0..uses_count {
+		uses_index.push(reader.read_u2());
+	}
+
+	let provides_count = reader.read_u2();
+	let mut provides = Vec::with_capacity(provides_count as usize);
+	for _ in 0..provides_count {
+		let provides_index = reader.read_u2();
+
+		let provides_with_count = reader.read_u2();
+		let mut provides_with_index = Vec::with_capacity(provides_with_count as usize);
+		for _ in 0..provides_with_count {
+			provides_with_index.push(reader.read_u2());
+		}
+
+		provides.push(ModuleProvide {
+			provides_index,
+			provides_with_index,
+		});
+	}
+
+	AttributeType::Module {
+		module_name_index,
+		module_flags,
+		module_version_index,
+		requires,
+		exports,
+		opens,
+		uses_index,
+		provides,
+	}
 }
