@@ -1,3 +1,5 @@
+use common::int_types::u1;
+
 #[derive(Copy, Clone, Debug)]
 pub enum Endian {
 	Little,
@@ -25,7 +27,7 @@ impl Endian {
 pub struct JImage {
 	pub endian: Endian,                      // Endian handler
 	pub header: crate::header::JImageHeader, // Image header
-	pub data: Vec<u8>,                       // The entire JImage's data
+	pub data: Vec<u1>,                       // The entire JImage's data
 	#[borrows(data)]
 	#[not_covariant]
 	pub index: crate::JImageIndex<'this>, // Information related to resource lookup

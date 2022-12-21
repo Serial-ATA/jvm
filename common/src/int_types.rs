@@ -3,5 +3,6 @@
 pub type u1 = u8;
 pub type u2 = u16;
 pub type u4 = u32;
+pub type u8 = u64;
 
 pub type s4 = i32;

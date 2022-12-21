@@ -1,4 +1,5 @@
 use crate::Endian;
+
 use std::cmp::Ordering;
 
 use common::int_types::{s4, u4};

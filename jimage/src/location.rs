@@ -1,3 +1,5 @@
+use common::int_types::{u1, u8};
+
 // https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L233
 #[rustfmt::skip]
 #[repr(u8)]
@@ -16,16 +18,16 @@ pub enum JImageLocation {
 impl JImageLocation {
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L252
 	#[inline(always)]
-	pub fn attribute_length(data: u8) -> u8 {
+	pub fn attribute_length(data: u1) -> u1 {
 		(data & 0x7) + 1
 	}
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L257
 	#[inline(always)]
-	pub fn attribute_kind(data: u8) -> u8 {
+	pub fn attribute_kind(data: u1) -> u1 {
 		let kind = data >> 3;
 		assert!(
-			kind < Self::ATTRIBUTE_COUNT as u8,
+			kind < Self::ATTRIBUTE_COUNT as u1,
 			"Invalid JImage attribute kind: {}",
 			data
 		);
@@ -34,9 +36,9 @@ impl JImageLocation {
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L264
 	#[inline(always)]
-	pub fn attribute_value(data: &[u8], length: u8) -> u64 {
+	pub fn attribute_value(data: &[u1], length: u1) -> u8 {
 		assert!(
-			(1u8..=8).contains(&length),
+			(1..=8).contains(&length),
 			"Invalid JImage attribute value length: {}",
 			length
 		);
