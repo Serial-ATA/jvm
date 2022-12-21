@@ -38,6 +38,7 @@ pub enum AttributeTag {
 	NestHost,
 	NestMembers,
 	Record,
+	PermittedSubclasses,
 }
 
 impl From<&[u8]> for AttributeTag {
@@ -72,6 +73,7 @@ impl From<&[u8]> for AttributeTag {
 			b"NestHost" => Self::NestHost,
 			b"NestMembers" => Self::NestMembers,
 			b"Record" => Self::Record,
+			b"PermittedSubclasses" => Self::PermittedSubclasses,
 			_ => unsafe {
 				panic!(
 					"Encountered unknown attribute type: {}",
@@ -206,7 +208,10 @@ pub enum AttributeType {
 	Record {
 		components: Vec<RecordComponentInfo>,
 	},
-	// TODO: PermittedSubclasses
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.31
+	PermittedSubclasses {
+		classes: Vec<u2>,
+	},
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

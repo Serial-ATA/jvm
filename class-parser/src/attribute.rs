@@ -111,6 +111,16 @@ where
 			AttributeType::NestMembers { classes }
 		},
 		AttributeTag::Record => read_attribute_record(reader, constant_pool),
+		AttributeTag::PermittedSubclasses => {
+			let number_of_classes = reader.read_u2();
+			let mut classes = Vec::with_capacity(number_of_classes as usize);
+
+			for _ in 0..number_of_classes {
+				classes.push(reader.read_u2())
+			}
+
+			AttributeType::PermittedSubclasses { classes }
+		},
 	};
 
 	Attribute {
