@@ -86,6 +86,9 @@ where
 			ConstantPoolTag::Module => ConstantPoolValueInfo::Module {
 				name_index: reader.read_u2(),
 			},
+			ConstantPoolTag::Package => ConstantPoolValueInfo::Package {
+				name_index: reader.read_u2(),
+			},
 			// Doesn't actually exist
 			ConstantPoolTag::Unusable => unreachable!(),
 		};
