@@ -78,7 +78,9 @@ where
 				annotations: read_attribute_runtime_annotations(reader, constant_pool),
 			}
 		},
-		AttributeTag::AnnotationDefault => todo!(),
+		AttributeTag::AnnotationDefault => AttributeType::AnnotationDefault {
+			default_value: read_elementvalue(reader, constant_pool),
+		},
 		AttributeTag::BootstrapMethods => read_attribute_bootstrap_methods(reader),
 		AttributeTag::MethodParameters => read_attribute_method_parameters(reader),
 		AttributeTag::NestMembers => {
@@ -338,12 +340,11 @@ where
 	for _ in 0..num_element_value_pairs {
 		let element_name_index = reader.read_u2();
 
-		let tag = ElementValueTag::from(reader.read_u1());
-		let value = read_element_value_type(reader, tag, constant_pool);
+		let value = read_elementvalue(reader, constant_pool);
 
 		element_value_pairs.push(ElementValuePair {
 			element_name_index,
-			value: ElementValue { tag, ty: value },
+			value,
 		})
 	}
 
@@ -351,6 +352,16 @@ where
 		type_index,
 		element_value_pairs,
 	}
+}
+
+fn read_elementvalue<R>(reader: &mut R, constant_pool: &ConstantPool) -> ElementValue
+where
+	R: Read,
+{
+	let tag = ElementValueTag::from(reader.read_u1());
+	let ty = read_element_value_type(reader, tag, constant_pool);
+
+	ElementValue { tag, ty }
 }
 
 #[rustfmt::skip]
