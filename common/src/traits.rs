@@ -1,4 +1,4 @@
-use crate::int_types::{u1, u2, u4};
+use crate::int_types::{s4, u1, u2, u4};
 
 use std::io::Read;
 
@@ -19,6 +19,12 @@ pub trait JavaReadExt: Read {
 		let mut buf = [0u8; 4];
 		self.read_exact(&mut buf).unwrap();
 		u32::from_be_bytes(buf)
+	}
+
+	fn read_s4(&mut self) -> s4 {
+		let mut buf = [0u8; 4];
+		self.read_exact(&mut buf).unwrap();
+		s4::from_be_bytes(buf)
 	}
 }
 
