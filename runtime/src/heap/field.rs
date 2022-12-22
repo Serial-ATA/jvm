@@ -71,4 +71,9 @@ impl Field {
 		assert!(self.is_static());
 		self.class.unwrap_class_instance().static_field_slots[self.idx].clone()
 	}
+
+	pub fn set_static_value(&self, value: Operand) {
+		assert!(self.is_static());
+		self.class.unwrap_class_instance_mut().static_field_slots[self.idx] = value;
+	}
 }

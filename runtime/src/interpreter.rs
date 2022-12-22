@@ -2,7 +2,7 @@ use crate::class::Class;
 use crate::class_instance::ClassInstance;
 use crate::frame::FrameRef;
 use crate::method_invoker::MethodInvoker;
-use crate::reference::Reference;
+use crate::reference::{FieldRef, Reference};
 use crate::stack::operand_stack::Operand;
 use crate::string_interner::StringInterner;
 
@@ -285,21 +285,22 @@ impl Interpreter {
         }
 
         // ========= References =========
-        // TODO: putstatic, getfield, putfield,
+        // TODO: getfield, putfield,
         //       invokevirtual, invokespecial, invokestatic,
         //       invokeinterface, invokedynamic, new, newarray,
         //       anewarray, arraylength, athrow, checkcast, instanceof,
         //       monitorenter, monitorexit
         if opcode == OpCode::getstatic {
-            let field_ref_idx = frame.read_byte2();
-
-            let method = frame.method();
-            let class = Arc::clone(&method.class);
-
-            let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
-
-            let field = Class::resolve_field(frame.thread(), constant_pool, field_ref_idx);
+            let field = Self::fetch_field(FrameRef::clone(&frame));
             frame.get_operand_stack_mut().push_op(field.get_static_value());
+            return;
+        }
+
+        if opcode == OpCode::putstatic {
+            let field = Self::fetch_field(FrameRef::clone(&frame));
+            let value = frame.get_operand_stack_mut().pop();
+            field.set_static_value(value);
+            
             return;
         }
 
@@ -441,5 +442,16 @@ impl Interpreter {
                 }
             },
         }
+    }
+    
+    fn fetch_field(frame: FrameRef) -> FieldRef {
+        let field_ref_idx = frame.read_byte2();
+
+        let method = frame.method();
+        let class = Arc::clone(&method.class);
+
+        let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
+
+        Class::resolve_field(frame.thread(), constant_pool, field_ref_idx)
     }
 }
