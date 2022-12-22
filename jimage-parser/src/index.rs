@@ -1,3 +1,4 @@
+use byte_slice_cast::AsSliceOf;
 use common::int_types::{s4, u1, u4};
 use jimage::{Endian, JImageHeader, JImageIndex};
 
@@ -37,23 +38,13 @@ pub(crate) fn read_index(data: &[u1], header: JImageHeader, endian: Endian) -> J
 	let redirects_table =
 		&data[redirect_table_offset..redirect_table_offset + header.table_length()];
 
-	let redirects_table = unsafe {
-		core::slice::from_raw_parts(
-			redirects_table.as_ptr().cast::<s4>(),
-			redirects_table.len() / core::mem::size_of::<s4>(),
-		)
-	};
+	let redirects_table = redirects_table.as_slice_of::<s4>().unwrap();
 
 	let offset_table_offset = header.offset_table_offset();
 	let offsets_table =
 		&data[offset_table_offset..offset_table_offset + header.offset_table_length()];
 
-	let offsets_table = unsafe {
-		core::slice::from_raw_parts(
-			offsets_table.as_ptr().cast::<u4>(),
-			offsets_table.len() / core::mem::size_of::<u4>(),
-		)
-	};
+	let offsets_table = offsets_table.as_slice_of::<u4>().unwrap();
 
 	let location_table_offset = header.location_table_offset();
 	let location_bytes = &data

@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 jimage = { path = "../jimage" }
 common = { path = "../common" }
+byte-slice-cast = "1.2.2"
