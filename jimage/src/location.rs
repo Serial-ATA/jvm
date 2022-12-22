@@ -19,6 +19,13 @@ impl JImageLocation {
 		ret.set_data(data);
 		ret
 	}
+
+	pub(crate) fn new_opt_(data: Option<&[u1]>) -> Self {
+		match data {
+			Some(data) => Self::new_with_data(data),
+			None => Self::new(),
+		}
+	}
 }
 
 #[rustfmt::skip]

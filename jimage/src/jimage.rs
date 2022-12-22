@@ -1,4 +1,6 @@
-use crate::{ImageStrings, JImageLocation};
+use crate::{ImageStrings, JImageHeader, JImageLocation};
+
+use std::io::Read;
 
 use common::int_types::{u1, u4, u8};
 
@@ -27,15 +29,33 @@ impl Endian {
 #[ouroboros::self_referencing(pub_extras)]
 #[derive(Debug)]
 pub struct JImage {
-	pub endian: Endian,                      // Endian handler
-	pub header: crate::header::JImageHeader, // Image header
-	pub data: Vec<u1>,                       // The entire JImage's data
+	pub endian: Endian,       // Endian handler
+	pub header: JImageHeader, // Image header
+	pub data: Vec<u1>,        // The entire JImage's data
 	#[borrows(data)]
 	#[covariant]
 	pub index: crate::JImageIndex<'this>, // Information related to resource lookup
 }
 
 impl JImage {
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#LL436-L440C6
+	/// Compute number of bytes in image file index.
+	#[inline(always)]
+	pub fn index_size(&self) -> usize {
+		let header = self.borrow_header();
+		core::mem::size_of::<JImageHeader>()
+			+ header.table_length() * 2
+			+ header.locations_size as usize
+			+ header.strings_size as usize
+	}
+
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L504
+	/// Return first address of resource data.
+	#[inline(always)]
+	pub fn get_data_address(&self) -> usize {
+		self.index_size()
+	}
+
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L545
 	/// Return location attribute stream at offset.
 	#[inline(always)]
@@ -116,12 +136,7 @@ impl JImage {
 			let data = self.get_location_offset_data(offset);
 
 			// Expand location attributes.
-			let location;
-			if let Some(data) = data {
-				location = JImageLocation::new_with_data(data);
-			} else {
-				location = JImageLocation::new();
-			}
+			let location = JImageLocation::new_opt_(data);
 
 			// Make sure result is not a false positive.
 			if self.verify_location(&location, path) {
@@ -184,5 +199,51 @@ impl JImage {
 
 		// True only if complete match and no more characters.
 		path_iter.next().is_none()
+	}
+
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L523
+	/// Return the resource for the supplied location offset.
+	pub fn get_resource(&self, offset: u4, uncompressed_data: &mut [u1]) {
+		// Get address of first byte of location attribute stream.
+		let data = self.get_location_offset_data(offset);
+		// Expand location attributes.
+		let location = JImageLocation::new_opt_(data);
+		// Read the data
+		self.get_resource_from_location(&location, uncompressed_data);
+	}
+
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L533
+	/// Return the resource for the supplied location.
+	pub fn get_resource_from_location(
+		&self,
+		location: &JImageLocation,
+		uncompressed_data: &mut [u1],
+	) {
+		// Retrieve the byte offset and size of the resource.
+		let offset = location.get_attribute(JImageLocation::ATTRIBUTE_OFFSET as u1);
+		let uncompressed_size =
+			location.get_attribute(JImageLocation::ATTRIBUTE_UNCOMPRESSED as u1);
+		let compressed_size = location.get_attribute(JImageLocation::ATTRIBUTE_COMPRESSED as u1);
+
+		let data_start = self.get_data_address() + offset as usize;
+
+		// If the resource is not compressed.
+		if compressed_size == 0 {
+			// Read bytes from offset beyond the image index.
+			let mut data = &self.borrow_data()[data_start..data_start + uncompressed_size as usize];
+			assert!(
+				(&mut data).read_exact(uncompressed_data).is_ok(),
+				"error reading from image or short read"
+			);
+			return;
+		}
+
+		// We have to decompress the data
+		let _compressed_data =
+			&self.borrow_data()[data_start..data_start + compressed_size as usize];
+		// Get image string table.
+		let _strings = ImageStrings(self.borrow_index().string_bytes);
+		// Decompress resource.
+		todo!()
 	}
 }

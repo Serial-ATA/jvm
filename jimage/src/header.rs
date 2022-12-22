@@ -19,32 +19,32 @@ pub struct JImageHeader {
 
 impl JImageHeader {
 	#[inline(always)]
-	pub fn redirect_table_offset(&self) -> u4 {
-		core::mem::size_of::<Self>() as u4
+	pub fn redirect_table_offset(&self) -> usize {
+		core::mem::size_of::<Self>()
 	}
 
 	#[inline(always)]
-	pub fn offset_table_offset(&self) -> u4 {
+	pub fn offset_table_offset(&self) -> usize {
 		self.redirect_table_offset() + self.table_length()
 	}
 
 	#[inline(always)]
-	pub fn location_table_offset(&self) -> u4 {
+	pub fn location_table_offset(&self) -> usize {
 		self.offset_table_offset() + self.table_length()
 	}
 
 	#[inline(always)]
-	pub fn string_table_offset(&self) -> u4 {
-		self.location_table_offset() + self.locations_size
+	pub fn string_table_offset(&self) -> usize {
+		self.location_table_offset() + self.locations_size as usize
 	}
 
 	#[inline(always)]
-	pub fn table_length(&self) -> u4 {
-		self.table_length * core::mem::size_of::<u4>() as u4
+	pub fn table_length(&self) -> usize {
+		self.table_length as usize * core::mem::size_of::<u4>()
 	}
 
 	#[inline(always)]
-	pub fn offset_table_length(&self) -> u4 {
+	pub fn offset_table_length(&self) -> usize {
 		self.location_table_offset() - self.offset_table_offset()
 	}
 

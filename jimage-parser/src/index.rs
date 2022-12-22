@@ -33,9 +33,9 @@ pub(crate) fn read_index(data: &[u1], header: JImageHeader, endian: Endian) -> J
 		panic!("Non-target index table reading is not implemented");
 	}
 
-	let redirect_table_offset = header.redirect_table_offset() as usize;
+	let redirect_table_offset = header.redirect_table_offset();
 	let redirects_table =
-		&data[redirect_table_offset..redirect_table_offset + header.table_length() as usize];
+		&data[redirect_table_offset..redirect_table_offset + header.table_length()];
 
 	let redirects_table = unsafe {
 		core::slice::from_raw_parts(
@@ -44,9 +44,9 @@ pub(crate) fn read_index(data: &[u1], header: JImageHeader, endian: Endian) -> J
 		)
 	};
 
-	let offset_table_offset = header.offset_table_offset() as usize;
+	let offset_table_offset = header.offset_table_offset();
 	let offsets_table =
-		&data[offset_table_offset..offset_table_offset + header.offset_table_length() as usize];
+		&data[offset_table_offset..offset_table_offset + header.offset_table_length()];
 
 	let offsets_table = unsafe {
 		core::slice::from_raw_parts(
@@ -55,11 +55,11 @@ pub(crate) fn read_index(data: &[u1], header: JImageHeader, endian: Endian) -> J
 		)
 	};
 
-	let location_table_offset = header.location_table_offset() as usize;
+	let location_table_offset = header.location_table_offset();
 	let location_bytes = &data
 		[location_table_offset..location_table_offset + header.location_table_length() as usize];
 
-	let string_table_offset = header.string_table_offset() as usize;
+	let string_table_offset = header.string_table_offset();
 	let string_bytes =
 		&data[string_table_offset..string_table_offset + header.string_table_length() as usize];
 
