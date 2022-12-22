@@ -23,9 +23,10 @@ impl ImageStrings {
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L75
 	// TODO: Use endian when endian switching is implemented
-	pub fn find(_endian: Endian, name: &str, redirect: &[s4], length: u4) -> Option<s4> {
+	pub fn find(_endian: Endian, name: &str, redirect: &[s4]) -> Option<s4> {
 		// If the table is empty, then short cut.
-		if redirect.is_empty() || length == 0 {
+		let length = redirect.len() as u4;
+		if length == 0 {
 			return None;
 		}
 

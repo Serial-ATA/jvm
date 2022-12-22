@@ -1,4 +1,6 @@
-use common::int_types::u1;
+use crate::{ImageStrings, JImageLocation};
+
+use common::int_types::{u1, u4};
 
 #[derive(Copy, Clone, Debug)]
 pub enum Endian {
@@ -29,6 +31,76 @@ pub struct JImage {
 	pub header: crate::header::JImageHeader, // Image header
 	pub data: Vec<u1>,                       // The entire JImage's data
 	#[borrows(data)]
-	#[not_covariant]
+	#[covariant]
 	pub index: crate::JImageIndex<'this>, // Information related to resource lookup
+}
+
+impl JImage {
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L545
+	/// Return location attribute stream at offset.
+	#[inline(always)]
+	pub fn get_location_offset_data(&self, offset: u4) -> Option<&[u1]> {
+		assert!(
+			offset < self.borrow_header().locations_size,
+			"offset exceeds location attributes size"
+		);
+
+		if offset != 0 {
+			return Some(&self.borrow_index().location_bytes[offset as usize..]);
+		}
+
+		None
+	}
+
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L552
+	/// Return location attribute stream for location i.
+	#[inline(always)]
+	pub fn get_location_data(&self, index: u4) -> Option<&[u1]> {
+		self.get_location_offset_data(self.get_location_offset(index))
+	}
+
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L557
+	/// Return the location offset for index
+	#[inline(always)]
+	pub fn get_location_offset(&self, index: u4) -> u4 {
+		assert!(
+			index < self.borrow_header().table_length,
+			"index exceeds location count"
+		);
+		self.borrow_index().offsets_table[index as usize]
+	}
+
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L447
+	/// Find the location attributes associated with the path.
+	/// Returns true if the location is found, false otherwise.
+	pub fn find_location(&self, path: &str, location: &mut JImageLocation) -> bool {
+		// Locate the entry in the index perfect hash table.
+		let index = ImageStrings::find(
+			*self.borrow_endian(),
+			path,
+			self.borrow_index().redirects_table,
+		);
+
+		// If is found.
+		if let Some(index) = index {
+			// Get address of first byte of location attribute stream.
+			let data = self.get_location_data(index as u4);
+
+			// Expand location attributes.
+			if let Some(data) = data {
+				location.set_data(data);
+			}
+
+			// Make sure result is not a false positive.
+			return self.verify_location(location, path);
+		}
+
+		false
+	}
+
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L484
+	/// Verify that a found location matches the supplied path.
+	pub fn verify_location(&self, _location: &JImageLocation, _path: &str) -> bool {
+		todo!()
+	}
 }
