@@ -7,9 +7,10 @@ use combine::parser::combinator::{no_partial, FnOpaque};
 use combine::{
 	attempt, choice, many, many1, opaque, optional, sep_by, value, ParseError, Parser, Stream,
 };
+use common::int_types::u2;
 
 bitflags::bitflags! {
-	pub struct AccessFlags: u16 {
+	pub struct AccessFlags: u2 {
 		const ACC_PUBLIC       = 0x0001;
 		const ACC_PRIVATE      = 0x0002;
 		const ACC_PROTECTED    = 0x0004;

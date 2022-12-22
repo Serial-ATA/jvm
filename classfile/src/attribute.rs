@@ -41,8 +41,8 @@ pub enum AttributeTag {
 	PermittedSubclasses,
 }
 
-impl From<&[u8]> for AttributeTag {
-	fn from(bytes: &[u8]) -> Self {
+impl From<&[u1]> for AttributeTag {
+	fn from(bytes: &[u1]) -> Self {
 		match bytes {
 			b"ConstantValue" => Self::ConstantValue,
 			b"Code" => Self::Code,

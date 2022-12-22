@@ -46,7 +46,7 @@ impl Method {
 		let descriptor_index = method_info.descriptor_index;
 		let descriptor_bytes = constant_pool.get_constant_utf8(descriptor_index).to_vec();
 
-		let parameter_count: u8 = MethodDescriptor::parse(&mut &descriptor_bytes[..])
+		let parameter_count: u1 = MethodDescriptor::parse(&mut &descriptor_bytes[..])
 			.parameters
 			.len()
 			.try_into()

@@ -11,7 +11,7 @@ use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 use classfile::{ClassFile, ConstantPoolRef, FieldType};
-use common::int_types::{u1, u2};
+use common::int_types::{u1, u2, u4};
 use common::traits::PtrType;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
@@ -47,8 +47,8 @@ impl InitializationLock {
 
 #[derive(Debug)]
 pub struct Class {
-	pub name: Vec<u8>,
-	pub access_flags: u16,
+	pub name: Vec<u1>,
+	pub access_flags: u2,
 	pub loader: ClassLoader,
 
 	pub(crate) class_ty: ClassType,
@@ -70,7 +70,7 @@ pub struct ClassDescriptor {
 	pub methods: Vec<MethodRef>,
 	pub fields: Vec<FieldRef>,
 	pub static_field_slots: Box<[Operand]>,
-	pub instance_field_count: u32,
+	pub instance_field_count: u4,
 }
 
 #[derive(Debug, Clone)]
@@ -167,14 +167,14 @@ impl Class {
 				})
 				.collect();
 
-			class_instance.instance_field_count += class_instance.fields.len() as u32;
+			class_instance.instance_field_count += class_instance.fields.len() as u4;
 		}
 
 		classref
 	}
 
 	pub fn new_array(name: &[u1], component: FieldType, loader: ClassLoader) -> ClassRef {
-		let dimensions = name.iter().take_while(|char_| **char_ == b'[').count() as u8;
+		let dimensions = name.iter().take_while(|char_| **char_ == b'[').count() as u1;
 
 		let array_instance = ArrayDescriptor {
 			dimensions,

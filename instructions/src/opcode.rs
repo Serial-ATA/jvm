@@ -1,3 +1,5 @@
+use common::int_types::u1;
+
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -254,8 +256,8 @@ pub enum OpCode {
     impdep2            = 0xff,
 }
 
-impl From<u8> for OpCode {
-	fn from(value: u8) -> Self {
+impl From<u1> for OpCode {
+	fn from(value: u1) -> Self {
 		match value {
 			0 => OpCode::nop,
 			1 => OpCode::aconst_null,

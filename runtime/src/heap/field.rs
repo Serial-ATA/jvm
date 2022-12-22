@@ -2,14 +2,14 @@ use super::reference::{ClassRef, FieldRef};
 use crate::stack::operand_stack::Operand;
 
 use classfile::{ConstantPool, FieldInfo, FieldType};
-use common::int_types::u2;
+use common::int_types::{u1, u2};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
 	idx: usize, // Used for the `static_field_slots` field on `Class`
 	pub class: ClassRef,
 	pub access_flags: u2,
-	pub name: Vec<u8>,
+	pub name: Vec<u1>,
 	pub descriptor: FieldType,
 	pub constant_value_index: Option<u2>,
 	// TODO

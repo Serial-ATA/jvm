@@ -12,13 +12,13 @@ pub trait JavaReadExt: Read {
 	fn read_u2(&mut self) -> u2 {
 		let mut buf = [0u8; 2];
 		self.read_exact(&mut buf).unwrap();
-		u16::from_be_bytes(buf)
+		u2::from_be_bytes(buf)
 	}
 
 	fn read_u4(&mut self) -> u4 {
 		let mut buf = [0u8; 4];
 		self.read_exact(&mut buf).unwrap();
-		u32::from_be_bytes(buf)
+		u4::from_be_bytes(buf)
 	}
 
 	fn read_s4(&mut self) -> s4 {

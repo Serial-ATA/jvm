@@ -26,7 +26,7 @@ impl StringInterner {
 	}
 
 	pub fn intern_string(raw: &[u1], thread: ThreadRef) -> ClassInstanceRef {
-		const STRING_CONSTRUCTOR_FROM_CHAR_ARRAY: &[u8] = b"([C)V";
+		const STRING_CONSTRUCTOR_FROM_CHAR_ARRAY: &[u1] = b"([C)V";
 
 		// TODO: Error handling
 		let java_string_class = ClassLoader::Bootstrap.load(b"java/lang/String").unwrap();

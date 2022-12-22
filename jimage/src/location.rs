@@ -43,10 +43,10 @@ impl JImageLocation {
 			length
 		);
 
-		let mut value = 0u64;
+		let mut value = 0;
 		for i in 0..length {
 			value <<= 8;
-			value |= u64::from(data[i as usize]);
+			value |= u8::from(data[i as usize]);
 		}
 
 		value

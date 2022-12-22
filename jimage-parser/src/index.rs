@@ -1,4 +1,4 @@
-use common::int_types::{s4, u4};
+use common::int_types::{s4, u1, u4};
 use jimage::{Endian, JImageHeader, JImageIndex};
 
 // The following is the format of the index;
@@ -28,7 +28,7 @@ use jimage::{Endian, JImageHeader, JImageIndex};
 // Strings - Collection of zero terminated UTF-8 strings used by the index and
 //           image meta data.  Each string is accessed by offset.  Each string is
 //           unique.  Offset zero is reserved for the empty string.
-pub(crate) fn read_index(data: &[u8], header: JImageHeader, endian: Endian) -> JImageIndex<'_> {
+pub(crate) fn read_index(data: &[u1], header: JImageHeader, endian: Endian) -> JImageIndex<'_> {
 	if !endian.is_target() {
 		panic!("Non-target index table reading is not implemented");
 	}

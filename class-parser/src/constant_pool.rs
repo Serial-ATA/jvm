@@ -1,9 +1,10 @@
 use std::io::Read;
 
 use classfile::{ConstantPool, ConstantPoolTag, ConstantPoolValueInfo};
+use common::int_types::u2;
 use common::traits::JavaReadExt;
 
-pub fn read_cp_info<R>(reader: &mut R, constant_pool: &mut ConstantPool, constant_pool_count: u16)
+pub fn read_cp_info<R>(reader: &mut R, constant_pool: &mut ConstantPool, constant_pool_count: u2)
 where
 	R: Read,
 {

@@ -1,7 +1,7 @@
 use crate::reference::{ArrayInstanceRef, ClassInstanceRef, ClassRef};
 use crate::stack::operand_stack::Operand;
 
-use common::int_types::{u1, u2, u4};
+use common::int_types::{s8, u1, u2, u4};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassInstance {
@@ -41,5 +41,5 @@ pub enum ArrayContent {
 	Int(Box<[u4]>),
 	Float(Box<[f32]>),
 	Double(Box<[f64]>),
-	Long(Box<[i64]>),
+	Long(Box<[s8]>),
 }

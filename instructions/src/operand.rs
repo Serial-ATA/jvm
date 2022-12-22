@@ -1,3 +1,5 @@
+use common::int_types::{s4, s8};
+
 pub trait OperandLike: PartialOrd {
 	/// Add rhs to self
 	fn add(&mut self, rhs: Self);
@@ -62,11 +64,11 @@ pub trait OperandLike: PartialOrd {
 	/// Convert float to long
 	fn f2l(&mut self);
 
-	fn expect_int(&self) -> i32;
+	fn expect_int(&self) -> s4;
 
 	fn expect_float(&self) -> f32;
 
 	fn expect_double(&self) -> f64;
 
-	fn expect_long(&self) -> i64;
+	fn expect_long(&self) -> s8;
 }

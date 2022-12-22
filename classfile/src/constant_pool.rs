@@ -1,7 +1,8 @@
-use common::int_types::{u1, u2, u4};
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, Index};
 use std::sync::Arc;
+
+use common::int_types::{s4, s8, u1, u2, u4};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4
 
@@ -78,11 +79,11 @@ impl ConstantPool {
 		}
 	}
 
-	pub fn get_integer(&self, idx: u2) -> i32 {
+	pub fn get_integer(&self, idx: u2) -> s4 {
 		let constant = &self[idx];
 
 		match constant {
-			ConstantPoolValueInfo::Integer { bytes } => (*bytes) as i32,
+			ConstantPoolValueInfo::Integer { bytes } => (*bytes) as s4,
 			_ => panic!("Expected a constant value of \"Integer\""),
 		}
 	}
@@ -91,19 +92,19 @@ impl ConstantPool {
 		let constant = &self[idx];
 
 		match constant {
-			ConstantPoolValueInfo::Float { bytes } => (*bytes) as i32 as f32,
+			ConstantPoolValueInfo::Float { bytes } => (*bytes) as s4 as f32,
 			_ => panic!("Expected a constant value of \"Float\""),
 		}
 	}
 
-	pub fn get_long(&self, idx: u2) -> i64 {
+	pub fn get_long(&self, idx: u2) -> s8 {
 		let constant = &self[idx];
 
 		match constant {
 			ConstantPoolValueInfo::Long {
 				high_bytes,
 				low_bytes,
-			} => (i64::from(*high_bytes) << 32) + i64::from(*low_bytes),
+			} => (s8::from(*high_bytes) << 32) + s8::from(*low_bytes),
 			_ => panic!("Expected a constant value of \"Long\""),
 		}
 	}
@@ -186,8 +187,8 @@ pub enum ConstantPoolTag {
 	Package            = 20,
 }
 
-impl From<u8> for ConstantPoolTag {
-	fn from(value: u8) -> Self {
+impl From<u1> for ConstantPoolTag {
+	fn from(value: u1) -> Self {
 		match value {
 			1 => ConstantPoolTag::Utf8,
 			3 => ConstantPoolTag::Integer,

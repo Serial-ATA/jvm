@@ -11,7 +11,7 @@ use std::sync::atomic::Ordering as MemOrdering;
 use std::sync::Arc;
 
 use classfile::ConstantPoolValueInfo;
-use common::int_types::{u2, u4};
+use common::int_types::{s1, s2, s4, u2, u4};
 use common::traits::PtrType;
 use instructions::{OpCode, OperandLike, StackLike};
 
@@ -174,13 +174,13 @@ impl Interpreter {
 
         match opcode {
             OpCode::bipush => {
-                let byte = frame.read_byte() as i8;
-                frame.get_operand_stack_mut().push_op(Operand::Int(i32::from(byte)));
+                let byte = frame.read_byte() as s1;
+                frame.get_operand_stack_mut().push_op(Operand::Int(s4::from(byte)));
                 return;
             },
             OpCode::sipush => {
-                let short = frame.read_byte2() as i16;
-                frame.get_operand_stack_mut().push_op(Operand::Int(i32::from(short)));
+                let short = frame.read_byte2() as s2;
+                frame.get_operand_stack_mut().push_op(Operand::Int(s4::from(short)));
                 return;
             },
             _ => {}
@@ -345,7 +345,7 @@ impl Interpreter {
             },
             OpCode::goto_w => {
                 let address = frame.read_byte4();
-                assert!(address <= u4::from(u16::MAX), "goto_w offset too large!");
+                assert!(address <= u4::from(u2::MAX), "goto_w offset too large!");
 
                 let _ = frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
                 return;
@@ -381,7 +381,7 @@ impl Interpreter {
 
             // If the run-time constant pool entry is a numeric constant of type int or float,
             // then the value of that numeric constant is pushed onto the operand stack as an int or float, respectively.
-            ConstantPoolValueInfo::Integer { bytes } => frame.get_operand_stack_mut().push_int((*bytes) as i32),
+            ConstantPoolValueInfo::Integer { bytes } => frame.get_operand_stack_mut().push_int((*bytes) as s4),
             ConstantPoolValueInfo::Float { bytes } => frame.get_operand_stack_mut().push_float(f32::from_be_bytes(bytes.to_be_bytes())),
 
             // Otherwise, if the run-time constant pool entry is a string constant, that is,

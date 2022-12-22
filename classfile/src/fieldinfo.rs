@@ -1,8 +1,9 @@
 use crate::attribute::{Attribute, AttributeType};
-use common::int_types::u2;
-use common::traits::JavaReadExt;
 
 use std::io::Read;
+
+use common::int_types::{u1, u2};
+use common::traits::JavaReadExt;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.5
 pub const ACC_STATIC: u2 = 0x0008;
@@ -52,7 +53,7 @@ pub enum FieldType {
 }
 
 impl FieldType {
-	pub fn parse(bytes: &mut &[u8]) -> Self {
+	pub fn parse(bytes: &mut &[u1]) -> Self {
 		// FieldDescriptor:
 		// 	FieldType
 		//

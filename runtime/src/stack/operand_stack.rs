@@ -1,5 +1,6 @@
 use crate::reference::Reference;
 
+use common::int_types::{s1, s2, s4, s8, u2};
 use std::cmp::Ordering;
 use std::ops::Neg;
 
@@ -24,7 +25,7 @@ impl StackLike<Operand, Reference> for OperandStack {
 		self.inner.push(op);
 	}
 
-	fn push_int(&mut self, int: i32) {
+	fn push_int(&mut self, int: s4) {
 		self.inner.push(Operand::Int(int));
 	}
 
@@ -36,7 +37,7 @@ impl StackLike<Operand, Reference> for OperandStack {
 		self.inner.push(Operand::Double(double));
 	}
 
-	fn push_long(&mut self, long: i64) {
+	fn push_long(&mut self, long: s8) {
 		self.inner.push(Operand::Long(long));
 	}
 
@@ -61,7 +62,7 @@ impl StackLike<Operand, Reference> for OperandStack {
 		self.inner.split_off(split_pos)
 	}
 
-	fn pop_int(&mut self) -> i32 {
+	fn pop_int(&mut self) -> s4 {
 		let op = self.pop();
 		match op {
 			Operand::Constm1 => -1,
@@ -112,7 +113,7 @@ impl StackLike<Operand, Reference> for OperandStack {
 		}
 	}
 
-	fn pop_long(&mut self) -> i64 {
+	fn pop_long(&mut self) -> s8 {
 		let op = self.pop();
 		assert_eq!(
 			self.pop(),
@@ -185,10 +186,10 @@ pub enum Operand {
 	Const3,
 	Const4,
 	Const5,
-	Int(i32),
+	Int(s4),
 	Float(f32),
 	Double(f64),
-	Long(i64),
+	Long(s8),
 	Reference(Reference),
 	// Used by local variable stack, both as the initial value and
 	// for storing longs/doubles since those are expected to take up two indices according to spec
@@ -287,7 +288,7 @@ impl OperandLike for Operand {
 		match self {
 			// The value on the top of the operand stack must be of type int.
 			// It is popped from the operand stack, truncated to a byte, then sign-extended to an int result.
-			Operand::Int(i) => *self = Operand::Int(i32::from(*i as i8)),
+			Operand::Int(i) => *self = Operand::Int(s4::from(*i as s1)),
 			_ => panic!("Invalid operand type for `i2b` instruction: {:?}", self),
 		}
 	}
@@ -295,7 +296,7 @@ impl OperandLike for Operand {
 	/// Convert int to char
 	fn i2c(&mut self) {
 		match self {
-			Operand::Int(i) => *self = Operand::Int(i32::from(*i as u16)),
+			Operand::Int(i) => *self = Operand::Int(s4::from(*i as u2)),
 			_ => panic!("Invalid operand type for `i2c` instruction: {:?}", self),
 		}
 	}
@@ -319,7 +320,7 @@ impl OperandLike for Operand {
 	/// Convert int to long
 	fn i2l(&mut self) {
 		match self {
-			Operand::Int(i) => *self = Operand::Long(i64::from(*i)),
+			Operand::Int(i) => *self = Operand::Long(s8::from(*i)),
 			_ => panic!("Invalid operand type for `i2l` instruction: {:?}", self),
 		}
 	}
@@ -329,7 +330,7 @@ impl OperandLike for Operand {
 		match self {
 			// The value on the top of the operand stack must be of type int.
 			// It is popped from the operand stack, truncated to a short, then sign-extended to an int result.
-			Operand::Int(i) => *self = Operand::Int(i32::from(*i as i16)),
+			Operand::Int(i) => *self = Operand::Int(s4::from(*i as s2)),
 			_ => panic!("Invalid operand type for `i2s` instruction: {:?}", self),
 		}
 	}
@@ -337,7 +338,7 @@ impl OperandLike for Operand {
 	/// Convert long to int
 	fn l2i(&mut self) {
 		match self {
-			Operand::Long(l) => *self = Operand::Int(*l as i32),
+			Operand::Long(l) => *self = Operand::Int(*l as s4),
 			_ => panic!("Invalid operand type for `l2i` instruction: {:?}", self),
 		}
 	}
@@ -369,7 +370,7 @@ impl OperandLike for Operand {
 	/// Convert double to int
 	fn d2i(&mut self) {
 		match self {
-			Operand::Double(d) => *self = Operand::Int(*d as i32),
+			Operand::Double(d) => *self = Operand::Int(*d as s4),
 			_ => panic!("Invalid operand type for `d2i` instruction: {:?}", self),
 		}
 	}
@@ -377,7 +378,7 @@ impl OperandLike for Operand {
 	/// Convert double to long
 	fn d2l(&mut self) {
 		match self {
-			Operand::Double(d) => *self = Operand::Long(*d as i64),
+			Operand::Double(d) => *self = Operand::Long(*d as s8),
 			_ => panic!("Invalid operand type for `d2l` instruction: {:?}", self),
 		}
 	}
@@ -393,7 +394,7 @@ impl OperandLike for Operand {
 	/// Convert float to int
 	fn f2i(&mut self) {
 		match self {
-			Operand::Float(f) => *self = Operand::Int(*f as i32),
+			Operand::Float(f) => *self = Operand::Int(*f as s4),
 			_ => panic!("Invalid operand type for `f2i` instruction: {:?}", self),
 		}
 	}
@@ -401,12 +402,12 @@ impl OperandLike for Operand {
 	/// Convert float to long
 	fn f2l(&mut self) {
 		match self {
-			Operand::Float(f) => *self = Operand::Long(*f as i64),
+			Operand::Float(f) => *self = Operand::Long(*f as s8),
 			_ => panic!("Invalid operand type for `f2l` instruction: {:?}", self),
 		}
 	}
 
-	fn expect_int(&self) -> i32 {
+	fn expect_int(&self) -> s4 {
 		match self {
 			Operand::Int(i) => *i,
 			_ => panic!("Expected operand type `int`"),
@@ -427,7 +428,7 @@ impl OperandLike for Operand {
 		}
 	}
 
-	fn expect_long(&self) -> i64 {
+	fn expect_long(&self) -> s8 {
 		match self {
 			Operand::Long(l) => *l,
 			_ => panic!("Expected operand type `long`"),

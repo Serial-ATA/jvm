@@ -1,6 +1,7 @@
 use crate::attribute::{Attribute, AttributeType, Code};
 use crate::fieldinfo::FieldType;
-use common::int_types::u2;
+
+use common::int_types::{u1, u2};
 use common::traits::JavaReadExt;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.6
@@ -32,7 +33,7 @@ pub struct MethodDescriptor {
 }
 
 impl MethodDescriptor {
-	pub fn parse(bytes: &mut &[u8]) -> Self {
+	pub fn parse(bytes: &mut &[u1]) -> Self {
 		// MethodDescriptor:
 		// 	( {ParameterDescriptor} ) ReturnDescriptor
 		//
