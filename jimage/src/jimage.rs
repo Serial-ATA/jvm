@@ -1,6 +1,6 @@
 use crate::{ImageStrings, JImageLocation};
 
-use common::int_types::{u1, u4};
+use common::int_types::{u1, u4, u8};
 
 #[derive(Copy, Clone, Debug)]
 pub enum Endian {
@@ -96,6 +96,42 @@ impl JImage {
 		}
 
 		false
+	}
+
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L464
+	/// Find the location index and size associated with the path.
+	/// Returns the location index and size if the location is found, `None` otherwise.
+	pub fn find_location_index(&self, path: &str, size: &mut u8) -> Option<u4> {
+		// Locate the entry in the index perfect hash table.
+		let index = ImageStrings::find(
+			*self.borrow_endian(),
+			path,
+			self.borrow_index().redirects_table,
+		);
+
+		// If found.
+		if let Some(index) = index {
+			// Get address of first byte of location attribute stream.
+			let offset = self.get_location_offset(index as u4);
+			let data = self.get_location_offset_data(offset);
+
+			// Expand location attributes.
+			let location;
+			if let Some(data) = data {
+				location = JImageLocation::new_with_data(data);
+			} else {
+				location = JImageLocation::new();
+			}
+
+			// Make sure result is not a false positive.
+			if self.verify_location(&location, path) {
+				*size = location.get_attribute(JImageLocation::ATTRIBUTE_UNCOMPRESSED as u1);
+				return Some(offset);
+			}
+		}
+
+		// not found
+		None
 	}
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L484

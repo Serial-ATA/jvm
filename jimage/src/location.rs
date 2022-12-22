@@ -7,6 +7,20 @@ pub struct JImageLocation {
 	attributes: [u8; Self::ATTRIBUTE_COUNT as usize],
 }
 
+impl JImageLocation {
+	pub fn new() -> Self {
+		Self {
+			attributes: [0; Self::ATTRIBUTE_COUNT as usize],
+		}
+	}
+
+	pub fn new_with_data(data: &[u1]) -> Self {
+		let mut ret = Self::new();
+		ret.set_data(data);
+		ret
+	}
+}
+
 #[rustfmt::skip]
 impl JImageLocation {
 	pub const ATTRIBUTE_END         : u8 = 0; // End of attribute stream marker
