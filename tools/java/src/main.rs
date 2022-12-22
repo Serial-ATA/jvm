@@ -1,4 +1,4 @@
-use runtime::classpath::{add_classpath_entry, jar, ClassPathEntry};
+use runtime::classpath::{add_classpath_entry, jar, jimage, ClassPathEntry};
 use runtime::Thread;
 use std::path::Path;
 
@@ -69,6 +69,10 @@ fn main() {
 		for path in classpath.split(':') {
 			add_classpath_entry(ClassPathEntry::new(path));
 		}
+	}
+
+	if let Some(vm_options) = jimage::lookup_vm_options() {
+		dbg!(std::str::from_utf8(&vm_options));
 	}
 
 	let main_class = match args.main_class {

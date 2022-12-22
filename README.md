@@ -3,7 +3,7 @@
 
 An implementation of [The Java Virtual Machine, Java SE 19 Edition](https://docs.oracle.com/javase/specs/jvms/se19/html/index.html).
 
-For instructions on how to run the JVM, see [jvm/README.md](jvm/README.md).
+For instructions on how to run the JVM, see [tools/java/README.md](tools/java/README.md).
 
 ## License
 

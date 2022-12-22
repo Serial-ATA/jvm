@@ -1,0 +1,8 @@
+[package]
+name = "jimage_bin"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+jimage = { path = "../../jimage" }
+jimage-parser = { path = "../../jimage-parser" }
