@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, RwLock};
 
 use common::int_types::u1;
+use jimage::JImage;
 use once_cell::sync::Lazy;
 use zip::ZipArchive;
 
@@ -16,7 +17,7 @@ pub fn add_classpath_entry(entry: ClassPathEntry) {
 	CLASSPATH.write().unwrap().entries.push(entry);
 }
 
-pub fn find_classpath_entry(name: &[u1]) -> Vec<u8> {
+pub fn find_classpath_entry(name: &[u1]) -> Vec<u1> {
 	let name = std::str::from_utf8(name).unwrap();
 	let mut name = name.replace('.', "/");
 	name.push_str(".class");
@@ -37,6 +38,9 @@ pub fn find_classpath_entry(name: &[u1]) -> Vec<u8> {
 					return file_contents;
 				};
 			},
+			ClassPathEntry::Image(_image) => {
+				unimplemented!("JImage classpath search")
+			},
 		}
 	}
 
@@ -46,6 +50,7 @@ pub fn find_classpath_entry(name: &[u1]) -> Vec<u8> {
 pub enum ClassPathEntry {
 	Dir(PathBuf),
 	Zip(Mutex<ZipArchive<File>>),
+	Image(JImage),
 }
 
 impl ClassPathEntry {

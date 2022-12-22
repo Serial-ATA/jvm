@@ -11,6 +11,7 @@ class-parser = { path = "../class-parser" }
 classfile = { path = "../classfile" }
 common = { path = "../common" }
 instructions = { path = "../instructions" }
+jimage = { path = "../jimage" }
 paste = "1.0.9"
 once_cell = "1.15.0"
 zip = "0.6.3"
