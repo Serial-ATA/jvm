@@ -100,7 +100,53 @@ impl JImage {
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L484
 	/// Verify that a found location matches the supplied path.
-	pub fn verify_location(&self, _location: &JImageLocation, _path: &str) -> bool {
-		todo!()
+	#[rustfmt::skip]
+	pub fn verify_location(&self, location: &JImageLocation, path: &str) -> bool {
+		// Manage the image string table.
+		let strings = ImageStrings(self.borrow_index().string_bytes);
+
+		// Get module name string.
+		let module =
+			location.get_attribute_string(JImageLocation::ATTRIBUTE_MODULE as u4, &strings);
+
+		let mut path_iter = path.bytes();
+
+		// If module string is not empty.
+		if !module.is_empty() {
+			// Compare '/module/'
+			if path_iter.next() != Some(b'/') { return false; }
+			if !path_iter.by_ref().eq(module.iter().copied()) { return false; }
+			if path_iter.next() != Some(b'/') { return false; }
+		}
+
+		// Get parent (package) string
+		let parent =
+			location.get_attribute_string(JImageLocation::ATTRIBUTE_PARENT as u4, &strings);
+
+		// If parent string is not empty string.
+		if !parent.is_empty() {
+			// Compare 'parent/'
+			if !path_iter.by_ref().eq(parent.iter().copied()) { return false; }
+			if path_iter.next() != Some(b'/') { return false; }
+		}
+
+		// Get base name string.
+		let base = location.get_attribute_string(JImageLocation::ATTRIBUTE_BASE as u4, &strings);
+
+		// Compare with base name.
+		if !path_iter.by_ref().eq(base.iter().copied()) { return false; }
+
+		// Get extension string.
+		let extension = location.get_attribute_string(JImageLocation::ATTRIBUTE_EXTENSION as u4, &strings);
+
+		// If extension is not empty.
+		if !extension.is_empty() {
+			// Compare '.extension'
+			if path_iter.next() != Some(b'.') { return false; }
+			if !path_iter.by_ref().eq(extension.iter().copied()) { return false; }
+		}
+
+		// True only if complete match and no more characters.
+		path_iter.next().is_none()
 	}
 }

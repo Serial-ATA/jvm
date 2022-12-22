@@ -1,4 +1,6 @@
-use common::int_types::{u1, u8};
+use crate::ImageStrings;
+
+use common::int_types::{u1, u4, u8};
 
 // https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L233
 pub struct JImageLocation {
@@ -99,5 +101,12 @@ impl JImageLocation {
 			"invalid attribute kind"
 		);
 		self.attributes[kind as usize]
+	}
+
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L300
+	/// Retrieve an attribute string value from the inflated array.
+	#[inline(always)]
+	pub fn get_attribute_string<'a>(&self, kind: u4, strings: &'a ImageStrings<'_>) -> &'a [u1] {
+		strings.get(self.get_attribute(kind as u1) as u4)
 	}
 }

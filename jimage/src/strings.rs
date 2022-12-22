@@ -2,12 +2,22 @@ use crate::Endian;
 
 use std::cmp::Ordering;
 
-use common::int_types::{s4, u4};
+use common::int_types::{s4, u1, u4};
 
-pub struct ImageStrings;
+pub struct ImageStrings<'a>(pub &'a [u1]);
 
-impl ImageStrings {
+impl<'a> ImageStrings<'a> {
 	const HASH_MULTIPLIER: s4 = 0x0100_0193;
+
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L168
+	/// Return the UTF-8 string beginning at offset.
+	pub fn get(&self, offset: u4) -> &[u1] {
+		assert!(
+			(offset as usize) < self.0.len(),
+			"offset exceeds string table size"
+		);
+		&self.0[offset as usize..]
+	}
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L59
 	pub fn hash_code(string: &str, seed: s4) -> s4 {
