@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 common = { path = "../common" }
 ouroboros = "0.15.5"
+zip = "0.6.3"

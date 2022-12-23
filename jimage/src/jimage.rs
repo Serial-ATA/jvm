@@ -218,11 +218,18 @@ impl JImage {
 		}
 
 		// We have to decompress the data
-		let _compressed_data =
-			&self.borrow_data()[data_start..data_start + compressed_size as usize];
+		let mut compressed_data = Box::<[u1]>::from(
+			&self.borrow_data()[data_start..data_start + compressed_size as usize],
+		);
 		// Get image string table.
-		let _strings = ImageStrings(self.borrow_index().string_bytes);
+		let strings = ImageStrings(self.borrow_index().string_bytes);
 		// Decompress resource.
-		todo!()
+		super::decompressor::decompress_resource(
+			&mut compressed_data,
+			uncompressed_data,
+			uncompressed_size,
+			strings,
+			Endian::Little, // TODO
+		);
 	}
 }

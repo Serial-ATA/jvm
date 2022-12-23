@@ -2,8 +2,10 @@ use common::endian::Endian;
 
 use std::cmp::Ordering;
 
+use common::endian::Endian;
 use common::int_types::{s4, u1, u4};
 
+#[derive(Copy, Clone)]
 pub struct ImageStrings<'a>(pub &'a [u1]);
 
 impl<'a> ImageStrings<'a> {
