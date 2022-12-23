@@ -40,6 +40,37 @@ macro_rules! push_const {
 	};
 }
 
+macro_rules! local_variable_load {
+	($frame:ident, $opcode:ident, $ty:ident) => {{
+		let local_stack = $frame.get_local_stack();
+		let index = $frame.read_byte() as usize;
+
+		let local_variable = &local_stack[index];
+		assert!(
+			matches!(local_variable, Operand::$ty(_)),
+			"Invalid operand type on local stack for `{}` instruction",
+			stringify!($opcode)
+		);
+
+		paste::paste! {
+			{ $frame.get_operand_stack_mut().push_op(local_variable.clone()); }
+		}
+	}};
+	($frame:ident, $opcode:ident, $ty:ident, $index:literal) => {{
+		let local_stack = $frame.get_local_stack();
+		let local_variable = &local_stack[$index];
+		assert!(
+			matches!(local_variable, Operand::$ty(_)),
+			"Invalid operand type on local stack for `{}` instruction",
+			stringify!($opcode)
+		);
+
+		paste::paste! {
+			{ $frame.get_operand_stack_mut().push_op(local_variable.clone()); }
+		}
+	}};
+}
+
 macro_rules! stack_operations {
 	($frame:ident, $opcode:ident) => {{
 		$frame.get_operand_stack_mut().$opcode();
@@ -147,10 +178,43 @@ impl Interpreter {
                 OpCode::ldc_w => {
                     Interpreter::ldc(frame, true);
                 },
+                
                 // ========= Loads =========
-                // TODO: iload{_[0-3]}, lload{_[0-3]}, fload{_[0-3]}, dload{_[0-3]},
-                //       aload{_[0-3]}, iaload, laload, faload, daload, aaload, baload,
+                // TODO: iaload, laload, faload, daload, aaload, baload,
                 //       caload, saload
+                @GROUP {
+                    [
+                        iload   (Int),
+                        iload_0 (Int, 0),
+                        iload_1 (Int, 1),
+                        iload_2 (Int, 2),
+                        iload_3 (Int, 3),
+                        
+                        lload   (Long),
+                        lload_0 (Long, 0),
+                        lload_1 (Long, 1),
+                        lload_2 (Long, 2),
+                        lload_3 (Long, 3),
+                        
+                        fload   (Float),
+                        fload_0 (Float, 0),
+                        fload_1 (Float, 1),
+                        fload_2 (Float, 2),
+                        fload_3 (Float, 3),
+                        
+                        dload   (Double),
+                        dload_0 (Double, 0),
+                        dload_1 (Double, 1),
+                        dload_2 (Double, 2),
+                        dload_3 (Double, 3),
+                        
+                        aload   (Reference),
+                        aload_0 (Reference, 0),
+                        aload_1 (Reference, 1),
+                        aload_2 (Reference, 2),
+                        aload_3 (Reference, 3),
+                    ]
+                } => local_variable_load,
                 
                 // ========= Stores =========
                 // TODO
@@ -169,6 +233,7 @@ impl Interpreter {
                         swap,
                     ]
                 } => stack_operations,
+                
                 // ========= Math =========
                 // TODO: shl, ushr, and, or, xor, inc
                 @GROUP {
@@ -206,6 +271,7 @@ impl Interpreter {
                     val.neg();
                     frame.get_operand_stack_mut().push_op(val);
                 },
+                
                 // ========= Conversions =========
                 @GROUP {
                     [
@@ -230,6 +296,7 @@ impl Interpreter {
                         i2s
                     ]
                 } => conversions,
+                
                 // ========= Comparisons =========
                 // TODO: lcmp, dcmpl, dcmpg, if_acmpeq, if_acmpne
                 @GROUP {
@@ -254,6 +321,7 @@ impl Interpreter {
                 OpCode::fcmpg => {
                     Interpreter::fcmp(frame, Ordering::Greater);
                 },
+                
                 // ========= References =========
                 // TODO: getfield, putfield,
                 //       invokevirtual, invokespecial, invokestatic,
@@ -281,6 +349,7 @@ impl Interpreter {
                     let method = Class::resolve_method(frame.thread(), constant_pool, method_ref_idx).unwrap();
                     MethodInvoker::invoke(FrameRef::clone(&frame), method);
                 },
+                
                 // ========= Control =========
                 // TODO: jsr, ret, tableswitch, lookupswitch,
                 //       ireturn, lreturn, freturn, dreturn, areturn
@@ -291,6 +360,7 @@ impl Interpreter {
                 OpCode::r#return => {
                     frame.thread().get_mut().drop_to_previous_frame();
                 },
+                
                 // ========= Extended =========
                 // TODO: multianewarray, ifnull, ifnonnull,
                 //       jsr_w
@@ -301,6 +371,7 @@ impl Interpreter {
     
                     let _ = frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
                 },
+                
                 // ========= Reserved =========
                 // TODO: breakpoint
                 code => {

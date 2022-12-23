@@ -51,6 +51,10 @@ impl FrameRef {
 		&mut self.0.get_mut().stack
 	}
 
+	pub fn get_local_stack(&self) -> &LocalStack {
+		&self.0.get().locals
+	}
+
 	pub fn read_byte(&self) -> u1 {
 		let frame = self.0.get_mut();
 		let thread = frame.thread.get();
