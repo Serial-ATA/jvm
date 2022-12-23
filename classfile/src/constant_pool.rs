@@ -129,7 +129,7 @@ impl ConstantPool {
 	}
 
 	pub fn get_string(&self, _idx: u2) -> f64 {
-		unimplemented!()
+		unimplemented!("ConstantPool::get_string")
 	}
 }
 
