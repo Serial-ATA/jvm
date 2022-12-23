@@ -15,132 +15,82 @@ use common::int_types::{s1, s2, s4, u2, u4};
 use common::traits::PtrType;
 use instructions::{OpCode, OperandLike, StackLike};
 
-macro_rules! push_const {
-    (STACK: $stack:expr, OPCODE: $opcode:ident, $($instruction:ident: [$($value:tt),+]),+) => {
-        paste::paste! {
-            match $opcode {
-                $(
-                    $(
-                        OpCode:: [<$instruction _ $value>] => {
-                            $stack.push_op(Operand:: [<Const $value>]);
-                            return;
-                        }
-                    ),+
-                )+
-                _ => {}
-            }
+// TODO: Document
+macro_rules! define_instructions {
+    (
+        frame: $frame:ident,
+        match $_ident:ident {
+            $($(@GROUP { [$($member_ident:ident $(($($arg:tt),+))?),+ $(,)?] })? $($pat:pat)? => $expr:tt),+ $(,)?
         }
-    }
+    ) => {
+        match $_ident {
+            $(
+                $($(OpCode::$member_ident => $expr!($frame, $member_ident $(, $($arg),+)?)),+)?
+                $($pat => $expr)?
+            ),+
+        }
+    };
+}
+
+macro_rules! push_const {
+	($frame:ident, $opcode:ident, $value:tt) => {
+		paste::paste! {
+			{ $frame.get_operand_stack_mut().push_op(Operand:: [<Const $value>]); }
+		}
+	};
 }
 
 macro_rules! stack_operations {
-    (STACK: $stack:expr, OPCODE: $opcode:ident, $($instruction:ident),+) => {
-        match $opcode {
-            $(
-                OpCode::$instruction => {
-                    $stack.$instruction();
-                    return;
-                }
-            ),+
-            _ => {}
-        }
-    }
+	($frame:ident, $opcode:ident) => {{
+		$frame.get_operand_stack_mut().$opcode();
+	}};
 }
 
 macro_rules! arithmetic {
-    (
-        STACK: $stack:expr,
-        OPCODE: $opcode:ident,
-        $($type:ident => [$($instruction:ident),+]),+
-    ) => {
-        paste::paste! {
-            match $opcode {
-                $(
-                    $(
-                        OpCode:: [<$type $instruction>] => {
-                            let mut val = $stack.pop();
-                            let rhs = $stack.pop();
-                            val.$instruction(rhs);
-                            $stack.push_op(val);
-                            return;
-                        }
-                    ),+
-                )+
-                _ => {}
-            }
-        }
-    }
+	($frame:ident, $opcode:ident, $instruction:ident) => {
+		paste::paste! {
+			{
+				let stack = $frame.get_operand_stack_mut();
+				let mut val = stack.pop();
+				let rhs = stack.pop();
+				val.$instruction(rhs);
+				stack.push_op(val);
+			}
+		}
+	};
 }
 
-macro_rules! conversion_instructions {
-    (STACK: $stack:expr, OPCODE: $opcode:ident, $($instruction:ident),+) => {
-        match $opcode {
-            $(
-                OpCode::$instruction => {
-                    let mut val = $stack.pop();
-                    val.$instruction();
-                    $stack.push_op(val);
-                    return;
-                }
-            ),+
-            _ => {}
-        }
-    }
+macro_rules! conversions {
+	($frame:ident, $instruction:ident) => {{
+		let stack = $frame.get_operand_stack_mut();
+		let mut val = stack.pop();
+		val.$instruction();
+		stack.push_op(val);
+	}};
 }
 
 macro_rules! comparisons {
-    (
-        STACK: $stack:expr,
-        OPCODE: $opcode:ident,
-        FRAME: $frame:expr,
-        [$($instruction:ident: $operator:tt $((RHS = $rhs:literal))?),+]
-    ) => {
-        match $opcode {
-            $(
-                OpCode::$instruction => {
-                    comparisons! {
-                        @CREATE_BODY
-                        $stack, $frame,
-                        $instruction: $operator $($rhs)?
-                    }
-                }
-            ),+
-            _ => {}
-        }
-    };
-    (
-        @CREATE_BODY
-        $stack:expr,
-        $frame:expr,
-        $instruction:ident: $operator:tt $rhs:literal
-    ) => {{
-        let lhs = $stack.pop_int();
-
-        if lhs $operator $rhs {
-            todo!();
-        } else {
-            let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
-        }
-
-        return;
-    }};
-    (
-        @CREATE_BODY
-        $stack:expr,
-        $frame:expr,
-        $instruction:ident: $operator:tt
-    ) => {{
-        let rhs = $stack.pop_int();
-        let lhs = $stack.pop_int();
+    ($frame:ident, $instruction:ident, $operator:tt) => {{
+        let stack = $frame.get_operand_stack_mut();
+        let rhs = stack.pop_int();
+        let lhs = stack.pop_int();
 
         if lhs $operator rhs {
             todo!();
         } else {
             let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
         }
+    }};
+    ($frame:ident, $instruction:ident, $operator:tt, $rhs:literal) => {{
+        let stack = $frame.get_operand_stack_mut();
+        let lhs = stack.pop_int();
 
-        return;
-    }}
+        if lhs $operator $rhs {
+            todo!();
+        } else {
+            let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
+        }
+    }};
 }
 
 pub struct Interpreter;
@@ -153,211 +103,211 @@ impl Interpreter {
 
         let opcode = OpCode::from(frame.read_byte());
 
-        // ========= Constants =========
-        // TODO: ldc2_w
-
-        if opcode == OpCode::nop { return }
-
-        if opcode == OpCode::aconst_null {
-            frame.get_operand_stack_mut().push_reference(Reference::Null);
-            return;
-        }
-        
-        push_const! {
-            STACK: frame.get_operand_stack_mut(),
-            OPCODE: opcode,
-            iconst: [m1, 0, 1, 2 , 3, 4, 5],
-            lconst: [0, 1],
-            fconst: [0, 1, 2],
-            dconst: [0, 1]
-        }
-
-        match opcode {
-            OpCode::bipush => {
-                let byte = frame.read_byte() as s1;
-                frame.get_operand_stack_mut().push_op(Operand::Int(s4::from(byte)));
-                return;
-            },
-            OpCode::sipush => {
-                let short = frame.read_byte2() as s2;
-                frame.get_operand_stack_mut().push_op(Operand::Int(s4::from(short)));
-                return;
-            },
-            _ => {}
-        }
-        
-        match opcode {
-            OpCode::ldc => {
-                Interpreter::ldc(frame, false);
-                return;
-            },
-            OpCode::ldc_w => {
-                Interpreter::ldc(frame, true);
-                return;
-            },
-            _ => {}
-        }
-
-        // ========= Loads =========
-        // TODO: iload{_[0-3]}, lload{_[0-3]}, fload{_[0-3]}, dload{_[0-3]},
-        //       aload{_[0-3]}, iaload, laload, faload, daload, aaload, baload,
-        //       caload, saload
-
-        // ========= Stores =========
-        // TODO
-
-        // ========= Stack =========
-
-        stack_operations! {
-            STACK: frame.get_operand_stack_mut(),
-            OPCODE: opcode,
-            pop, pop2,
-            dup, dup_x1, dup_x2,
-            dup2, dup2_x1, dup2_x2,
-            swap
-        }
-
-        // ========= Math =========
-        // TODO: shl, ushr, and, or, xor, inc
-
-        arithmetic! {
-            STACK: frame.get_operand_stack_mut(),
-            OPCODE: opcode,
-            i => [add, sub, mul, div, rem],
-            l => [add, sub, mul, div, rem],
-            f => [add, sub, mul, div, rem],
-            d => [add, sub, mul, div, rem]
-        }
-
-        if let OpCode::ineg | OpCode::lneg | OpCode::fneg | OpCode::dneg = opcode {
-            let mut val = frame.get_operand_stack_mut().pop();
-            val.neg();
-            frame.get_operand_stack_mut().push_op(val);
-
-            return;
-        }
-
-        // ========= Conversions =========
-
-        conversion_instructions! {
-            STACK: frame.get_operand_stack_mut(),
-            OPCODE: opcode,
-            i2l, i2f, i2d,
-            l2i, l2f, l2d,
-            f2i, f2l, f2d,
-            d2i, d2l, d2f,
-            i2b, i2c, i2s
-        }
-
-        // ========= Comparisons =========
-        // TODO: lcmp, dcmpl, dcmpg, if_acmpeq, if_acmpne
-
-        comparisons! {
-            STACK: frame.get_operand_stack_mut(),
-            OPCODE: opcode,
-            FRAME: frame,
-            [
-                ifeq: == (RHS = 0),
-                ifne: != (RHS = 0),
-                iflt: <  (RHS = 0),
-                ifge: >= (RHS = 0),
-                ifgt: >  (RHS = 0),
-                ifle: <= (RHS = 0),
-                if_icmpeq: ==,
-                if_icmpne: !=,
-                if_icmplt: <,
-                if_icmpge: >=,
-                if_icmpgt: >,
-                if_icmple: <=
-            ]
-        }
-
-        match opcode {
-            OpCode::fcmpl => {
-                Interpreter::fcmp(frame, Ordering::Less);
-                return;
-            },
-            OpCode::fcmpg => {
-                Interpreter::fcmp(frame, Ordering::Greater);
-                return;
-            },
-            _ => {}
-        }
-
-        // ========= References =========
-        // TODO: getfield, putfield,
-        //       invokevirtual, invokespecial, invokestatic,
-        //       invokeinterface, invokedynamic, new, newarray,
-        //       anewarray, arraylength, athrow, checkcast, instanceof,
-        //       monitorenter, monitorexit
-        if opcode == OpCode::getstatic {
-            let field = Self::fetch_field(FrameRef::clone(&frame));
-            frame.get_operand_stack_mut().push_op(field.get_static_value());
-            return;
-        }
-
-        if opcode == OpCode::putstatic {
-            let field = Self::fetch_field(FrameRef::clone(&frame));
-            let value = frame.get_operand_stack_mut().pop();
-            field.set_static_value(value);
-            
-            return;
-        }
-
-        // Static/virtual are differentiated in `MethodInvoker::invoke`
-        if opcode == OpCode::invokestatic || opcode == OpCode::invokevirtual {
-            let method_ref_idx = frame.read_byte2();
-
-            let method = frame.method();
-            let class = Arc::clone(&method.class);
-
-            let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
-            let method = Class::resolve_method(frame.thread(), constant_pool, method_ref_idx).unwrap();
-            MethodInvoker::invoke(FrameRef::clone(&frame), method);
-            return;
-        }
-
-        // ========= Control =========
-        // TODO: jsr, ret, tableswitch, lookupswitch,
-        //       ireturn, lreturn, freturn, dreturn, areturn
-
-        match opcode {
-            OpCode::goto => {
-                let address = frame.read_byte2();
-                let _ = frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
-
-                return;
-            },
-            OpCode::r#return => {
-                frame.thread().get_mut().drop_to_previous_frame();
-                return;
-            },
-            _ => {}
-        }
-
-        // ========= Extended =========
-        // TODO: multianewarray, ifnull, ifnonnull,
-        //       jsr_w
-
-        match opcode {
-            OpCode::wide => {
+        define_instructions! {
+            frame: frame,
+            match opcode {
+                // ========= Constants =========
+                // TODO: ldc2_w
+                OpCode::nop => {},
+                OpCode::aconst_null => {
+                    frame.get_operand_stack_mut().push_reference(Reference::Null);
+                },
+                @GROUP {
+                    [
+                        iconst_m1 (m1),
+                        iconst_0 (0),
+                        iconst_1 (1),
+                        iconst_2 (2),
+                        iconst_3 (3),
+                        iconst_4 (4),
+                        iconst_5 (5),
+                        
+                        lconst_0 (0),
+                        lconst_1 (1),
+                        
+                        fconst_0 (0),
+                        fconst_1 (1),
+                        fconst_2 (2),
+                        
+                        dconst_0 (0),
+                        dconst_1 (1),
+                    ]
+                } => push_const,
+                OpCode::bipush => {
+                    let byte = frame.read_byte() as s1;
+                    frame.get_operand_stack_mut().push_op(Operand::Int(s4::from(byte)));
+                },
+                OpCode::sipush => {
+                    let short = frame.read_byte2() as s2;
+                    frame.get_operand_stack_mut().push_op(Operand::Int(s4::from(short)));
+                },
+                OpCode::ldc => {
+                    Interpreter::ldc(frame, false);
+                },
+                OpCode::ldc_w => {
+                    Interpreter::ldc(frame, true);
+                },
+                // ========= Loads =========
+                // TODO: iload{_[0-3]}, lload{_[0-3]}, fload{_[0-3]}, dload{_[0-3]},
+                //       aload{_[0-3]}, iaload, laload, faload, daload, aaload, baload,
+                //       caload, saload
+                
+                // ========= Stores =========
                 // TODO
-                return;
-            },
-            OpCode::goto_w => {
-                let address = frame.read_byte4();
-                assert!(address <= u4::from(u2::MAX), "goto_w offset too large!");
+                
+                // ========= Stack  =========
+                @GROUP {
+                    [
+                        pop,
+                        pop2,
+                        dup,
+                        dup_x1,
+                        dup_x2,
+                        dup2,
+                        dup2_x1,
+                        dup2_x2,
+                        swap,
+                    ]
+                } => stack_operations,
+                // ========= Math =========
+                // TODO: shl, ushr, and, or, xor, inc
+                @GROUP {
+                    [
+                        iadd (add),
+                        isub (sub),
+                        imul (mul),
+                        idiv (div),
+                        irem (rem),
+                        
+                        ladd (add),
+                        lsub (sub),
+                        lmul (mul),
+                        ldiv (div),
+                        lrem (rem),
+                        
+                        fadd (add),
+                        fsub (sub),
+                        fmul (mul),
+                        fdiv (div),
+                        frem (rem),
+                        
+                        dadd (add),
+                        dsub (sub),
+                        dmul (mul),
+                        ddiv (div),
+                        drem (rem),
+                    ]
+                } => arithmetic,
+                OpCode::ineg
+                | OpCode::lneg
+                | OpCode::fneg
+                | OpCode::dneg => {
+                    let mut val = frame.get_operand_stack_mut().pop();
+                    val.neg();
+                    frame.get_operand_stack_mut().push_op(val);
+                },
+                // ========= Conversions =========
+                @GROUP {
+                    [
+                        i2l,
+                        i2f,
+                        i2d,
+                        
+                        l2i,
+                        l2f,
+                        l2d,
+                        
+                        f2i,
+                        f2l,
+                        f2d,
+                        
+                        d2i,
+                        d2l,
+                        d2f,
+                        
+                        i2b,
+                        i2c,
+                        i2s
+                    ]
+                } => conversions,
+                // ========= Comparisons =========
+                // TODO: lcmp, dcmpl, dcmpg, if_acmpeq, if_acmpne
+                @GROUP {
+                    [
+                        ifeq       (==, 0),
+                        ifne       (!=, 0),
+                        iflt       (< , 0),
+                        ifge       (>=, 0),
+                        ifgt       (> , 0),
+                        ifle       (<=, 0),
+                        if_icmpeq  (==),
+                        if_icmpne  (!=),
+                        if_icmplt  (<),
+                        if_icmpge  (>=),
+                        if_icmpgt  (>),
+                        if_icmple  (<=),
+                    ]
+                } => comparisons,
+                OpCode::fcmpl => {
+                    Interpreter::fcmp(frame, Ordering::Less);
+                },
+                OpCode::fcmpg => {
+                    Interpreter::fcmp(frame, Ordering::Greater);
+                },
+                // ========= References =========
+                // TODO: getfield, putfield,
+                //       invokevirtual, invokespecial, invokestatic,
+                //       invokeinterface, invokedynamic, new, newarray,
+                //       anewarray, arraylength, athrow, checkcast, instanceof,
+                //       monitorenter, monitorexit
+                OpCode::getstatic => {
+                    let field = Self::fetch_field(FrameRef::clone(&frame));
+                    frame.get_operand_stack_mut().push_op(field.get_static_value());
+                },
+                OpCode::putstatic => {
+                    let field = Self::fetch_field(FrameRef::clone(&frame));
+                    let value = frame.get_operand_stack_mut().pop();
+                    field.set_static_value(value);
+                },
+                // Static/virtual are differentiated in `MethodInvoker::invoke`
+                OpCode::invokestatic
+                | OpCode::invokevirtual => {
+                    let method_ref_idx = frame.read_byte2();
 
-                let _ = frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
-                return;
-            },
-            _ => {}
+                    let method = frame.method();
+                    let class = Arc::clone(&method.class);
+        
+                    let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
+                    let method = Class::resolve_method(frame.thread(), constant_pool, method_ref_idx).unwrap();
+                    MethodInvoker::invoke(FrameRef::clone(&frame), method);
+                },
+                // ========= Control =========
+                // TODO: jsr, ret, tableswitch, lookupswitch,
+                //       ireturn, lreturn, freturn, dreturn, areturn
+                OpCode::goto => {
+                    let address = frame.read_byte2();
+                    let _ = frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
+                },
+                OpCode::r#return => {
+                    frame.thread().get_mut().drop_to_previous_frame();
+                },
+                // ========= Extended =========
+                // TODO: multianewarray, ifnull, ifnonnull,
+                //       jsr_w
+                OpCode::wide => { /* TODO */ },
+                OpCode::goto_w => {
+                    let address = frame.read_byte4();
+                    assert!(address <= u4::from(u2::MAX), "goto_w offset too large!");
+    
+                    let _ = frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
+                },
+                // ========= Reserved =========
+                // TODO: breakpoint
+                code => {
+                    unimplemented!("{:?}", code)
+                }
+            }
         }
-
-        // ========= Reserved =========
-        // TODO: breakpoint
-
-        unimplemented!("{:?}", opcode)
     }
 
     // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.ldc
