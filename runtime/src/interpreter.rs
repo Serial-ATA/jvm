@@ -377,7 +377,6 @@ impl Interpreter {
                 
                 // ========= Control =========
                 // TODO: jsr, ret, tableswitch, lookupswitch,
-                //       ireturn, lreturn, freturn, dreturn, areturn
                 OpCode::goto => {
                     let address = frame.read_byte2();
                     let _ = frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
@@ -394,9 +393,22 @@ impl Interpreter {
                 } => control_return,
                 
                 // ========= Extended =========
-                // TODO: multianewarray, ifnull, ifnonnull,
-                //       jsr_w
+                // TODO: multianewarray, jsr_w
                 OpCode::wide => { /* TODO */ },
+                OpCode::ifnull => {
+                    let reference = frame.get_operand_stack_mut().pop_reference();
+                    if reference.is_null() {
+                        let branch = frame.read_byte2();
+                        let _ = frame.thread().get().pc.fetch_add(branch as usize, MemOrdering::Relaxed);
+                    }
+                },
+                OpCode::ifnonnull => {
+                    let reference = frame.get_operand_stack_mut().pop_reference();
+                    if !reference.is_null() {
+                        let branch = frame.read_byte2();
+                        let _ = frame.thread().get().pc.fetch_add(branch as usize, MemOrdering::Relaxed);
+                    }
+                },
                 OpCode::goto_w => {
                     let address = frame.read_byte4();
                     assert!(address <= u4::from(u2::MAX), "goto_w offset too large!");
