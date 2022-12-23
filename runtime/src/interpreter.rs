@@ -393,8 +393,7 @@ impl Interpreter {
                 } => control_return,
                 
                 // ========= Extended =========
-                // TODO: multianewarray, jsr_w
-                OpCode::wide => { /* TODO */ },
+                // TODO: wide, multianewarray, jsr_w
                 OpCode::ifnull => {
                     let reference = frame.get_operand_stack_mut().pop_reference();
                     if reference.is_null() {
