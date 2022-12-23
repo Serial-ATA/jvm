@@ -1,4 +1,4 @@
-use crate::int_types::{s4, u1, u2, u4};
+use crate::int_types::{s4, u1, u2, u4, u8};
 
 use std::io::Read;
 
@@ -21,6 +21,12 @@ pub trait JavaReadExt: Read {
 		u4::from_be_bytes(buf)
 	}
 
+	fn read_u8(&mut self) -> u8 {
+		let mut buf = [0u8; 8];
+		self.read_exact(&mut buf).unwrap();
+		u8::from_be_bytes(buf)
+	}
+
 	fn read_s4(&mut self) -> s4 {
 		let mut buf = [0u8; 4];
 		self.read_exact(&mut buf).unwrap();
@@ -37,6 +43,12 @@ pub trait JavaLittleEndianRead: Read {
 		u4::from_le_bytes(buf)
 	}
 
+	fn read_u8(&mut self) -> u8 {
+		let mut buf = [0u8; 8];
+		self.read_exact(&mut buf).unwrap();
+		u8::from_le_bytes(buf)
+	}
+
 	fn read_s4(&mut self) -> s4 {
 		let mut buf = [0u8; 4];
 		self.read_exact(&mut buf).unwrap();
@@ -49,6 +61,7 @@ impl<R: Read> JavaLittleEndianRead for R {}
 pub trait JavaEndianAwareRead<R: Read> {
 	fn read_u1(self, reader: &mut R) -> u1;
 	fn read_u4(self, reader: &mut R) -> u4;
+	fn read_u8(self, reader: &mut R) -> u8;
 	fn read_s4(self, reader: &mut R) -> s4;
 }
 
