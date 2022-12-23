@@ -7,7 +7,7 @@ use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::{Operand, OperandStack};
 
 use std::fmt::{Debug, Formatter};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
 
 use common::int_types::u1;
@@ -21,14 +21,14 @@ pub struct Thread {
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
 	// Each Java Virtual Machine thread has its own pc (program counter) register [...]
 	// the pc register contains the address of the Java Virtual Machine instruction currently being executed
-	pub pc: AtomicUsize,
+	pub pc: AtomicIsize,
 	pub frame_stack: Vec<FrameRef>,
 }
 
 impl Thread {
 	pub fn new() -> ThreadRef {
 		let thread = Self {
-			pc: AtomicUsize::new(0),
+			pc: AtomicIsize::new(0),
 			frame_stack: Vec::new(),
 		};
 
@@ -80,7 +80,7 @@ impl Thread {
 			constant_pool,
 			method,
 			thread: Arc::clone(&thread),
-			cached_pc: AtomicUsize::default(),
+			cached_pc: AtomicIsize::default(),
 		};
 
 		let thread = thread.get_mut();

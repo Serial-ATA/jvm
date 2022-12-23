@@ -11,7 +11,7 @@ use std::sync::atomic::Ordering as MemOrdering;
 use std::sync::Arc;
 
 use classfile::ConstantPoolValueInfo;
-use common::int_types::{s1, s2, s4, u2, u4};
+use common::int_types::{s2, s4, u2};
 use common::traits::PtrType;
 use instructions::{OpCode, OperandLike, StackLike};
 
@@ -107,7 +107,7 @@ macro_rules! comparisons {
         let lhs = stack.pop_int();
 
         if lhs $operator rhs {
-            let branch = $frame.read_byte2() as usize;
+            let branch = $frame.read_byte2_signed() as isize;
             let _ = $frame.thread().get().pc.fetch_add(branch, std::sync::atomic::Ordering::Relaxed);
         } else {
             let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
@@ -118,7 +118,7 @@ macro_rules! comparisons {
         let lhs = stack.pop_int();
 
         if lhs $operator $rhs {
-            let branch = $frame.read_byte2() as usize;
+            let branch = $frame.read_byte2_signed() as isize;
             let _ = $frame.thread().get().pc.fetch_add(branch, std::sync::atomic::Ordering::Relaxed);
         } else {
             let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
@@ -184,11 +184,11 @@ impl Interpreter {
                     ]
                 } => push_const,
                 OpCode::bipush => {
-                    let byte = frame.read_byte() as s1;
+                    let byte = frame.read_byte_signed();
                     frame.get_operand_stack_mut().push_op(Operand::Int(s4::from(byte)));
                 },
                 OpCode::sipush => {
-                    let short = frame.read_byte2() as s2;
+                    let short = frame.read_byte2_signed();
                     frame.get_operand_stack_mut().push_op(Operand::Int(s4::from(short)));
                 },
                 OpCode::ldc => {
@@ -378,8 +378,8 @@ impl Interpreter {
                 // ========= Control =========
                 // TODO: jsr, ret, tableswitch, lookupswitch,
                 OpCode::goto => {
-                    let address = frame.read_byte2();
-                    let _ = frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
+                    let address = frame.read_byte2_signed() as isize;
+                    let _ = frame.thread().get().pc.fetch_add(address, MemOrdering::Relaxed);
                 },
                 @GROUP {
                     [
@@ -398,22 +398,22 @@ impl Interpreter {
                 OpCode::ifnull => {
                     let reference = frame.get_operand_stack_mut().pop_reference();
                     if reference.is_null() {
-                        let branch = frame.read_byte2();
-                        let _ = frame.thread().get().pc.fetch_add(branch as usize, MemOrdering::Relaxed);
+                        let branch = frame.read_byte2_signed() as isize;
+                        let _ = frame.thread().get().pc.fetch_add(branch, MemOrdering::Relaxed);
                     }
                 },
                 OpCode::ifnonnull => {
                     let reference = frame.get_operand_stack_mut().pop_reference();
                     if !reference.is_null() {
-                        let branch = frame.read_byte2();
-                        let _ = frame.thread().get().pc.fetch_add(branch as usize, MemOrdering::Relaxed);
+                        let branch = frame.read_byte2_signed() as isize;
+                        let _ = frame.thread().get().pc.fetch_add(branch, MemOrdering::Relaxed);
                     }
                 },
                 OpCode::goto_w => {
-                    let address = frame.read_byte4();
-                    assert!(address <= u4::from(u2::MAX), "goto_w offset too large!");
+                    let address = frame.read_byte4_signed() as isize;
+                    assert!(address <= s2::MAX as isize, "goto_w offset too large!");
     
-                    let _ = frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
+                    let _ = frame.thread().get().pc.fetch_add(address, MemOrdering::Relaxed);
                 },
                 
                 // ========= Reserved =========

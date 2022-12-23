@@ -4,11 +4,11 @@ use crate::stack::operand_stack::OperandStack;
 use crate::thread::ThreadRef;
 use std::fmt::{Debug, Formatter};
 
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
 
 use classfile::ConstantPoolRef;
-use common::int_types::{u1, u2, u4};
+use common::int_types::{s1, s2, s4, u1, u2, u4};
 use common::traits::PtrType;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6
@@ -27,7 +27,7 @@ pub struct Frame {
 	pub thread: ThreadRef,
 	
 	// Used to remember the last pc when we return to a frame after a method invocation
-	pub cached_pc: AtomicUsize,
+	pub cached_pc: AtomicIsize,
 }
 
 #[repr(transparent)]
@@ -60,7 +60,7 @@ impl FrameRef {
 		let thread = frame.thread.get();
 
 		let pc = thread.pc.fetch_add(1, Ordering::Relaxed);
-		frame.method.code.code[pc]
+		frame.method.code.code[pc as usize]
 	}
 
 	pub fn read_byte2(&self) -> u2 {
@@ -79,13 +79,37 @@ impl FrameRef {
 		b1 << 24 | b2 << 16 | b3 << 8 | b4
 	}
 
+	pub fn read_byte_signed(&self) -> s1 {
+		let frame = self.0.get_mut();
+		let thread = frame.thread.get();
+
+		let pc = thread.pc.fetch_add(1, Ordering::Relaxed);
+		frame.method.code.code[pc as usize] as s1
+	}
+
+	pub fn read_byte2_signed(&self) -> s2 {
+		let b1 = s2::from(self.read_byte_signed());
+		let b2 = s2::from(self.read_byte_signed());
+
+		b1 << 8 | b2
+	}
+
+	pub fn read_byte4_signed(&self) -> s4 {
+		let b1 = s4::from(self.read_byte_signed());
+		let b2 = s4::from(self.read_byte_signed());
+		let b3 = s4::from(self.read_byte_signed());
+		let b4 = s4::from(self.read_byte_signed());
+
+		b1 << 24 | b2 << 16 | b3 << 8 | b4
+	}
+
 	pub fn stash_pc(&self) {
 		let frame = self.0.get_mut();
 		let current_pc = frame.thread.get().pc.load(Ordering::Relaxed);
-		frame.cached_pc = AtomicUsize::from(current_pc);
+		frame.cached_pc = AtomicIsize::from(current_pc);
 	}
 
-	pub fn get_stashed_pc(&self) -> usize {
+	pub fn get_stashed_pc(&self) -> isize {
 		let frame = self.0.get();
 		frame.cached_pc.load(Ordering::Relaxed)
 	}
