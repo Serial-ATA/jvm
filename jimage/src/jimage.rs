@@ -2,29 +2,8 @@ use crate::{ImageStrings, JImageHeader, JImageLocation};
 
 use std::io::Read;
 
+use common::endian::Endian;
 use common::int_types::{u1, u4, u8};
-
-#[derive(Copy, Clone, Debug)]
-pub enum Endian {
-	Little,
-	Big,
-}
-
-impl Endian {
-	pub fn invert(self) -> Self {
-		match self {
-			Self::Little => Self::Big,
-			Self::Big => Self::Little,
-		}
-	}
-
-	pub fn is_target(self) -> bool {
-		match self {
-			Self::Little => cfg!(target_endian = "little"),
-			Self::Big => cfg!(target_endian = "big"),
-		}
-	}
-}
 
 #[ouroboros::self_referencing(pub_extras)]
 #[derive(Debug)]

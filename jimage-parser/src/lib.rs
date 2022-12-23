@@ -1,6 +1,5 @@
 mod header;
 mod index;
-mod traits;
 
 use std::io::Read;
 

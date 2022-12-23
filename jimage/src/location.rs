@@ -57,7 +57,7 @@ impl JImageLocation {
 		assert!(
 			kind < Self::ATTRIBUTE_COUNT as u1,
 			"Invalid JImage attribute kind: {}",
-			data
+			kind
 		);
 		kind
 	}

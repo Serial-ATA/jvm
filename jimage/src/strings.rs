@@ -1,4 +1,4 @@
-use crate::Endian;
+use common::endian::Endian;
 
 use std::cmp::Ordering;
 
