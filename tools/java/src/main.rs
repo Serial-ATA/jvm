@@ -62,7 +62,7 @@ struct JVMOptions {
 }
 
 fn main() {
-	env_logger::init();
+	init_logger();
 	let args = Args::parse();
 
 	// TODO: env!("CLASSPATH")
@@ -90,4 +90,11 @@ fn main() {
 
 	let thread = Thread::new_main(main_class.as_bytes(), args.args);
 	Thread::run(&thread);
+}
+
+fn init_logger() {
+	env_logger::builder()
+		.format_timestamp(None)
+		.format_target(false)
+		.init();
 }

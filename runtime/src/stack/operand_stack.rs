@@ -6,6 +6,25 @@ use std::ops::Neg;
 
 use instructions::{OperandLike, StackLike};
 
+macro_rules! trace_stack {
+	($operation:ident, $value:ident) => {{
+		#[cfg(debug_assertions)]
+		{
+			log::trace!(
+				"[STACK      ] {} - received value: {:?}",
+				stringify!($operation),
+				$value
+			);
+		}
+	}};
+	($operation:ident) => {{
+		#[cfg(debug_assertions)]
+		{
+			log::trace!("[STACK      ] {}", stringify!($operation));
+		}
+	}};
+}
+
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6.2
 #[derive(Debug, Clone, PartialEq)]
 pub struct OperandStack {
@@ -22,47 +41,59 @@ impl OperandStack {
 
 impl StackLike<Operand, Reference> for OperandStack {
 	fn push_op(&mut self, op: Operand) {
+		trace_stack!(push_op, op);
 		self.inner.push(op);
 	}
 
 	fn push_int(&mut self, int: s4) {
+		trace_stack!(push_int, int);
 		self.inner.push(Operand::Int(int));
 	}
 
 	fn push_float(&mut self, float: f32) {
+		trace_stack!(push_float, float);
 		self.inner.push(Operand::Float(float));
 	}
 
 	fn push_double(&mut self, double: f64) {
+		trace_stack!(push_double, double);
 		self.inner.push(Operand::Double(double));
 	}
 
 	fn push_long(&mut self, long: s8) {
+		trace_stack!(push_long, long);
 		self.inner.push(Operand::Long(long));
 	}
 
 	fn push_reference(&mut self, reference: Reference) {
+		trace_stack!(push_reference, reference);
 		self.inner.push(Operand::Reference(reference))
 	}
 
 	fn pop(&mut self) -> Operand {
 		match self.inner.pop() {
-			Some(op) => op,
+			Some(op) => {
+				trace_stack!(pop, op);
+				op
+			},
 			_ => panic!("Stack underflow error!"),
 		}
 	}
 
 	fn pop2(&mut self) {
+		trace_stack!(pop2);
 		self.inner.pop();
 		self.inner.pop();
 	}
 
 	fn popn(&mut self, count: usize) -> Vec<Operand> {
+		trace_stack!(popn, count);
 		let split_pos = self.inner.len() - count;
 		self.inner.split_off(split_pos)
 	}
 
 	fn pop_int(&mut self) -> s4 {
+		trace_stack!(pop_int);
 		let op = self.pop();
 		match op {
 			Operand::Constm1 => -1,
@@ -78,6 +109,7 @@ impl StackLike<Operand, Reference> for OperandStack {
 	}
 
 	fn pop_float(&mut self) -> f32 {
+		trace_stack!(pop_float);
 		let op = self.pop();
 		match op {
 			Operand::Constm1 => -1.0,
@@ -93,6 +125,7 @@ impl StackLike<Operand, Reference> for OperandStack {
 	}
 
 	fn pop_double(&mut self) -> f64 {
+		trace_stack!(pop_double);
 		let op = self.pop();
 		assert_eq!(
 			self.pop(),
@@ -114,6 +147,7 @@ impl StackLike<Operand, Reference> for OperandStack {
 	}
 
 	fn pop_long(&mut self) -> s8 {
+		trace_stack!(pop_long);
 		let op = self.pop();
 		assert_eq!(
 			self.pop(),
@@ -135,6 +169,7 @@ impl StackLike<Operand, Reference> for OperandStack {
 	}
 
 	fn pop_reference(&mut self) -> Reference {
+		trace_stack!(pop_reference);
 		let op = self.pop();
 
 		match op {
@@ -144,6 +179,7 @@ impl StackLike<Operand, Reference> for OperandStack {
 	}
 
 	fn dup(&mut self) {
+		trace_stack!(dup);
 		let top_of_stack = self.pop();
 		self.inner.push(top_of_stack.clone());
 		self.inner.push(top_of_stack);
@@ -170,6 +206,7 @@ impl StackLike<Operand, Reference> for OperandStack {
 	}
 
 	fn swap(&mut self) {
+		trace_stack!(swap);
 		let val = self.pop();
 		let val2 = self.pop();
 		self.inner.push(val);
