@@ -1,11 +1,13 @@
 use super::reference::ClassRef;
 use crate::reference::MethodRef;
 
+use std::fmt::Debug;
+
 use classfile::{Code, FieldType, MethodDescriptor, MethodInfo};
 use common::int_types::{u1, u2};
 use common::traits::PtrType;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Method {
 	pub class: ClassRef,
 	pub access_flags: u2,
@@ -99,5 +101,22 @@ impl Method {
 
 	pub fn is_native(&self) -> bool {
 		self.access_flags & Method::ACC_NATIVE > 0
+	}
+}
+
+impl Debug for Method {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+		f.debug_struct("Method")
+			.field("class", &self.class)
+			.field("access_flags", &self.access_flags)
+			.field("name", unsafe {
+				&std::str::from_utf8_unchecked(&self.name)
+			})
+			.field("descriptor", unsafe {
+				&std::str::from_utf8_unchecked(&self.descriptor)
+			})
+			.field("parameter_count", &self.parameter_count)
+			.field("code_len", &self.code.code.len())
+			.finish()
 	}
 }
