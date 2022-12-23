@@ -604,6 +604,6 @@ impl Drop for ClassPtr {
 impl Debug for ClassPtr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		let class = self.get();
-		f.write_fmt(format_args!("{:?}", class))
+		f.write_str(unsafe { std::str::from_utf8_unchecked(&class.name) })
 	}
 }
