@@ -285,9 +285,8 @@ impl Class {
 
 		let class_instance = classref.unwrap_class_instance();
 
-		let (method_name_index, method_descriptor_index) = class_instance
-			.constant_pool
-			.get_name_and_type(name_and_type_index);
+		let (method_name_index, method_descriptor_index) =
+			constant_pool.get_name_and_type(name_and_type_index);
 
 		let method_name = constant_pool.get_constant_utf8(method_name_index);
 		let descriptor = constant_pool.get_constant_utf8(method_descriptor_index);
@@ -443,7 +442,7 @@ impl Class {
 						Operand::Long(class_instance.constant_pool.get_long(constant_value_index))
 				},
 				FieldType::Object(ref obj) if obj == "java/lang/String" => {
-					unimplemented!()
+					unimplemented!("Static string field")
 				},
 				_ => unreachable!(),
 			}

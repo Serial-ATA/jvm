@@ -2,7 +2,7 @@ use crate::class::Class;
 use crate::class_instance::ClassInstance;
 use crate::frame::FrameRef;
 use crate::method_invoker::MethodInvoker;
-use crate::reference::{FieldRef, Reference};
+use crate::reference::{FieldRef, MethodRef, Reference};
 use crate::stack::operand_stack::Operand;
 use crate::string_interner::StringInterner;
 
@@ -338,16 +338,11 @@ impl Interpreter {
                     field.set_static_value(value);
                 },
                 // Static/virtual are differentiated in `MethodInvoker::invoke`
-                OpCode::invokestatic
-                | OpCode::invokevirtual => {
-                    let method_ref_idx = frame.read_byte2();
-
-                    let method = frame.method();
-                    let class = Arc::clone(&method.class);
-        
-                    let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
-                    let method = Class::resolve_method(frame.thread(), constant_pool, method_ref_idx).unwrap();
-                    MethodInvoker::invoke(FrameRef::clone(&frame), method);
+                OpCode::invokevirtual
+                | OpCode::invokespecial
+                | OpCode::invokestatic => {
+                    let method = Self::fetch_method(FrameRef::clone(&frame));
+                    MethodInvoker::invoke(frame, method);
                 },
                 OpCode::arraylength => {
                     let stack = frame.get_operand_stack_mut();
@@ -485,5 +480,15 @@ impl Interpreter {
         let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
 
         Class::resolve_field(frame.thread(), constant_pool, field_ref_idx)
+    }
+    
+    fn fetch_method(frame: FrameRef) -> MethodRef {
+        let method_ref_idx = frame.read_byte2();
+
+        let method = frame.method();
+        let class = Arc::clone(&method.class);
+
+        let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
+        Class::resolve_method(frame.thread(), constant_pool, method_ref_idx).unwrap()
     }
 }
