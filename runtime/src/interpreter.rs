@@ -126,6 +126,23 @@ macro_rules! comparisons {
     }};
 }
 
+macro_rules! control_return {
+	($frame:ident, $instruction:ident) => {{
+		$frame.thread().get_mut().drop_to_previous_frame(None);
+	}};
+	($frame:ident, $instruction:ident, $return_ty:ident) => {{
+		let stack = $frame.get_operand_stack_mut();
+		let val = stack.pop();
+		assert!(
+			matches!(val, Operand::$return_ty(_)),
+			"Invalid return type for `{}` instruction",
+			stringify!($opcode)
+		);
+
+		$frame.thread().get_mut().drop_to_previous_frame(Some(val));
+	}};
+}
+
 pub struct Interpreter;
 
 #[rustfmt::skip]
@@ -365,9 +382,16 @@ impl Interpreter {
                     let address = frame.read_byte2();
                     let _ = frame.thread().get().pc.fetch_add(address as usize, MemOrdering::Relaxed);
                 },
-                OpCode::r#return => {
-                    frame.thread().get_mut().drop_to_previous_frame();
-                },
+                @GROUP {
+                    [
+                        ireturn (Int),
+                        lreturn (Long),
+                        freturn (Float),
+                        dreturn (Double),
+                        areturn (Reference),
+                        r#return,
+                    ]
+                } => control_return,
                 
                 // ========= Extended =========
                 // TODO: multianewarray, ifnull, ifnonnull,

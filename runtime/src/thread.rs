@@ -4,7 +4,7 @@ use crate::interpreter::Interpreter;
 use crate::native::NativeMethodDef;
 use crate::reference::MethodRef;
 use crate::stack::local_stack::LocalStack;
-use crate::stack::operand_stack::OperandStack;
+use crate::stack::operand_stack::{Operand, OperandStack};
 
 use std::fmt::{Debug, Formatter};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -12,6 +12,7 @@ use std::sync::Arc;
 
 use common::int_types::u1;
 use common::traits::PtrType;
+use instructions::StackLike;
 
 pub type ThreadRef = Arc<ThreadPtr>;
 
@@ -101,12 +102,18 @@ impl Thread {
 		current_frame.map(FrameRef::clone)
 	}
 
-	pub fn drop_to_previous_frame(&mut self) {
+	pub fn drop_to_previous_frame(&mut self, return_value: Option<Operand>) {
 		self.frame_stack.pop();
 
 		if let Some(current_frame) = self.current_frame() {
+			// Restore the pc of the frame
 			let previous_pc = current_frame.get_stashed_pc();
 			self.pc.store(previous_pc, Ordering::Relaxed);
+
+			// Push the return value of the previous frame if there is one
+			if let Some(return_value) = return_value {
+				current_frame.get_operand_stack_mut().push_op(return_value);
+			}
 		}
 	}
 
