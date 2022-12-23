@@ -107,7 +107,8 @@ macro_rules! comparisons {
         let lhs = stack.pop_int();
 
         if lhs $operator rhs {
-            todo!();
+            let branch = $frame.read_byte2() as usize;
+            let _ = $frame.thread().get().pc.fetch_add(branch, std::sync::atomic::Ordering::Relaxed);
         } else {
             let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
         }
@@ -117,7 +118,8 @@ macro_rules! comparisons {
         let lhs = stack.pop_int();
 
         if lhs $operator $rhs {
-            todo!();
+            let branch = $frame.read_byte2() as usize;
+            let _ = $frame.thread().get().pc.fetch_add(branch, std::sync::atomic::Ordering::Relaxed);
         } else {
             let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
         }
