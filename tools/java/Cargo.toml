@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 clap.workspace = true
+env_logger.workspace = true
 runtime = { path = "../../runtime" }

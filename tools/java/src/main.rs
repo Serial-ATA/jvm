@@ -62,6 +62,7 @@ struct JVMOptions {
 }
 
 fn main() {
+	env_logger::init();
 	let args = Args::parse();
 
 	// TODO: env!("CLASSPATH")

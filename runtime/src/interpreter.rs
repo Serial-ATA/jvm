@@ -15,6 +15,24 @@ use common::int_types::{s2, s4, u2};
 use common::traits::PtrType;
 use instructions::{OpCode, OperandLike, StackLike};
 
+macro_rules! trace_instruction {
+	($category:literal, $instruction:ident) => {{
+		#[cfg(debug_assertions)]
+		{ log::trace!("[INSTRUCTION] [{}] {}", $category, stringify!($instruction)) }
+	}};
+	($category:literal, $instruction:ident, $fmt_string:literal, $($arg:tt)*) => {{
+		#[cfg(debug_assertions)]
+		{
+            log::trace!(
+                "[INSTRUCTION] [{}] {} - called with args: [{}]",
+                $category,
+                stringify!($instruction),
+                format_args!($fmt_string, $($arg)*)
+		    )
+        }
+	}};
+}
+
 // TODO: Document
 macro_rules! define_instructions {
     (
@@ -33,11 +51,12 @@ macro_rules! define_instructions {
 }
 
 macro_rules! push_const {
-	($frame:ident, $opcode:ident, $value:tt) => {
+	($frame:ident, $opcode:ident, $value:tt) => {{
+		trace_instruction!("constants", $opcode);
 		paste::paste! {
 			{ $frame.get_operand_stack_mut().push_op(Operand:: [<Const $value>]); }
-		}
-	};
+		};
+	}};
 }
 
 macro_rules! local_variable_load {
@@ -46,6 +65,13 @@ macro_rules! local_variable_load {
 		let index = $frame.read_byte() as usize;
 
 		let local_variable = &local_stack[index];
+		trace_instruction!(
+			"loads",
+			$opcode,
+			"index = {}, local_variable = {:?}",
+			index,
+			local_variable
+		);
 		assert!(
 			matches!(local_variable, Operand::$ty(_)),
 			"Invalid operand type on local stack for `{}` instruction",
@@ -59,6 +85,14 @@ macro_rules! local_variable_load {
 	($frame:ident, $opcode:ident, $ty:ident, $index:literal) => {{
 		let local_stack = $frame.get_local_stack();
 		let local_variable = &local_stack[$index];
+		trace_instruction!(
+			"loads",
+			$opcode,
+			"index = {}, local_variable = {:?}",
+			$index,
+			local_variable
+		);
+
 		assert!(
 			matches!(local_variable, Operand::$ty(_)),
 			"Invalid operand type on local stack for `{}` instruction",
@@ -73,6 +107,7 @@ macro_rules! local_variable_load {
 
 macro_rules! stack_operations {
 	($frame:ident, $opcode:ident) => {{
+		trace_instruction!("stack", $opcode);
 		$frame.get_operand_stack_mut().$opcode();
 	}};
 }
@@ -84,6 +119,8 @@ macro_rules! arithmetic {
 				let stack = $frame.get_operand_stack_mut();
 				let mut val = stack.pop();
 				let rhs = stack.pop();
+				trace_instruction!("arithmetic", $opcode, "lhs = {:?}, rhs = {:?}", val, rhs);
+
 				val.$instruction(rhs);
 				stack.push_op(val);
 			}
@@ -95,6 +132,8 @@ macro_rules! conversions {
 	($frame:ident, $instruction:ident) => {{
 		let stack = $frame.get_operand_stack_mut();
 		let mut val = stack.pop();
+		trace_instruction!("conversions", $instruction, "val = {:?}", val);
+
 		val.$instruction();
 		stack.push_op(val);
 	}};
@@ -105,6 +144,7 @@ macro_rules! comparisons {
         let stack = $frame.get_operand_stack_mut();
         let rhs = stack.pop_int();
         let lhs = stack.pop_int();
+        trace_instruction!("comparisons", $instruction, "lhs = {:?}, rhs = {:?}", lhs, rhs);
 
         if lhs $operator rhs {
             let branch = $frame.read_byte2_signed() as isize;
@@ -116,6 +156,7 @@ macro_rules! comparisons {
     ($frame:ident, $instruction:ident, $operator:tt, $rhs:literal) => {{
         let stack = $frame.get_operand_stack_mut();
         let lhs = stack.pop_int();
+        trace_instruction!("comparisons", $instruction, "lhs = {:?}, rhs = {}", lhs, $rhs);
 
         if lhs $operator $rhs {
             let branch = $frame.read_byte2_signed() as isize;
@@ -128,15 +169,18 @@ macro_rules! comparisons {
 
 macro_rules! control_return {
 	($frame:ident, $instruction:ident) => {{
+		trace_instruction!("control", $instruction);
 		$frame.thread().get_mut().drop_to_previous_frame(None);
 	}};
 	($frame:ident, $instruction:ident, $return_ty:ident) => {{
 		let stack = $frame.get_operand_stack_mut();
 		let val = stack.pop();
+		trace_instruction!("control", $instruction, "val = {:?}", val);
+
 		assert!(
 			matches!(val, Operand::$return_ty(_)),
 			"Invalid return type for `{}` instruction",
-			stringify!($opcode)
+			stringify!($instruction)
 		);
 
 		$frame.thread().get_mut().drop_to_previous_frame(Some(val));
@@ -158,8 +202,9 @@ impl Interpreter {
             match opcode {
                 // ========= Constants =========
                 // TODO: ldc2_w
-                OpCode::nop => {},
+                OpCode::nop => { trace_instruction!("constants", nop); },
                 OpCode::aconst_null => {
+                    trace_instruction!("constants", aconst_null);
                     frame.get_operand_stack_mut().push_reference(Reference::Null);
                 },
                 @GROUP {
@@ -185,10 +230,14 @@ impl Interpreter {
                 } => push_const,
                 OpCode::bipush => {
                     let byte = frame.read_byte_signed();
+                    trace_instruction!("constants", bipush, "{}", byte);
+                    
                     frame.get_operand_stack_mut().push_op(Operand::Int(s4::from(byte)));
                 },
                 OpCode::sipush => {
                     let short = frame.read_byte2_signed();
+                    trace_instruction!("constants", sipush, "{}", short);
+                    
                     frame.get_operand_stack_mut().push_op(Operand::Int(s4::from(short)));
                 },
                 OpCode::ldc => {
@@ -287,6 +336,8 @@ impl Interpreter {
                 | OpCode::fneg
                 | OpCode::dneg => {
                     let mut val = frame.get_operand_stack_mut().pop();
+                    trace_instruction!("arithmetic", neg, "val = {:?}", val);
+                    
                     val.neg();
                     frame.get_operand_stack_mut().push_op(val);
                 },
@@ -349,11 +400,14 @@ impl Interpreter {
                 //       monitorenter, monitorexit
                 OpCode::getstatic => {
                     let field = Self::fetch_field(FrameRef::clone(&frame));
+                    trace_instruction!("references", getstatic, "field = {:?}", field);
                     frame.get_operand_stack_mut().push_op(field.get_static_value());
                 },
                 OpCode::putstatic => {
                     let field = Self::fetch_field(FrameRef::clone(&frame));
                     let value = frame.get_operand_stack_mut().pop();
+                    trace_instruction!("references", putstatic, "field = {:?}, value = {:?}", field, value);
+                    
                     field.set_static_value(value);
                 },
                 // Static/virtual are differentiated in `MethodInvoker::invoke`
@@ -361,12 +415,16 @@ impl Interpreter {
                 | OpCode::invokespecial
                 | OpCode::invokestatic => {
                     let method = Self::fetch_method(FrameRef::clone(&frame));
+                    trace_instruction!("references", invoke, "method = {:?}", method);
+                    
                     MethodInvoker::invoke(frame, method);
                 },
                 OpCode::arraylength => {
                     let stack = frame.get_operand_stack_mut();
                     
                     let array_ref = stack.pop_reference();
+                    trace_instruction!("references", arraylength, "array = {:?}", array_ref);
+                    
                     if array_ref.is_null() {
                         panic!("NullPointerException"); // TODO
                     }
@@ -379,6 +437,8 @@ impl Interpreter {
                 // TODO: jsr, ret, tableswitch, lookupswitch,
                 OpCode::goto => {
                     let address = frame.read_byte2_signed() as isize;
+                    trace_instruction!("control", goto, "address = {}", address);
+                    
                     let _ = frame.thread().get().pc.fetch_add(address, MemOrdering::Relaxed);
                 },
                 @GROUP {
@@ -396,6 +456,8 @@ impl Interpreter {
                 // TODO: wide, multianewarray, jsr_w
                 OpCode::ifnull => {
                     let reference = frame.get_operand_stack_mut().pop_reference();
+                    trace_instruction!("extended", ifnull, "reference = {:?}", reference);
+                    
                     if reference.is_null() {
                         let branch = frame.read_byte2_signed() as isize;
                         let _ = frame.thread().get().pc.fetch_add(branch, MemOrdering::Relaxed);
@@ -403,6 +465,8 @@ impl Interpreter {
                 },
                 OpCode::ifnonnull => {
                     let reference = frame.get_operand_stack_mut().pop_reference();
+                    trace_instruction!("extended", ifnonnull, "reference = {:?}", reference);
+                    
                     if !reference.is_null() {
                         let branch = frame.read_byte2_signed() as isize;
                         let _ = frame.thread().get().pc.fetch_add(branch, MemOrdering::Relaxed);
@@ -410,6 +474,8 @@ impl Interpreter {
                 },
                 OpCode::goto_w => {
                     let address = frame.read_byte4_signed() as isize;
+                    trace_instruction!("extended", goto_w, "address = {}", address);
+                    
                     assert!(address <= s2::MAX as isize, "goto_w offset too large!");
     
                     let _ = frame.thread().get().pc.fetch_add(address, MemOrdering::Relaxed);
@@ -437,7 +503,9 @@ impl Interpreter {
 
         let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
         let constant = &constant_pool[idx];
-
+        
+        trace_instruction!("constants", ldc, "wide = {}, idx = {}, constant = {:?}", wide, idx, constant);
+        
         // The run-time constant pool entry at index must be loadable (§5.1),
         match constant {
             // and not any of the following:
