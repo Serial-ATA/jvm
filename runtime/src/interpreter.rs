@@ -349,6 +349,17 @@ impl Interpreter {
                     let method = Class::resolve_method(frame.thread(), constant_pool, method_ref_idx).unwrap();
                     MethodInvoker::invoke(FrameRef::clone(&frame), method);
                 },
+                OpCode::arraylength => {
+                    let stack = frame.get_operand_stack_mut();
+                    
+                    let array_ref = stack.pop_reference();
+                    if array_ref.is_null() {
+                        panic!("NullPointerException"); // TODO
+                    }
+                    
+                    let array_len = array_ref.extract_array().elements.element_count();
+                    stack.push_int(array_len as s4);
+                },
                 
                 // ========= Control =========
                 // TODO: jsr, ret, tableswitch, lookupswitch,

@@ -20,3 +20,16 @@ pub enum Reference {
 	Interface,
 	Null,
 }
+
+impl Reference {
+	pub fn is_null(&self) -> bool {
+		matches!(self, Self::Null)
+	}
+
+	pub fn extract_array(&self) -> &ArrayInstanceRef {
+		match self {
+			Self::Array(arr) => arr,
+			_ => panic!("Expected an array reference!"),
+		}
+	}
+}

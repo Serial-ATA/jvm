@@ -22,8 +22,8 @@ impl ClassInstance {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ArrayInstance {
-	class: ClassRef,
-	elements: ArrayContent,
+	pub class: ClassRef,
+	pub elements: ArrayContent,
 }
 
 impl ArrayInstance {
@@ -42,4 +42,17 @@ pub enum ArrayContent {
 	Float(Box<[f32]>),
 	Double(Box<[f64]>),
 	Long(Box<[s8]>),
+}
+
+impl ArrayContent {
+	pub fn element_count(&self) -> usize {
+		match self {
+			ArrayContent::Byte(content) | ArrayContent::Bool(content) => content.len(),
+			ArrayContent::Short(content) | ArrayContent::Char(content) => content.len(),
+			ArrayContent::Int(content) => content.len(),
+			ArrayContent::Float(content) => content.len(),
+			ArrayContent::Double(content) => content.len(),
+			ArrayContent::Long(content) => content.len(),
+		}
+	}
 }
