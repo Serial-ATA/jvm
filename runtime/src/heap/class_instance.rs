@@ -1,8 +1,9 @@
+use crate::classpath::classloader::ClassLoader;
 use crate::reference::{ArrayInstanceRef, ClassInstanceRef, ClassRef, Reference};
 
 use std::fmt::{Debug, Formatter};
 
-use common::int_types::{s8, u1, u2, u4};
+use common::int_types::{s4, s8, u1, u2, u4};
 use common::traits::PtrType;
 use instructions::Operand;
 
@@ -79,6 +80,35 @@ impl ArrayInstance {
 	pub fn new(class: ClassRef, elements: ArrayContent) -> ArrayInstanceRef {
 		ArrayInstanceRef::new(Self { class, elements })
 	}
+
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.newarray
+	pub fn new_from_type(type_code: u1, count: s4) -> ArrayInstanceRef {
+		if count.is_negative() {
+			panic!("NegativeArraySizeException"); // TODO
+		}
+
+		let type_character = match type_code {
+			4 => b'Z',
+			5 => b'C',
+			6 => b'F',
+			7 => b'D',
+			8 => b'B',
+			9 => b'S',
+			10 => b'I',
+			11 => b'J',
+			_ => panic!("Invalid array type code: {}", type_code),
+		};
+
+		let array_class = ClassLoader::Bootstrap
+			.load(&[b'[', type_character])
+			.unwrap();
+		let elements = ArrayContent::default_initialize(type_code, count);
+
+		ArrayInstanceRef::new(Self {
+			class: array_class,
+			elements,
+		})
+	}
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -94,6 +124,20 @@ pub enum ArrayContent {
 }
 
 impl ArrayContent {
+	fn default_initialize(type_code: u1, count: s4) -> Self {
+		match type_code {
+			4 => Self::Bool(vec![0; count as usize].into_boxed_slice()),
+			5 => Self::Char(vec![0; count as usize].into_boxed_slice()),
+			6 => Self::Float(vec![0.; count as usize].into_boxed_slice()),
+			7 => Self::Double(vec![0.; count as usize].into_boxed_slice()),
+			8 => Self::Byte(vec![0; count as usize].into_boxed_slice()),
+			9 => Self::Short(vec![0; count as usize].into_boxed_slice()),
+			10 => Self::Int(vec![0; count as usize].into_boxed_slice()),
+			11 => Self::Long(vec![0; count as usize].into_boxed_slice()),
+			_ => panic!("Invalid array type code: {}", type_code),
+		}
+	}
+
 	pub fn element_count(&self) -> usize {
 		match self {
 			ArrayContent::Byte(content) | ArrayContent::Bool(content) => content.len(),

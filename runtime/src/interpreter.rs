@@ -1,5 +1,5 @@
 use crate::class::Class;
-use crate::class_instance::ClassInstance;
+use crate::class_instance::{ArrayInstance, ClassInstance};
 use crate::frame::FrameRef;
 use crate::method_invoker::MethodInvoker;
 use crate::reference::{FieldRef, MethodRef, Reference};
@@ -392,7 +392,7 @@ impl Interpreter {
                 // ========= References =========
                 // TODO: getfield, putfield,
                 //       invokevirtual, invokespecial, invokestatic,
-                //       invokeinterface, invokedynamic, new, newarray,
+                //       invokeinterface, invokedynamic, new,
                 //       anewarray, arraylength, athrow, checkcast, instanceof,
                 //       monitorenter, monitorexit
                 CATEGORY: references
@@ -441,6 +441,15 @@ impl Interpreter {
                     
                     let array_len = array_ref.extract_array().elements.element_count();
                     stack.push_int(array_len as s4);
+                },
+                OpCode::newarray => {
+                    let stack = frame.get_operand_stack_mut();
+                    
+                    let type_code = frame.read_byte();
+                    let count = stack.pop_int();
+                    
+                    let array_ref = ArrayInstance::new_from_type(type_code, count);
+                    stack.push_reference(Reference::Array(array_ref));
                 };
                 
                 // ========= Control =========
