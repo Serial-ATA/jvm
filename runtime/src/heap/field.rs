@@ -76,4 +76,20 @@ impl Field {
 		assert!(self.is_static());
 		self.class.unwrap_class_instance_mut().static_field_slots[self.idx] = value;
 	}
+
+	pub fn default_value_for_ty(ty: &FieldType) -> Operand<Reference> {
+		match ty {
+			FieldType::Byte
+			| FieldType::Boolean
+			| FieldType::Short
+			| FieldType::Int
+			| FieldType::Char => Operand::Int(0),
+			FieldType::Long => Operand::Long(0),
+			FieldType::Float => Operand::Float(0.),
+			FieldType::Double => Operand::Double(0.),
+			FieldType::Void | FieldType::Object(_) | FieldType::Array(_) => {
+				Operand::Reference(Reference::Null)
+			},
+		}
+	}
 }

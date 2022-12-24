@@ -1,6 +1,6 @@
+use crate::field::Field;
 use crate::heap::class::Class;
 use crate::heap::reference::ClassRef;
-use crate::reference::Reference;
 
 use std::collections::HashMap;
 use std::ops::RangeInclusive;
@@ -8,7 +8,6 @@ use std::sync::{Arc, Mutex};
 
 use classfile::FieldType;
 use common::int_types::u1;
-use instructions::Operand;
 use once_cell::sync::Lazy;
 
 const SUPPORTED_MAJOR_LOWER_BOUND: u1 = 45;
@@ -224,21 +223,7 @@ impl ClassLoader {
 			.filter(|field| field.is_static())
 			.enumerate()
 		{
-			match field.descriptor {
-				FieldType::Byte
-				| FieldType::Boolean
-				| FieldType::Short
-				| FieldType::Int
-				| FieldType::Char => {
-					class_instance.static_field_slots[idx] = Operand::Int(0);
-				},
-				FieldType::Long => class_instance.static_field_slots[idx] = Operand::Long(0),
-				FieldType::Float => class_instance.static_field_slots[idx] = Operand::Float(0.),
-				FieldType::Double => class_instance.static_field_slots[idx] = Operand::Double(0.),
-				FieldType::Void | FieldType::Object(_) | FieldType::Array(_) => {
-					class_instance.static_field_slots[idx] = Operand::Reference(Reference::Null)
-				},
-			}
+			class_instance.static_field_slots[idx] = Field::default_value_for_ty(&field.descriptor);
 		}
 
 		// TODO:

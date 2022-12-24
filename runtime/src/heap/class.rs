@@ -153,21 +153,30 @@ impl Class {
 				.map(|mi| Method::new(Arc::clone(&classref), mi))
 				.collect();
 
-			class_instance.fields = parsed_file
-				.fields
-				.iter()
-				.enumerate()
-				.map(|(idx, fi)| {
-					Field::new(
-						idx,
-						Arc::clone(&classref),
-						fi,
-						&class_instance.constant_pool,
-					)
-				})
-				.collect();
+			let mut fields = Vec::with_capacity(parsed_file.fields.len());
+			let mut instance_field_idx = 0;
+			let mut static_idx = 0;
+			for field in parsed_file.fields {
+				let field_idx = if field.is_static() {
+					&mut static_idx
+				} else {
+					&mut instance_field_idx
+				};
 
-			class_instance.instance_field_count += class_instance.fields.len() as u4;
+				fields.push(Field::new(
+					*field_idx,
+					Arc::clone(&classref),
+					&field,
+					&class_instance.constant_pool,
+				));
+
+				*field_idx += 1;
+			}
+			class_instance.fields = fields;
+
+			if instance_field_idx > 0 {
+				class_instance.instance_field_count += (instance_field_idx + 1) as u4;
+			}
 		}
 
 		classref

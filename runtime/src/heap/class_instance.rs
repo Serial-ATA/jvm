@@ -1,4 +1,5 @@
 use crate::classpath::classloader::ClassLoader;
+use crate::field::Field;
 use crate::reference::{ArrayInstanceRef, ClassInstanceRef, ClassRef, Reference};
 
 use std::fmt::{Debug, Formatter};
@@ -16,11 +17,22 @@ pub struct ClassInstance {
 impl ClassInstance {
 	pub fn new(class: ClassRef) -> ClassInstanceRef {
 		let class_instance = class.unwrap_class_instance();
-		let field_count = class_instance.instance_field_count;
+		let instance_field_count = class_instance.instance_field_count;
 
-		let fields = vec![Operand::Empty; field_count as usize].into_boxed_slice();
+		// Set the default values for our non-static fields
+		let mut fields = Vec::with_capacity(instance_field_count as usize);
+		for field in class_instance
+			.fields
+			.iter()
+			.filter(|field| !field.is_static())
+		{
+			fields.push(Field::default_value_for_ty(&field.descriptor))
+		}
 
-		ClassInstancePtr::new(Self { class, fields })
+		ClassInstancePtr::new(Self {
+			class,
+			fields: fields.into_boxed_slice(),
+		})
 	}
 }
 
