@@ -1,5 +1,3 @@
-use common::endian::Endian;
-
 use std::cmp::Ordering;
 
 use common::endian::Endian;
@@ -27,7 +25,7 @@ impl<'a> ImageStrings<'a> {
 
 		let mut useed = seed as u4;
 		for byte in string.bytes() {
-			useed = (useed * Self::HASH_MULTIPLIER as u4) ^ u4::from(byte);
+			useed = (seed.overflowing_mul(Self::HASH_MULTIPLIER).0 as u4) ^ u4::from(byte);
 		}
 
 		(useed & 0x07FF_FFFF) as s4
