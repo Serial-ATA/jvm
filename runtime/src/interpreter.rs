@@ -69,7 +69,7 @@ macro_rules! push_const {
 
 macro_rules! local_variable_load {
 	($frame:ident, $opcode:ident, $ty:ident) => {{
-		let local_stack = $frame.get_local_stack();
+		let local_stack = $frame.get_local_stack_mut();
 		let index = $frame.read_byte() as usize;
 
 		let local_variable = &local_stack[index];
@@ -86,7 +86,7 @@ macro_rules! local_variable_load {
 		}
 	}};
 	($frame:ident, $opcode:ident, $ty:ident, $index:literal) => {{
-		let local_stack = $frame.get_local_stack();
+		let local_stack = $frame.get_local_stack_mut();
 		let local_variable = &local_stack[$index];
 
 		paste::paste! {
@@ -100,6 +100,40 @@ macro_rules! local_variable_load {
 		paste::paste! {
 			{ $frame.get_operand_stack_mut().push_op(local_variable.clone()); }
 		}
+	}};
+}
+
+macro_rules! local_variable_store {
+	($frame:ident, $opcode:ident, $ty:ident) => {{
+		let local_stack = $frame.get_local_stack_mut();
+		let index = $frame.read_byte() as usize;
+
+		let stack = $frame.get_operand_stack_mut();
+		let value = stack.pop();
+		paste::paste! {
+			assert!(
+				value.[<is_ $ty:lower>](),
+				"Invalid type on operand stack for `{}` instruction",
+				stringify!($opcode)
+			);
+		}
+
+		local_stack[index] = value;
+	}};
+	($frame:ident, $opcode:ident, $ty:ident, $index:literal) => {{
+		let local_stack = $frame.get_local_stack_mut();
+
+		let stack = $frame.get_operand_stack_mut();
+		let value = stack.pop();
+		paste::paste! {
+			assert!(
+				value.[<is_ $ty:lower>](),
+				"Invalid type on operand stack for `{}` instruction",
+				stringify!($opcode)
+			);
+		}
+
+		local_stack[$index] = value;
 	}};
 }
 
@@ -277,7 +311,40 @@ impl Interpreter {
                 } => local_variable_load;
                 
                 // ========= Stores =========
-                // TODO
+                CATEGORY: stores
+                @GROUP {
+                    [
+                        istore   (Int),
+                        istore_0 (Int, 0),
+                        istore_1 (Int, 1),
+                        istore_2 (Int, 2),
+                        istore_3 (Int, 3),
+                        
+                        lstore   (Long),
+                        lstore_0 (Long, 0),
+                        lstore_1 (Long, 1),
+                        lstore_2 (Long, 2),
+                        lstore_3 (Long, 3),
+                        
+                        fstore   (Float),
+                        fstore_0 (Float, 0),
+                        fstore_1 (Float, 1),
+                        fstore_2 (Float, 2),
+                        fstore_3 (Float, 3),
+                        
+                        dstore   (Double),
+                        dstore_0 (Double, 0),
+                        dstore_1 (Double, 1),
+                        dstore_2 (Double, 2),
+                        dstore_3 (Double, 3),
+                        
+                        astore   (Reference),
+                        astore_0 (Reference, 0),
+                        astore_1 (Reference, 1),
+                        astore_2 (Reference, 2),
+                        astore_3 (Reference, 3),
+                    ]
+                } => local_variable_store;
                 
                 // ========= Stack  =========
                 CATEGORY: stack
