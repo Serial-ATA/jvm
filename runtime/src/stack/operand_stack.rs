@@ -446,6 +446,13 @@ impl OperandLike for Operand {
 
 	fn expect_int(&self) -> s4 {
 		match self {
+			Operand::Constm1 => -1,
+			Operand::Const0 => 0,
+			Operand::Const1 => 1,
+			Operand::Const2 => 2,
+			Operand::Const3 => 3,
+			Operand::Const4 => 4,
+			Operand::Const5 => 5,
 			Operand::Int(i) => *i,
 			_ => panic!("Expected operand type `int`"),
 		}
@@ -453,6 +460,9 @@ impl OperandLike for Operand {
 
 	fn expect_float(&self) -> f32 {
 		match self {
+			Operand::Const0 => 0.,
+			Operand::Const1 => 1.,
+			Operand::Const2 => 2.,
 			Operand::Float(f) => *f,
 			_ => panic!("Expected operand type `float`"),
 		}
@@ -460,6 +470,8 @@ impl OperandLike for Operand {
 
 	fn expect_double(&self) -> f64 {
 		match self {
+			Operand::Const0 => 0.,
+			Operand::Const1 => 1.,
 			Operand::Double(d) => *d,
 			_ => panic!("Expected operand type `double`"),
 		}
@@ -467,6 +479,8 @@ impl OperandLike for Operand {
 
 	fn expect_long(&self) -> s8 {
 		match self {
+			Operand::Const0 => 0,
+			Operand::Const1 => 1,
 			Operand::Long(l) => *l,
 			_ => panic!("Expected operand type `long`"),
 		}

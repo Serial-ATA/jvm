@@ -64,11 +64,15 @@ pub trait OperandLike: PartialOrd {
 	/// Convert float to long
 	fn f2l(&mut self);
 
+	/// Unwrap an Operand of type `int`
 	fn expect_int(&self) -> s4;
 
+	/// Unwrap an Operand of type `float`
 	fn expect_float(&self) -> f32;
 
+	/// Unwrap an Operand of type `double`
 	fn expect_double(&self) -> f64;
 
+	/// Unwrap an Operand of type `long`
 	fn expect_long(&self) -> s8;
 }
