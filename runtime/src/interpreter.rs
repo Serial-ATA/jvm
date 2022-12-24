@@ -12,7 +12,7 @@ use std::sync::Arc;
 use classfile::ConstantPoolValueInfo;
 use common::int_types::{s2, s4, u2};
 use common::traits::PtrType;
-use instructions::{OpCode, Operand, StackLike};
+use instructions::{ConstOperandType, OpCode, Operand, StackLike};
 
 macro_rules! trace_instruction {
     (@START $instruction:tt, $category:ident) => {{
@@ -60,9 +60,9 @@ macro_rules! define_instructions {
 }
 
 macro_rules! push_const {
-	($frame:ident, $opcode:ident, $value:tt) => {{
+	($frame:ident, $opcode:ident, $value:tt $(, $const_value:ident)?) => {{
 		paste::paste! {
-			{ $frame.get_operand_stack_mut().push_op(Operand:: [<Const $value>]); }
+			{ $frame.get_operand_stack_mut().push_op(Operand:: [<Const $value>] $((ConstOperandType:: $const_value))?); }
 		};
 	}};
 }
@@ -205,22 +205,22 @@ impl Interpreter {
                 @GROUP {
                     [
                         iconst_m1 (m1),
-                        iconst_0 (0),
-                        iconst_1 (1),
-                        iconst_2 (2),
+                        iconst_0 (0, Int),
+                        iconst_1 (1, Int),
+                        iconst_2 (2, Int),
                         iconst_3 (3),
                         iconst_4 (4),
                         iconst_5 (5),
                         
-                        lconst_0 (0),
-                        lconst_1 (1),
+                        lconst_0 (0, Long),
+                        lconst_1 (1, Long),
                         
-                        fconst_0 (0),
-                        fconst_1 (1),
-                        fconst_2 (2),
+                        fconst_0 (0, Float),
+                        fconst_1 (1, Float),
+                        fconst_2 (2, Float),
                         
-                        dconst_0 (0),
-                        dconst_1 (1),
+                        dconst_0 (0, Double),
+                        dconst_1 (1, Double),
                     ]
                 } => push_const,
                 OpCode::bipush => {
@@ -305,12 +305,14 @@ impl Interpreter {
                         imul (mul),
                         idiv (div),
                         irem (rem),
+                        ishl (shl),
                         
                         ladd (add),
                         lsub (sub),
                         lmul (mul),
                         ldiv (div),
                         lrem (rem),
+                        lshl (shl),
                         
                         fadd (add),
                         fsub (sub),

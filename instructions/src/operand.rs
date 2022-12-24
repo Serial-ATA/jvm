@@ -5,11 +5,19 @@ use std::ops::Neg;
 use common::int_types::{s1, s2, s4, s8, u2};
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum ConstOperandType {
+	Int,
+	Long,
+	Float,
+	Double,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Operand<Reference> {
 	Constm1,
-	Const0,
-	Const1,
-	Const2,
+	Const0(ConstOperandType),
+	Const1(ConstOperandType),
+	Const2(ConstOperandType),
 	Const3,
 	Const4,
 	Const5,
@@ -108,6 +116,27 @@ impl<Reference: Debug> Operand<Reference> {
 			Operand::Double(lhs) => *self = Operand::Double(lhs.neg()),
 			_ => panic!("Invalid operand type for `neg` instruction"),
 		}
+	}
+
+	/// Shifts self left
+	pub fn shl(&mut self, rhs: Self) {
+		let rhs = rhs.expect_int();
+
+		if self.is_int() {
+			let lhs = self.expect_int();
+			assert!((0..32).contains(&rhs));
+			*self = Operand::Int(lhs << rhs);
+			return;
+		}
+
+		if self.is_long() {
+			let lhs = self.expect_long();
+			assert!((0..64).contains(&rhs));
+			*self = Operand::Long(lhs << s8::from(rhs));
+			return;
+		}
+
+		panic!("Invalid operand type for `shl` instruction")
 	}
 
 	/// Convert int to byte
@@ -238,9 +267,9 @@ impl<Reference: Debug> Operand<Reference> {
 	pub fn expect_int(&self) -> s4 {
 		match self {
 			Operand::Constm1 => -1,
-			Operand::Const0 => 0,
-			Operand::Const1 => 1,
-			Operand::Const2 => 2,
+			Operand::Const0(ConstOperandType::Int) => 0,
+			Operand::Const1(ConstOperandType::Int) => 1,
+			Operand::Const2(ConstOperandType::Int) => 2,
 			Operand::Const3 => 3,
 			Operand::Const4 => 4,
 			Operand::Const5 => 5,
@@ -252,8 +281,8 @@ impl<Reference: Debug> Operand<Reference> {
 	/// Unwrap an Operand of type `long`
 	pub fn expect_long(&self) -> s8 {
 		match self {
-			Operand::Const0 => 0,
-			Operand::Const1 => 1,
+			Operand::Const0(ConstOperandType::Long) => 0,
+			Operand::Const1(ConstOperandType::Long) => 1,
 			Operand::Long(l) => *l,
 			_ => panic!("Expected operand type `long`"),
 		}
@@ -262,9 +291,9 @@ impl<Reference: Debug> Operand<Reference> {
 	/// Unwrap an Operand of type `float`
 	pub fn expect_float(&self) -> f32 {
 		match self {
-			Operand::Const0 => 0.,
-			Operand::Const1 => 1.,
-			Operand::Const2 => 2.,
+			Operand::Const0(ConstOperandType::Float) => 0.,
+			Operand::Const1(ConstOperandType::Float) => 1.,
+			Operand::Const2(ConstOperandType::Float) => 2.,
 			Operand::Float(f) => *f,
 			_ => panic!("Expected operand type `float`"),
 		}
@@ -273,8 +302,8 @@ impl<Reference: Debug> Operand<Reference> {
 	/// Unwrap an Operand of type `double`
 	pub fn expect_double(&self) -> f64 {
 		match self {
-			Operand::Const0 => 0.,
-			Operand::Const1 => 1.,
+			Operand::Const0(ConstOperandType::Double) => 0.,
+			Operand::Const1(ConstOperandType::Double) => 1.,
 			Operand::Double(d) => *d,
 			_ => panic!("Expected operand type `double`"),
 		}
@@ -285,8 +314,9 @@ impl<Reference: Debug> Operand<Reference> {
 		matches!(
 			self,
 			Self::Int(_)
-				| Self::Constm1 | Self::Const0
-				| Self::Const1 | Self::Const2
+				| Self::Constm1 | Self::Const0(ConstOperandType::Int)
+				| Self::Const1(ConstOperandType::Int)
+				| Self::Const2(ConstOperandType::Int)
 				| Self::Const3 | Self::Const4
 				| Self::Const5
 		)
@@ -294,17 +324,33 @@ impl<Reference: Debug> Operand<Reference> {
 
 	/// Operand is a `long`
 	pub fn is_long(&self) -> bool {
-		matches!(self, Self::Long(_) | Self::Const0 | Self::Const1)
+		matches!(
+			self,
+			Self::Long(_)
+				| Self::Const0(ConstOperandType::Long)
+				| Self::Const1(ConstOperandType::Long)
+		)
 	}
 
 	/// Operand is a `float`
 	pub fn is_float(&self) -> bool {
-		matches!(self, Self::Float(_) | Self::Const0 | Self::Const1)
+		matches!(
+			self,
+			Self::Float(_)
+				| Self::Const0(ConstOperandType::Float)
+				| Self::Const1(ConstOperandType::Float)
+				| Self::Const2(ConstOperandType::Float)
+		)
 	}
 
 	/// Operand is a `double`
 	pub fn is_double(&self) -> bool {
-		matches!(self, Self::Double(_) | Self::Const0 | Self::Const1)
+		matches!(
+			self,
+			Self::Double(_)
+				| Self::Const0(ConstOperandType::Double)
+				| Self::Const1(ConstOperandType::Double)
+		)
 	}
 
 	/// Operand is a `reference`
