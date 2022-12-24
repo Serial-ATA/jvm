@@ -1,7 +1,10 @@
 use crate::reference::{ArrayInstanceRef, ClassInstanceRef, ClassRef};
 use crate::stack::operand_stack::Operand;
 
+use std::fmt::{Debug, Formatter};
+
 use common::int_types::{s8, u1, u2, u4};
+use common::traits::PtrType;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassInstance {
@@ -16,7 +19,53 @@ impl ClassInstance {
 
 		let fields = vec![Operand::Empty; field_count as usize].into_boxed_slice();
 
-		ClassInstanceRef::new(Self { class, fields })
+		ClassInstancePtr::new(Self { class, fields })
+	}
+}
+
+// A pointer to a ClassInstance
+//
+// This can *not* be constructed by hand, as dropping it will
+// deallocate the instance.
+#[derive(PartialEq)]
+pub struct ClassInstancePtr(usize);
+
+impl PtrType<ClassInstance, ClassInstanceRef> for ClassInstancePtr {
+	fn new(val: ClassInstance) -> ClassInstanceRef {
+		let boxed = Box::new(val);
+		let ptr = Box::into_raw(boxed);
+		ClassInstanceRef::new(Self(ptr as usize))
+	}
+
+	#[inline(always)]
+	fn as_raw(&self) -> *const ClassInstance {
+		self.0 as *const ClassInstance
+	}
+
+	#[inline(always)]
+	fn as_mut_raw(&self) -> *mut ClassInstance {
+		self.0 as *mut ClassInstance
+	}
+
+	fn get(&self) -> &ClassInstance {
+		unsafe { &(*self.as_raw()) }
+	}
+
+	fn get_mut(&self) -> &mut ClassInstance {
+		unsafe { &mut (*self.as_mut_raw()) }
+	}
+}
+
+impl Drop for ClassInstancePtr {
+	fn drop(&mut self) {
+		let _ = unsafe { Box::from_raw(self.0 as *mut ClassInstance) };
+	}
+}
+
+impl Debug for ClassInstancePtr {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		let class = self.get();
+		f.write_str(unsafe { std::str::from_utf8_unchecked(&class.class.get().name) })
 	}
 }
 

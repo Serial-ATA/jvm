@@ -401,6 +401,24 @@ impl Interpreter {
                     
                     field.set_static_value(value);
                 },
+                OpCode::putfield => {
+                    let field = Self::fetch_field(FrameRef::clone(&frame));
+                    if field.is_static() {
+                        panic!("IncompatibleClassChangeError"); // TODO
+                    }
+                    
+                    // TODO: if the resolved field is final, it must be declared in the current class,
+                    //       and the instruction must occur in an instance initialization method of the current class.
+                    //       Otherwise, an IllegalAccessError is thrown. 
+                    
+                    let stack = frame.get_operand_stack_mut();
+                    
+                    let value = stack.pop();
+                    let object_ref = stack.pop_reference();
+                    let class_instance = object_ref.extract_class();
+                    
+                    class_instance.get_mut().fields[field.idx] = value;
+                },
                 // Static/virtual are differentiated in `MethodInvoker::invoke`
                 OpCode::invokevirtual
                 | OpCode::invokespecial

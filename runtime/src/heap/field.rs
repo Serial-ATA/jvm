@@ -6,7 +6,7 @@ use common::int_types::{u1, u2};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
-	idx: usize, // Used for the `static_field_slots` field on `Class`
+	pub idx: usize, // Used to set the value on `ClassInstance`s
 	pub class: ClassRef,
 	pub access_flags: u2,
 	pub name: Vec<u1>,
