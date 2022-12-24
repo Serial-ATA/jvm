@@ -67,12 +67,27 @@ pub trait OperandLike: PartialOrd {
 	/// Unwrap an Operand of type `int`
 	fn expect_int(&self) -> s4;
 
+	/// Unwrap an Operand of type `long`
+	fn expect_long(&self) -> s8;
+
 	/// Unwrap an Operand of type `float`
 	fn expect_float(&self) -> f32;
 
 	/// Unwrap an Operand of type `double`
 	fn expect_double(&self) -> f64;
 
-	/// Unwrap an Operand of type `long`
-	fn expect_long(&self) -> s8;
+	/// Operand is an `integer`
+	fn is_int(&self) -> bool;
+
+	/// Operand is a `long`
+	fn is_long(&self) -> bool;
+
+	/// Operand is a `float`
+	fn is_float(&self) -> bool;
+
+	/// Operand is a `double`
+	fn is_double(&self) -> bool;
+
+	/// Operand is a `reference`
+	fn is_reference(&self) -> bool;
 }

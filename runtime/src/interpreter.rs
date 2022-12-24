@@ -74,11 +74,13 @@ macro_rules! local_variable_load {
 		let index = $frame.read_byte() as usize;
 
 		let local_variable = &local_stack[index];
-		assert!(
-			matches!(local_variable, Operand::$ty(_)),
-			"Invalid operand type on local stack for `{}` instruction",
-			stringify!($opcode)
-		);
+		paste::paste! {
+			assert!(
+				local_variable.[<is_ $ty:lower>](),
+				"Invalid operand type on local stack for `{}` instruction",
+				stringify!($opcode)
+			);
+		}
 
 		paste::paste! {
 			{ $frame.get_operand_stack_mut().push_op(local_variable.clone()); }
@@ -88,11 +90,13 @@ macro_rules! local_variable_load {
 		let local_stack = $frame.get_local_stack();
 		let local_variable = &local_stack[$index];
 
-		assert!(
-			matches!(local_variable, Operand::$ty(_)),
-			"Invalid operand type on local stack for `{}` instruction",
-			stringify!($opcode)
-		);
+		paste::paste! {
+			assert!(
+				local_variable.[<is_ $ty:lower>](),
+				"Invalid operand type on local stack for `{}` instruction",
+				stringify!($opcode)
+			);
+		}
 
 		paste::paste! {
 			{ $frame.get_operand_stack_mut().push_op(local_variable.clone()); }

@@ -485,6 +485,33 @@ impl OperandLike for Operand {
 			_ => panic!("Expected operand type `long`"),
 		}
 	}
+
+	fn is_int(&self) -> bool {
+		matches!(
+			self,
+			Self::Int(_)
+				| Self::Constm1 | Self::Const0
+				| Self::Const1 | Self::Const2
+				| Self::Const3 | Self::Const4
+				| Self::Const5
+		)
+	}
+
+	fn is_long(&self) -> bool {
+		matches!(self, Self::Long(_) | Self::Const0 | Self::Const1)
+	}
+
+	fn is_float(&self) -> bool {
+		matches!(self, Self::Float(_) | Self::Const0 | Self::Const1)
+	}
+
+	fn is_double(&self) -> bool {
+		matches!(self, Self::Double(_) | Self::Const0 | Self::Const1)
+	}
+
+	fn is_reference(&self) -> bool {
+		matches!(self, Self::Reference(_))
+	}
 }
 
 impl PartialOrd for Operand {
