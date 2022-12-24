@@ -113,7 +113,7 @@ macro_rules! load_from_array {
 
 		// TODO: Validate the type, right now the output is just trusted
 		//       to be correct
-		stack.push_op(array_ref.get(index));
+		stack.push_op(array_ref.get().get(index));
 	}};
 }
 
@@ -148,6 +148,19 @@ macro_rules! local_variable_store {
 		}
 
 		local_stack[$index] = value;
+	}};
+}
+
+macro_rules! store_into_array {
+	($frame:ident, $opcode:ident) => {{
+		let stack = $frame.get_operand_stack_mut();
+		let value = stack.pop();
+		let index = stack.pop_int();
+
+		let object_ref = stack.pop_reference();
+		let array_ref = object_ref.extract_array();
+
+		array_ref.get_mut().store(index, value);
 	}};
 }
 
@@ -368,7 +381,19 @@ impl Interpreter {
                         astore_2 (Reference, 2),
                         astore_3 (Reference, 3),
                     ]
-                } => local_variable_store;
+                } => local_variable_store,
+                @GROUP {
+                    [
+                        iastore,
+                        lastore,
+                        fastore,
+                        dastore,
+                        aastore,
+                        bastore,
+                        castore,
+                        sastore,
+                    ]
+                } => store_into_array;
                 
                 // ========= Stack  =========
                 CATEGORY: stack
@@ -532,13 +557,10 @@ impl Interpreter {
                 },
                 OpCode::arraylength => {
                     let stack = frame.get_operand_stack_mut();
-                    let array_ref = stack.pop_reference();
+                    let object_ref = stack.pop_reference();
+                    let array_ref = object_ref.extract_array();
                     
-                    if array_ref.is_null() {
-                        panic!("NullPointerException"); // TODO
-                    }
-                    
-                    let array_len = array_ref.extract_array().elements.element_count();
+                    let array_len = array_ref.get().elements.element_count();
                     stack.push_int(array_len as s4);
                 },
                 OpCode::newarray => {

@@ -1,7 +1,7 @@
 use super::class::ClassPtr;
 use super::field::Field;
 use super::method::Method;
-use crate::class_instance::{ArrayInstance, ClassInstancePtr};
+use crate::class_instance::{ArrayInstancePtr, ClassInstancePtr};
 
 use std::sync::Arc;
 
@@ -10,7 +10,7 @@ pub type FieldRef = Arc<Field>;
 pub type ClassRef = Arc<ClassPtr>;
 
 pub type ClassInstanceRef = Arc<ClassInstancePtr>;
-pub type ArrayInstanceRef = Arc<ArrayInstance>;
+pub type ArrayInstanceRef = Arc<ArrayInstancePtr>;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.4
 #[derive(Debug, Clone, PartialEq)]

@@ -78,7 +78,7 @@ pub struct ArrayInstance {
 
 impl ArrayInstance {
 	pub fn new(class: ClassRef, elements: ArrayContent) -> ArrayInstanceRef {
-		ArrayInstanceRef::new(Self { class, elements })
+		ArrayInstancePtr::new(Self { class, elements })
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.newarray
@@ -104,7 +104,7 @@ impl ArrayInstance {
 			.unwrap();
 		let elements = ArrayContent::default_initialize(type_code, count);
 
-		ArrayInstanceRef::new(Self {
+		ArrayInstancePtr::new(Self {
 			class: array_class,
 			elements,
 		})
@@ -116,6 +116,26 @@ impl ArrayInstance {
 		}
 
 		self.elements.get(index as usize)
+	}
+
+	pub fn store(&mut self, index: s4, value: Operand<Reference>) {
+		if index.is_negative() || index as usize > self.elements.element_count() {
+			panic!("ArrayIndexOutOfBoundsException"); // TODO
+		}
+
+		let index = index as usize;
+		match self.elements {
+			ArrayContent::Byte(ref mut contents) => contents[index] = value.expect_int() as s1,
+			ArrayContent::Bool(ref mut contents) => {
+				contents[index] = (value.expect_int() & 1) as s1
+			},
+			ArrayContent::Short(ref mut contents) => contents[index] = value.expect_int() as s2,
+			ArrayContent::Char(ref mut contents) => contents[index] = value.expect_int() as u2,
+			ArrayContent::Int(ref mut contents) => contents[index] = value.expect_int(),
+			ArrayContent::Float(ref mut contents) => contents[index] = value.expect_float(),
+			ArrayContent::Double(ref mut contents) => contents[index] = value.expect_double(),
+			ArrayContent::Long(ref mut contents) => contents[index] = value.expect_long(),
+		}
 	}
 }
 
@@ -170,5 +190,51 @@ impl ArrayContent {
 			ArrayContent::Double(content) => content.len(),
 			ArrayContent::Long(content) => content.len(),
 		}
+	}
+}
+
+// A pointer to a ArrayInstance
+//
+// This can *not* be constructed by hand, as dropping it will
+// deallocate the instance.
+#[derive(PartialEq)]
+pub struct ArrayInstancePtr(usize);
+
+impl PtrType<ArrayInstance, ArrayInstanceRef> for ArrayInstancePtr {
+	fn new(val: ArrayInstance) -> ArrayInstanceRef {
+		let boxed = Box::new(val);
+		let ptr = Box::into_raw(boxed);
+		ArrayInstanceRef::new(Self(ptr as usize))
+	}
+
+	#[inline(always)]
+	fn as_raw(&self) -> *const ArrayInstance {
+		self.0 as *const ArrayInstance
+	}
+
+	#[inline(always)]
+	fn as_mut_raw(&self) -> *mut ArrayInstance {
+		self.0 as *mut ArrayInstance
+	}
+
+	fn get(&self) -> &ArrayInstance {
+		unsafe { &(*self.as_raw()) }
+	}
+
+	fn get_mut(&self) -> &mut ArrayInstance {
+		unsafe { &mut (*self.as_mut_raw()) }
+	}
+}
+
+impl Drop for ArrayInstancePtr {
+	fn drop(&mut self) {
+		let _ = unsafe { Box::from_raw(self.0 as *mut ArrayInstance) };
+	}
+}
+
+impl Debug for ArrayInstancePtr {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		let class = self.get();
+		f.write_str(unsafe { std::str::from_utf8_unchecked(&class.class.get().name) })
 	}
 }
