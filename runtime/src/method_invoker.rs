@@ -2,11 +2,10 @@ use crate::frame::FrameRef;
 use crate::method::Method;
 use crate::reference::{MethodRef, Reference};
 use crate::stack::local_stack::LocalStack;
-use crate::stack::operand_stack::Operand;
 use crate::thread::ThreadRef;
 use crate::Thread;
 
-use instructions::StackLike;
+use instructions::{Operand, StackLike};
 
 pub struct MethodInvoker;
 
@@ -14,7 +13,7 @@ impl MethodInvoker {
 	/// Invoke a method with the provided args
 	///
 	/// This will not pop anything off of the stack of the current Frame
-	pub fn invoke_with_args(thread: ThreadRef, method: MethodRef, args: Vec<Operand>) {
+	pub fn invoke_with_args(thread: ThreadRef, method: MethodRef, args: Vec<Operand<Reference>>) {
 		let mut local_stack = LocalStack::new(method.code.max_locals as usize);
 		Self::construct_local_stack(&mut local_stack, args, true);
 
@@ -56,7 +55,7 @@ impl MethodInvoker {
 
 	fn construct_local_stack(
 		local_stack: &mut LocalStack,
-		existing_args: Vec<Operand>,
+		existing_args: Vec<Operand<Reference>>,
 		is_static_method: bool,
 	) {
 		// The starting position of the arguments depends on the method being static,

@@ -1,11 +1,13 @@
-use super::operand_stack::Operand;
+use crate::reference::Reference;
 
 use std::ops::{Index, IndexMut};
+
+use instructions::Operand;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6.1
 #[derive(Debug, Clone, PartialEq)]
 pub struct LocalStack {
-	inner: Box<[Operand]>,
+	inner: Box<[Operand<Reference>]>,
 }
 
 impl LocalStack {
@@ -21,7 +23,7 @@ impl LocalStack {
 // An integer is considered to be an index into the local variable array if and only if that integer
 // is between zero and one less than the size of the local variable array.
 impl Index<usize> for LocalStack {
-	type Output = Operand;
+	type Output = Operand<Reference>;
 
 	fn index(&self, index: usize) -> &Self::Output {
 		&self.inner[index]

@@ -2,9 +2,9 @@ use crate::classpath::classloader::ClassLoader;
 use crate::frame::{Frame, FramePtr, FrameRef};
 use crate::interpreter::Interpreter;
 use crate::native::NativeMethodDef;
-use crate::reference::MethodRef;
+use crate::reference::{MethodRef, Reference};
 use crate::stack::local_stack::LocalStack;
-use crate::stack::operand_stack::{Operand, OperandStack};
+use crate::stack::operand_stack::OperandStack;
 
 use std::fmt::{Debug, Formatter};
 use std::sync::atomic::{AtomicIsize, Ordering};
@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use common::int_types::u1;
 use common::traits::PtrType;
-use instructions::StackLike;
+use instructions::{Operand, StackLike};
 
 pub type ThreadRef = Arc<ThreadPtr>;
 
@@ -102,7 +102,7 @@ impl Thread {
 		current_frame.map(FrameRef::clone)
 	}
 
-	pub fn drop_to_previous_frame(&mut self, return_value: Option<Operand>) {
+	pub fn drop_to_previous_frame(&mut self, return_value: Option<Operand<Reference>>) {
 		self.frame_stack.pop();
 
 		if let Some(current_frame) = self.current_frame() {

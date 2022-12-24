@@ -1,15 +1,15 @@
-use crate::reference::{ArrayInstanceRef, ClassInstanceRef, ClassRef};
-use crate::stack::operand_stack::Operand;
+use crate::reference::{ArrayInstanceRef, ClassInstanceRef, ClassRef, Reference};
 
 use std::fmt::{Debug, Formatter};
 
 use common::int_types::{s8, u1, u2, u4};
 use common::traits::PtrType;
+use instructions::Operand;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassInstance {
 	pub class: ClassRef,
-	pub fields: Box<[Operand]>,
+	pub fields: Box<[Operand<Reference>]>,
 }
 
 impl ClassInstance {

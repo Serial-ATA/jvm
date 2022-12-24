@@ -1,8 +1,8 @@
-use super::reference::{ClassRef, FieldRef};
-use crate::stack::operand_stack::Operand;
+use super::reference::{ClassRef, FieldRef, Reference};
 
 use classfile::{ConstantPool, FieldInfo, FieldType};
 use common::int_types::{u1, u2};
+use instructions::Operand;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
@@ -67,12 +67,12 @@ impl Field {
 		self.access_flags & Field::ACC_FINAL != 0
 	}
 
-	pub fn get_static_value(&self) -> Operand {
+	pub fn get_static_value(&self) -> Operand<Reference> {
 		assert!(self.is_static());
 		self.class.unwrap_class_instance().static_field_slots[self.idx].clone()
 	}
 
-	pub fn set_static_value(&self, value: Operand) {
+	pub fn set_static_value(&self, value: Operand<Reference>) {
 		assert!(self.is_static());
 		self.class.unwrap_class_instance_mut().static_field_slots[self.idx] = value;
 	}

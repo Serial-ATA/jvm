@@ -2,13 +2,13 @@ use crate::class::Class;
 use crate::class_instance::{ArrayContent, ArrayInstance, ClassInstance};
 use crate::classpath::classloader::ClassLoader;
 use crate::reference::{ClassInstanceRef, Reference};
-use crate::stack::operand_stack::Operand;
 use crate::thread::ThreadRef;
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use common::int_types::{u1, u2};
+use instructions::Operand;
 use once_cell::sync::Lazy;
 
 static STRING_POOL: Lazy<HashMap<Vec<u1>, ClassInstanceRef>> = Lazy::new(HashMap::new);

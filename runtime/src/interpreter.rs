@@ -3,7 +3,6 @@ use crate::class_instance::ClassInstance;
 use crate::frame::FrameRef;
 use crate::method_invoker::MethodInvoker;
 use crate::reference::{FieldRef, MethodRef, Reference};
-use crate::stack::operand_stack::Operand;
 use crate::string_interner::StringInterner;
 
 use std::cmp::Ordering;
@@ -13,7 +12,7 @@ use std::sync::Arc;
 use classfile::ConstantPoolValueInfo;
 use common::int_types::{s2, s4, u2};
 use common::traits::PtrType;
-use instructions::{OpCode, OperandLike, StackLike};
+use instructions::{OpCode, Operand, StackLike};
 
 macro_rules! trace_instruction {
     (@START $instruction:tt, $category:ident) => {{

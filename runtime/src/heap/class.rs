@@ -3,8 +3,7 @@ use super::method::Method;
 use super::reference::{ClassRef, FieldRef};
 use crate::classpath::classloader::ClassLoader;
 use crate::method_invoker::MethodInvoker;
-use crate::reference::MethodRef;
-use crate::stack::operand_stack::Operand;
+use crate::reference::{MethodRef, Reference};
 use crate::thread::ThreadRef;
 
 use std::fmt::{Debug, Formatter};
@@ -13,6 +12,7 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use classfile::{ClassFile, ConstantPoolRef, FieldType};
 use common::int_types::{u1, u2, u4};
 use common::traits::PtrType;
+use instructions::Operand;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
@@ -69,7 +69,7 @@ pub struct ClassDescriptor {
 	pub super_class: Option<ClassRef>,
 	pub methods: Vec<MethodRef>,
 	pub fields: Vec<FieldRef>,
-	pub static_field_slots: Box<[Operand]>,
+	pub static_field_slots: Box<[Operand<Reference>]>,
 	pub instance_field_count: u4,
 }
 
@@ -484,7 +484,12 @@ impl Class {
 
 	// Instance initialization method
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.1
-	pub fn construct(class: ClassRef, thread: ThreadRef, descriptor: &[u1], args: Vec<Operand>) {
+	pub fn construct(
+		class: ClassRef,
+		thread: ThreadRef,
+		descriptor: &[u1],
+		args: Vec<Operand<Reference>>,
+	) {
 		const CONSTRUCTOR_METHOD_NAME: &[u1] = b"<init>";
 
 		// A class has zero or more instance initialization methods, each typically corresponding to a constructor written in the Java programming language.
