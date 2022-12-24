@@ -139,6 +139,27 @@ impl<Reference: Debug> Operand<Reference> {
 		panic!("Invalid operand type for `shl` instruction")
 	}
 
+	/// Shifts self right
+	pub fn shr(&mut self, rhs: Self) {
+		let rhs = rhs.expect_int();
+
+		if self.is_int() {
+			let lhs = self.expect_int();
+			assert!((0..32).contains(&rhs));
+			*self = Operand::Int(lhs >> rhs);
+			return;
+		}
+
+		if self.is_long() {
+			let lhs = self.expect_long();
+			assert!((0..64).contains(&rhs));
+			*self = Operand::Long(lhs >> s8::from(rhs));
+			return;
+		}
+
+		panic!("Invalid operand type for `shr` instruction")
+	}
+
 	/// Convert int to byte
 	pub fn i2b(&mut self) {
 		match self {

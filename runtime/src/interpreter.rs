@@ -162,8 +162,8 @@ macro_rules! arithmetic {
 		paste::paste! {
 			{
 				let stack = $frame.get_operand_stack_mut();
-				let mut val = stack.pop();
 				let rhs = stack.pop();
+				let mut val = stack.pop();
 
 				val.$instruction(rhs);
 				stack.push_op(val);
@@ -387,7 +387,7 @@ impl Interpreter {
                 } => stack_operations;
                 
                 // ========= Math =========
-                // TODO: shl, ushr, and, or, xor, inc
+                // TODO: ushr, and, or, xor, inc
                 CATEGORY: math
                 @GROUP {
                     [
@@ -397,6 +397,7 @@ impl Interpreter {
                         idiv (div),
                         irem (rem),
                         ishl (shl),
+                        ishr (shr),
                         
                         ladd (add),
                         lsub (sub),
@@ -404,6 +405,7 @@ impl Interpreter {
                         ldiv (div),
                         lrem (rem),
                         lshl (shl),
+                        lshr (shr),
                         
                         fadd (add),
                         fsub (sub),
