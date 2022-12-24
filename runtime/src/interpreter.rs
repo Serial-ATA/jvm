@@ -669,7 +669,7 @@ impl Interpreter {
             ConstantPoolValueInfo::Class { name_index } => {
                 let class = class_ref.get();
 
-                let class_name = constant_pool.get_class_name(*name_index);
+                let class_name = constant_pool.get_constant_utf8(*name_index);
                 let classref = class.loader.load(class_name).unwrap();
 
                 let new_class_instance = ClassInstance::new(classref);
