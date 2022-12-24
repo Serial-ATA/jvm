@@ -131,6 +131,10 @@ macro_rules! conversions {
 	}};
 }
 
+/// The way branching is implemented requires that we add the `branch` to the `pc`
+/// of the instruction. Since the `read_byte*` implementations seek `pc`, we need to subtract
+/// the *2* branch bytes and *1* opcode byte from the branch before jumping.
+const COMPARISON_SEEK_BACK: isize = -3;
 macro_rules! comparisons {
     ($frame:ident, $instruction:ident, $operator:tt) => {{
         let stack = $frame.get_operand_stack_mut();
@@ -139,7 +143,7 @@ macro_rules! comparisons {
 
         if lhs $operator rhs {
             let branch = $frame.read_byte2_signed() as isize;
-            let _ = $frame.thread().get().pc.fetch_add(branch, std::sync::atomic::Ordering::Relaxed);
+            let _ = $frame.thread().get().pc.fetch_add(branch + COMPARISON_SEEK_BACK, std::sync::atomic::Ordering::Relaxed);
         } else {
             let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
         }
@@ -150,7 +154,7 @@ macro_rules! comparisons {
 
         if lhs $operator $rhs {
             let branch = $frame.read_byte2_signed() as isize;
-            let _ = $frame.thread().get().pc.fetch_add(branch, std::sync::atomic::Ordering::Relaxed);
+            let _ = $frame.thread().get().pc.fetch_add(branch + COMPARISON_SEEK_BACK, std::sync::atomic::Ordering::Relaxed);
         } else {
             let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
         }
@@ -421,7 +425,7 @@ impl Interpreter {
                 CATEGORY: control
                 OpCode::goto => {
                     let address = frame.read_byte2_signed() as isize;
-                    let _ = frame.thread().get().pc.fetch_add(address, MemOrdering::Relaxed);
+                    let _ = frame.thread().get().pc.fetch_add(address + COMPARISON_SEEK_BACK, MemOrdering::Relaxed);
                 },
                 @GROUP {
                     [
@@ -458,14 +462,15 @@ impl Interpreter {
                     
                     assert!(address <= s2::MAX as isize, "goto_w offset too large!");
     
-                    let _ = frame.thread().get().pc.fetch_add(address, MemOrdering::Relaxed);
+                    // See doc comment on `COMPARISON_SEEK_BACK` above for explanation of this subtraction
+                    let _ = frame.thread().get().pc.fetch_add(address - 4, MemOrdering::Relaxed);
                 };
                 
                 // ========= Reserved =========
                 // TODO: breakpoint
                 CATEGORY: reserved
-                code => {
-                    unimplemented!("{:?}", code)
+                unknown_code => {
+                    unimplemented!("{:?}", unknown_code)
                 };
             }
         }
