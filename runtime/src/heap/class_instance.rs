@@ -3,7 +3,7 @@ use crate::reference::{ArrayInstanceRef, ClassInstanceRef, ClassRef, Reference};
 
 use std::fmt::{Debug, Formatter};
 
-use common::int_types::{s4, s8, u1, u2, u4};
+use common::int_types::{s1, s2, s4, s8, u1, u2};
 use common::traits::PtrType;
 use instructions::Operand;
 
@@ -109,15 +109,23 @@ impl ArrayInstance {
 			elements,
 		})
 	}
+
+	pub fn get(&self, index: s4) -> Operand<Reference> {
+		if index.is_negative() || index as usize > self.elements.element_count() {
+			panic!("ArrayIndexOutOfBoundsException"); // TODO
+		}
+
+		self.elements.get(index as usize)
+	}
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArrayContent {
-	Byte(Box<[u1]>),
-	Bool(Box<[u1]>),
-	Short(Box<[u2]>),
+	Byte(Box<[s1]>),
+	Bool(Box<[s1]>),
+	Short(Box<[s2]>),
 	Char(Box<[u2]>),
-	Int(Box<[u4]>),
+	Int(Box<[s4]>),
 	Float(Box<[f32]>),
 	Double(Box<[f64]>),
 	Long(Box<[s8]>),
@@ -138,10 +146,25 @@ impl ArrayContent {
 		}
 	}
 
+	fn get(&self, index: usize) -> Operand<Reference> {
+		match self {
+			ArrayContent::Byte(content) | ArrayContent::Bool(content) => {
+				Operand::Int(s4::from(content[index]))
+			},
+			ArrayContent::Short(content) => Operand::Int(s4::from(content[index])),
+			ArrayContent::Char(content) => Operand::Int(s4::from(content[index])),
+			ArrayContent::Int(content) => Operand::Int(content[index]),
+			ArrayContent::Float(content) => Operand::Float(content[index]),
+			ArrayContent::Double(content) => Operand::Double(content[index]),
+			ArrayContent::Long(content) => Operand::Long(content[index]),
+		}
+	}
+
 	pub fn element_count(&self) -> usize {
 		match self {
 			ArrayContent::Byte(content) | ArrayContent::Bool(content) => content.len(),
-			ArrayContent::Short(content) | ArrayContent::Char(content) => content.len(),
+			ArrayContent::Short(content) => content.len(),
+			ArrayContent::Char(content) => content.len(),
 			ArrayContent::Int(content) => content.len(),
 			ArrayContent::Float(content) => content.len(),
 			ArrayContent::Double(content) => content.len(),

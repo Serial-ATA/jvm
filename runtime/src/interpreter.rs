@@ -103,6 +103,20 @@ macro_rules! local_variable_load {
 	}};
 }
 
+macro_rules! load_from_array {
+	($frame:ident, $opcode:ident) => {{
+		let stack = $frame.get_operand_stack_mut();
+		let index = stack.pop_int();
+
+		let object_ref = stack.pop_reference();
+		let array_ref = object_ref.extract_array();
+
+		// TODO: Validate the type, right now the output is just trusted
+		//       to be correct
+		stack.push_op(array_ref.get(index));
+	}};
+}
+
 macro_rules! local_variable_store {
 	($frame:ident, $opcode:ident, $ty:ident) => {{
 		let local_stack = $frame.get_local_stack_mut();
@@ -273,8 +287,6 @@ impl Interpreter {
                 };
                 
                 // ========= Loads =========
-                // TODO: iaload, laload, faload, daload, aaload, baload,
-                //       caload, saload
                 CATEGORY: loads
                 @GROUP {
                     [
@@ -308,7 +320,19 @@ impl Interpreter {
                         aload_2 (Reference, 2),
                         aload_3 (Reference, 3),
                     ]
-                } => local_variable_load;
+                } => local_variable_load,
+                @GROUP {
+                    [
+                        iaload,
+                        laload,
+                        faload,
+                        daload,
+                        aaload,
+                        baload,
+                        caload,
+                        saload,
+                    ]
+                } => load_from_array;
                 
                 // ========= Stores =========
                 CATEGORY: stores
