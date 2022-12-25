@@ -29,7 +29,8 @@ impl StringInterner {
 		const STRING_CONSTRUCTOR_FROM_CHAR_ARRAY: &[u1] = b"([C)V";
 
 		// TODO: Error handling
-		let java_string_class = ClassLoader::Bootstrap.load(b"java/lang/String").unwrap();
+		let java_string_class = ClassLoader::lookup_class(b"java/lang/String")
+			.expect("java.lang.String should be loaded at this point");
 		let char_array_class = ClassLoader::Bootstrap.load(b"[C").unwrap();
 
 		// TODO: Actual UTF-16 handling
