@@ -257,7 +257,10 @@ where
 {
 	(
 		lex(char('?')),
-		optional((lex(string("extends")), class_name_with_generics())),
+		optional((
+			choice((lex(string("extends")), lex(string("super")))),
+			class_name_with_generics(),
+		)),
 	)
 		.map(|(_, wildcard_ty)| match wildcard_ty {
 			Some((_, ty)) => ty,
