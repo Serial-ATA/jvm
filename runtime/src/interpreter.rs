@@ -1,5 +1,6 @@
 use crate::class::Class;
-use crate::class_instance::{ArrayInstance, ClassInstance};
+use crate::class_instance::ArrayInstance;
+use crate::classpath::classloader::ClassLoader;
 use crate::frame::FrameRef;
 use crate::method_invoker::MethodInvoker;
 use crate::reference::{FieldRef, MethodRef, Reference};
@@ -514,10 +515,9 @@ impl Interpreter {
                 };
                 
                 // ========= References =========
-                // TODO: getfield, putfield,
-                //       invokevirtual, invokespecial, invokestatic,
+                // TODO: 
                 //       invokeinterface, invokedynamic, new,
-                //       anewarray, arraylength, athrow, checkcast, instanceof,
+                //       athrow, checkcast, instanceof,
                 //       monitorenter, monitorexit
                 CATEGORY: references
                 OpCode::getstatic => {
@@ -584,6 +584,22 @@ impl Interpreter {
                     let count = stack.pop_int();
                     
                     let array_ref = ArrayInstance::new_from_type(type_code, count);
+                    stack.push_reference(Reference::Array(array_ref));
+                },
+                OpCode::anewarray => {
+                    let stack = frame.get_operand_stack_mut();
+                    
+                    let index = frame.read_byte2();
+                    let count = stack.pop_int();
+                    
+                    let method = frame.method();
+                    let class_ref = &method.class;
+            
+                    let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
+                    let array_class_name = constant_pool.get_class_name(index);
+                    
+                    let array_class = ClassLoader::Bootstrap.load(array_class_name).unwrap();
+                    let array_ref = ArrayInstance::new_reference(count, array_class);
                     stack.push_reference(Reference::Array(array_ref));
                 };
                 

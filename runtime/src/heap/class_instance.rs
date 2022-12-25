@@ -215,6 +215,19 @@ impl ArrayInstance {
 		})
 	}
 
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.anewarray
+	pub fn new_reference(count: s4, array_class: ClassRef) -> ArrayInstanceRef {
+		if count.is_negative() {
+			panic!("NegativeArraySizeException"); // TODO
+		}
+
+		let elements = vec![Reference::Null; count as usize].into_boxed_slice();
+		ArrayInstancePtr::new(Self {
+			class: array_class,
+			elements: ArrayContent::Reference(elements),
+		})
+	}
+
 	pub fn get(&self, index: s4) -> Operand<Reference> {
 		if index.is_negative() || index as usize > self.elements.element_count() {
 			panic!("ArrayIndexOutOfBoundsException"); // TODO
@@ -240,6 +253,7 @@ impl ArrayInstance {
 			ArrayContent::Float(ref mut contents) => contents[index] = value.expect_float(),
 			ArrayContent::Double(ref mut contents) => contents[index] = value.expect_double(),
 			ArrayContent::Long(ref mut contents) => contents[index] = value.expect_long(),
+			ArrayContent::Reference(ref mut contents) => contents[index] = value.expect_reference(),
 		}
 	}
 }
@@ -254,6 +268,7 @@ pub enum ArrayContent {
 	Float(Box<[f32]>),
 	Double(Box<[f64]>),
 	Long(Box<[s8]>),
+	Reference(Box<[Reference]>),
 }
 
 impl ArrayContent {
@@ -282,6 +297,7 @@ impl ArrayContent {
 			ArrayContent::Float(content) => Operand::Float(content[index]),
 			ArrayContent::Double(content) => Operand::Double(content[index]),
 			ArrayContent::Long(content) => Operand::Long(content[index]),
+			ArrayContent::Reference(content) => Operand::Reference(content[index].clone()),
 		}
 	}
 
@@ -294,6 +310,7 @@ impl ArrayContent {
 			ArrayContent::Float(content) => content.len(),
 			ArrayContent::Double(content) => content.len(),
 			ArrayContent::Long(content) => content.len(),
+			ArrayContent::Reference(content) => content.len(),
 		}
 	}
 }
