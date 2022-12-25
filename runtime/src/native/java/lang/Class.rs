@@ -1,6 +1,9 @@
 use crate::native::NativeReturn;
 use crate::stack::local_stack::LocalStack;
 
+use common::traits::PtrType;
+use instructions::Operand;
+
 pub fn forName0(_: LocalStack) -> NativeReturn {
 	unimplemented!("Class#forName0");
 }
@@ -87,8 +90,17 @@ pub fn isRecord0(_: LocalStack) -> NativeReturn {
 	unimplemented!("Class#isRecord0");
 }
 
-pub fn desiredAssertionStatus0(_: LocalStack) -> NativeReturn {
-	unimplemented!("Class#desiredAssertionStatus0");
+// TODO: https://github.com/openjdk/jdk/blob/19373b2ff0cd795afa262c17dcb3388fd6a5be59/src/hotspot/share/classfile/javaAssertions.cpp#L195
+#[allow(clippy::unnecessary_wraps, clippy::no_effect_underscore_binding)]
+pub fn desiredAssertionStatus0(locals: LocalStack) -> NativeReturn {
+	let operand = locals[0].clone();
+	let reference = operand.expect_reference();
+	let class_instance = reference.extract_class();
+
+	let class = &class_instance.get().class.get();
+	let _name = &class.name;
+
+	Some(Operand::Int(i32::from(false)))
 }
 
 pub fn getNestHost0(_: LocalStack) -> NativeReturn {
