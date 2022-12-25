@@ -45,7 +45,6 @@ impl InitializationLock {
 	}
 }
 
-#[derive(Debug)]
 pub struct Class {
 	pub name: Vec<u1>,
 	pub access_flags: u2,
@@ -57,13 +56,26 @@ pub struct Class {
 	init_lock: Arc<InitializationLock>,
 }
 
+impl Debug for Class {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("Class")
+			.field("name", &unsafe {
+				std::str::from_utf8_unchecked(&self.name)
+			})
+			.field("access_flags", &self.access_flags)
+			.field("loader", &self.loader)
+			.field("instance", &self.class_ty)
+			.finish()
+	}
+}
+
 #[derive(Debug, Clone)]
 pub enum ClassType {
 	Instance(ClassDescriptor),
 	Array(ArrayDescriptor),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ClassDescriptor {
 	pub constant_pool: ConstantPoolRef,
 	pub super_class: Option<ClassRef>,
@@ -71,6 +83,18 @@ pub struct ClassDescriptor {
 	pub fields: Vec<FieldRef>,
 	pub static_field_slots: Box<[Operand<Reference>]>,
 	pub instance_field_count: u4,
+}
+
+impl Debug for ClassDescriptor {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("ClassDescriptor")
+			.field("super_class", &self.super_class)
+			.field("methods", &self.methods)
+			.field("fields", &self.fields)
+			.field("static_field_slots", &self.static_field_slots)
+			.field("instance_field_count", &self.instance_field_count)
+			.finish()
+	}
 }
 
 #[derive(Debug, Clone)]
