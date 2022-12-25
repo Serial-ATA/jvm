@@ -3,6 +3,7 @@
 pub mod classpath;
 mod frame;
 mod heap;
+mod initialization;
 mod interpreter;
 mod method_invoker;
 mod native;

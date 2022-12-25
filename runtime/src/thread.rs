@@ -36,6 +36,8 @@ impl Thread {
 	}
 
 	pub fn new_main(class_name: &[u1], _args: Vec<String>) -> ThreadRef {
+		crate::initialization::initialize();
+
 		let class = ClassLoader::Bootstrap.load(class_name).unwrap();
 		let main_method = class.get().get_main_method().unwrap();
 
