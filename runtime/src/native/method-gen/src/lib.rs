@@ -99,7 +99,7 @@ static NATIVES_REGISTERED: AtomicBool = AtomicBool::new(false);
 
 #[allow(trivial_casts)]
 pub fn registerNatives(_: crate::stack::local_stack::LocalStack) {{
-	if NATIVES_REGISTERED.compare_exchange(false, true, Ordering::SeqCst, Ordering::Acquire) != Ok(true) {{
+	if NATIVES_REGISTERED.compare_exchange(false, true, Ordering::SeqCst, Ordering::Acquire) != Ok(false) {{
 		return;
 	}}
 	

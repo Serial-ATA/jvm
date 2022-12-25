@@ -5,8 +5,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 static JVM_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 pub(crate) fn initialize() {
-	if JVM_INITIALIZED.compare_exchange(false, true, Ordering::SeqCst, Ordering::Acquire)
-		!= Ok(true)
+	if JVM_INITIALIZED.compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed)
+		!= Ok(false)
 	{
 		// We've already initialized!
 		return;
