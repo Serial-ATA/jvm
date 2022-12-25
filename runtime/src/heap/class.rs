@@ -171,14 +171,26 @@ impl Class {
 		let class = classref.get_mut();
 
 		if let ClassType::Instance(ref mut class_instance) = class.class_ty {
+			// Create our Methods...
 			class_instance.methods = parsed_file
 				.methods
 				.iter()
 				.map(|mi| Method::new(Arc::clone(&classref), mi))
 				.collect();
 
-			let mut fields = Vec::with_capacity(parsed_file.fields.len());
-			let mut instance_field_idx = 0;
+			// Then the fields...
+			let mut instance_field_idx = instance_field_count as usize;
+			let mut fields =
+				Vec::with_capacity(instance_field_count as usize + parsed_file.fields.len());
+			if let Some(ref super_class) = class_instance.super_class {
+				// First we have to inherit the super classes' fields
+				for field in &super_class.unwrap_class_instance().fields {
+					fields.push(Arc::clone(field));
+					instance_field_idx += 1;
+				}
+			}
+
+			// Now the fields defined in our class
 			let mut static_idx = 0;
 			for field in parsed_file.fields {
 				let field_idx = if field.is_static() {
@@ -198,6 +210,7 @@ impl Class {
 			}
 			class_instance.fields = fields;
 
+			// Update the instance field count if we encountered any new ones
 			if instance_field_idx > 0 {
 				class_instance.instance_field_count += (instance_field_idx + 1) as u4;
 			}
