@@ -25,7 +25,7 @@ pub enum ClassLoader {
 }
 
 impl ClassLoader {
-	fn lookup_class(name: &[u1]) -> Option<ClassRef> {
+	pub(crate) fn lookup_class(name: &[u1]) -> Option<ClassRef> {
 		let loaded_classes = BOOTSTRAP_LOADED_CLASSES.lock().unwrap();
 
 		let classref = loaded_classes.get(name);

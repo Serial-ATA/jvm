@@ -544,9 +544,9 @@ impl Interpreter {
                     
                     let value = stack.pop();
                     let object_ref = stack.pop_reference();
-                    let class_instance = object_ref.extract_class();
+                    let mirror = object_ref.extract_mirror();
                     
-                    class_instance.get_mut().fields[field.idx] = value;
+                    mirror.get_mut().put_field_value(field.idx, value);
                 },
                 // Static/virtual are differentiated in `MethodInvoker::invoke`
                 OpCode::invokevirtual
@@ -664,7 +664,7 @@ impl Interpreter {
                 let bytes = constant_pool.get_constant_utf8(*string_index);
                 let interned_string = StringInterner::get_java_string(bytes, frame.thread());
 
-                frame.get_operand_stack_mut().push_reference(Reference::Class(interned_string));
+                frame.get_operand_stack_mut().push_reference(Reference::Mirror(interned_string));
             },
 
             // Otherwise, if the run-time constant pool entry is a symbolic reference to a class or interface,
@@ -676,8 +676,8 @@ impl Interpreter {
                 let class_name = constant_pool.get_constant_utf8(*name_index);
                 let classref = class.loader.load(class_name).unwrap();
 
-                let new_class_instance = ClassInstance::new(classref);
-                frame.get_operand_stack_mut().push_reference(Reference::Class(new_class_instance));
+                let new_mirror_instance = Class::create_mirrored(classref);
+                frame.get_operand_stack_mut().push_reference(Reference::Mirror(new_mirror_instance));
             },
 
             // Otherwise, the run-time constant pool entry is a symbolic reference to a method type, a method handle,

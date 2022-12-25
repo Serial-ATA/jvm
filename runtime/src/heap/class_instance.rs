@@ -1,12 +1,105 @@
 use crate::classpath::classloader::ClassLoader;
 use crate::field::Field;
-use crate::reference::{ArrayInstanceRef, ClassInstanceRef, ClassRef, Reference};
+use crate::reference::{
+	ArrayInstanceRef, ClassInstanceRef, ClassRef, MirrorInstanceRef, Reference,
+};
 
 use std::fmt::{Debug, Formatter};
 
 use common::int_types::{s1, s2, s4, s8, u1, u2};
 use common::traits::PtrType;
 use instructions::Operand;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MirrorInstance {
+	pub fields: Box<[Operand<Reference>]>,
+	pub target: ClassInstanceRef,
+}
+
+impl MirrorInstance {
+	pub fn new(mirror_class: ClassRef, target: ClassInstanceRef) -> MirrorInstanceRef {
+		let class_instance = mirror_class.unwrap_class_instance();
+		let instance_field_count = class_instance.instance_field_count;
+
+		// Set the default values for our non-static fields
+		let mut fields = Vec::with_capacity(instance_field_count as usize);
+		for field in class_instance
+			.fields
+			.iter()
+			.filter(|field| !field.is_static())
+		{
+			fields.push(Field::default_value_for_ty(&field.descriptor))
+		}
+
+		MirrorInstancePtr::new(Self {
+			fields: fields.into_boxed_slice(),
+			target,
+		})
+	}
+
+	pub fn get_field_value(&self, index: usize) -> Operand<Reference> {
+		if index < self.fields.len() {
+			return self.fields[index].clone();
+		}
+
+		self.target.get().fields[index - self.fields.len() - 1].clone()
+	}
+
+	pub fn put_field_value(&mut self, index: usize, value: Operand<Reference>) {
+		if index < self.fields.len() {
+			self.fields[index] = value;
+			return;
+		}
+
+		self.target.get_mut().fields[index - self.fields.len() - 1] = value;
+	}
+}
+
+// A pointer to a MirrorInstance
+//
+// This can *not* be constructed by hand, as dropping it will
+// deallocate the instance.
+#[derive(PartialEq)]
+pub struct MirrorInstancePtr(usize);
+
+impl PtrType<MirrorInstance, MirrorInstanceRef> for MirrorInstancePtr {
+	fn new(val: MirrorInstance) -> MirrorInstanceRef {
+		let boxed = Box::new(val);
+		let ptr = Box::into_raw(boxed);
+		MirrorInstanceRef::new(Self(ptr as usize))
+	}
+
+	#[inline(always)]
+	fn as_raw(&self) -> *const MirrorInstance {
+		self.0 as *const MirrorInstance
+	}
+
+	#[inline(always)]
+	fn as_mut_raw(&self) -> *mut MirrorInstance {
+		self.0 as *mut MirrorInstance
+	}
+
+	fn get(&self) -> &MirrorInstance {
+		unsafe { &(*self.as_raw()) }
+	}
+
+	fn get_mut(&self) -> &mut MirrorInstance {
+		unsafe { &mut (*self.as_mut_raw()) }
+	}
+}
+
+impl Drop for MirrorInstancePtr {
+	fn drop(&mut self) {
+		let _ = unsafe { Box::from_raw(self.0 as *mut MirrorInstance) };
+	}
+}
+
+impl Debug for MirrorInstancePtr {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		let instance = self.get();
+		write!(f, "{:?}", instance)
+	}
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassInstance {

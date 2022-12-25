@@ -1,9 +1,10 @@
 use super::field::Field;
 use super::method::Method;
 use super::reference::{ClassRef, FieldRef};
+use crate::class_instance::{ClassInstance, MirrorInstance};
 use crate::classpath::classloader::ClassLoader;
 use crate::method_invoker::MethodInvoker;
-use crate::reference::{MethodRef, Reference};
+use crate::reference::{MethodRef, MirrorInstanceRef, Reference};
 use crate::thread::ThreadRef;
 
 use std::fmt::{Debug, Formatter};
@@ -581,6 +582,14 @@ impl Class {
 
 	pub fn initialization_state(&self) -> ClassInitializationState {
 		self.init_state
+	}
+
+	pub fn create_mirrored(class: ClassRef) -> MirrorInstanceRef {
+		let class_instance = ClassInstance::new(class);
+
+		let mirror_class = ClassLoader::lookup_class(b"java/lang/Class")
+			.expect("java.lang.Class should be loaded at this point");
+		MirrorInstance::new(mirror_class, class_instance)
 	}
 }
 
