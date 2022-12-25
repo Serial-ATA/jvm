@@ -7,4 +7,5 @@ edition = "2021"
 bitflags = "1.3.2"
 combine = "4.6.6"
 common = { path = "../../../../common" }
+once_cell = "1.16.0"
 walkdir = "2.3.2"

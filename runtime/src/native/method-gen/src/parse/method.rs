@@ -1,12 +1,12 @@
-use crate::parse::{lex, whitespace_or_comment, word1};
+use crate::parse::class::IMPORTS;
+use crate::parse::{lex, path1, whitespace_or_comment, word1};
 
 use std::fmt::Write;
 
 use combine::parser::char::{char, string};
-use combine::parser::combinator::{no_partial, FnOpaque};
+use combine::parser::combinator::no_partial;
 use combine::{
-	attempt, choice, many, many1, opaque, optional, satisfy, sep_by, value, ParseError, Parser,
-	Stream,
+	attempt, choice, many, many1, opaque, optional, sep_by, value, ParseError, Parser, Stream,
 };
 use common::int_types::u2;
 
@@ -38,8 +38,7 @@ enum Type {
 	Long,
 	Short,
 	Void,
-	// Class with optional generics
-	Class((String, Option<ClassGenerics>)),
+	Class(String),
 	Array(Box<Type>),
 }
 
@@ -55,9 +54,17 @@ impl Type {
 			Type::Long => write!(string, "J"),
 			Type::Short => write!(string, "S"),
 			Type::Void => write!(string, "V"),
-			Type::Class((name, None)) => write!(string, "L{};", name),
-			Type::Class((name, Some(generics))) => {
-				write!(string, "L{}<{}>;", name, generics.as_string())
+			Type::Class(name) => {
+				if name.contains('.') {
+					// Trust we were provided a full path
+					write!(string, "L{};", name)
+				} else {
+					write!(
+						string,
+						"L{};",
+						IMPORTS.lock().unwrap()[name].replace('.', "/")
+					)
+				}
 			},
 			Type::Array(ty) => {
 				write!(string, "[").unwrap();
@@ -65,28 +72,6 @@ impl Type {
 			},
 		}
 		.unwrap();
-	}
-}
-
-#[derive(Clone, Debug)]
-enum ClassGenerics {
-	Extends(Box<ClassGenerics>),
-	Concrete(String, Option<Box<ClassGenerics>>),
-	Wildcard,
-}
-
-impl ClassGenerics {
-	fn as_string(&self) -> String {
-		match self {
-			ClassGenerics::Extends(super_class) => {
-				format!("+{}", super_class.as_string())
-			},
-			ClassGenerics::Concrete(class, Some(other)) => {
-				format!("L{}<{}>;", class.replace('.', "/"), other.as_string())
-			},
-			ClassGenerics::Concrete(class, None) => format!("L{};", class),
-			ClassGenerics::Wildcard => String::from("*"),
-		}
 	}
 }
 
@@ -248,64 +233,48 @@ where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-	(
-		lex(many1::<String, _, _>(satisfy(|c: char| {
-			c.is_alphanumeric() || c == '.'
-		}))),
-		optional(generics()),
-	)
-		.map(|(class_name, generics)| Type::Class((class_name, generics)))
+	(lex(path1()), optional(generics())).map(|(class_name, _)| Type::Class(class_name))
 }
 
-fn generics<Input>() -> FnOpaque<Input, ClassGenerics>
+fn generics<Input>() -> impl Parser<Input, Output = ()>
 where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-	opaque!(no_partial(
-		(
-			lex(char('<')),
-			choice((wildcard_generics(), class_name_with_generics())),
-			lex(char('>')),
-		)
-			.map(|(_, generics, _)| generics)
-	))
+	opaque!(no_partial((
+		lex(char('<')),
+		choice((wildcard_generics(), class_name_with_generics())),
+		lex(char('>')),
+	)))
+	.map(|_| ())
 }
 
 // Class<?>
 // Class<? extends Qux>
 // etc...
-fn wildcard_generics<Input>() -> impl Parser<Input, Output = ClassGenerics>
+fn wildcard_generics<Input>() -> impl Parser<Input, Output = ()>
 where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-	(
+	opaque!(no_partial((
 		lex(char('?')),
 		optional((
 			choice((lex(string("extends")), lex(string("super")))),
 			class_name_with_generics(),
 		)),
-	)
-		.map(|(_, wildcard_ty)| match wildcard_ty {
-			Some((_, ty)) => ty,
-			_ => ClassGenerics::Wildcard,
-		})
+	)))
+	.map(|_| ())
 }
 
 // Class<Foo>
 // Class<Foo<Bar>
 // Class<Foo<? extends Qux>>
 // etc...
-fn class_name_with_generics<Input>() -> impl Parser<Input, Output = ClassGenerics>
+fn class_name_with_generics<Input>() -> impl Parser<Input, Output = ()>
 where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-	(lex(word1()), optional(generics())).map(|(class, ty)| match ty {
-		Some(ty) => {
-			ClassGenerics::Extends(Box::new(ClassGenerics::Concrete(class, Some(Box::new(ty)))))
-		},
-		_ => ClassGenerics::Concrete(class, None),
-	})
+	(lex(word1()), optional(generics())).map(|_| ())
 }

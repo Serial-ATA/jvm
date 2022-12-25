@@ -49,12 +49,17 @@ pub fn run() {
 
 		let mut module_classes = Vec::new();
 		for entry in std::fs::read_dir(dir.path()).unwrap().map(Result::unwrap) {
-			if entry.path().extension() != Some(METHOD_DEFINITION_DIR_NAME.as_ref()) {
+			let path = entry.path();
+			if path.extension() != Some(METHOD_DEFINITION_DIR_NAME.as_ref()) {
 				continue;
 			}
 
-			let file_contents = std::fs::read_to_string(entry.path()).unwrap();
-			let mut class = parse::Class::parse(file_contents);
+			let file_contents = std::fs::read_to_string(&path).unwrap();
+			let mut class = parse::Class::parse(
+				file_contents,
+				path.file_stem().unwrap().to_str().unwrap(),
+				&module_name,
+			);
 			generate_register_natives_table(&module_name, &mut class, dir.path());
 
 			module_classes.push(class);

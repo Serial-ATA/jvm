@@ -39,3 +39,11 @@ where
 {
 	many1::<String, _, _>(satisfy(char::is_alphanumeric))
 }
+
+fn path1<Input>() -> impl Parser<Input, Output = String>
+where
+	Input: Stream<Token = char>,
+	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+	many1::<String, _, _>(satisfy(|c: char| c.is_alphabetic() || c == '.'))
+}
