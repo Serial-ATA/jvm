@@ -4,6 +4,8 @@ use crate::stack::local_stack::LocalStack;
 use common::traits::PtrType;
 use instructions::Operand;
 
+include!("def/Class.registerNatives");
+
 pub fn forName0(_: LocalStack) -> NativeReturn {
 	unimplemented!("Class#forName0");
 }
