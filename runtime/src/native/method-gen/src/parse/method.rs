@@ -5,7 +5,8 @@ use std::fmt::Write;
 use combine::parser::char::{char, string};
 use combine::parser::combinator::{no_partial, FnOpaque};
 use combine::{
-	attempt, choice, many, many1, opaque, optional, sep_by, value, ParseError, Parser, Stream,
+	attempt, choice, many, many1, opaque, optional, satisfy, sep_by, value, ParseError, Parser,
+	Stream,
 };
 use common::int_types::u2;
 
@@ -81,7 +82,7 @@ impl ClassGenerics {
 				format!("+{}", super_class.as_string())
 			},
 			ClassGenerics::Concrete(class, Some(other)) => {
-				format!("L{}<{}>;", class, other.as_string())
+				format!("L{}<{}>;", class.replace('.', "/"), other.as_string())
 			},
 			ClassGenerics::Concrete(class, None) => format!("L{};", class),
 			ClassGenerics::Wildcard => String::from("*"),
@@ -247,7 +248,12 @@ where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-	(lex(word1()), optional(generics()))
+	(
+		lex(many1::<String, _, _>(satisfy(|c: char| {
+			c.is_alphanumeric() || c == '.'
+		}))),
+		optional(generics()),
+	)
 		.map(|(class_name, generics)| Type::Class((class_name, generics)))
 }
 
