@@ -31,7 +31,7 @@ pub enum Operand<Reference> {
 	Empty,
 }
 
-impl<Reference: Debug> Operand<Reference> {
+impl<Reference: Debug + Clone> Operand<Reference> {
 	/// Add rhs to self
 	pub fn add(&mut self, rhs: Self) {
 		if self.is_int() {
@@ -450,6 +450,14 @@ impl<Reference: Debug> Operand<Reference> {
 			Operand::Const1(ConstOperandType::Double) => 1.,
 			Operand::Double(d) => *d,
 			_ => panic!("Expected operand type `double`"),
+		}
+	}
+
+	/// Unwrap an Operand of type `reference`
+	pub fn expect_reference(&self) -> Reference {
+		match self {
+			Operand::Reference(r) => Reference::clone(r),
+			_ => panic!("Expected operand type `reference`"),
 		}
 	}
 
