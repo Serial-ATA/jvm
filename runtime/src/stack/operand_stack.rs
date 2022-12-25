@@ -86,6 +86,8 @@ impl StackLike<Reference> for OperandStack {
 
 	fn popn(&mut self, count: usize) -> Vec<Operand<Reference>> {
 		trace_stack!(popn, count);
+		assert!(self.inner.len() >= count);
+
 		let split_pos = self.inner.len() - count;
 		self.inner.split_off(split_pos)
 	}
