@@ -39,6 +39,7 @@ enum Type {
 	Void,
 	// Class with optional generics
 	Class((String, Option<ClassGenerics>)),
+	Array(Box<Type>),
 }
 
 impl Type {
@@ -56,6 +57,10 @@ impl Type {
 			Type::Class((name, None)) => write!(string, "L{};", name),
 			Type::Class((name, Some(generics))) => {
 				write!(string, "L{}<{}>;", name, generics.as_string())
+			},
+			Type::Array(ty) => {
+				write!(string, "[").unwrap();
+				return ty.write_to(string);
 			},
 		}
 		.unwrap();
@@ -209,18 +214,32 @@ where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-	choice((
-		lex(string("boolean")).then(|_| value(Type::Boolean)),
-		lex(string("byte")).then(|_| value(Type::Byte)),
-		lex(string("char")).then(|_| value(Type::Char)),
-		lex(string("double")).then(|_| value(Type::Double)),
-		lex(string("float")).then(|_| value(Type::Float)),
-		lex(string("int")).then(|_| value(Type::Int)),
-		lex(string("long")).then(|_| value(Type::Long)),
-		lex(string("short")).then(|_| value(Type::Short)),
-		lex(string("void")).then(|_| value(Type::Void)),
-		class_ty(),
-	))
+	(
+		choice((
+			lex(string("boolean")).then(|_| value(Type::Boolean)),
+			lex(string("byte")).then(|_| value(Type::Byte)),
+			lex(string("char")).then(|_| value(Type::Char)),
+			lex(string("double")).then(|_| value(Type::Double)),
+			lex(string("float")).then(|_| value(Type::Float)),
+			lex(string("int")).then(|_| value(Type::Int)),
+			lex(string("long")).then(|_| value(Type::Long)),
+			lex(string("short")).then(|_| value(Type::Short)),
+			lex(string("void")).then(|_| value(Type::Void)),
+			class_ty(),
+		)),
+		optional(many1::<Vec<&str>, _, _>(lex(string("[]")))),
+	)
+		.map(|(ty, arr)| match arr {
+			Some(arr) => {
+				let mut ty = Type::Array(Box::new(ty));
+				for _ in 0..arr.len() - 1 {
+					ty = Type::Array(Box::new(ty));
+				}
+
+				ty
+			},
+			None => ty,
+		})
 }
 
 fn class_ty<Input>() -> impl Parser<Input, Output = Type>
