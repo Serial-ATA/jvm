@@ -1,0 +1,53 @@
+import java.lang.ClassLoader;
+import java.lang.Object;
+import java.lang.String;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.RecordComponent;
+import jdk.internal.reflect.ConstantPool;
+
+public class Class {
+    private static native Class<?> forName0(String name, boolean initialize,
+                                            ClassLoader loader,
+                                            Class<?> caller)
+        throws ClassNotFoundException;
+
+    public native boolean isInstance(Object obj);
+    public native boolean isAssignableFrom(Class<?> cls);
+    public native boolean isInterface();
+    public native boolean isArray();
+    public native boolean isPrimitive();
+
+    private native String initClassName();
+
+    public native Class<? super T> getSuperclass();
+    private native Class<?>[] getInterfaces0();
+    public native int getModifiers();
+    public native Object[] getSigners();
+    private native void setSigners(Object[] signers);
+    private native Object[] getEnclosingMethod0();
+    private native Class<?> getDeclaringClass0();
+    private native String getSimpleBinaryName0();
+    private native java.security.ProtectionDomain getProtectionDomain0();
+    static native Class<?> getPrimitiveClass(String name);
+    private native String getGenericSignature0();
+    private native ConstantPool getConstantPool();
+    private native Field[]       getDeclaredFields0(boolean publicOnly);
+    private native Method[]      getDeclaredMethods0(boolean publicOnly);
+    private native Constructor<T>[] getDeclaredConstructors0(boolean publicOnly);
+    private native Class<?>[]    getDeclaredClasses0();
+    private native RecordComponent[] getRecordComponents0();
+
+    private native boolean       isRecord0();
+
+    private static native boolean desiredAssertionStatus0(Class<?> clazz);
+
+    private native Class<?> getNestHost0();
+
+    private native Class<?>[] getNestMembers0();
+
+    public native boolean isHidden();
+
+    private native Class<?>[] getPermittedSubclasses0();
+}
