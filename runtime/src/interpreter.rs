@@ -530,6 +530,20 @@ impl Interpreter {
                     
                     field.set_static_value(value);
                 },
+                OpCode::getfield => {
+                    let field = Self::fetch_field(FrameRef::clone(&frame));
+                    if field.is_static() {
+                        panic!("IncompatibleClassChangeError"); // TODO
+                    }
+
+                    let stack = frame.get_operand_stack_mut();
+                    
+                    let object_ref = stack.pop_reference();
+                    let mirror = object_ref.extract_mirror();
+                    
+                    let field_value = mirror.get().get_field_value(field.idx);
+                    stack.push_op(field_value);
+                },
                 OpCode::putfield => {
                     let field = Self::fetch_field(FrameRef::clone(&frame));
                     if field.is_static() {
