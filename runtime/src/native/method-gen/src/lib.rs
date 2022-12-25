@@ -1,6 +1,8 @@
+#![feature(drain_filter)]
+
 mod parse;
 
-use crate::parse::{Class, Method};
+use crate::parse::{AccessFlags, Class, Method};
 
 use std::borrow::Cow;
 use std::ffi::OsStr;
@@ -84,7 +86,7 @@ pub fn run() {
 				writeln!(
 					init_fn_file,
 					"map.insert({});",
-					method_table_entry(module, class, method)
+					method_table_entry(module, &class.class_name, method)
 				)
 				.unwrap();
 			}
@@ -133,15 +135,24 @@ fn generate_register_natives_table(module: &str, class: &mut Class, def_path: &P
 		write!(
 			native_method_table_file,
 			"{}",
-			format_args!(native_method_table_file_header!(), class.methods.len() - 1)
+			format_args!(
+				native_method_table_file_header!(),
+				class
+					.methods
+					.iter()
+					.filter(|method| !method.modifiers.contains(AccessFlags::ACC_STATIC))
+					.count()
+			)
 		)
 		.unwrap();
 
-		for ref method in class.methods.drain(1..).collect::<Vec<Method>>() {
+		for ref method in class.methods.drain_filter(|method| {
+			method.name != "registerNatives" && !method.modifiers.contains(AccessFlags::ACC_STATIC)
+		}) {
 			writeln!(
 				native_method_table_file,
 				"\t\t({}),",
-				method_table_entry(module, class, method)
+				method_table_entry(module, &class.class_name, method)
 			)
 			.unwrap();
 		}
@@ -155,15 +166,15 @@ fn generate_register_natives_table(module: &str, class: &mut Class, def_path: &P
 	}
 }
 
-fn method_table_entry(module: &str, class: &Class, method: &Method) -> String {
+fn method_table_entry(module: &str, class_name: &str, method: &Method) -> String {
 	format!(
 		"NativeMethodDef {{ class: &{:?}, name: &{:?}, descriptor: &{:?} }}, \
 		 crate::native::{}{}::{} as NativeMethodPtr",
-		format!("{}{}", module, class.class_name).as_bytes(),
+		format!("{}{}", module, class_name).as_bytes(),
 		method.name.as_bytes(),
 		method.descriptor.as_bytes(),
 		module.replace('/', "::"),
-		class.class_name,
+		class_name,
 		method.name
 	)
 }
