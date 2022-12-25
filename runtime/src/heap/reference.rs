@@ -5,6 +5,8 @@ use crate::class_instance::{ArrayInstancePtr, ClassInstancePtr, MirrorInstancePt
 
 use std::sync::Arc;
 
+use common::traits::PtrType;
+
 pub type MethodRef = Arc<Method>;
 pub type FieldRef = Arc<Field>;
 pub type ClassRef = Arc<ClassPtr>;
@@ -39,6 +41,7 @@ impl Reference {
 	pub fn extract_class(&self) -> ClassInstanceRef {
 		match self {
 			Self::Class(class) => Arc::clone(class),
+			Self::Mirror(mirror) => Arc::clone(&mirror.get().target),
 			Self::Null => panic!("NullPointerException"),
 			_ => panic!("Expected a class reference!"),
 		}
