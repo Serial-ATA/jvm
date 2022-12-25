@@ -599,15 +599,19 @@ impl Interpreter {
                     
                     if reference.is_null() {
                         let branch = frame.read_byte2_signed() as isize;
-                        let _ = frame.thread().get().pc.fetch_add(branch, MemOrdering::Relaxed);
+                        let _ = frame.thread().get().pc.fetch_add(branch + COMPARISON_SEEK_BACK, MemOrdering::Relaxed);
+                    } else {
+                        let _ = frame.thread().get().pc.fetch_add(2, MemOrdering::Relaxed);
                     }
                 },
                 OpCode::ifnonnull => {
                     let reference = frame.get_operand_stack_mut().pop_reference();
                     
-                    if !reference.is_null() {
+                    if reference.is_null() {
+                        let _ = frame.thread().get().pc.fetch_add(2, MemOrdering::Relaxed);
+                    } else {
                         let branch = frame.read_byte2_signed() as isize;
-                        let _ = frame.thread().get().pc.fetch_add(branch, MemOrdering::Relaxed);
+                        let _ = frame.thread().get().pc.fetch_add(branch + COMPARISON_SEEK_BACK, MemOrdering::Relaxed);
                     }
                 },
                 OpCode::goto_w => {
