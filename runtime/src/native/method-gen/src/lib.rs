@@ -103,9 +103,9 @@ use std::sync::atomic::{{AtomicBool, Ordering}};
 static NATIVES_REGISTERED: AtomicBool = AtomicBool::new(false);
 
 #[allow(trivial_casts)]
-pub fn registerNatives(_: crate::stack::local_stack::LocalStack) {{
+pub fn registerNatives(_: crate::stack::local_stack::LocalStack) -> NativeReturn {{
 	if NATIVES_REGISTERED.compare_exchange(false, true, Ordering::SeqCst, Ordering::Acquire) != Ok(false) {{
-		return;
+		return None;
 	}}
 	
 	let natives: [(NativeMethodDef<'static>, NativeMethodPtr); {}] = [
@@ -149,7 +149,7 @@ fn generate_register_natives_table(module: &str, class: &mut Class, def_path: &P
 		write!(
 			native_method_table_file,
 			"\t];\n\n\tfor method in natives \
-			 {{\n\t\tcrate::native::insert_method(method);\n\t}}\n}}"
+			 {{\n\t\tcrate::native::insert_method(method);\n\t}}\nreturn None;\n}}"
 		)
 		.unwrap();
 	}

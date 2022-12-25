@@ -69,7 +69,17 @@ impl Thread {
 				descriptor: &method.descriptor,
 			});
 
-			return fn_ptr(locals);
+			// Push the return value onto the frame's stack
+			if let Some(ret) = fn_ptr(locals) {
+				thread
+					.get()
+					.current_frame()
+					.unwrap()
+					.get_operand_stack_mut()
+					.push_op(ret);
+			}
+
+			return;
 		}
 
 		let max_stack = method.code.max_stack;
