@@ -6,7 +6,8 @@ use std::fmt::Write;
 use combine::parser::char::{char, string};
 use combine::parser::combinator::no_partial;
 use combine::{
-	attempt, choice, many, many1, opaque, optional, sep_by, value, ParseError, Parser, Stream,
+	attempt, choice, many, many1, opaque, optional, sep_by, token, value, ParseError, Parser,
+	Stream,
 };
 use common::int_types::u2;
 
@@ -202,8 +203,14 @@ where
 {
 	(
 		choice((
-			lex(string("boolean")).then(|_| value(Type::Boolean)),
-			lex(string("byte")).then(|_| value(Type::Byte)),
+			(
+				lex(token('b')),
+				choice((
+					lex(string("oolean")).then(|_| value(Type::Boolean)),
+					lex(string("yte")).then(|_| value(Type::Byte)),
+				)),
+			)
+				.map(|(_, ty)| ty),
 			lex(string("char")).then(|_| value(Type::Char)),
 			lex(string("double")).then(|_| value(Type::Double)),
 			lex(string("float")).then(|_| value(Type::Float)),

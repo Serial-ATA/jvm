@@ -34,6 +34,8 @@ public class Class {
     private native java.security.ProtectionDomain getProtectionDomain0();
     static native Class<?> getPrimitiveClass(String name);
     private native String getGenericSignature0();
+    private native native byte[] getRawAnnotations();
+    private native native byte[] getRawTypeAnnotations();
     private native ConstantPool getConstantPool();
     private native Field[]       getDeclaredFields0(boolean publicOnly);
     private native Method[]      getDeclaredMethods0(boolean publicOnly);
