@@ -1,10 +1,12 @@
 use super::reference::{ClassRef, FieldRef, Reference};
 
+use std::fmt::{Debug, Formatter};
+
 use classfile::{ConstantPool, FieldInfo, FieldType};
 use common::int_types::{u1, u2};
 use instructions::Operand;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Field {
 	pub idx: usize, // Used to set the value on `ClassInstance`s
 	pub class: ClassRef,
@@ -91,5 +93,20 @@ impl Field {
 				Operand::Reference(Reference::Null)
 			},
 		}
+	}
+}
+
+impl Debug for Field {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("Field")
+			.field("idx", &self.idx)
+			.field("class", &self.class)
+			.field("access_flags", &self.access_flags)
+			.field("name", &unsafe {
+				std::str::from_utf8_unchecked(&self.name)
+			})
+			.field("descriptor", &self.descriptor)
+			.field("constant_value_index", &self.constant_value_index)
+			.finish()
 	}
 }
