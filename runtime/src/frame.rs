@@ -13,7 +13,6 @@ use common::traits::PtrType;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6
 #[rustfmt::skip]
-#[derive(Debug)]
 pub struct Frame {
     // Each frame has:
 
@@ -30,8 +29,18 @@ pub struct Frame {
 	pub cached_pc: AtomicIsize,
 }
 
+impl Debug for Frame {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("Frame")
+			.field("locals", &self.locals)
+			.field("stack", &self.stack)
+			.field("method", &self.method)
+			.finish()
+	}
+}
+
 #[repr(transparent)]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FrameRef(Arc<FramePtr>);
 
 impl FrameRef {
@@ -112,6 +121,12 @@ impl FrameRef {
 	pub fn get_stashed_pc(&self) -> isize {
 		let frame = self.0.get();
 		frame.cached_pc.load(Ordering::Relaxed)
+	}
+}
+
+impl Debug for FrameRef {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{:?}", &self.0))
 	}
 }
 
