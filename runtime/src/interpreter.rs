@@ -521,53 +521,58 @@ impl Interpreter {
                 //       monitorenter, monitorexit
                 CATEGORY: references
                 OpCode::getstatic => {
-                    let field = Self::fetch_field(FrameRef::clone(&frame));
-                    frame.get_operand_stack_mut().push_op(field.get_static_value());
+                    if let Some(field) = Self::fetch_field(FrameRef::clone(&frame)) {
+                        frame.get_operand_stack_mut().push_op(field.get_static_value());
+                    }
                 },
                 OpCode::putstatic => {
-                    let field = Self::fetch_field(FrameRef::clone(&frame));
-                    let value = frame.get_operand_stack_mut().pop();
+                    if let Some(field) = Self::fetch_field(FrameRef::clone(&frame)) {
+                        let value = frame.get_operand_stack_mut().pop();
                     
                     field.set_static_value(value);
+                    }
                 },
                 OpCode::getfield => {
-                    let field = Self::fetch_field(FrameRef::clone(&frame));
-                    if field.is_static() {
-                        panic!("IncompatibleClassChangeError"); // TODO
+                    if let Some(field) = Self::fetch_field(FrameRef::clone(&frame)) {
+                        if field.is_static() {
+                            panic!("IncompatibleClassChangeError"); // TODO
+                        }
+    
+                        let stack = frame.get_operand_stack_mut();
+                        
+                        let object_ref = stack.pop_reference();
+                        let mirror = object_ref.extract_mirror();
+                        
+                        let field_value = mirror.get().get_field_value(field.idx);
+                        stack.push_op(field_value);
                     }
-
-                    let stack = frame.get_operand_stack_mut();
-                    
-                    let object_ref = stack.pop_reference();
-                    let mirror = object_ref.extract_mirror();
-                    
-                    let field_value = mirror.get().get_field_value(field.idx);
-                    stack.push_op(field_value);
                 },
                 OpCode::putfield => {
-                    let field = Self::fetch_field(FrameRef::clone(&frame));
-                    if field.is_static() {
-                        panic!("IncompatibleClassChangeError"); // TODO
+                    if let Some(field) = Self::fetch_field(FrameRef::clone(&frame)) {
+                        if field.is_static() {
+                            panic!("IncompatibleClassChangeError"); // TODO
+                        }
+                        
+                        // TODO: if the resolved field is final, it must be declared in the current class,
+                        //       and the instruction must occur in an instance initialization method of the current class.
+                        //       Otherwise, an IllegalAccessError is thrown. 
+                        
+                        let stack = frame.get_operand_stack_mut();
+                        
+                        let value = stack.pop();
+                        let object_ref = stack.pop_reference();
+                        let mirror = object_ref.extract_mirror();
+                        
+                        mirror.get_mut().put_field_value(field.idx, value);
                     }
-                    
-                    // TODO: if the resolved field is final, it must be declared in the current class,
-                    //       and the instruction must occur in an instance initialization method of the current class.
-                    //       Otherwise, an IllegalAccessError is thrown. 
-                    
-                    let stack = frame.get_operand_stack_mut();
-                    
-                    let value = stack.pop();
-                    let object_ref = stack.pop_reference();
-                    let mirror = object_ref.extract_mirror();
-                    
-                    mirror.get_mut().put_field_value(field.idx, value);
                 },
                 // Static/virtual are differentiated in `MethodInvoker::invoke`
                 OpCode::invokevirtual
                 | OpCode::invokespecial
                 | OpCode::invokestatic => {
-                    let method = Self::fetch_method(FrameRef::clone(&frame));
-                    MethodInvoker::invoke(frame, method);
+                    if let Some(method) = Self::fetch_method(FrameRef::clone(&frame)) {
+                        MethodInvoker::invoke(frame, method);
+                    }
                 },
                 OpCode::arraylength => {
                     let stack = frame.get_operand_stack_mut();
@@ -747,7 +752,7 @@ impl Interpreter {
         }
     }
     
-    fn fetch_field(frame: FrameRef) -> FieldRef {
+    fn fetch_field(frame: FrameRef) -> Option<FieldRef> {
         let field_ref_idx = frame.read_byte2();
 
         let method = frame.method();
@@ -755,16 +760,17 @@ impl Interpreter {
 
         let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
 
+        // If this is `None`, the class is initializing
         Class::resolve_field(frame.thread(), constant_pool, field_ref_idx)
     }
     
-    fn fetch_method(frame: FrameRef) -> MethodRef {
+    fn fetch_method(frame: FrameRef) -> Option<MethodRef> {
         let method_ref_idx = frame.read_byte2();
 
         let method = frame.method();
         let class = Arc::clone(&method.class);
 
         let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
-        Class::resolve_method(frame.thread(), constant_pool, method_ref_idx).unwrap()
+        Class::resolve_method(frame.thread(), constant_pool, method_ref_idx)
     }
 }

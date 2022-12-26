@@ -269,14 +269,22 @@ impl Class {
 		thread: ThreadRef,
 		constant_pool: ConstantPoolRef,
 		field_ref_idx: u2,
-	) -> FieldRef {
+	) -> Option<FieldRef> {
 		let (class_name_index, name_and_type_index) = constant_pool.get_field_ref(field_ref_idx);
 
 		let class_name = constant_pool.get_class_name(class_name_index);
 		let classref = ClassLoader::Bootstrap.load(class_name).unwrap();
 
 		if classref.get().initialization_state() != ClassInitializationState::Init {
+			// TODO: This is a hack, really need a better way to signal to the caller that a class is
+			//       initializing and handle the seeking elsewhere
+			let _ = thread
+				.get_mut()
+				.pc
+				.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
+
 			Class::initialize(&classref, Arc::clone(&thread));
+			return None;
 		}
 
 		let (name_index, descriptor_index) = constant_pool.get_name_and_type(name_and_type_index);
@@ -294,7 +302,7 @@ impl Class {
 		let class_instance = classref.unwrap_class_instance();
 		for field in &class_instance.fields {
 			if field.name == field_name && field.descriptor == field_type {
-				return Arc::clone(field);
+				return Some(Arc::clone(field));
 			}
 		}
 
@@ -327,7 +335,15 @@ impl Class {
 		let classref = ClassLoader::Bootstrap.load(class_name).unwrap();
 
 		if classref.get().initialization_state() != ClassInitializationState::Init {
+			// TODO: This is a hack, really need a better way to signal to the caller that a class is
+			//       initializing and handle the seeking elsewhere
+			let _ = thread
+				.get_mut()
+				.pc
+				.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
+
 			Class::initialize(&classref, thread);
+			return None;
 		}
 
 		let class_instance = classref.unwrap_class_instance();
