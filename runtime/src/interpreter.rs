@@ -232,15 +232,20 @@ macro_rules! control_return {
 	}};
 	($frame:ident, $instruction:ident, $return_ty:ident) => {{
 		let stack = $frame.get_operand_stack_mut();
-		let val = stack.pop();
+		let value = stack.pop();
 
-		assert!(
-			matches!(val, Operand::$return_ty(_)),
-			"Invalid return type for `{}` instruction",
-			stringify!($instruction)
-		);
+		paste::paste! {
+			assert!(
+				value.[<is_ $return_ty>](),
+				"Invalid type on operand stack for `{}` instruction",
+				stringify!($opcode)
+			);
+		}
 
-		$frame.thread().get_mut().drop_to_previous_frame(Some(val));
+		$frame
+			.thread()
+			.get_mut()
+			.drop_to_previous_frame(Some(value));
 	}};
 }
 
@@ -631,11 +636,11 @@ impl Interpreter {
                 },
                 @GROUP {
                     [
-                        ireturn (Int),
-                        lreturn (Long),
-                        freturn (Float),
-                        dreturn (Double),
-                        areturn (Reference),
+                        ireturn (int),
+                        lreturn (long),
+                        freturn (float),
+                        dreturn (double),
+                        areturn (reference),
                         r#return,
                     ]
                 } => control_return;
