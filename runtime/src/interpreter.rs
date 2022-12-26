@@ -574,13 +574,19 @@ impl Interpreter {
                         MethodInvoker::invoke(frame, method);
                     }
                 },
-                OpCode::arraylength => {
-                    let stack = frame.get_operand_stack_mut();
-                    let object_ref = stack.pop_reference();
-                    let array_ref = object_ref.extract_array();
+                OpCode::new => {
+                    let index = frame.read_byte2();
                     
-                    let array_len = array_ref.get().elements.element_count();
-                    stack.push_int(array_len as s4);
+                    let class = &frame.method().class;
+                    let constant_pool = &class.unwrap_class_instance().constant_pool;
+                    
+                    // TODO: if the symbolic reference to the class or interface type resolves to an
+                    //       interface or an abstract class, new throws an InstantiationError. 
+                    let class_name = constant_pool.get_class_name(index);
+                    let classref = class.get().loader.load(class_name).unwrap();
+    
+                    let new_mirror_instance = Class::create_mirrored(classref);
+                    frame.get_operand_stack_mut().push_reference(Reference::Mirror(new_mirror_instance));
                 },
                 OpCode::newarray => {
                     let stack = frame.get_operand_stack_mut();
@@ -606,6 +612,14 @@ impl Interpreter {
                     let array_class = ClassLoader::Bootstrap.load(array_class_name).unwrap();
                     let array_ref = ArrayInstance::new_reference(count, array_class);
                     stack.push_reference(Reference::Array(array_ref));
+                },
+                OpCode::arraylength => {
+                    let stack = frame.get_operand_stack_mut();
+                    let object_ref = stack.pop_reference();
+                    let array_ref = object_ref.extract_array();
+                    
+                    let array_len = array_ref.get().elements.element_count();
+                    stack.push_int(array_len as s4);
                 };
                 
                 // ========= Control =========
