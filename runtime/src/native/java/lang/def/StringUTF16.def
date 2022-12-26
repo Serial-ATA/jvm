@@ -1,0 +1,3 @@
+public class StringUTF16 {
+    private static native boolean isBigEndian();
+}
