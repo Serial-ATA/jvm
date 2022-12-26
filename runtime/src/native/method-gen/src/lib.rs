@@ -2,11 +2,11 @@
 
 mod parse;
 
-use crate::parse::{AccessFlags, Class, Method};
+use crate::parse::{AccessFlags, Class, Member, Method};
 
 use std::borrow::Cow;
 use std::ffi::OsStr;
-use std::fs::OpenOptions;
+use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
@@ -82,18 +82,27 @@ pub fn run() {
 
 	for (module, classes) in &modules {
 		for class in classes {
-			for method in &class.methods {
-				writeln!(
-					init_fn_file,
-					"map.insert({});",
-					method_table_entry(module, &class.class_name, method)
-				)
-				.unwrap();
-			}
+			build_map_inserts(&mut init_fn_file, module, class);
 		}
 	}
 
 	write!(init_fn_file, "map\n}}").unwrap();
+}
+
+fn build_map_inserts(file: &mut File, module: &str, class: &Class) {
+	for member in &class.members {
+		match member {
+			Member::Method(method) => {
+				writeln!(
+					file,
+					"map.insert({});",
+					method_table_entry(module, &class.class_name, method)
+				)
+				.unwrap();
+			},
+			Member::Class(class_) => build_map_inserts(file, module, class_),
+		}
+	}
 }
 
 macro_rules! native_method_table_file_header {
@@ -116,54 +125,58 @@ pub fn registerNatives(_: crate::stack::local_stack::LocalStack) -> NativeReturn
 }
 
 fn generate_register_natives_table(module: &str, class: &mut Class, def_path: &Path) {
-	if let Some(pos) = class
-		.methods
+	if !class
+		.members
 		.iter()
-		.position(|method| method.name == "registerNatives")
+		.any(|member| matches!(member, Member::Method(method) if method.name == "registerNatives"))
 	{
-		class.methods.swap(pos, 0);
-
-		let native_method_table_path =
-			def_path.join(format!("{}.registerNatives", class.class_name));
-		let mut native_method_table_file = OpenOptions::new()
-			.write(true)
-			.truncate(true)
-			.create(true)
-			.open(native_method_table_path)
-			.unwrap();
-
-		write!(
-			native_method_table_file,
-			"{}",
-			format_args!(
-				native_method_table_file_header!(),
-				class
-					.methods
-					.iter()
-					.filter(|method| !method.modifiers.contains(AccessFlags::ACC_STATIC))
-					.count()
-			)
-		)
-		.unwrap();
-
-		for ref method in class.methods.drain_filter(|method| {
-			method.name != "registerNatives" && !method.modifiers.contains(AccessFlags::ACC_STATIC)
-		}) {
-			writeln!(
-				native_method_table_file,
-				"\t\t({}),",
-				method_table_entry(module, &class.class_name, method)
-			)
-			.unwrap();
-		}
-
-		write!(
-			native_method_table_file,
-			"\t];\n\n\tfor method in natives \
-			 {{\n\t\tcrate::native::insert_method(method);\n\t}}\nreturn None;\n}}"
-		)
-		.unwrap();
+		return;
 	}
+
+	let native_method_table_path = def_path.join(format!("{}.registerNatives", class.class_name));
+	let mut native_method_table_file = OpenOptions::new()
+		.write(true)
+		.truncate(true)
+		.create(true)
+		.open(native_method_table_path)
+		.unwrap();
+
+	write!(
+		native_method_table_file,
+		"{}",
+		format_args!(
+			native_method_table_file_header!(),
+			class
+				.members
+				.iter()
+				.filter(|member| matches!(member, Member::Method(method) if !method.modifiers.contains(AccessFlags::ACC_STATIC)))
+				.count()
+		)
+	)
+	.unwrap();
+
+	for ref member in class.members.drain_filter(|member| {
+		matches!(member, Member::Method(method) if method.name != "registerNatives" && !method.modifiers.contains(AccessFlags::ACC_STATIC))
+	}) {
+		match member {
+			Member::Method(method) => {
+				writeln!(
+					native_method_table_file,
+					"\t\t({}),",
+					method_table_entry(module, &class.class_name, method)
+				)
+					.unwrap();
+			}
+			Member::Class(_) => unreachable!()
+		}
+	}
+
+	write!(
+		native_method_table_file,
+		"\t];\n\n\tfor method in natives \
+		 {{\n\t\tcrate::native::insert_method(method);\n\t}}\nreturn None;\n}}"
+	)
+	.unwrap();
 }
 
 fn method_table_entry(module: &str, class_name: &str, method: &Method) -> String {
@@ -174,7 +187,7 @@ fn method_table_entry(module: &str, class_name: &str, method: &Method) -> String
 		method.name.as_bytes(),
 		method.descriptor.as_bytes(),
 		module.replace('/', "::"),
-		class_name,
+		class_name.replace('$', "::"),
 		method.name
 	)
 }
