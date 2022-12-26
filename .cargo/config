@@ -46,6 +46,7 @@ rustflags = [
     "-Aclippy::used_underscore_binding",
     "-Aclippy::needless_pass_by_value",
     "-Aclippy::manual_assert",
+    "-Aclippy::unnecessary_wraps",
     # TODO: Remove this
     "-Aclippy::missing-panics-doc"
 ]
