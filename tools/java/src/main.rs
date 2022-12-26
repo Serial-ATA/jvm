@@ -56,8 +56,8 @@ struct JVMOptions {
 	// TODO: --dry-run: create VM and load main class but do not execute main method.
 	// TODO: --validate-modules:
 	//                   validate all modules and exit
-	// TODO: -D<name>=<value>
-	//                   set a system property
+	#[arg(short = 'D', help = "Sets a system property (format: -Dkey=value)")]
+	system_properties: Option<Vec<String>>,
 	// TODO: --show-version (alias: -showversion): print product version to the error stream and continue
 }
 
