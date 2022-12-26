@@ -14,4 +14,4 @@ mod thread;
 pub use frame::Frame;
 pub use heap::*;
 pub use interpreter::Interpreter;
-pub use thread::Thread;
+pub use thread::{JVMOptions, Thread};

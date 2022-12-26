@@ -54,15 +54,19 @@ struct JVMOptions {
 	//                   list observable modules and exit
 	// TODO: --describe-module (alias: d): <module name>
 	//                   describe a module and exit
-	// TODO: --dry-run: create VM and load main class but do not execute main method.
+	#[arg(
+		long,
+		help = "Create VM and load main class but do not execute main method"
+	)]
+	pub dry_run: bool,
 	// TODO: --validate-modules:
 	//                   validate all modules and exit
 	#[arg(short = 'D', help = "Sets a system property (format: -Dkey=value)")]
-	system_properties: Option<Vec<String>>,
+	pub system_properties: Option<Vec<String>>,
 	#[arg(long, help = "Print product version to the error stream and continue")]
-	showversion: bool,
+	pub showversion: bool,
 	#[arg(long, help = "Print product version to the output stream and continue")]
-	show_version: bool,
+	pub show_version: bool,
 }
 
 fn main() {
@@ -92,7 +96,7 @@ fn main() {
 		},
 	};
 
-	let thread = Thread::new_main(main_class.as_bytes(), args.args);
+	let thread = Thread::new_main(main_class.as_bytes(), args.options.into(), args.args);
 	Thread::run(&thread);
 }
 
@@ -101,4 +105,15 @@ fn init_logger() {
 		.format_timestamp(None)
 		.format_target(false)
 		.init();
+}
+
+impl Into<runtime::JVMOptions> for JVMOptions {
+	fn into(self) -> runtime::JVMOptions {
+		runtime::JVMOptions {
+			dry_run: self.dry_run,
+			system_properties: self.system_properties,
+			showversion: self.showversion,
+			show_version: self.show_version,
+		}
+	}
 }

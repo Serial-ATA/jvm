@@ -14,6 +14,13 @@ use common::int_types::u1;
 use common::traits::PtrType;
 use instructions::{Operand, StackLike};
 
+pub struct JVMOptions {
+	pub dry_run: bool,
+	pub system_properties: Option<Vec<String>>,
+	pub showversion: bool,
+	pub show_version: bool,
+}
+
 pub type ThreadRef = Arc<ThreadPtr>;
 
 #[derive(Debug)]
@@ -35,15 +42,21 @@ impl Thread {
 		ThreadPtr::new(thread)
 	}
 
-	pub fn new_main(class_name: &[u1], _args: Vec<String>) -> ThreadRef {
+	pub fn new_main(
+		class_name: &[u1],
+		jvm_options: JVMOptions,
+		_main_args: Vec<String>,
+	) -> ThreadRef {
 		let thread = Thread::new();
 		crate::initialization::initialize(Arc::clone(&thread));
 
 		let class = ClassLoader::Bootstrap.load(class_name).unwrap();
 		let main_method = class.get().get_main_method().unwrap();
 
-		// TODO: Convert rust string args to java strings to pass to main
-		Thread::invoke_method(Arc::clone(&thread), main_method);
+		if !jvm_options.dry_run {
+			// TODO: Convert rust string args to java strings to pass to main
+			Thread::invoke_method(Arc::clone(&thread), main_method);
+		}
 
 		thread
 	}
