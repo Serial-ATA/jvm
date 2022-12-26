@@ -4,6 +4,7 @@ use std::path::Path;
 
 use clap::Parser;
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 static USAGE: &str = r"jvm [OPTIONS] <MAIN_CLASS> [ARGS]...    (to execute a class)
    or  jvm [OPTIONS] --jar <JARFILE> [ARGS]... (to execute a jar file)";
 
@@ -58,7 +59,10 @@ struct JVMOptions {
 	//                   validate all modules and exit
 	#[arg(short = 'D', help = "Sets a system property (format: -Dkey=value)")]
 	system_properties: Option<Vec<String>>,
-	// TODO: --show-version (alias: -showversion): print product version to the error stream and continue
+	#[arg(long, help = "Print product version to the error stream and continue")]
+	showversion: bool,
+	#[arg(long, help = "Print product version to the output stream and continue")]
+	show_version: bool,
 }
 
 fn main() {
