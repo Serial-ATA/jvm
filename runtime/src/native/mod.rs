@@ -4,6 +4,7 @@ use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 
 use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 use std::sync::RwLock;
 
 use common::int_types::u1;
@@ -17,6 +18,20 @@ pub struct NativeMethodDef<'a> {
 	pub class: &'a [u1],
 	pub name: &'a [u1],
 	pub descriptor: &'a [u1],
+}
+
+impl<'a> Debug for NativeMethodDef<'a> {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("NativeMethodDef")
+			.field("class", &unsafe {
+				std::str::from_utf8_unchecked(self.class)
+			})
+			.field("name", &unsafe { std::str::from_utf8_unchecked(self.name) })
+			.field("descriptor", &unsafe {
+				std::str::from_utf8_unchecked(self.descriptor)
+			})
+			.finish()
+	}
 }
 
 pub type NativeReturn = Option<Operand<Reference>>;
