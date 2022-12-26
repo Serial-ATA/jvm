@@ -511,17 +511,35 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 	}
 }
 
-impl<Reference: Debug + PartialEq> PartialOrd for Operand<Reference> {
+impl<Reference: Debug + PartialEq + Clone> PartialOrd for Operand<Reference> {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-		match (self, other) {
-			(Operand::Int(lhs), Operand::Int(rhs)) => lhs.partial_cmp(rhs),
-			(Operand::Float(lhs), Operand::Float(rhs)) => lhs.partial_cmp(rhs),
-			(Operand::Double(lhs), Operand::Double(rhs)) => lhs.partial_cmp(rhs),
-			(Operand::Long(lhs), Operand::Long(rhs)) => lhs.partial_cmp(rhs),
-			_ => panic!(
-				"Invalid operand type for `cmp` instruction: {:?} cmp {:?}",
-				self, other
-			),
+		if self.is_int() {
+			let lhs = self.expect_int();
+			let rhs = other.expect_int();
+			return lhs.partial_cmp(&rhs);
 		}
+
+		if self.is_long() {
+			let lhs = self.expect_long();
+			let rhs = other.expect_long();
+			return lhs.partial_cmp(&rhs);
+		}
+
+		if self.is_float() {
+			let lhs = self.expect_float();
+			let rhs = other.expect_float();
+			return lhs.partial_cmp(&rhs);
+		}
+
+		if self.is_double() {
+			let lhs = self.expect_double();
+			let rhs = other.expect_double();
+			return lhs.partial_cmp(&rhs);
+		}
+
+		panic!(
+			"Invalid operand type for `cmp` instruction: {:?} cmp {:?}",
+			self, other
+		)
 	}
 }
