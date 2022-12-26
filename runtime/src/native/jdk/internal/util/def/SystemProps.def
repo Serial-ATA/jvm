@@ -1,0 +1,8 @@
+import java.lang.String;
+
+public class SystemProps {
+    public class Raw {
+        private static native String[] vmProperties();
+        private static native String[] platformProperties();
+    }
+}

@@ -12,6 +12,7 @@ use instructions::Operand;
 use once_cell::sync::Lazy;
 
 mod java;
+mod jdk;
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub struct NativeMethodDef<'a> {
