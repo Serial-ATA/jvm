@@ -36,16 +36,23 @@ impl Thread {
 	}
 
 	pub fn new_main(class_name: &[u1], _args: Vec<String>) -> ThreadRef {
-		crate::initialization::initialize();
+		let thread = Thread::new();
+		crate::initialization::initialize(Arc::clone(&thread));
 
 		let class = ClassLoader::Bootstrap.load(class_name).unwrap();
 		let main_method = class.get().get_main_method().unwrap();
 
 		// TODO: Convert rust string args to java strings to pass to main
-		let thread = Thread::new();
 		Thread::invoke_method(Arc::clone(&thread), main_method);
 
 		thread
+	}
+
+	// This is just `invoke_method`, but it calls `run` since we aren't
+	// in the main method yet.
+	pub fn pre_main_invoke_method(thread: ThreadRef, method: MethodRef) {
+		Self::invoke_method(Arc::clone(&thread), method);
+		Thread::run(&thread)
 	}
 
 	pub fn invoke_method(thread: ThreadRef, method: MethodRef) {

@@ -381,7 +381,7 @@ impl Class {
 		panic!("NoSuchMethodError") // TODO
 	}
 
-	fn resolve_method_step_two(
+	pub fn resolve_method_step_two(
 		class_instance: &ClassDescriptor,
 		method_name: &[u1],
 		descriptor: &[u1],
