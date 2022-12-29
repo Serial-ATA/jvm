@@ -1,0 +1,104 @@
+import java.lang.Object;
+import java.lang.Throwable;
+import java.lang.ClassLoader;
+import java.lang.Class;
+import java.lang.String;
+
+import java.lang.reflect.Field;
+import java.security.ProtectionDomain;
+
+public final class Unsafe {
+    private static native void registerNatives();
+
+    public native int     getInt(Object o, long offset);
+    public native void    putInt(Object o, long offset, int x);
+    public native Object  getReference(Object o, long offset);
+    public native void    putReference(Object o, long offset, Object x);
+    public native boolean getBoolean(Object o, long offset);
+    public native void    putBoolean(Object o, long offset, boolean x);
+    public native byte    getByte(Object o, long offset);
+    public native void    putByte(Object o, long offset, byte x);
+    public native short   getShort(Object o, long offset);
+    public native void    putShort(Object o, long offset, short x);
+    public native char    getChar(Object o, long offset);
+    public native void    putChar(Object o, long offset, char x);
+    public native long    getLong(Object o, long offset);
+    public native void    putLong(Object o, long offset, long x);
+    public native float   getFloat(Object o, long offset);
+    public native void    putFloat(Object o, long offset, float x);
+    public native double  getDouble(Object o, long offset);
+    public native void    putDouble(Object o, long offset, double x);
+
+    public native Object getUncompressedObject(long address);
+
+    private native void writeback0(long address);
+    private native void writebackPreSync0();
+    private native void writebackPostSync0();
+
+    public native Class<?> defineClass0(String name, byte[] b, int off, int len,
+                                        ClassLoader loader,
+                                        ProtectionDomain protectionDomain);
+
+    public native void throwException(Throwable ee);
+
+    public final native boolean compareAndSetReference(Object o, long offset,
+                                                       Object expected,
+                                                       Object x);
+    public final native Object compareAndExchangeReference(Object o, long offset,
+                                                           Object expected,
+                                                           Object x);
+
+    public final native boolean compareAndSetInt(Object o, long offset,
+                                                 int expected,
+                                                 int x);
+    public final native int compareAndExchangeInt(Object o, long offset,
+                                                  int expected,
+                                                  int x);
+
+    public final native boolean compareAndSetLong(Object o, long offset,
+                                                  long expected,
+                                                  long x);
+    public final native long compareAndExchangeLong(Object o, long offset,
+                                                    long expected,
+                                                    long x);
+
+    public native Object  getReferenceVolatile(Object o, long offset);
+    public native void    putReferenceVolatile(Object o, long offset, Object x);
+    public native int     getIntVolatile(Object o, long offset);
+    public native void    putIntVolatile(Object o, long offset, int x);
+    public native boolean getBooleanVolatile(Object o, long offset);
+    public native void    putBooleanVolatile(Object o, long offset, boolean x);
+    public native byte    getByteVolatile(Object o, long offset);
+    public native void    putByteVolatile(Object o, long offset, byte x);
+    public native short   getShortVolatile(Object o, long offset);
+    public native void    putShortVolatile(Object o, long offset, short x);
+    public native char    getCharVolatile(Object o, long offset);
+    public native void    putCharVolatile(Object o, long offset, char x);
+    public native long    getLongVolatile(Object o, long offset);
+    public native void    putLongVolatile(Object o, long offset, long x);
+    public native float   getFloatVolatile(Object o, long offset);
+    public native void    putFloatVolatile(Object o, long offset, float x);
+    public native double  getDoubleVolatile(Object o, long offset);
+    public native void    putDoubleVolatile(Object o, long offset, double x);
+
+    public native void unpark(Object thread);
+    public native void park(boolean isAbsolute, long time);
+
+    public native void fullFence();
+
+    private native long    allocateMemory0(long bytes);
+    private native long    reallocateMemory0(long address, long bytes);
+    private native void    freeMemory0(long address);
+    private native void    setMemory0(Object o, long offset, long bytes, byte value);
+    private native void    copyMemory0(Object srcBase, long srcOffset, Object destBase, long destOffset, long bytes);
+    private native void    copySwapMemory0(Object srcBase, long srcOffset, Object destBase, long destOffset, long bytes, long elemSize);
+    private native long    objectFieldOffset0(Field f);
+    private native long    objectFieldOffset1(Class<?> c, String name);
+    private native long    staticFieldOffset0(Field f);
+    private native Object  staticFieldBase0(Field f);
+    private native boolean shouldBeInitialized0(Class<?> c);
+    private native void    ensureClassInitialized0(Class<?> c);
+    private native int     arrayBaseOffset0(Class<?> arrayClass);
+    private native int     arrayIndexScale0(Class<?> arrayClass);
+    private native int     getLoadAverage0(double[] loadavg, int nelems);
+}
