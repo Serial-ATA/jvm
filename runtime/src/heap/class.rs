@@ -137,17 +137,19 @@ impl Class {
 
 		let constant_pool = parsed_file.constant_pool;
 
-		let static_field_count = parsed_file
+		let mut static_field_count = parsed_file
 			.fields
 			.iter()
 			.filter(|field| field.is_static())
 			.count();
-		let static_field_slots = vec![Operand::Empty; static_field_count].into_boxed_slice();
+		let mut instance_field_count = 0;
 
-		let instance_field_count = match super_class {
-			Some(ref super_class) => super_class.unwrap_class_instance().instance_field_count,
-			_ => 0,
-		};
+		if let Some(ref super_class) = super_class {
+			static_field_count += super_class.unwrap_class_instance().static_field_slots.len();
+			instance_field_count = super_class.unwrap_class_instance().instance_field_count;
+		}
+
+		let static_field_slots = vec![Operand::Empty; static_field_count].into_boxed_slice();
 
 		// We need the Class instance to create our methods and fields
 		let class_instance = ClassDescriptor {

@@ -534,7 +534,7 @@ impl Interpreter {
                     if let Some(field) = Self::fetch_field(FrameRef::clone(&frame)) {
                         let value = frame.get_operand_stack_mut().pop();
                     
-                    field.set_static_value(value);
+                        field.set_static_value(value);
                     }
                 },
                 OpCode::getfield => {
@@ -548,7 +548,7 @@ impl Interpreter {
                         let object_ref = stack.pop_reference();
                         let mirror = object_ref.extract_mirror();
                         
-                        let field_value = mirror.get().get_field_value(field.idx);
+                        let field_value = mirror.get().get_field_value(field);
                         stack.push_op(field_value);
                     }
                 },
@@ -568,7 +568,7 @@ impl Interpreter {
                         let object_ref = stack.pop_reference();
                         let mirror = object_ref.extract_mirror();
                         
-                        mirror.get_mut().put_field_value(field.idx, value);
+                        mirror.get_mut().put_field_value(field, value);
                     }
                 },
                 // Static/virtual are differentiated in `MethodInvoker::invoke`

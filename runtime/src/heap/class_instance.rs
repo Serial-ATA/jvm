@@ -1,10 +1,11 @@
 use crate::classpath::classloader::ClassLoader;
 use crate::field::Field;
 use crate::reference::{
-	ArrayInstanceRef, ClassInstanceRef, ClassRef, MirrorInstanceRef, Reference,
+	ArrayInstanceRef, ClassInstanceRef, ClassRef, FieldRef, MirrorInstanceRef, Reference,
 };
 
 use std::fmt::{Debug, Formatter};
+use std::sync::Arc;
 
 use common::int_types::{s1, s2, s4, s8, u1, u2};
 use common::traits::PtrType;
@@ -12,6 +13,7 @@ use instructions::Operand;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MirrorInstance {
+	pub class: ClassRef,
 	pub fields: Box<[Operand<Reference>]>,
 	pub target: ClassInstanceRef,
 }
@@ -32,26 +34,29 @@ impl MirrorInstance {
 		}
 
 		MirrorInstancePtr::new(Self {
+			class: mirror_class,
 			fields: fields.into_boxed_slice(),
 			target,
 		})
 	}
 
-	pub fn get_field_value(&self, index: usize) -> Operand<Reference> {
-		if index < self.fields.len() {
-			return self.fields[index].clone();
+	pub fn get_field_value(&self, field: FieldRef) -> Operand<Reference> {
+		let class_name = &field.class.get().name;
+		if class_name == &self.class.get().name {
+			return self.fields[field.idx].clone();
 		}
 
-		self.target.get().fields[index - self.fields.len() - 1].clone()
+		self.target.get().get_field_value(field)
 	}
 
-	pub fn put_field_value(&mut self, index: usize, value: Operand<Reference>) {
-		if index < self.fields.len() {
-			self.fields[index] = value;
+	pub fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>) {
+		let class_name = &field.class.get().name;
+		if class_name == &self.class.get().name {
+			self.fields[field.idx] = value;
 			return;
 		}
 
-		self.target.get_mut().fields[index - self.fields.len() - 1] = value;
+		self.target.get_mut().put_field_value(field, value)
 	}
 }
 
@@ -103,6 +108,7 @@ impl Debug for MirrorInstancePtr {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassInstance {
+	pub super_class: Option<ClassInstanceRef>,
 	pub class: ClassRef,
 	pub fields: Box<[Operand<Reference>]>,
 }
@@ -111,6 +117,11 @@ impl ClassInstance {
 	pub fn new(class: ClassRef) -> ClassInstanceRef {
 		let class_instance = class.unwrap_class_instance();
 		let instance_field_count = class_instance.instance_field_count;
+
+		let mut super_class = None;
+		if let Some(ref super_class_) = class_instance.super_class {
+			super_class = Some(Self::new(Arc::clone(super_class_)));
+		}
 
 		// Set the default values for our non-static fields
 		let mut fields = Vec::with_capacity(instance_field_count as usize);
@@ -123,9 +134,47 @@ impl ClassInstance {
 		}
 
 		ClassInstancePtr::new(Self {
+			super_class,
 			class,
 			fields: fields.into_boxed_slice(),
 		})
+	}
+
+	fn get_field_value(&self, field: FieldRef) -> Operand<Reference> {
+		let class_name = &field.class.get().name;
+		let mut current_class = &self.class;
+		loop {
+			if &current_class.get().name == class_name {
+				return self.fields[field.idx].clone();
+			}
+
+			if let Some(ref super_class) = current_class.unwrap_class_instance().super_class {
+				current_class = super_class;
+			} else {
+				break;
+			}
+		}
+
+		panic!("Failed to resolve field: {:?}", field);
+	}
+
+	fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>) {
+		let class_name = &field.class.get().name;
+		let mut current_class = &self.class;
+		loop {
+			if &current_class.get().name == class_name {
+				self.fields[field.idx] = value;
+				return;
+			}
+
+			if let Some(ref super_class) = current_class.unwrap_class_instance().super_class {
+				current_class = super_class;
+			} else {
+				break;
+			}
+		}
+
+		panic!("Failed to resolve field: {:?}", field);
 	}
 }
 
