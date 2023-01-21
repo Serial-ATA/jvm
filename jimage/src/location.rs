@@ -1,35 +1,11 @@
-use crate::ImageStrings;
+use crate::{ImageStrings, JImage};
 
 use common::int_types::{u1, u4, u8};
 
-// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L233
-pub struct JImageLocation {
-	attributes: [u8; Self::ATTRIBUTE_COUNT as usize],
-}
-
-impl JImageLocation {
-	pub fn new() -> Self {
-		Self {
-			attributes: [0; Self::ATTRIBUTE_COUNT as usize],
-		}
-	}
-
-	pub fn new_with_data(data: &[u1]) -> Self {
-		let mut ret = Self::new();
-		ret.set_data(data);
-		ret
-	}
-
-	pub(crate) fn new_opt_(data: Option<&[u1]>) -> Self {
-		match data {
-			Some(data) => Self::new_with_data(data),
-			None => Self::new(),
-		}
-	}
-}
-
 #[rustfmt::skip]
-impl JImageLocation {
+pub mod attr {
+	use common::int_types::u8;
+	
 	pub const ATTRIBUTE_END         : u8 = 0; // End of attribute stream marker
 	pub const ATTRIBUTE_MODULE      : u8 = 1; // String table offset of module name
 	pub const ATTRIBUTE_PARENT      : u8 = 2; // String table offset of resource path parent
@@ -41,7 +17,35 @@ impl JImageLocation {
 	pub const ATTRIBUTE_COUNT       : u8 = 8; // Number of attribute kinds
 }
 
-impl JImageLocation {
+// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L233
+pub struct JImageLocation<'a> {
+	attributes: [u8; attr::ATTRIBUTE_COUNT as usize],
+	image: &'a JImage,
+}
+
+impl<'a> JImageLocation<'a> {
+	pub fn new(image: &'a JImage) -> Self {
+		Self {
+			attributes: [0; attr::ATTRIBUTE_COUNT as usize],
+			image,
+		}
+	}
+
+	pub fn new_with_data(image: &'a JImage, data: &[u1]) -> Self {
+		let mut ret = Self::new(image);
+		ret.set_data(data);
+		ret
+	}
+
+	pub(crate) fn new_opt_(image: &'a JImage, data: Option<&[u1]>) -> Self {
+		match data {
+			Some(data) => Self::new_with_data(image, data),
+			None => Self::new(image),
+		}
+	}
+}
+
+impl<'a> JImageLocation<'a> {
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L252
 	/// Return the attribute value number of bytes.
 	#[inline(always)]
@@ -55,7 +59,7 @@ impl JImageLocation {
 	pub fn attribute_kind(data: u1) -> u1 {
 		let kind = data >> 3;
 		assert!(
-			kind < Self::ATTRIBUTE_COUNT as u1,
+			kind < attr::ATTRIBUTE_COUNT as u1,
 			"Invalid JImage attribute kind: {}",
 			kind
 		);
@@ -91,10 +95,9 @@ impl JImageLocation {
 		for header_byte in data {
 			// Extract kind from header byte.
 			let kind = Self::attribute_kind(*header_byte);
-			assert!(
-				u8::from(kind) < Self::ATTRIBUTE_COUNT,
-				"invalid image location attribute"
-			);
+			if u8::from(kind) == attr::ATTRIBUTE_END {
+				return;
+			}
 
 			// Extract length of data (in bytes).
 			let n = Self::attribute_length(*header_byte);
@@ -118,7 +121,7 @@ impl JImageLocation {
 	#[inline(always)]
 	pub fn get_attribute(&self, kind: u1) -> u8 {
 		assert!(
-			Self::ATTRIBUTE_END < u8::from(kind) && u8::from(kind) < Self::ATTRIBUTE_COUNT,
+			attr::ATTRIBUTE_END < u8::from(kind) && u8::from(kind) < attr::ATTRIBUTE_COUNT,
 			"invalid attribute kind"
 		);
 		self.attributes[kind as usize]
@@ -127,7 +130,108 @@ impl JImageLocation {
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L300
 	/// Retrieve an attribute string value from the inflated array.
 	#[inline(always)]
-	pub fn get_attribute_string<'a>(&self, kind: u4, strings: &'a ImageStrings<'_>) -> &'a [u1] {
+	pub fn get_attribute_string<'b>(&self, kind: u4, strings: &'b ImageStrings<'_>) -> &'b [u1] {
 		strings.get(self.get_attribute(kind as u1) as u4)
+	}
+
+	/// Retrieve the full name of the location
+	///
+	/// # Errors
+	/// * The location contains a non UTF-8 attribute
+	pub fn get_full_name(
+		&self,
+		modules_prefix: bool,
+	) -> Result<String, std::string::FromUtf8Error> {
+		let mut name = String::new();
+
+		let module_offset = self.get_attribute(attr::ATTRIBUTE_MODULE as u1);
+		if module_offset > 0 {
+			if modules_prefix {
+				name.push_str("/modules");
+			}
+
+			name.push('/');
+			name.push_str(&self.get_module()?);
+			name.push('/');
+		}
+
+		let parent_offset = self.get_attribute(attr::ATTRIBUTE_PARENT as u1);
+		if parent_offset > 0 {
+			name.push_str(&self.get_parent()?);
+			name.push('/');
+		}
+
+		name.push_str(&self.get_base()?);
+
+		let extension_offset = self.get_attribute(attr::ATTRIBUTE_EXTENSION as u1);
+		if extension_offset > 0 {
+			name.push('.');
+			name.push_str(&self.get_extension()?);
+		}
+
+		Ok(name)
+	}
+
+	/// Retrieve the string at `ATTRIBUTE_MODULE`
+	///
+	/// # Errors
+	/// * The string at the offset is non UTF-8
+	pub fn get_module(&self) -> Result<String, std::string::FromUtf8Error> {
+		let strings = ImageStrings(self.image.borrow_index().string_bytes);
+		String::from_utf8(
+			self.get_attribute_string(attr::ATTRIBUTE_MODULE as u4, &strings)
+				.to_vec(),
+		)
+	}
+
+	/// Retrieve the string at `ATTRIBUTE_PARENT`
+	///
+	/// # Errors
+	/// * The string at the offset is non UTF-8
+	pub fn get_parent(&self) -> Result<String, std::string::FromUtf8Error> {
+		let strings = ImageStrings(self.image.borrow_index().string_bytes);
+		String::from_utf8(
+			self.get_attribute_string(attr::ATTRIBUTE_PARENT as u4, &strings)
+				.to_vec(),
+		)
+	}
+
+	/// Retrieve the string at `ATTRIBUTE_BASE`
+	///
+	/// # Errors
+	/// * The string at the offset is non UTF-8
+	pub fn get_base(&self) -> Result<String, std::string::FromUtf8Error> {
+		let strings = ImageStrings(self.image.borrow_index().string_bytes);
+		String::from_utf8(
+			self.get_attribute_string(attr::ATTRIBUTE_BASE as u4, &strings)
+				.to_vec(),
+		)
+	}
+
+	/// Retrieve the string at `ATTRIBUTE_EXTENSION`
+	///
+	/// # Errors
+	/// * The string at the offset is non UTF-8
+	pub fn get_extension(&self) -> Result<String, std::string::FromUtf8Error> {
+		let strings = ImageStrings(self.image.borrow_index().string_bytes);
+		String::from_utf8(
+			self.get_attribute_string(attr::ATTRIBUTE_EXTENSION as u4, &strings)
+				.to_vec(),
+		)
+	}
+
+	/// Retrieve the `ATTRIBUTE_OFFSET`
+	pub fn get_content_offset(&self) -> u8 {
+		self.get_attribute(attr::ATTRIBUTE_OFFSET as u1)
+	}
+
+	/// Retrieve the `ATTRIBUTE_COMPRESSED`
+	pub fn get_compressed_size(&self) -> u8 {
+		self.get_attribute(attr::ATTRIBUTE_COMPRESSED as u1)
+	}
+
+	/// Retrieve the `ATTRIBUTE_UNCOMPRESSED`
+	pub fn get_uncompressed_size(&self) -> u8 {
+		self.get_attribute(attr::ATTRIBUTE_UNCOMPRESSED as u1)
 	}
 }

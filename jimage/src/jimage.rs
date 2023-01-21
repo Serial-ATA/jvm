@@ -72,7 +72,7 @@ impl JImage {
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L447
 	/// Find the location attributes associated with the path.
 	/// Returns true if the location is found, false otherwise.
-	pub fn find_location(&self, path: &str, location: &mut JImageLocation) -> bool {
+	pub fn find_location(&self, path: &str, location: &mut JImageLocation<'_>) -> bool {
 		// Locate the entry in the index perfect hash table.
 		let index = ImageStrings::find(
 			*self.borrow_endian(),
@@ -115,11 +115,11 @@ impl JImage {
 			let data = self.get_location_offset_data(offset);
 
 			// Expand location attributes.
-			let location = JImageLocation::new_opt_(data);
+			let location = JImageLocation::new_opt_(self, data);
 
 			// Make sure result is not a false positive.
 			if self.verify_location(&location, path) {
-				*size = location.get_attribute(JImageLocation::ATTRIBUTE_UNCOMPRESSED as u1);
+				*size = location.get_uncompressed_size();
 				return Some(offset);
 			}
 		}
@@ -131,13 +131,13 @@ impl JImage {
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L484
 	/// Verify that a found location matches the supplied path.
 	#[rustfmt::skip]
-	pub fn verify_location(&self, location: &JImageLocation, path: &str) -> bool {
+	pub fn verify_location(&self, location: &JImageLocation<'_>, path: &str) -> bool {
 		// Manage the image string table.
 		let strings = ImageStrings(self.borrow_index().string_bytes);
 
 		// Get module name string.
 		let module =
-			location.get_attribute_string(JImageLocation::ATTRIBUTE_MODULE as u4, &strings);
+			location.get_attribute_string(crate::location::attr::ATTRIBUTE_MODULE as u4, &strings);
 
 		let mut path_iter = path.bytes();
 
@@ -151,7 +151,7 @@ impl JImage {
 
 		// Get parent (package) string
 		let parent =
-			location.get_attribute_string(JImageLocation::ATTRIBUTE_PARENT as u4, &strings);
+			location.get_attribute_string(crate::location::attr::ATTRIBUTE_PARENT as u4, &strings);
 
 		// If parent string is not empty string.
 		if !parent.is_empty() {
@@ -161,13 +161,13 @@ impl JImage {
 		}
 
 		// Get base name string.
-		let base = location.get_attribute_string(JImageLocation::ATTRIBUTE_BASE as u4, &strings);
+		let base = location.get_attribute_string(crate::location::attr::ATTRIBUTE_BASE as u4, &strings);
 
 		// Compare with base name.
 		if !path_iter.by_ref().eq(base.iter().copied()) { return false; }
 
 		// Get extension string.
-		let extension = location.get_attribute_string(JImageLocation::ATTRIBUTE_EXTENSION as u4, &strings);
+		let extension = location.get_attribute_string(crate::location::attr::ATTRIBUTE_EXTENSION as u4, &strings);
 
 		// If extension is not empty.
 		if !extension.is_empty() {
@@ -180,13 +180,22 @@ impl JImage {
 		path_iter.next().is_none()
 	}
 
+	// TODO: https://github.com/openjdk/jdk/blob/62a033ecd7058f4a4354ebdcd667b3d7991e1f3d/src/java.base/share/native/libjimage/jimage.cpp#L102
+	pub fn find_resource(&self, module_name: &str, name: &str, size: &mut u8) -> Option<u4> {
+		// TBD: assert!(module_name.len() > 0, "module name must be non-empty");
+		assert!(!name.is_empty(), "name must be non-empty");
+
+		let fullpath = format!("/{}/{}\0", module_name, name);
+		self.find_location_index(&fullpath, size)
+	}
+
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L523
 	/// Return the resource for the supplied location offset.
 	pub fn get_resource(&self, offset: u4, uncompressed_data: &mut [u1]) {
 		// Get address of first byte of location attribute stream.
 		let data = self.get_location_offset_data(offset);
 		// Expand location attributes.
-		let location = JImageLocation::new_opt_(data);
+		let location = JImageLocation::new_opt_(self, data);
 		// Read the data
 		self.get_resource_from_location(&location, uncompressed_data);
 	}
@@ -195,14 +204,13 @@ impl JImage {
 	/// Return the resource for the supplied location.
 	pub fn get_resource_from_location(
 		&self,
-		location: &JImageLocation,
+		location: &JImageLocation<'_>,
 		uncompressed_data: &mut [u1],
 	) {
 		// Retrieve the byte offset and size of the resource.
-		let offset = location.get_attribute(JImageLocation::ATTRIBUTE_OFFSET as u1);
-		let uncompressed_size =
-			location.get_attribute(JImageLocation::ATTRIBUTE_UNCOMPRESSED as u1);
-		let compressed_size = location.get_attribute(JImageLocation::ATTRIBUTE_COMPRESSED as u1);
+		let offset = location.get_content_offset();
+		let uncompressed_size = location.get_uncompressed_size();
+		let compressed_size = location.get_compressed_size();
 
 		let data_start = self.get_data_address() + offset as usize;
 
@@ -231,5 +239,30 @@ impl JImage {
 			strings,
 			Endian::Little, // TODO
 		);
+	}
+
+	/// Return a sorted collection of all paths to valid locations
+	///
+	/// # Errors
+	/// * A location has a non UTF-8 attribute
+	pub fn get_entry_names(&self) -> Result<Vec<String>, std::string::FromUtf8Error> {
+		let offsets = self.borrow_index().offsets_table;
+
+		let mut names = Vec::with_capacity(offsets.len());
+		for offset in offsets.iter().copied() {
+			if offset > 0 {
+				let data = self.get_location_offset_data(offset);
+				let location = JImageLocation::new_opt_(self, data);
+				let name = location.get_full_name(false)?;
+				names.push(name);
+			}
+		}
+
+		names.sort();
+		Ok(names)
+	}
+
+	pub fn is_tree_info_resource(path: &str) -> bool {
+		path.starts_with("/packages") || path.starts_with("/modules")
 	}
 }
