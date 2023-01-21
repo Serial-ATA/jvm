@@ -11,12 +11,18 @@ impl<'a> ImageStrings<'a> {
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L168
 	/// Return the UTF-8 string beginning at offset.
-	pub fn get(&self, offset: u4) -> &[u1] {
+	pub fn get(&self, offset: u4) -> &'a [u1] {
 		assert!(
 			(offset as usize) < self.0.len(),
 			"offset exceeds string table size"
 		);
-		&self.0[offset as usize..]
+		let string_at_offset = &self.0[offset as usize..];
+		let terminator_pos = string_at_offset
+			.iter()
+			.copied()
+			.position(|b| b == 0)
+			.unwrap();
+		&string_at_offset[..terminator_pos]
 	}
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L59

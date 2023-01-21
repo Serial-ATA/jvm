@@ -89,23 +89,26 @@ impl<'a> JImageLocation<'a> {
 	/// Inflates the attribute stream into individual values stored in the long
 	/// array _attributes. This allows an attribute value to be quickly accessed by
 	/// direct indexing.  Unspecified values default to zero (from constructor.)
-	pub fn set_data(&mut self, mut data: &[u1]) {
+	pub fn set_data(&mut self, data: &[u1]) {
 		// Deflate the attribute stream into an array of attributes.
 		// Repeat until end header is found.
-		for header_byte in data {
+		let mut i = 0;
+		loop {
 			// Extract kind from header byte.
-			let kind = Self::attribute_kind(*header_byte);
+			let header_byte = data[i];
+			let kind = Self::attribute_kind(header_byte);
 			if u8::from(kind) == attr::ATTRIBUTE_END {
 				return;
 			}
 
+			i += 1;
+
 			// Extract length of data (in bytes).
-			let n = Self::attribute_length(*header_byte);
+			let n = Self::attribute_length(header_byte);
 
 			// Read value (most significant first.)
-			self.attributes[kind as usize] = Self::attribute_value(&data[1..], n);
-
-			data = &data[n as usize..];
+			self.attributes[kind as usize] = Self::attribute_value(&data[i..], n);
+			i += n as usize;
 		}
 	}
 
@@ -130,7 +133,7 @@ impl<'a> JImageLocation<'a> {
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L300
 	/// Retrieve an attribute string value from the inflated array.
 	#[inline(always)]
-	pub fn get_attribute_string<'b>(&self, kind: u4, strings: &'b ImageStrings<'_>) -> &'b [u1] {
+	pub fn get_attribute_string(&self, kind: u4, strings: ImageStrings<'a>) -> &'a [u1] {
 		strings.get(self.get_attribute(kind as u1) as u4)
 	}
 
@@ -138,10 +141,7 @@ impl<'a> JImageLocation<'a> {
 	///
 	/// # Errors
 	/// * The location contains a non UTF-8 attribute
-	pub fn get_full_name(
-		&self,
-		modules_prefix: bool,
-	) -> Result<String, std::string::FromUtf8Error> {
+	pub fn get_full_name(&self, modules_prefix: bool) -> Result<String, core::str::Utf8Error> {
 		let mut name = String::new();
 
 		let module_offset = self.get_attribute(attr::ATTRIBUTE_MODULE as u1);
@@ -151,22 +151,22 @@ impl<'a> JImageLocation<'a> {
 			}
 
 			name.push('/');
-			name.push_str(&self.get_module()?);
+			name.push_str(self.get_module()?);
 			name.push('/');
 		}
 
 		let parent_offset = self.get_attribute(attr::ATTRIBUTE_PARENT as u1);
 		if parent_offset > 0 {
-			name.push_str(&self.get_parent()?);
+			name.push_str(self.get_parent()?);
 			name.push('/');
 		}
 
-		name.push_str(&self.get_base()?);
+		name.push_str(self.get_base()?);
 
 		let extension_offset = self.get_attribute(attr::ATTRIBUTE_EXTENSION as u1);
 		if extension_offset > 0 {
 			name.push('.');
-			name.push_str(&self.get_extension()?);
+			name.push_str(self.get_extension()?);
 		}
 
 		Ok(name)
@@ -176,48 +176,36 @@ impl<'a> JImageLocation<'a> {
 	///
 	/// # Errors
 	/// * The string at the offset is non UTF-8
-	pub fn get_module(&self) -> Result<String, std::string::FromUtf8Error> {
+	pub fn get_module(&self) -> Result<&str, core::str::Utf8Error> {
 		let strings = ImageStrings(self.image.borrow_index().string_bytes);
-		String::from_utf8(
-			self.get_attribute_string(attr::ATTRIBUTE_MODULE as u4, &strings)
-				.to_vec(),
-		)
+		core::str::from_utf8(self.get_attribute_string(attr::ATTRIBUTE_MODULE as u4, strings))
 	}
 
 	/// Retrieve the string at `ATTRIBUTE_PARENT`
 	///
 	/// # Errors
 	/// * The string at the offset is non UTF-8
-	pub fn get_parent(&self) -> Result<String, std::string::FromUtf8Error> {
+	pub fn get_parent(&self) -> Result<&str, core::str::Utf8Error> {
 		let strings = ImageStrings(self.image.borrow_index().string_bytes);
-		String::from_utf8(
-			self.get_attribute_string(attr::ATTRIBUTE_PARENT as u4, &strings)
-				.to_vec(),
-		)
+		core::str::from_utf8(self.get_attribute_string(attr::ATTRIBUTE_PARENT as u4, strings))
 	}
 
 	/// Retrieve the string at `ATTRIBUTE_BASE`
 	///
 	/// # Errors
 	/// * The string at the offset is non UTF-8
-	pub fn get_base(&self) -> Result<String, std::string::FromUtf8Error> {
+	pub fn get_base(&self) -> Result<&str, core::str::Utf8Error> {
 		let strings = ImageStrings(self.image.borrow_index().string_bytes);
-		String::from_utf8(
-			self.get_attribute_string(attr::ATTRIBUTE_BASE as u4, &strings)
-				.to_vec(),
-		)
+		core::str::from_utf8(self.get_attribute_string(attr::ATTRIBUTE_BASE as u4, strings))
 	}
 
 	/// Retrieve the string at `ATTRIBUTE_EXTENSION`
 	///
 	/// # Errors
 	/// * The string at the offset is non UTF-8
-	pub fn get_extension(&self) -> Result<String, std::string::FromUtf8Error> {
+	pub fn get_extension(&self) -> Result<&str, core::str::Utf8Error> {
 		let strings = ImageStrings(self.image.borrow_index().string_bytes);
-		String::from_utf8(
-			self.get_attribute_string(attr::ATTRIBUTE_EXTENSION as u4, &strings)
-				.to_vec(),
-		)
+		core::str::from_utf8(self.get_attribute_string(attr::ATTRIBUTE_EXTENSION as u4, strings))
 	}
 
 	/// Retrieve the `ATTRIBUTE_OFFSET`

@@ -137,7 +137,7 @@ impl JImage {
 
 		// Get module name string.
 		let module =
-			location.get_attribute_string(crate::location::attr::ATTRIBUTE_MODULE as u4, &strings);
+			location.get_attribute_string(crate::location::attr::ATTRIBUTE_MODULE as u4, strings);
 
 		let mut path_iter = path.bytes();
 
@@ -151,7 +151,7 @@ impl JImage {
 
 		// Get parent (package) string
 		let parent =
-			location.get_attribute_string(crate::location::attr::ATTRIBUTE_PARENT as u4, &strings);
+			location.get_attribute_string(crate::location::attr::ATTRIBUTE_PARENT as u4, strings);
 
 		// If parent string is not empty string.
 		if !parent.is_empty() {
@@ -161,13 +161,13 @@ impl JImage {
 		}
 
 		// Get base name string.
-		let base = location.get_attribute_string(crate::location::attr::ATTRIBUTE_BASE as u4, &strings);
+		let base = location.get_attribute_string(crate::location::attr::ATTRIBUTE_BASE as u4, strings);
 
 		// Compare with base name.
 		if !path_iter.by_ref().eq(base.iter().copied()) { return false; }
 
 		// Get extension string.
-		let extension = location.get_attribute_string(crate::location::attr::ATTRIBUTE_EXTENSION as u4, &strings);
+		let extension = location.get_attribute_string(crate::location::attr::ATTRIBUTE_EXTENSION as u4, strings);
 
 		// If extension is not empty.
 		if !extension.is_empty() {
@@ -245,7 +245,7 @@ impl JImage {
 	///
 	/// # Errors
 	/// * A location has a non UTF-8 attribute
-	pub fn get_entry_names(&self) -> Result<Vec<String>, std::string::FromUtf8Error> {
+	pub fn get_entry_names(&self) -> Result<Vec<String>, core::str::Utf8Error> {
 		let offsets = self.borrow_index().offsets_table;
 
 		let mut names = Vec::with_capacity(offsets.len());
