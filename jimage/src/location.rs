@@ -1,4 +1,5 @@
 use crate::{ImageStrings, JImage};
+use std::fmt::{Debug, Formatter};
 
 use common::int_types::{u1, u4, u8};
 
@@ -21,6 +22,14 @@ pub mod attr {
 pub struct JImageLocation<'a> {
 	attributes: [u8; attr::ATTRIBUTE_COUNT as usize],
 	image: &'a JImage,
+}
+
+impl<'a> Debug for JImageLocation<'a> {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("JImageLocation")
+			.field("attributes", &self.attributes)
+			.finish()
+	}
 }
 
 impl<'a> JImageLocation<'a> {
