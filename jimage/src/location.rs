@@ -101,14 +101,12 @@ impl<'a> JImageLocation<'a> {
 				return;
 			}
 
-			i += 1;
-
 			// Extract length of data (in bytes).
 			let n = Self::attribute_length(header_byte);
 
 			// Read value (most significant first.)
-			self.attributes[kind as usize] = Self::attribute_value(&data[i..], n);
-			i += n as usize;
+			self.attributes[kind as usize] = Self::attribute_value(&data[i + 1..], n);
+			i += n as usize + 1;
 		}
 	}
 
