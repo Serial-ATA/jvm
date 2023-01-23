@@ -174,7 +174,7 @@ fn generate_register_natives_table(module: &str, class: &mut Class, def_path: &P
 	write!(
 		native_method_table_file,
 		"\t];\n\n\tfor method in natives \
-		 {{\n\t\tcrate::native::insert_method(method);\n\t}}\nreturn None;\n}}"
+		 {{\n\t\tcrate::native::insert_method(method);\n\t}}\nNone\n}}"
 	)
 	.unwrap();
 }
