@@ -8,6 +8,15 @@ use crate::Thread;
 use common::int_types::{u1, u2};
 use instructions::{Operand, StackLike};
 
+macro_rules! trace_method {
+	($method:ident) => {{
+		#[cfg(debug_assertions)]
+		{
+			log::trace!("[METHOD CALL] {:?}", $method);
+		}
+	}};
+}
+
 pub struct MethodInvoker;
 
 impl MethodInvoker {
@@ -63,6 +72,7 @@ impl MethodInvoker {
 	}
 
 	fn invoke_(thread: ThreadRef, method: MethodRef, local_stack: LocalStack) {
+		trace_method!(method);
 		Thread::invoke_method_with_local_stack(thread, method, local_stack);
 	}
 
