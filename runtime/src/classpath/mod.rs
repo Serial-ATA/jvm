@@ -1,5 +1,6 @@
 pub mod classloader;
 pub mod jar;
+pub mod jimage;
 
 use std::fs::File;
 use std::io::Read;
@@ -7,7 +8,6 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, RwLock};
 
 use common::int_types::u1;
-use jimage::JImage;
 use once_cell::sync::Lazy;
 use zip::ZipArchive;
 
@@ -21,6 +21,12 @@ pub fn find_classpath_entry(name: &[u1]) -> Vec<u1> {
 	let name = std::str::from_utf8(name).unwrap();
 	let mut name = name.replace('.', "/");
 	name.push_str(".class");
+
+	if jimage::initialized() {
+		if let Some(resource) = jimage::lookup_vm_resource(&name) {
+			return resource;
+		}
+	}
 
 	for entry in &CLASSPATH.read().unwrap().entries {
 		match entry {
@@ -38,9 +44,6 @@ pub fn find_classpath_entry(name: &[u1]) -> Vec<u1> {
 					return file_contents;
 				};
 			},
-			ClassPathEntry::Image(_image) => {
-				unimplemented!("JImage classpath search")
-			},
 		}
 	}
 
@@ -50,7 +53,6 @@ pub fn find_classpath_entry(name: &[u1]) -> Vec<u1> {
 pub enum ClassPathEntry {
 	Dir(PathBuf),
 	Zip(Mutex<ZipArchive<File>>),
-	Image(JImage),
 }
 
 impl ClassPathEntry {
