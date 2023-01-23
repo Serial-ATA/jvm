@@ -1,10 +1,11 @@
 #![feature(let_chains)]
 
 use std::fs;
-use std::path::PathBuf;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 use clap::Parser;
-use jimage::JImage;
+use jimage::{JImage, JImageLocation};
 
 #[derive(Parser)]
 #[command(
@@ -64,14 +65,78 @@ fn main() {
 	let args = Command::parse();
 
 	match args.command {
+		SubCommand::Extract { dir, jimage } => extract(dir, jimage),
 		SubCommand::Info { jimage } => info(jimage),
 		SubCommand::List { verbose, jimage } => list(jimage, verbose),
 		c => unimplemented!("{:?}", c),
 	}
 	// TODO: glob includes
 	// TODO: regex includes
-	// TODO: extract subcommand
 	// TODO: verify subcommand
+}
+
+fn extract(dir: String, path: PathBuf) {
+	let dump_to = Path::new(&dir);
+	if !dump_to.exists() {
+		if fs::create_dir_all(dump_to).is_err() {
+			exit(format!(
+				"Cannot create directory '{}'",
+				dump_to.to_string_lossy()
+			))
+		}
+	}
+
+	if !dump_to.is_dir() {
+		exit(format!(
+			"'{}' is not a directory",
+			dump_to.to_string_lossy()
+		))
+	}
+
+	for_each_entry(
+		path,
+		|_| {},
+		|_| {},
+		move |name, location, jimage| {
+			let resource_path = Path::new(name);
+			let local_resource_path;
+
+			// We have to strip the leading '/', or else `Path::join` won't work properly.
+			if resource_path.is_absolute() {
+				let resource_path_no_root = &resource_path.to_string_lossy()[1..];
+				local_resource_path = dump_to.join(resource_path_no_root);
+			} else {
+				local_resource_path = dump_to.join(name);
+			}
+
+			if let Some(parent) = local_resource_path.parent() {
+				if fs::create_dir_all(parent).is_err() {
+					exit(format!(
+						"Cannot create directory '{}'",
+						parent.to_string_lossy()
+					))
+				}
+			}
+
+			let Ok(mut resource) = fs::OpenOptions::new()
+				.write(true)
+				.create(true)
+				.truncate(true)
+				.open(&local_resource_path) else {
+				exit(format!("Cannot create file '{}'", local_resource_path.to_string_lossy()));
+				return;
+			};
+
+			let mut bytes = vec![0; location.get_uncompressed_size() as usize];
+			jimage.get_resource_from_location(location, &mut bytes);
+			if resource.write_all(&bytes).is_err() {
+				exit(format!(
+					"Cannot write to file '{}'",
+					local_resource_path.to_string_lossy()
+				));
+			}
+		},
+	)
 }
 
 fn info(path: PathBuf) {
@@ -91,9 +156,24 @@ fn info(path: PathBuf) {
 }
 
 fn list(path: PathBuf, verbose: bool) {
-	let jimage = jimage_parser::parse(&mut fs::File::open(&path).unwrap());
+	for_each_entry(
+		path,
+		|path| println!("jimage: {:?}", fs::canonicalize(path).unwrap()),
+		|module| list_module(module, verbose),
+		move |name, location, _| {
+			print(name, verbose.then_some(location));
+		},
+	);
+}
 
-	println!("jimage: {:?}", fs::canonicalize(path).unwrap());
+fn for_each_entry<P, M, L>(path: PathBuf, on_jimage_parse: P, on_new_module: M, on_new_resource: L)
+where
+	P: Fn(&Path),
+	M: Fn(&str),
+	L: Fn(&str, &JImageLocation<'_>, &JImage),
+{
+	let jimage = jimage_parser::parse(&mut fs::File::open(&path).unwrap());
+	on_jimage_parse(&path);
 
 	let mut old_module = String::new();
 	for name in jimage.get_entry_names().unwrap() {
@@ -101,11 +181,13 @@ fn list(path: PathBuf, verbose: bool) {
 			let new_module = module_name(&name);
 
 			if new_module != old_module {
-				list_module(new_module, verbose);
+				on_new_module(new_module);
 				old_module = new_module.to_string();
 			}
 
-			print(&name, verbose.then_some(&jimage));
+			if let Some(location) = jimage.find_location(&name) {
+				on_new_resource(&name, &location, &jimage);
+			}
 		}
 	}
 }
@@ -127,12 +209,8 @@ fn trim_module(name: &str) -> &str {
 	name
 }
 
-fn print(name: &str, image: Option<&JImage>) {
-	if let Some(image) = image {
-		let Some(location) = image.find_location(name) else {
-			return
-		};
-
+fn print(name: &str, location: Option<&JImageLocation<'_>>) {
+	if let Some(location) = location {
 		print!("{:>12} ", location.get_content_offset());
 		print!("{:>10} ", location.get_uncompressed_size());
 		print!("{:>10} ", location.get_compressed_size());
@@ -150,4 +228,9 @@ fn list_module(module: &str, verbose: bool) {
 		print!("Compressed ");
 		println!("Entry")
 	}
+}
+
+fn exit(message: String) {
+	eprintln!("Error: {}", message);
+	std::process::exit(1);
 }
