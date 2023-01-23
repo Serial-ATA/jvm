@@ -7,7 +7,8 @@ use common::int_types::{s4, u1, u4};
 pub struct ImageStrings<'a>(pub &'a [u1]);
 
 impl<'a> ImageStrings<'a> {
-	const HASH_MULTIPLIER: s4 = 0x0100_0193;
+	pub const HASH_MULTIPLIER: s4 = 0x0100_0193;
+	const POSITIVE_MASK: u4 = 0x7FFF_FFFF;
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L168
 	/// Return the UTF-8 string beginning at offset.
@@ -31,26 +32,25 @@ impl<'a> ImageStrings<'a> {
 
 		let mut useed = seed as u4;
 		for byte in string.bytes() {
-			useed = (seed.overflowing_mul(Self::HASH_MULTIPLIER).0 as u4) ^ u4::from(byte);
+			useed = (useed.wrapping_mul(Self::HASH_MULTIPLIER as u4)) ^ u4::from(byte);
 		}
 
-		(useed & 0x07FF_FFFF) as s4
+		(useed & Self::POSITIVE_MASK) as s4
 	}
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L75
 	// TODO: Use endian when endian switching is implemented
 	pub fn find(_endian: Endian, name: &str, redirect: &[s4]) -> Option<s4> {
 		// If the table is empty, then short cut.
-		let length = redirect.len() as u4;
-		if length == 0 {
+		if redirect.is_empty() {
 			return None;
 		}
 
 		// Compute the basic perfect hash for name.
-		let mut hash_code = Self::hash_code(name, Self::HASH_MULTIPLIER) as u4;
+		let mut hash_code = Self::hash_code(name, Self::HASH_MULTIPLIER);
 
 		// Modulo table size.
-		let index = hash_code % length;
+		let index = hash_code % redirect.len() as s4;
 
 		// Get redirect entry.
 		//   value == 0 then not found
@@ -62,9 +62,9 @@ impl<'a> ImageStrings<'a> {
 		match value.cmp(&0) {
 			Ordering::Greater => {
 				// Entry collision value, need to recompute hash.
-				hash_code = ImageStrings::hash_code(name, value) as u4;
+				hash_code = ImageStrings::hash_code(name, value);
 				// Modulo table size.
-				Some((hash_code % length) as s4)
+				Some(hash_code % redirect.len() as s4)
 			},
 			// Compute direct index.
 			Ordering::Less => Some(-1 - value),

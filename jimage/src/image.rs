@@ -71,8 +71,7 @@ impl JImage {
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L447
 	/// Find the location attributes associated with the path.
-	/// Returns true if the location is found, false otherwise.
-	pub fn find_location(&self, path: &str, location: &mut JImageLocation<'_>) -> bool {
+	pub fn find_location(&self, path: &str) -> Option<JImageLocation<'_>> {
 		// Locate the entry in the index perfect hash table.
 		let index = ImageStrings::find(
 			*self.borrow_endian(),
@@ -86,15 +85,15 @@ impl JImage {
 			let data = self.get_location_data(index as u4);
 
 			// Expand location attributes.
-			if let Some(data) = data {
-				location.set_data(data);
-			}
+			let location = JImageLocation::new_opt_(self, data);
 
 			// Make sure result is not a false positive.
-			return self.verify_location(location, path);
+			if self.verify_location(&location, path) {
+				return Some(location);
+			}
 		}
 
-		false
+		None
 	}
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L464
@@ -145,7 +144,7 @@ impl JImage {
 		if !module.is_empty() {
 			// Compare '/module/'
 			if path_iter.next() != Some(b'/') { return false; }
-			if !path_iter.by_ref().eq(module.iter().copied()) { return false; }
+			if !path_iter.by_ref().take(module.len()).eq(module.iter().copied()) { return false; }
 			if path_iter.next() != Some(b'/') { return false; }
 		}
 
@@ -156,7 +155,7 @@ impl JImage {
 		// If parent string is not empty string.
 		if !parent.is_empty() {
 			// Compare 'parent/'
-			if !path_iter.by_ref().eq(parent.iter().copied()) { return false; }
+			if !path_iter.by_ref().take(parent.len()).eq(parent.iter().copied()) { return false; }
 			if path_iter.next() != Some(b'/') { return false; }
 		}
 
@@ -164,7 +163,7 @@ impl JImage {
 		let base = location.get_attribute_string(crate::location::attr::ATTRIBUTE_BASE as u4, strings);
 
 		// Compare with base name.
-		if !path_iter.by_ref().eq(base.iter().copied()) { return false; }
+		if !path_iter.by_ref().take(base.len()).eq(base.iter().copied()) { return false; }
 
 		// Get extension string.
 		let extension = location.get_attribute_string(crate::location::attr::ATTRIBUTE_EXTENSION as u4, strings);
@@ -173,7 +172,7 @@ impl JImage {
 		if !extension.is_empty() {
 			// Compare '.extension'
 			if path_iter.next() != Some(b'.') { return false; }
-			if !path_iter.by_ref().eq(extension.iter().copied()) { return false; }
+			if !path_iter.by_ref().take(extension.len()).eq(extension.iter().copied()) { return false; }
 		}
 
 		// True only if complete match and no more characters.
@@ -185,7 +184,7 @@ impl JImage {
 		// TBD: assert!(module_name.len() > 0, "module name must be non-empty");
 		assert!(!name.is_empty(), "name must be non-empty");
 
-		let fullpath = format!("/{}/{}\0", module_name, name);
+		let fullpath = format!("/{}/{}", module_name, name);
 		self.find_location_index(&fullpath, size)
 	}
 
