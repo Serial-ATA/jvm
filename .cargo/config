@@ -57,5 +57,5 @@ rustflags = [
     "-Aclippy::manual_assert",
     "-Aclippy::unnecessary_wraps",
     # TODO: Remove this
-    "-Aclippy::missing-panics-doc"
+    "-Aclippy::missing-panics-doc",
 ]
