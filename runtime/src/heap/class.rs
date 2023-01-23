@@ -10,6 +10,7 @@ use crate::thread::ThreadRef;
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
+use crate::string_interner::StringInterner;
 use classfile::{ClassFile, ConstantPoolRef, FieldType};
 use common::int_types::{u1, u2, u4};
 use common::traits::PtrType;
@@ -507,7 +508,13 @@ impl Class {
 						Operand::Long(class_instance.constant_pool.get_long(constant_value_index))
 				},
 				FieldType::Object(ref obj) if obj == "java/lang/String" => {
-					unimplemented!("Static string field")
+					let raw_string = class_instance
+						.constant_pool
+						.get_string(constant_value_index);
+					let string_instance =
+						StringInterner::intern_string(raw_string, Arc::clone(&thread));
+					class_instance.static_field_slots[idx] =
+						Operand::Reference(Reference::Mirror(string_instance));
 				},
 				_ => unreachable!(),
 			}

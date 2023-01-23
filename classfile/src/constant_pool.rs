@@ -128,8 +128,13 @@ impl ConstantPool {
 		}
 	}
 
-	pub fn get_string(&self, _idx: u2) -> f64 {
-		unimplemented!("ConstantPool::get_string")
+	pub fn get_string(&self, idx: u2) -> &[u1] {
+		let constant = &self[idx];
+
+		match constant {
+			ConstantPoolValueInfo::String { string_index } => self.get_constant_utf8(*string_index),
+			_ => panic!("Expected a constant value of \"String\""),
+		}
 	}
 }
 
