@@ -1,4 +1,4 @@
-use common::int_types::{u1, u4};
+use common::int_types::{u1, u2, u4};
 
 pub const JIMAGE_MAGIC: u4 = 0xCAFE_DADA;
 pub const JIMAGE_MAGIC_INVERTED: u4 = 0xDADA_FECA;
@@ -18,6 +18,14 @@ pub struct JImageHeader {
 }
 
 impl JImageHeader {
+	pub fn major_version(&self) -> u2 {
+		(self.version >> 16) as u2
+	}
+
+	pub fn minor_version(&self) -> u2 {
+		(self.version & 0xFFFF) as u2
+	}
+
 	#[inline(always)]
 	pub fn redirect_table_offset(&self) -> usize {
 		core::mem::size_of::<Self>()
@@ -56,5 +64,13 @@ impl JImageHeader {
 	#[inline(always)]
 	pub fn string_table_length(&self) -> u4 {
 		self.strings_size
+	}
+
+	pub fn index_length(&self) -> usize {
+		core::mem::size_of::<Self>()
+			+ self.table_length()
+			+ self.offset_table_length()
+			+ self.locations_size as usize
+			+ self.strings_size as usize
 	}
 }

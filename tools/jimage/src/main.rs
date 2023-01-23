@@ -64,14 +64,30 @@ fn main() {
 	let args = Command::parse();
 
 	match args.command {
+		SubCommand::Info { jimage } => info(jimage),
 		SubCommand::List { verbose, jimage } => list(jimage, verbose),
 		c => unimplemented!("{:?}", c),
 	}
 	// TODO: glob includes
 	// TODO: regex includes
 	// TODO: extract subcommand
-	// TODO: info subcommand
 	// TODO: verify subcommand
+}
+
+fn info(path: PathBuf) {
+	let jimage = jimage_parser::parse(&mut fs::File::open(&path).unwrap());
+
+	let header = jimage.borrow_header();
+	println!(" Major Version:  {}", header.major_version());
+	println!(" Minor Version:  {}", header.minor_version());
+	println!(" Flags:          {}", header.flags);
+	println!(" Resource Count: {}", header.resource_count);
+	println!(" Table Length:   {}", header.table_length);
+	println!(" Offsets Size:   {}", header.offset_table_length());
+	println!(" Redirects Size: {}", header.table_length());
+	println!(" Locations Size: {}", header.locations_size);
+	println!(" Strings Size:   {}", header.strings_size);
+	println!(" Index Size:     {}", header.index_length());
 }
 
 fn list(path: PathBuf, verbose: bool) {
