@@ -1,12 +1,14 @@
 [target.'cfg(all())']
 rustflags = [
+    #### DOES NOT CHANGE ####
+
+    # Forbids
+    "-Fclippy::dbg_macro",
+    "-Fclippy::string_to_string",
+
     # Denies
     "-Dclippy::pedantic",
     "-Dclippy::all",
-    "-Dclippy::dbg_macro",
-    "-Dclippy::string_to_string",
-    #"-Dmissing_docs", TODO
-    "-Drustdoc::broken_intra_doc_links",
     "-Drust_2018_idioms",
     "-Dtrivial_casts",
     "-Dtrivial_numeric_casts",
@@ -22,8 +24,7 @@ rustflags = [
     "-Aclippy::cast_possible_truncation",
     "-Aclippy::module_name_repetitions",
     "-Aclippy::must_use_candidate",
-    "-Aclippy::doc_markdown",
-    "-Aclippy::let_underscore_drop",
+    "-Alet_underscore_drop",
     "-Aclippy::match_wildcard_for_single_variants",
     "-Aclippy::semicolon_if_nothing_returned",
     "-Aclippy::new_without_default",
@@ -31,7 +32,6 @@ rustflags = [
     "-Aclippy::upper_case_acronyms",
     "-Aclippy::single_match_else",
     "-Aclippy::similar_names",
-    "-Aclippy::tabs_in_doc_comments",
     "-Aclippy::len_without_is_empty",
     "-Aclippy::needless_late_init",
     "-Aclippy::type_complexity",
@@ -40,6 +40,15 @@ rustflags = [
     "-Aclippy::return_self_not_must_use",
     "-Aclippy::bool_to_int_with_if",
     "-Aclippy::uninlined_format_args",
+    "-Aclippy::manual_let_else",
+
+    # For Library docs
+    # "-Dmissing_docs",
+    # "-Drustdoc::broken_intra_doc_links",
+    # "-Aclippy::doc_markdown",
+    # "-Aclippy::tabs_in_doc_comments",
+
+    #### EXTRAS BELOW ####
     "-Aclippy::inline_always",
     "-Aclippy::new-ret-no-self",
     "-Aclippy::mut-from-ref",
