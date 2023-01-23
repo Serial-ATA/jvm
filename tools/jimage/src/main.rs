@@ -68,11 +68,10 @@ fn main() {
 		SubCommand::Extract { dir, jimage } => extract(dir, jimage),
 		SubCommand::Info { jimage } => info(jimage),
 		SubCommand::List { verbose, jimage } => list(jimage, verbose),
-		c => unimplemented!("{:?}", c),
+		SubCommand::Verify { jimage } => verify(jimage),
 	}
 	// TODO: glob includes
 	// TODO: regex includes
-	// TODO: verify subcommand
 }
 
 fn extract(dir: String, path: PathBuf) {
@@ -164,6 +163,23 @@ fn list(path: PathBuf, verbose: bool) {
 			print(name, verbose.then_some(location));
 		},
 	);
+}
+
+fn verify(path: PathBuf) {
+	for_each_entry(
+		path,
+		|path| println!("jimage: {:?}", fs::canonicalize(path).unwrap()),
+		|_| {},
+		|name, location, jimage| {
+			if name.ends_with(".class") && !name.ends_with("module-info.class") {
+				let mut resource = vec![0; location.get_uncompressed_size() as usize];
+				jimage.get_resource_from_location(location, &mut resource);
+
+				// TODO: This needs to return `Result` so we can report all errors
+				class_parser::parse_class(&mut &resource[..]);
+			}
+		},
+	)
 }
 
 fn for_each_entry<P, M, L>(path: PathBuf, on_jimage_parse: P, on_new_module: M, on_new_resource: L)
