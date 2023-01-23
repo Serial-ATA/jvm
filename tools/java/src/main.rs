@@ -1,4 +1,4 @@
-use runtime::classpath::{add_classpath_entry, jar, ClassPathEntry};
+use runtime::classpath::{add_classpath_entry, jar, jimage, ClassPathEntry};
 use runtime::Thread;
 use std::path::Path;
 
@@ -80,10 +80,10 @@ fn main() {
 		}
 	}
 
-	// TODO:
-	// if let Some(vm_options) = jimage::lookup_vm_options() {
-	// 	dbg!(std::str::from_utf8(&vm_options));
-	// }
+	if let Some(_vm_options) = jimage::lookup_vm_options() {
+		// TODO: Actually parse the options, for now this is just here to load the JImage
+		// https://github.com/openjdk/jdk/blob/03a9a88efbb68537e24b7de28c5b81d6cd8fdb04/src/hotspot/share/runtime/arguments.cpp#L3322
+	}
 
 	let main_class = match args.main_class {
 		Some(main_class) => main_class,
