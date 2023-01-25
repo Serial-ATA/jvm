@@ -224,6 +224,20 @@ macro_rules! comparisons {
             let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
         }
     }};
+    ($frame:ident, $instruction:ident, $operator:tt, $ty:ident) => {{
+        let stack = $frame.get_operand_stack_mut();
+        paste::paste! {
+            let rhs = stack.[<pop_ $ty>]();
+            let lhs = stack.[<pop_ $ty>]();
+        }
+
+        if lhs $operator rhs {
+            let branch = $frame.read_byte2_signed() as isize;
+            let _ = $frame.thread().get().pc.fetch_add(branch + COMPARISON_SEEK_BACK, std::sync::atomic::Ordering::Relaxed);
+        } else {
+            let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
+        }
+    }};
 }
 
 macro_rules! control_return {
@@ -500,7 +514,7 @@ impl Interpreter {
                 } => conversions;
                 
                 // ========= Comparisons =========
-                // TODO: lcmp, dcmpl, dcmpg, if_acmpeq, if_acmpne
+                // TODO: lcmp, dcmpl, dcmpg
                 CATEGORY: comparisons
                 @GROUP {
                     [
@@ -516,6 +530,8 @@ impl Interpreter {
                         if_icmpge  (>=),
                         if_icmpgt  (>),
                         if_icmple  (<=),
+                        if_acmpeq  (==, reference),
+                        if_acmpne  (==, reference),
                     ]
                 } => comparisons,
                 OpCode::fcmpl => {
