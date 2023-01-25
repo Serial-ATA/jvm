@@ -62,7 +62,7 @@ unsafe fn get_u4(ptr: *mut u1, endian: Endian) -> u4 {
 }
 
 // https://github.com/openjdk/jdk/blob/f80faced6e6c6c1b10541a8b0c91625215c9ef43/src/java.base/share/native/libjimage/imageDecompressor.cpp#L136
-/// Decompression entry point. Called from ImageFileReader::get_resource.
+/// Decompression entry point. Called from [`ImageFileReader::get_resource`].
 #[allow(clippy::size_of_in_element_count)]
 pub fn decompress_resource(
 	compressed: &mut [u1],
