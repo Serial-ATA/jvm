@@ -268,6 +268,63 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 		panic!("Invalid operand type for `shr` instruction")
 	}
 
+	/// Bitwise AND of self and rhs
+	pub fn and(&mut self, rhs: Self) {
+		if self.is_int() {
+			let lhs = self.expect_int();
+			let rhs = rhs.expect_int();
+			*self = Operand::Int(lhs & rhs);
+			return;
+		}
+
+		if self.is_long() {
+			let lhs = self.expect_long();
+			let rhs = rhs.expect_long();
+			*self = Operand::Long(lhs & rhs);
+			return;
+		}
+
+		panic!("Invalid operand type for `and` instruction")
+	}
+
+	/// Bitwise OR of self and rhs
+	pub fn or(&mut self, rhs: Self) {
+		if self.is_int() {
+			let lhs = self.expect_int();
+			let rhs = rhs.expect_int();
+			*self = Operand::Int(lhs | rhs);
+			return;
+		}
+
+		if self.is_long() {
+			let lhs = self.expect_long();
+			let rhs = rhs.expect_long();
+			*self = Operand::Long(lhs | rhs);
+			return;
+		}
+
+		panic!("Invalid operand type for `or` instruction")
+	}
+
+	/// Bitwise XOR of self and rhs
+	pub fn xor(&mut self, rhs: Self) {
+		if self.is_int() {
+			let lhs = self.expect_int();
+			let rhs = rhs.expect_int();
+			*self = Operand::Int(lhs ^ rhs);
+			return;
+		}
+
+		if self.is_long() {
+			let lhs = self.expect_long();
+			let rhs = rhs.expect_long();
+			*self = Operand::Long(lhs ^ rhs);
+			return;
+		}
+
+		panic!("Invalid operand type for `xor` instruction")
+	}
+
 	/// Convert int to byte
 	pub fn i2b(&mut self) {
 		if !self.is_int() {

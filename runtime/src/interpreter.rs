@@ -418,7 +418,7 @@ impl Interpreter {
                 } => stack_operations;
                 
                 // ========= Math =========
-                // TODO: ushr, and, or, xor, inc
+                // TODO: ushr
                 CATEGORY: math
                 @GROUP {
                     [
@@ -429,6 +429,9 @@ impl Interpreter {
                         irem (rem),
                         ishl (shl),
                         ishr (shr),
+                        iand (and),
+                        ior  (or),
+                        ixor (xor),
                         
                         ladd (add),
                         lsub (sub),
@@ -437,6 +440,9 @@ impl Interpreter {
                         lrem (rem),
                         lshl (shl),
                         lshr (shr),
+                        land (and),
+                        lor  (or),
+                        lxor (xor),
                         
                         fadd (add),
                         fsub (sub),
