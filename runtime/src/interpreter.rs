@@ -11,7 +11,7 @@ use std::sync::atomic::Ordering as MemOrdering;
 use std::sync::Arc;
 
 use classfile::ConstantPoolValueInfo;
-use common::int_types::{s2, s4, u2};
+use common::int_types::{s2, s4, s8, u2};
 use common::traits::PtrType;
 use instructions::{ConstOperandType, OpCode, Operand, StackLike};
 
@@ -278,7 +278,6 @@ impl Interpreter {
             match opcode {
                 // ========= Constants =========
                 CATEGORY: constants
-                // TODO: ldc2_w
                 OpCode::nop => {},
                 OpCode::aconst_null => {
                     frame.get_operand_stack_mut().push_reference(Reference::Null);
@@ -317,6 +316,9 @@ impl Interpreter {
                 },
                 OpCode::ldc_w => {
                     Interpreter::ldc(frame, true);
+                },
+                OpCode::ldc2_w => {
+                    Interpreter::ldc2_w(frame);
                 };
                 
                 // ========= Loads =========
@@ -727,7 +729,7 @@ impl Interpreter {
         match constant {
             // and not any of the following:
             ConstantPoolValueInfo::Long { .. }
-            | ConstantPoolValueInfo::Double { .. } => panic!("ldx called with index to long/double"),
+            | ConstantPoolValueInfo::Double { .. } => panic!("ldc called with index to long/double"),
 
             // If the run-time constant pool entry is a numeric constant of type int or float,
             // then the value of that numeric constant is pushed onto the operand stack as an int or float, respectively.
@@ -762,6 +764,35 @@ impl Interpreter {
             ConstantPoolValueInfo::MethodHandle { .. } => unimplemented!("MethodHandle in ldc"),
             ConstantPoolValueInfo::MethodType { .. } => unimplemented!("MethodType in ldc"),
             _ => unreachable!()
+        }
+    }
+
+    // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.ldc2_w
+    fn ldc2_w(frame: FrameRef) {
+        let idx = frame.read_byte2();
+
+        let method = frame.method();
+        let class_ref = &method.class;
+
+        let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
+        let constant = &constant_pool[idx];
+
+        // The run-time constant pool entry at index must be loadable (§5.1),
+        match constant {
+            // and not any of the following:
+            ConstantPoolValueInfo::Long { high_bytes, low_bytes } => {
+                frame.get_operand_stack_mut().push_long((s8::from(*high_bytes) << 32) + s8::from(*low_bytes))
+            },
+            ConstantPoolValueInfo::Double { high_bytes, low_bytes } => {
+                let high = high_bytes.to_be_bytes();
+                let low = low_bytes.to_be_bytes();
+
+                frame.get_operand_stack_mut().push_double(f64::from_be_bytes([
+                    high[0], high[1], high[2], high[3], low[0], low[1], low[2], low[3],
+                ]))
+            },
+
+            _ => panic!("ldc2_w called with index to non long/double constant")
         }
     }
 
