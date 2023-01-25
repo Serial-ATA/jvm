@@ -6,15 +6,28 @@ use common::int_types::{u1, u2};
 use common::traits::JavaReadExt;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.5
-pub const ACC_STATIC: u2 = 0x0008;
-
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.5
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldInfo {
 	pub access_flags: u2,
 	pub name_index: u2,
 	pub descriptor_index: u2,
 	pub attributes: Vec<Attribute>,
+}
+
+#[rustfmt::skip]
+impl FieldInfo {
+	// Access flags
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.5-200-A.1
+
+	pub const ACC_PUBLIC   : u2	= 0x0001; /* Declared public; may be accessed from outside its package. */
+	pub const ACC_PRIVATE  : u2	= 0x0002; /* Declared private; accessible only within the defining class and other classes belonging to the same nest (§5.4.4). */
+	pub const ACC_PROTECTED: u2 = 0x0004; /* Declared protected; may be accessed within subclasses. */
+	pub const ACC_STATIC   : u2	= 0x0008; /* Declared static. */
+	pub const ACC_FINAL    : u2	= 0x0010; /* Declared final; never directly assigned to after object construction (JLS §17.5). */
+	pub const ACC_VOLATILE : u2	= 0x0040; /* Declared volatile; cannot be cached. */
+	pub const ACC_TRANSIENT: u2 = 0x0080; /* Declared transient; not written or read by a persistent object manager. */
+	pub const ACC_SYNTHETIC: u2 = 0x1000; /* Declared synthetic; not present in the source code. */
+	pub const ACC_ENUM 	   : u2 = 0x4000; /* Declared as an element of an enum class. */
 }
 
 impl FieldInfo {
@@ -32,7 +45,11 @@ impl FieldInfo {
 	}
 
 	pub fn is_static(&self) -> bool {
-		self.access_flags & ACC_STATIC == ACC_STATIC
+		self.access_flags & Self::ACC_STATIC == Self::ACC_STATIC
+	}
+
+	pub fn is_final(&self) -> bool {
+		self.access_flags & Self::ACC_FINAL == Self::ACC_FINAL
 	}
 }
 
