@@ -146,7 +146,6 @@ impl Class {
 		let mut instance_field_count = 0;
 
 		if let Some(ref super_class) = super_class {
-			static_field_count += super_class.unwrap_class_instance().static_field_slots.len();
 			instance_field_count = super_class.unwrap_class_instance().instance_field_count;
 		}
 
@@ -183,19 +182,21 @@ impl Class {
 				.collect();
 
 			// Then the fields...
-			let mut instance_field_idx = instance_field_count as usize;
 			let mut fields =
 				Vec::with_capacity(instance_field_count as usize + parsed_file.fields.len());
 			if let Some(ref super_class) = class_instance.super_class {
 				// First we have to inherit the super classes' fields
 				for field in &super_class.unwrap_class_instance().fields {
-					fields.push(Arc::clone(field));
-					instance_field_idx += 1;
+					if !field.is_static() {
+						fields.push(Arc::clone(field));
+						instance_field_count += 1;
+					}
 				}
 			}
 
 			// Now the fields defined in our class
 			let mut static_idx = 0;
+			let mut instance_field_idx = 0;
 			for field in parsed_file.fields {
 				let field_idx = if field.is_static() {
 					&mut static_idx
@@ -216,7 +217,7 @@ impl Class {
 
 			// Update the instance field count if we encountered any new ones
 			if instance_field_idx > 0 {
-				class_instance.instance_field_count += (instance_field_idx + 1) as u4;
+				class_instance.instance_field_count += instance_field_idx as u4;
 			}
 		}
 
@@ -470,15 +471,16 @@ impl Class {
 
 		//  Then, initialize each final static field of C with the constant value in its ConstantValue attribute (§4.7.2),
 		//  in the order the fields appear in the ClassFile structure.
-		for (idx, field) in class_instance
+		for field in class_instance
 			.fields
 			.iter_mut()
 			.filter(|field| field.is_static() && field.is_final())
-			.enumerate()
 		{
 			let Some(constant_value_index) = field.constant_value_index else {
 				continue
 			};
+
+			let class_instance = field.class.unwrap_class_instance_mut();
 
 			match field.descriptor {
 				FieldType::Byte
@@ -486,25 +488,25 @@ impl Class {
 				| FieldType::Short
 				| FieldType::Boolean
 				| FieldType::Int => {
-					class_instance.static_field_slots[idx] = Operand::Int(
+					class_instance.static_field_slots[field.idx] = Operand::Int(
 						class_instance
 							.constant_pool
 							.get_integer(constant_value_index),
 					)
 				},
 				FieldType::Double => {
-					class_instance.static_field_slots[idx] = Operand::Double(
+					class_instance.static_field_slots[field.idx] = Operand::Double(
 						class_instance
 							.constant_pool
 							.get_double(constant_value_index),
 					)
 				},
 				FieldType::Float => {
-					class_instance.static_field_slots[idx] =
+					class_instance.static_field_slots[field.idx] =
 						Operand::Float(class_instance.constant_pool.get_float(constant_value_index))
 				},
 				FieldType::Long => {
-					class_instance.static_field_slots[idx] =
+					class_instance.static_field_slots[field.idx] =
 						Operand::Long(class_instance.constant_pool.get_long(constant_value_index))
 				},
 				FieldType::Object(ref obj) if obj == "java/lang/String" => {
@@ -513,7 +515,7 @@ impl Class {
 						.get_string(constant_value_index);
 					let string_instance =
 						StringInterner::intern_string(raw_string, Arc::clone(&thread));
-					class_instance.static_field_slots[idx] =
+					class_instance.static_field_slots[field.idx] =
 						Operand::Reference(Reference::Mirror(string_instance));
 				},
 				_ => unreachable!(),

@@ -143,16 +143,12 @@ impl ClassInstance {
 	fn get_field_value(&self, field: FieldRef) -> Operand<Reference> {
 		let class_name = &field.class.get().name;
 		let mut current_class = &self.class;
-		loop {
+		while let Some(ref class) = current_class.unwrap_class_instance().super_class {
 			if &current_class.get().name == class_name {
 				return self.fields[field.idx].clone();
 			}
 
-			if let Some(ref super_class) = current_class.unwrap_class_instance().super_class {
-				current_class = super_class;
-			} else {
-				break;
-			}
+			current_class = class;
 		}
 
 		panic!("Failed to resolve field: {:?}", field);
@@ -161,17 +157,13 @@ impl ClassInstance {
 	fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>) {
 		let class_name = &field.class.get().name;
 		let mut current_class = &self.class;
-		loop {
+		while let Some(ref class) = current_class.unwrap_class_instance().super_class {
 			if &current_class.get().name == class_name {
 				self.fields[field.idx] = value;
 				return;
 			}
 
-			if let Some(ref super_class) = current_class.unwrap_class_instance().super_class {
-				current_class = super_class;
-			} else {
-				break;
-			}
+			current_class = class;
 		}
 
 		panic!("Failed to resolve field: {:?}", field);
