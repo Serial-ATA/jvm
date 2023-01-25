@@ -55,14 +55,18 @@ impl ConstantPool {
 		}
 	}
 
-	pub fn get_method_ref(&self, idx: u2) -> (u2, u2) {
+	pub fn get_method_ref(&self, idx: u2) -> (bool, u2, u2) {
 		let constant = &self[idx];
 
 		match constant {
 			ConstantPoolValueInfo::Methodref {
 				class_index,
 				name_and_type_index,
-			} => (*class_index, *name_and_type_index),
+			} => (false, *class_index, *name_and_type_index),
+			ConstantPoolValueInfo::InterfaceMethodref {
+				class_index,
+				name_and_type_index,
+			} => (true, *class_index, *name_and_type_index),
 			_ => panic!("Expected a constant value of \"Methodref\""),
 		}
 	}

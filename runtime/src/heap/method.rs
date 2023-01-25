@@ -102,6 +102,14 @@ impl Method {
 	pub fn is_native(&self) -> bool {
 		self.access_flags & Method::ACC_NATIVE > 0
 	}
+
+	pub fn is_public(&self) -> bool {
+		self.access_flags & Method::ACC_PUBLIC > 0
+	}
+
+	pub fn is_static(&self) -> bool {
+		self.access_flags & Method::ACC_STATIC > 0
+	}
 }
 
 impl Debug for Method {

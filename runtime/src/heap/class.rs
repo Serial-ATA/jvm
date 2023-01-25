@@ -138,7 +138,7 @@ impl Class {
 
 		let constant_pool = parsed_file.constant_pool;
 
-		let mut static_field_count = parsed_file
+		let static_field_count = parsed_file
 			.fields
 			.iter()
 			.filter(|field| field.is_static())
@@ -333,7 +333,8 @@ impl Class {
 		constant_pool: ConstantPoolRef,
 		method_ref_idx: u2,
 	) -> Option<MethodRef> {
-		let (class_name_index, name_and_type_index) = constant_pool.get_method_ref(method_ref_idx);
+		let (interface_method, class_name_index, name_and_type_index) =
+			constant_pool.get_method_ref(method_ref_idx);
 
 		let class_name = constant_pool.get_class_name(class_name_index);
 		let classref = ClassLoader::Bootstrap.load(class_name).unwrap();
@@ -350,13 +351,17 @@ impl Class {
 			return None;
 		}
 
-		let class_instance = classref.unwrap_class_instance();
-
 		let (method_name_index, method_descriptor_index) =
 			constant_pool.get_name_and_type(name_and_type_index);
 
 		let method_name = constant_pool.get_constant_utf8(method_name_index);
 		let descriptor = constant_pool.get_constant_utf8(method_descriptor_index);
+
+		if interface_method {
+			return Self::resolve_interface_method(thread, classref, method_name, descriptor);
+		}
+
+		let class_instance = classref.unwrap_class_instance();
 
 		// When resolving a method reference:
 
@@ -424,6 +429,54 @@ impl Class {
 		}
 
 		None
+	}
+
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.4
+	fn resolve_interface_method(
+		_thread: ThreadRef,
+		classref: ClassRef,
+		method_name: &[u1],
+		descriptor: &[u1],
+	) -> Option<MethodRef> {
+		// When resolving an interface method reference:
+
+		// 1. If C is not an interface, interface method resolution throws an IncompatibleClassChangeError.
+		if classref.get().access_flags & Class::ACC_INTERFACE != Class::ACC_INTERFACE {
+			panic!("IncompatibleClassChangeError"); // TODO
+		}
+
+		// 2. Otherwise, if C declares a method with the name and descriptor specified by the interface method reference, method lookup succeeds.
+		let class_instance = classref.unwrap_class_instance();
+		for method in &class_instance.methods {
+			if method.name == method_name && method.descriptor == descriptor {
+				return Some(Arc::clone(method));
+			}
+		}
+
+		// 3. Otherwise, if the class Object declares a method with the name and descriptor specified by the interface method reference, which has its ACC_PUBLIC flag
+		//    set and does not have its ACC_STATIC flag set, method lookup succeeds.
+		let object_class = ClassLoader::Bootstrap
+			.load(b"java/lang/Object")
+			.expect("there's no way we can make it here without loading Object");
+		for method in &object_class.unwrap_class_instance().methods {
+			if method.name == method_name
+				&& method.descriptor == descriptor
+				&& method.is_public()
+				&& !method.is_static()
+			{
+				return Some(Arc::clone(method));
+			}
+		}
+
+		// TODO: Method resolution in superinterfaces
+		// 4. Otherwise, if the maximally-specific superinterface methods (§5.4.3.3) of C for the name and descriptor specified by the method reference include exactly
+		//    one method that does not have its ACC_ABSTRACT flag set, then this method is chosen and method lookup succeeds.
+
+		// 5. Otherwise, if any superinterface of C declares a method with the name and descriptor specified by the method reference that has neither its ACC_PRIVATE flag
+		//    nor its ACC_STATIC flag set, one of these is arbitrarily chosen and method lookup succeeds.
+
+		// 6. Otherwise, method lookup fails.
+		panic!("NoSuchMethodError") // TODO
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
