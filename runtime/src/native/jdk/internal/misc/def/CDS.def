@@ -1,0 +1,17 @@
+import java.lang.String;
+import java.lang.Class;
+import java.lang.ClassLoader;
+
+public class CDS {
+    private static native boolean isDumpingClassList0();
+    private static native boolean isDumpingArchive0();
+    private static native boolean isSharingEnabled0();
+    private static native void logLambdaFormInvoker(String line);
+
+    public static native void initializeFromArchive(Class<?> c);
+    public static native void defineArchivedModules(ClassLoader platformLoader, ClassLoader systemLoader);
+    public static native long getRandomSeedForDumping();
+
+    private static native void dumpClassList(String listFileName);
+    private static native void dumpDynamicArchive(String archiveFileName);
+}
