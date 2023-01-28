@@ -40,7 +40,11 @@ impl OperandStack {
 impl StackLike<Reference> for OperandStack {
 	fn push_op(&mut self, op: Operand<Reference>) {
 		trace_stack!(push_op, op);
+		let needs_empty = matches!(op, Operand::Long(_) | Operand::Double(_));
 		self.inner.push(op);
+		if needs_empty {
+			self.inner.push(Operand::Empty)
+		}
 	}
 
 	fn push_int(&mut self, int: s4) {
