@@ -11,3 +11,6 @@ members = [
 
     "tests",
 ]
+
+[workspace.dependencies]
+byte-slice-cast = "1.2.2"
