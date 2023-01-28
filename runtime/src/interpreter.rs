@@ -516,8 +516,19 @@ impl Interpreter {
                 } => conversions;
                 
                 // ========= Comparisons =========
-                // TODO: lcmp, dcmpl, dcmpg
+                // TODO: dcmpl, dcmpg
                 CATEGORY: comparisons
+                OpCode::lcmp => {
+                    let stack = frame.get_operand_stack_mut();
+                    let value2 = stack.pop_long();
+                    let value1 = stack.pop_long();
+                    
+                    match value1.cmp(&value2) {
+                        Ordering::Greater => stack.push_int(1),
+                        Ordering::Equal => stack.push_int(0),
+                        Ordering::Less => stack.push_int(-1)
+                    }
+                },
                 @GROUP {
                     [
                         ifeq       (==, 0),
