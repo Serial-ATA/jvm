@@ -4,6 +4,8 @@ use crate::thread::{Thread, ThreadRef};
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use classfile::FieldType;
+
 static JVM_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 pub(crate) fn initialize(thread: ThreadRef) {
@@ -16,7 +18,23 @@ pub(crate) fn initialize(thread: ThreadRef) {
 
 	// Load some important classes first
 	ClassLoader::Bootstrap.load(b"java/lang/Object").unwrap();
-	ClassLoader::Bootstrap.load(b"java/lang/String").unwrap();
+	let string_class = ClassLoader::Bootstrap.load(b"java/lang/String").unwrap();
+	{
+		let string_value_field = string_class
+			.unwrap_class_instance()
+			.fields
+			.iter()
+			.find(|field| {
+				!field.is_static()
+					&& field.name == b"value"
+					&& matches!(field.descriptor, FieldType::Array(ref val) if **val == FieldType::Byte)
+			})
+			.expect("java.lang.String should have a value field");
+
+		unsafe {
+			crate::globals::STRING_VALUE_FIELD_OFFSET = string_value_field.idx;
+		}
+	}
 
 	let system_class = ClassLoader::Bootstrap.load(b"java/lang/System").unwrap();
 	ClassLoader::Bootstrap.load(b"java/lang/Class").unwrap();

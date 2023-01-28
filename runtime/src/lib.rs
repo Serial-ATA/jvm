@@ -2,6 +2,7 @@
 
 pub mod classpath;
 mod frame;
+pub mod globals;
 mod heap;
 mod initialization;
 mod interpreter;
