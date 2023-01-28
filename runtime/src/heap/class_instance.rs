@@ -133,6 +133,13 @@ impl ClassInstance {
 			fields.push(Field::default_value_for_ty(&field.descriptor))
 		}
 
+		// Sanity check
+		assert_eq!(
+			instance_field_count as usize,
+			fields.len(),
+			"Created the wrong number of fields!"
+		);
+
 		ClassInstancePtr::new(Self {
 			super_class,
 			class,
