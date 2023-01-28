@@ -13,7 +13,9 @@ use instructions::Operand;
 
 pub trait Instance {
 	fn get_field_value(&self, field: FieldRef) -> Operand<Reference>;
+	fn get_field_value0(&self, field_idx: usize) -> Operand<Reference>;
 	fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>);
+	fn put_field_value0(&mut self, field_idx: usize, value: Operand<Reference>);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -56,22 +58,33 @@ impl MirrorInstance {
 
 impl Instance for MirrorInstance {
 	fn get_field_value(&self, field: FieldRef) -> Operand<Reference> {
-		let class_name = &field.class.get().name;
-		if class_name == &self.class.get().name {
-			return self.fields[field.idx].clone();
+		self.get_field_value0(field.idx)
+	}
+
+	fn get_field_value0(&self, field_idx: usize) -> Operand<Reference> {
+		if field_idx >= self.fields.len() {
+			panic!(
+				"Failed to resolve field index: {:?}, in class: {:?}",
+				field_idx, self.class
+			);
 		}
 
-		panic!("Failed to resolve field: {:?}", field);
+		return self.fields[field_idx].clone();
 	}
 
 	fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>) {
-		let class_name = &field.class.get().name;
-		if class_name == &self.class.get().name {
-			self.fields[field.idx] = value;
-			return;
+		self.put_field_value0(field.idx, value)
+	}
+
+	fn put_field_value0(&mut self, field_idx: usize, value: Operand<Reference>) {
+		if field_idx >= self.fields.len() {
+			panic!(
+				"Failed to resolve field index: {:?}, in class: {:?}",
+				field_idx, self.class
+			);
 		}
 
-		panic!("Failed to resolve field: {:?}", field);
+		self.fields[field_idx] = value;
 	}
 }
 
@@ -165,32 +178,60 @@ impl ClassInstance {
 
 impl Instance for ClassInstance {
 	fn get_field_value(&self, field: FieldRef) -> Operand<Reference> {
-		let class_name = &field.class.get().name;
+		self.get_field_value0(field.idx)
+	}
+
+	fn get_field_value0(&self, field_idx: usize) -> Operand<Reference> {
+		let mut count = 0;
+
 		let mut current_class = &self.class;
-		while let Some(ref class) = current_class.get().super_class {
-			if &current_class.get().name == class_name {
-				return self.fields[field.idx].clone();
+		loop {
+			count += current_class.unwrap_class_instance().instance_field_count as usize;
+			if count > field_idx {
+				return self.fields[field_idx].clone();
 			}
 
-			current_class = class;
+			if let Some(ref super_class) = current_class.get().super_class {
+				current_class = super_class;
+				continue;
+			}
+
+			break;
 		}
 
-		panic!("Failed to resolve field: {:?}", field);
+		panic!(
+			"Failed to resolve field index: {:?}, in class: {:?}",
+			field_idx, self.class
+		);
 	}
 
 	fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>) {
-		let class_name = &field.class.get().name;
+		self.put_field_value0(field.idx, value)
+	}
+
+	fn put_field_value0(&mut self, field_idx: usize, value: Operand<Reference>) {
+		let mut count = 0;
+
 		let mut current_class = &self.class;
-		while let Some(ref class) = current_class.get().super_class {
-			if &current_class.get().name == class_name {
-				self.fields[field.idx] = value;
+		loop {
+			count += current_class.unwrap_class_instance().instance_field_count as usize;
+			if count > field_idx {
+				self.fields[field_idx] = value;
 				return;
 			}
 
-			current_class = class;
+			if let Some(ref super_class) = current_class.get().super_class {
+				current_class = super_class;
+				continue;
+			}
+
+			break;
 		}
 
-		panic!("Failed to resolve field: {:?}", field);
+		panic!(
+			"Failed to resolve field index: {:?}, in class: {:?}",
+			field_idx, self.class
+		);
 	}
 }
 
