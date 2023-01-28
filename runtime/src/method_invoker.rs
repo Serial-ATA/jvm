@@ -90,6 +90,11 @@ impl MethodInvoker {
 			stack_size = u2::from(parameter_count);
 		}
 
+		if !is_static_method {
+			// Add an extra slot to account for `this`
+			stack_size += 1;
+		}
+
 		let mut local_stack = LocalStack::new(stack_size as usize);
 
 		// The starting position of the arguments depends on the method being static,
