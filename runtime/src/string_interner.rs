@@ -1,13 +1,16 @@
 use crate::class::Class;
-use crate::class_instance::{ArrayContent, ArrayInstance, ClassInstance};
+use crate::class_instance::{ArrayContent, ArrayInstance, ClassInstance, Instance};
 use crate::classpath::classloader::ClassLoader;
 use crate::reference::{ClassInstanceRef, Reference};
 use crate::thread::ThreadRef;
 
 use std::collections::HashMap;
+use std::ptr::slice_from_raw_parts;
 use std::sync::Arc;
 
+use byte_slice_cast::AsSliceOf;
 use common::int_types::{u1, u2};
+use common::traits::PtrType;
 use instructions::Operand;
 use once_cell::sync::Lazy;
 
@@ -56,5 +59,17 @@ impl StringInterner {
 		);
 
 		new_java_string_instance
+	}
+
+	pub fn rust_string_from_java_string(class: ClassInstanceRef) -> String {
+		let string_value_field = class
+			.get()
+			.get_field_value0(crate::globals::string_value_field_offset());
+		let char_array = string_value_field.expect_reference().extract_array();
+		let chars = char_array.get().elements.expect_byte();
+
+		let unsigned_chars =
+			unsafe { &*slice_from_raw_parts(chars.as_ptr().cast::<u8>(), chars.len()) };
+		String::from_utf16_lossy(unsigned_chars.as_slice_of::<u2>().unwrap())
 	}
 }

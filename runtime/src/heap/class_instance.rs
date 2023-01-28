@@ -455,6 +455,13 @@ impl ArrayContent {
 			ArrayContent::Reference(content) => content.len(),
 		}
 	}
+
+	pub fn expect_byte(&self) -> &[i8] {
+		match self {
+			ArrayContent::Byte(bytes) => bytes,
+			_ => panic!("Expected an array of type `byte`"),
+		}
+	}
 }
 
 // A pointer to a ArrayInstance
