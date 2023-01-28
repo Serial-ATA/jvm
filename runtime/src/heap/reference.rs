@@ -85,8 +85,8 @@ impl Instance for Reference {
 
 	fn put_field_value0(&mut self, field_idx: usize, value: Operand<Reference>) {
 		match self {
-			Reference::Class(class) => class.get().put_field_value0(field_idx, value),
-			Reference::Mirror(mirror) => mirror.get().put_field_value0(field_idx, value),
+			Reference::Class(class) => class.get_mut().put_field_value0(field_idx, value),
+			Reference::Mirror(mirror) => mirror.get_mut().put_field_value0(field_idx, value),
 			Reference::Null => panic!("NullPointerException"),
 			_ => panic!("Expected a class reference!"),
 		}

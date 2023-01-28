@@ -99,7 +99,7 @@ pub fn desiredAssertionStatus0(locals: LocalStack) -> NativeReturn {
 	let reference = operand.expect_reference();
 	let mirror = reference.extract_mirror();
 
-	let _name = &mirror.get().target.get().name;
+	let _name = &mirror.get().expect_class().get().name;
 
 	Some(Operand::Int(i32::from(false)))
 }

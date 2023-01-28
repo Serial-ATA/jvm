@@ -7,6 +7,7 @@ use crate::reference::{
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
+use classfile::FieldType;
 use common::int_types::{s1, s2, s4, s8, u1, u2};
 use common::traits::PtrType;
 use instructions::Operand;
@@ -19,14 +20,61 @@ pub trait Instance {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+enum MirrorTarget {
+	Class(ClassRef),
+	Primitive(FieldType),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct MirrorInstance {
 	pub class: ClassRef,
 	pub fields: Box<[Operand<Reference>]>,
-	pub target: ClassRef,
+	target: MirrorTarget,
 }
 
 impl MirrorInstance {
 	pub fn new(mirror_class: ClassRef, target: ClassRef) -> MirrorInstanceRef {
+		let fields = Self::initialize_fields(Arc::clone(&mirror_class));
+		MirrorInstancePtr::new(Self {
+			class: mirror_class,
+			fields,
+			target: MirrorTarget::Class(target),
+		})
+	}
+
+	pub fn new_array(mirror_class: ClassRef, target: ClassRef) -> MirrorInstanceRef {
+		let fields = Self::initialize_fields(Arc::clone(&mirror_class));
+		MirrorInstancePtr::new(Self {
+			class: mirror_class,
+			fields,
+			target: MirrorTarget::Class(target),
+		})
+	}
+
+	pub fn new_primitive(mirror_class: ClassRef, target: FieldType) -> MirrorInstanceRef {
+		let fields = Self::initialize_fields(Arc::clone(&mirror_class));
+		MirrorInstancePtr::new(Self {
+			class: mirror_class,
+			fields,
+			target: MirrorTarget::Primitive(target),
+		})
+	}
+
+	pub fn expect_class(&self) -> ClassRef {
+		match &self.target {
+			MirrorTarget::Class(class) => Arc::clone(class),
+			_ => panic!("Expected mirror instance to point to class!"),
+		}
+	}
+
+	pub fn expect_primitive(&self) -> FieldType {
+		match &self.target {
+			MirrorTarget::Primitive(primitive) => primitive.clone(),
+			_ => panic!("Expected mirror instance to point to primitive!"),
+		}
+	}
+
+	fn initialize_fields(mirror_class: ClassRef) -> Box<[Operand<Reference>]> {
 		let class_instance = mirror_class.unwrap_class_instance();
 		let instance_field_count = class_instance.instance_field_count;
 
@@ -40,19 +88,7 @@ impl MirrorInstance {
 			fields.push(Field::default_value_for_ty(&field.descriptor))
 		}
 
-		MirrorInstancePtr::new(Self {
-			class: mirror_class,
-			fields: fields.into_boxed_slice(),
-			target,
-		})
-	}
-
-	pub fn new_array(mirror_class: ClassRef, target: ClassRef) -> MirrorInstanceRef {
-		MirrorInstancePtr::new(Self {
-			class: mirror_class,
-			fields: Box::new([]),
-			target,
-		})
+		fields.into_boxed_slice()
 	}
 }
 
