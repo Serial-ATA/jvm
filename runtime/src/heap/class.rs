@@ -5,12 +5,12 @@ use crate::class_instance::MirrorInstance;
 use crate::classpath::classloader::ClassLoader;
 use crate::method_invoker::MethodInvoker;
 use crate::reference::{MethodRef, MirrorInstanceRef, Reference};
+use crate::string_interner::StringInterner;
 use crate::thread::ThreadRef;
 
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
-use crate::string_interner::StringInterner;
 use classfile::{ClassFile, ConstantPoolRef, FieldType};
 use common::int_types::{u1, u2, u4};
 use common::traits::PtrType;
@@ -703,6 +703,20 @@ impl ClassPtr {
 	pub fn unwrap_class_instance_mut(&self) -> &mut ClassDescriptor {
 		match self.get_mut().class_ty {
 			ClassType::Instance(ref mut instance) => instance,
+			_ => unreachable!(),
+		}
+	}
+
+	pub fn unwrap_array_instance(&self) -> &ArrayDescriptor {
+		match self.get().class_ty {
+			ClassType::Array(ref instance) => instance,
+			_ => unreachable!(),
+		}
+	}
+
+	pub fn unwrap_array_instance_mut(&self) -> &mut ArrayDescriptor {
+		match self.get_mut().class_ty {
+			ClassType::Array(ref mut instance) => instance,
 			_ => unreachable!(),
 		}
 	}
