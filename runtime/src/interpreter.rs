@@ -241,7 +241,7 @@ macro_rules! control_return {
 			assert!(
 				value.[<is_ $return_ty>](),
 				"Invalid type on operand stack for `{}` instruction",
-				stringify!($opcode)
+				stringify!($instruction)
 			);
 		}
 
