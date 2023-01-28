@@ -74,6 +74,16 @@ impl StackLike<Reference> for OperandStack {
 
 	fn pop(&mut self) -> Operand<Reference> {
 		match self.inner.pop() {
+			Some(op @ Operand::Empty) => {
+				trace_stack!(pop, op);
+				match self.inner.pop() {
+					Some(op @ (Operand::Long(_) | Operand::Double(_))) => {
+						trace_stack!(pop, op);
+						op
+					},
+					_ => panic!("Expected long or double to occupy stack slot!"),
+				}
+			},
 			Some(op) => {
 				trace_stack!(pop, op);
 				op
@@ -131,12 +141,6 @@ impl StackLike<Reference> for OperandStack {
 	fn pop_double(&mut self) -> f64 {
 		trace_stack!(pop_double);
 		let op = self.pop();
-		assert_eq!(
-			self.pop(),
-			Operand::Empty,
-			"Double only occupied single slot on stack!"
-		);
-
 		match op {
 			Operand::Constm1 => -1.0,
 			Operand::Const0(ConstOperandType::Double) => 0.0,
@@ -153,12 +157,6 @@ impl StackLike<Reference> for OperandStack {
 	fn pop_long(&mut self) -> s8 {
 		trace_stack!(pop_long);
 		let op = self.pop();
-		assert_eq!(
-			self.pop(),
-			Operand::Empty,
-			"Long only occupied single slot on stack!"
-		);
-
 		match op {
 			Operand::Constm1 => -1,
 			Operand::Const0(ConstOperandType::Long) => 0,
