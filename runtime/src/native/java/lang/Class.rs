@@ -97,10 +97,9 @@ pub fn isRecord0(_: LocalStack) -> NativeReturn {
 pub fn desiredAssertionStatus0(locals: LocalStack) -> NativeReturn {
 	let operand = locals[0].clone();
 	let reference = operand.expect_reference();
-	let class_instance = reference.extract_class();
+	let mirror = reference.extract_mirror();
 
-	let class = &class_instance.get().class.get();
-	let _name = &class.name;
+	let _name = &mirror.get().target.get().name;
 
 	Some(Operand::Int(i32::from(false)))
 }

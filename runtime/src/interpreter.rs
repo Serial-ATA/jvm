@@ -1,7 +1,8 @@
 use crate::class::Class;
-use crate::class_instance::ArrayInstance;
+use crate::class_instance::{ArrayInstance, ClassInstance};
 use crate::classpath::classloader::ClassLoader;
 use crate::frame::FrameRef;
+use crate::heap::class_instance::Instance;
 use crate::method_invoker::MethodInvoker;
 use crate::reference::{FieldRef, MethodRef, Reference};
 use crate::string_interner::StringInterner;
@@ -569,9 +570,8 @@ impl Interpreter {
                         let stack = frame.get_operand_stack_mut();
                         
                         let object_ref = stack.pop_reference();
-                        let mirror = object_ref.extract_mirror();
                         
-                        let field_value = mirror.get().get_field_value(field);
+                        let field_value = object_ref.get_field_value(field);
                         stack.push_op(field_value);
                     }
                 },
@@ -588,10 +588,9 @@ impl Interpreter {
                         let stack = frame.get_operand_stack_mut();
                         
                         let value = stack.pop();
-                        let object_ref = stack.pop_reference();
-                        let mirror = object_ref.extract_mirror();
+                        let mut object_ref = stack.pop_reference();
                         
-                        mirror.get_mut().put_field_value(field, value);
+                        object_ref.put_field_value(field, value);
                     }
                 },
                 // Static/virtual are differentiated in `MethodInvoker::invoke`
@@ -613,8 +612,8 @@ impl Interpreter {
                     let class_name = constant_pool.get_class_name(index);
                     let classref = class.get().loader.load(class_name).unwrap();
     
-                    let new_mirror_instance = Class::create_mirrored(classref);
-                    frame.get_operand_stack_mut().push_reference(Reference::Mirror(new_mirror_instance));
+                    let new_class_instance = ClassInstance::new(classref);
+                    frame.get_operand_stack_mut().push_reference(Reference::Class(new_class_instance));
                 },
                 OpCode::newarray => {
                     let stack = frame.get_operand_stack_mut();
@@ -741,7 +740,7 @@ impl Interpreter {
                 let bytes = constant_pool.get_constant_utf8(*string_index);
                 let interned_string = StringInterner::get_java_string(bytes, frame.thread());
 
-                frame.get_operand_stack_mut().push_reference(Reference::Mirror(interned_string));
+                frame.get_operand_stack_mut().push_reference(Reference::Class(interned_string));
             },
 
             // Otherwise, if the run-time constant pool entry is a symbolic reference to a class or interface,

@@ -22,9 +22,7 @@ pub(crate) fn initialize(thread: ThreadRef) {
 	ClassLoader::Bootstrap.load(b"java/lang/Class").unwrap();
 
 	// Call `java.lang.System#initPhase1`
-	let init_phase_1 =
-		Class::resolve_method_step_two(system_class.unwrap_class_instance(), b"initPhase1", b"()V")
-			.unwrap();
+	let init_phase_1 = Class::resolve_method_step_two(system_class, b"initPhase1", b"()V").unwrap();
 	Thread::pre_main_invoke_method(thread, init_phase_1);
 
 	// TODO: initPhase2: https://github.com/openjdk/jdk/blob/04591595374e84cfbfe38d92bff4409105b28009/src/hotspot/share/runtime/threads.cpp#L298

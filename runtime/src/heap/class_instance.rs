@@ -11,15 +11,20 @@ use common::int_types::{s1, s2, s4, s8, u1, u2};
 use common::traits::PtrType;
 use instructions::Operand;
 
+pub trait Instance {
+	fn get_field_value(&self, field: FieldRef) -> Operand<Reference>;
+	fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>);
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct MirrorInstance {
 	pub class: ClassRef,
 	pub fields: Box<[Operand<Reference>]>,
-	pub target: ClassInstanceRef,
+	pub target: ClassRef,
 }
 
 impl MirrorInstance {
-	pub fn new(mirror_class: ClassRef, target: ClassInstanceRef) -> MirrorInstanceRef {
+	pub fn new(mirror_class: ClassRef, target: ClassRef) -> MirrorInstanceRef {
 		let class_instance = mirror_class.unwrap_class_instance();
 		let instance_field_count = class_instance.instance_field_count;
 
@@ -40,23 +45,33 @@ impl MirrorInstance {
 		})
 	}
 
-	pub fn get_field_value(&self, field: FieldRef) -> Operand<Reference> {
+	pub fn new_array(mirror_class: ClassRef, target: ClassRef) -> MirrorInstanceRef {
+		MirrorInstancePtr::new(Self {
+			class: mirror_class,
+			fields: Box::new([]),
+			target,
+		})
+	}
+}
+
+impl Instance for MirrorInstance {
+	fn get_field_value(&self, field: FieldRef) -> Operand<Reference> {
 		let class_name = &field.class.get().name;
 		if class_name == &self.class.get().name {
 			return self.fields[field.idx].clone();
 		}
 
-		self.target.get().get_field_value(field)
+		panic!("Failed to resolve field: {:?}", field);
 	}
 
-	pub fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>) {
+	fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>) {
 		let class_name = &field.class.get().name;
 		if class_name == &self.class.get().name {
 			self.fields[field.idx] = value;
 			return;
 		}
 
-		self.target.get_mut().put_field_value(field, value)
+		panic!("Failed to resolve field: {:?}", field);
 	}
 }
 
@@ -119,7 +134,7 @@ impl ClassInstance {
 		let instance_field_count = class_instance.instance_field_count;
 
 		let mut super_class = None;
-		if let Some(ref super_class_) = class_instance.super_class {
+		if let Some(ref super_class_) = class.get().super_class {
 			super_class = Some(Self::new(Arc::clone(super_class_)));
 		}
 
@@ -146,11 +161,13 @@ impl ClassInstance {
 			fields: fields.into_boxed_slice(),
 		})
 	}
+}
 
+impl Instance for ClassInstance {
 	fn get_field_value(&self, field: FieldRef) -> Operand<Reference> {
 		let class_name = &field.class.get().name;
 		let mut current_class = &self.class;
-		while let Some(ref class) = current_class.unwrap_class_instance().super_class {
+		while let Some(ref class) = current_class.get().super_class {
 			if &current_class.get().name == class_name {
 				return self.fields[field.idx].clone();
 			}
@@ -164,7 +181,7 @@ impl ClassInstance {
 	fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>) {
 		let class_name = &field.class.get().name;
 		let mut current_class = &self.class;
-		while let Some(ref class) = current_class.unwrap_class_instance().super_class {
+		while let Some(ref class) = current_class.get().super_class {
 			if &current_class.get().name == class_name {
 				self.fields[field.idx] = value;
 				return;

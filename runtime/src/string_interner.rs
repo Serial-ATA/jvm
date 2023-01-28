@@ -1,7 +1,7 @@
 use crate::class::Class;
-use crate::class_instance::{ArrayContent, ArrayInstance};
+use crate::class_instance::{ArrayContent, ArrayInstance, ClassInstance};
 use crate::classpath::classloader::ClassLoader;
-use crate::reference::{MirrorInstanceRef, Reference};
+use crate::reference::{ClassInstanceRef, Reference};
 use crate::thread::ThreadRef;
 
 use std::collections::HashMap;
@@ -11,13 +11,13 @@ use common::int_types::{u1, u2};
 use instructions::Operand;
 use once_cell::sync::Lazy;
 
-static STRING_POOL: Lazy<HashMap<Vec<u1>, MirrorInstanceRef>> = Lazy::new(HashMap::new);
+static STRING_POOL: Lazy<HashMap<Vec<u1>, ClassInstanceRef>> = Lazy::new(HashMap::new);
 
 pub struct StringInterner;
 
 // TODO: Need to wipe the string pool when the instances fall out of scope
 impl StringInterner {
-	pub fn get_java_string(raw: &[u1], thread: ThreadRef) -> MirrorInstanceRef {
+	pub fn get_java_string(raw: &[u1], thread: ThreadRef) -> ClassInstanceRef {
 		if let Some(interned) = STRING_POOL.get(raw) {
 			return Arc::clone(interned);
 		}
@@ -25,7 +25,7 @@ impl StringInterner {
 		Self::intern_string(raw, thread)
 	}
 
-	pub fn intern_string(raw: &[u1], thread: ThreadRef) -> MirrorInstanceRef {
+	pub fn intern_string(raw: &[u1], thread: ThreadRef) -> ClassInstanceRef {
 		const STRING_CONSTRUCTOR_FROM_CHAR_ARRAY: &[u1] = b"([C)V";
 
 		// TODO: Error handling
@@ -40,11 +40,11 @@ impl StringInterner {
 			ArrayContent::Char(chars_utf16),
 		)));
 
-		let new_java_string_instance = Class::create_mirrored(Arc::clone(&java_string_class));
+		let new_java_string_instance = ClassInstance::new(Arc::clone(&java_string_class));
 
 		// public String(char[] value)
 		let constructor_args = vec![
-			Operand::Reference(Reference::Mirror(Arc::clone(&new_java_string_instance))),
+			Operand::Reference(Reference::Class(Arc::clone(&new_java_string_instance))),
 			reference_to_char_array,
 		];
 

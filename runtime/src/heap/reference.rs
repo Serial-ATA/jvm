@@ -1,11 +1,11 @@
 use super::class::ClassPtr;
 use super::field::Field;
 use super::method::Method;
-use crate::class_instance::{ArrayInstancePtr, ClassInstancePtr, MirrorInstancePtr};
-
-use std::sync::Arc;
+use crate::class_instance::{ArrayInstancePtr, ClassInstancePtr, Instance, MirrorInstancePtr};
 
 use common::traits::PtrType;
+use instructions::Operand;
+use std::sync::Arc;
 
 pub type MethodRef = Arc<Method>;
 pub type FieldRef = Arc<Field>;
@@ -41,7 +41,6 @@ impl Reference {
 	pub fn extract_class(&self) -> ClassInstanceRef {
 		match self {
 			Self::Class(class) => Arc::clone(class),
-			Self::Mirror(mirror) => Arc::clone(&mirror.get().target),
 			Self::Null => panic!("NullPointerException"),
 			_ => panic!("Expected a class reference!"),
 		}
@@ -51,6 +50,26 @@ impl Reference {
 		match self {
 			Self::Mirror(mirror) => Arc::clone(mirror),
 			Self::Null => panic!("NullPointerException"),
+			_ => panic!("Expected a class reference!"),
+		}
+	}
+}
+
+impl Instance for Reference {
+	fn get_field_value(&self, field: FieldRef) -> Operand<Reference> {
+		match self {
+			Reference::Class(class) => class.get().get_field_value(field),
+			Reference::Mirror(mirror) => mirror.get().get_field_value(field),
+			Reference::Null => panic!("NullPointerException"),
+			_ => panic!("Expected a class reference!"),
+		}
+	}
+
+	fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>) {
+		match self {
+			Reference::Class(class) => class.get_mut().put_field_value(field, value),
+			Reference::Mirror(mirror) => mirror.get_mut().put_field_value(field, value),
+			Reference::Null => panic!("NullPointerException"),
 			_ => panic!("Expected a class reference!"),
 		}
 	}

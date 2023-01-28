@@ -1,7 +1,7 @@
 use super::field::Field;
 use super::method::Method;
 use super::reference::{ClassRef, FieldRef};
-use crate::class_instance::{ClassInstance, MirrorInstance};
+use crate::class_instance::MirrorInstance;
 use crate::classpath::classloader::ClassLoader;
 use crate::method_invoker::MethodInvoker;
 use crate::reference::{MethodRef, MirrorInstanceRef, Reference};
@@ -51,6 +51,7 @@ pub struct Class {
 	pub name: Vec<u1>,
 	pub access_flags: u2,
 	pub loader: ClassLoader,
+	pub super_class: Option<ClassRef>,
 
 	pub(crate) class_ty: ClassType,
 
@@ -66,6 +67,7 @@ impl Debug for Class {
 			})
 			.field("access_flags", &self.access_flags)
 			.field("loader", &self.loader)
+			.field("super_class", &self.super_class)
 			.field("instance", &self.class_ty)
 			.finish()
 	}
@@ -80,7 +82,6 @@ pub enum ClassType {
 #[derive(Clone)]
 pub struct ClassDescriptor {
 	pub constant_pool: ConstantPoolRef,
-	pub super_class: Option<ClassRef>,
 	pub methods: Vec<MethodRef>,
 	pub fields: Vec<FieldRef>,
 	pub static_field_slots: Box<[Operand<Reference>]>,
@@ -90,7 +91,6 @@ pub struct ClassDescriptor {
 impl Debug for ClassDescriptor {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("ClassDescriptor")
-			.field("super_class", &self.super_class)
 			.field("methods", &self.methods)
 			.field("fields", &self.fields)
 			.field("static_field_slots", &self.static_field_slots)
@@ -154,7 +154,6 @@ impl Class {
 		// We need the Class instance to create our methods and fields
 		let class_instance = ClassDescriptor {
 			constant_pool,
-			super_class,
 			methods: Vec::new(),
 			fields: Vec::new(),
 			static_field_slots,
@@ -165,6 +164,7 @@ impl Class {
 			name,
 			access_flags,
 			loader,
+			super_class,
 			class_ty: ClassType::Instance(class_instance),
 			init_state: ClassInitializationState::default(),
 			init_lock: Arc::default(),
@@ -184,7 +184,7 @@ impl Class {
 			// Then the fields...
 			let mut fields =
 				Vec::with_capacity(instance_field_count as usize + parsed_file.fields.len());
-			if let Some(ref super_class) = class_instance.super_class {
+			if let Some(ref super_class) = class.super_class {
 				// First we have to inherit the super classes' fields
 				for field in &super_class.unwrap_class_instance().fields {
 					if !field.is_static() {
@@ -236,6 +236,10 @@ impl Class {
 			name: name.to_vec(),
 			access_flags: 0,
 			loader,
+			super_class: Some(
+				ClassLoader::lookup_class(b"java/lang/Object")
+					.expect("java.lang.Object should be loaded"),
+			),
 			class_ty: ClassType::Array(array_instance),
 			init_state: ClassInitializationState::default(),
 			init_lock: Arc::default(),
@@ -315,7 +319,7 @@ impl Class {
 		//    specified class or interface C.
 
 		// 3. Otherwise, if C has a superclass S, field lookup is applied recursively to S.
-		if let Some(super_class) = &class_instance.super_class {
+		if let Some(super_class) = &classref.get().super_class {
 			Class::resolve_field(
 				thread,
 				super_class.unwrap_class_instance().constant_pool.clone(),
@@ -361,8 +365,6 @@ impl Class {
 			return Self::resolve_interface_method(thread, classref, method_name, descriptor);
 		}
 
-		let class_instance = classref.unwrap_class_instance();
-
 		// When resolving a method reference:
 
 		//  1. If C is an interface, method resolution throws an IncompatibleClassChangeError.
@@ -371,9 +373,7 @@ impl Class {
 		}
 
 		//  2. Otherwise, method resolution attempts to locate the referenced method in C and its superclasses:
-		if let ret @ Some(_) =
-			Class::resolve_method_step_two(class_instance, method_name, descriptor)
-		{
+		if let ret @ Some(_) = Class::resolve_method_step_two(classref, method_name, descriptor) {
 			return ret;
 		}
 
@@ -391,13 +391,14 @@ impl Class {
 	}
 
 	pub fn resolve_method_step_two(
-		class_instance: &ClassDescriptor,
+		class_ref: ClassRef,
 		method_name: &[u1],
 		descriptor: &[u1],
 	) -> Option<MethodRef> {
 		//    2.1. If C declares exactly one method with the name specified by the method reference, and the declaration
 		//         is a signature polymorphic method (§2.9.3), then method lookup succeeds. All the class names mentioned
 		//         in the descriptor are resolved (§5.4.3.1).
+		let class_instance = class_ref.unwrap_class_instance();
 		let searched_method = class_instance
 			.methods
 			.iter()
@@ -418,12 +419,10 @@ impl Class {
 		}
 
 		// 	  2.3. Otherwise, if C has a superclass, step 2 of method resolution is recursively invoked on the direct superclass of C.
-		if let Some(ref super_class) = class_instance.super_class {
-			if let Some(resolved_method) = Class::resolve_method_step_two(
-				super_class.unwrap_class_instance(),
-				method_name,
-				descriptor,
-			) {
+		if let Some(ref super_class) = &class_ref.get().super_class {
+			if let Some(resolved_method) =
+				Class::resolve_method_step_two(Arc::clone(super_class), method_name, descriptor)
+			{
 				return Some(Arc::clone(&resolved_method));
 			}
 		}
@@ -569,7 +568,7 @@ impl Class {
 					let string_instance =
 						StringInterner::intern_string(raw_string, Arc::clone(&thread));
 					class_instance.static_field_slots[field.idx] =
-						Operand::Reference(Reference::Mirror(string_instance));
+						Operand::Reference(Reference::Class(string_instance));
 				},
 				_ => unreachable!(),
 			}
@@ -665,11 +664,10 @@ impl Class {
 	}
 
 	pub fn create_mirrored(class: ClassRef) -> MirrorInstanceRef {
-		let class_instance = ClassInstance::new(class);
-
 		let mirror_class = ClassLoader::lookup_class(b"java/lang/Class")
 			.expect("java.lang.Class should be loaded at this point");
-		MirrorInstance::new(mirror_class, class_instance)
+
+		MirrorInstance::new(mirror_class, class)
 	}
 }
 
@@ -678,6 +676,7 @@ impl Clone for Class {
 		Self {
 			name: self.name.clone(),
 			access_flags: self.access_flags,
+			super_class: self.super_class.clone(),
 			class_ty: self.class_ty.clone(),
 			loader: self.loader,
 			init_state: self.init_state,
