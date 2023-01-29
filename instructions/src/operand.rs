@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::ops::Neg;
 
-use common::int_types::{s1, s2, s4, s8, u2};
+use common::int_types::{s1, s2, s4, s8, u2, u4, u8};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConstOperandType {
@@ -304,6 +304,27 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 		}
 
 		panic!("Invalid operand type for `or` instruction")
+	}
+
+	/// Logical shift right
+	pub fn ushr(&mut self, rhs: Self) {
+		if self.is_int() {
+			let lhs = self.expect_int();
+			let rhs = rhs.expect_int();
+			assert!((0..32).contains(&rhs));
+			*self = Operand::Int(((lhs as u4) >> (rhs & 0x1F) as u4) as s4);
+			return;
+		}
+
+		if self.is_long() {
+			let lhs = self.expect_long();
+			let rhs = rhs.expect_long();
+			assert!((0..64).contains(&rhs));
+			*self = Operand::Long(((lhs as u8) >> (rhs & 0x3F) as u8) as s8);
+			return;
+		}
+
+		panic!("Invalid operand type for `ushr` instruction")
 	}
 
 	/// Bitwise XOR of self and rhs

@@ -437,6 +437,7 @@ impl Interpreter {
                         iand (and),
                         ior  (or),
                         ixor (xor),
+                        iushr (ushr),
                         
                         ladd (add),
                         lsub (sub),
@@ -448,6 +449,7 @@ impl Interpreter {
                         land (and),
                         lor  (or),
                         lxor (xor),
+                        lushr (ushr),
                         
                         fadd (add),
                         fsub (sub),
