@@ -413,6 +413,28 @@ pub enum ArrayContent {
 	Reference(Box<[Reference]>),
 }
 
+macro_rules! expect_functions {
+	($([$name:ident, $pat:pat, $ty:ty]),+) => {
+		$(
+		paste::paste! {
+			pub fn [<expect_ $name>](&self) -> &[$ty] {
+				match self {
+					ArrayContent::$pat(bytes) => bytes,
+					_ => panic!("Expected an array of type `{}`", stringify!($name)),
+				}
+			}
+
+			pub fn [<expect_ $name _mut>](&mut self) -> &mut [$ty] {
+				match self {
+					ArrayContent::$pat(bytes) => bytes,
+					_ => panic!("Expected an array of type `{}`", stringify!($name)),
+				}
+			}
+		}
+		)+
+	}
+}
+
 impl ArrayContent {
 	fn default_initialize(type_code: u1, count: s4) -> Self {
 		match type_code {
@@ -456,11 +478,56 @@ impl ArrayContent {
 		}
 	}
 
-	pub fn expect_byte(&self) -> &[i8] {
-		match self {
-			ArrayContent::Byte(bytes) => bytes,
-			_ => panic!("Expected an array of type `byte`"),
+	pub fn copy_into(
+		&self,
+		start: usize,
+		dest: &mut ArrayContent,
+		dest_start: usize,
+		length: usize,
+	) {
+		macro_rules! copy {
+			($($pat:path, ($ty:ident))|+) => {
+				match self {
+					$($pat(self_bytes) => {
+						paste::paste! {
+							let dest_bytes = dest.[<expect_ $ty _mut>]();
+							let (_, dest_slice) = dest_bytes.split_at_mut(dest_start);
+							let (_, self_slice) = self_bytes.split_at(start);
+							dest_slice[..length].copy_from_slice(&self_slice[..length]);
+						}
+					}),+
+					ArrayContent::Reference(self_bytes) => {
+						let dest_bytes = dest.expect_reference_mut();
+						let (_, dest_slice) = dest_bytes.split_at_mut(dest_start);
+						let (_, self_slice) = self_bytes.split_at(start);
+						dest_slice[..length].clone_from_slice(&self_slice[..length]);
+					}
+				}
+			}
 		}
+
+		copy! {
+			ArrayContent::Byte,     (byte)
+			| ArrayContent::Bool,   (bool)
+			| ArrayContent::Short,  (short)
+			| ArrayContent::Char,   (char)
+			| ArrayContent::Int,    (int)
+			| ArrayContent::Float,  (float)
+			| ArrayContent::Double, (double)
+			| ArrayContent::Long,   (long)
+		}
+	}
+
+	expect_functions! {
+		[byte, Byte, s1],
+		[bool, Bool, s1],
+		[short, Short, s2],
+		[char, Char, u2],
+		[int, Int, s4],
+		[float, Float, f32],
+		[double, Double, f64],
+		[long, Long, s8],
+		[reference, Reference, Reference]
 	}
 }
 
