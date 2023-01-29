@@ -103,7 +103,18 @@ impl StackLike<Reference> for OperandStack {
 		assert!(self.inner.len() >= count);
 
 		let split_pos = self.inner.len() - count;
-		self.inner.split_off(split_pos)
+		let mut ret = self.inner.split_off(split_pos);
+		if let Some(Operand::Empty) = ret.first() {
+			// We popped on a long/double border, pop again.
+			let l_or_d = self.inner.pop();
+			assert!(
+				matches!(l_or_d, Some(Operand::Long(_) | Operand::Double(_))),
+				"popn encountered a false long/double border"
+			);
+			ret[0] = l_or_d.unwrap();
+		}
+
+		ret
 	}
 
 	fn pop_int(&mut self) -> s4 {
