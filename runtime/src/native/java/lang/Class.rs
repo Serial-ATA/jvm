@@ -31,8 +31,13 @@ pub fn isPrimitive(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("Class#isPrimitive");
 }
 
-pub fn initClassName(_: JNIEnv, _: LocalStack) -> NativeReturn {
-	unimplemented!("Class#initClassName");
+pub fn initClassName(env: JNIEnv, locals: LocalStack) -> NativeReturn {
+	let this = locals[0].expect_reference().extract_mirror();
+	let this_mirror_target = this.get().expect_class(); // TODO: Support primitive mirrors
+	let this_name = &this_mirror_target.get().name;
+	let name_string = StringInterner::intern_string(this_name, env.current_thread);
+
+	Some(Operand::Reference(Reference::Class(name_string)))
 }
 
 pub fn getSuperclass(_: JNIEnv, _: LocalStack) -> NativeReturn {
