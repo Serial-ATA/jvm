@@ -1,0 +1,3 @@
+public class Throwable {
+    private native Throwable fillInStackTrace(int dummy);
+}

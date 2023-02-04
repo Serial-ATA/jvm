@@ -4,3 +4,4 @@ pub mod Float;
 pub mod Object;
 pub mod StringUTF16;
 pub mod System;
+pub mod Throwable;
