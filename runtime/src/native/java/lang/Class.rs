@@ -1,10 +1,12 @@
+use crate::class_instance::Instance;
+use crate::classpath::classloader::ClassLoader;
+use crate::heap::mirror::MirrorInstance;
 use crate::native::{JNIEnv, NativeReturn};
+use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::string_interner::StringInterner;
 
-use crate::classpath::classloader::ClassLoader;
-use crate::heap::mirror::MirrorInstance;
-use crate::reference::Reference;
+use std::sync::Arc;
 
 use common::traits::PtrType;
 use instructions::Operand;
@@ -31,11 +33,16 @@ pub fn isPrimitive(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("Class#isPrimitive");
 }
 
-pub fn initClassName(env: JNIEnv, locals: LocalStack) -> NativeReturn {
+pub fn initClassName(_: JNIEnv, locals: LocalStack) -> NativeReturn {
 	let this = locals[0].expect_reference().extract_mirror();
 	let this_mirror_target = this.get().expect_class(); // TODO: Support primitive mirrors
 	let this_name = &this_mirror_target.get().name;
-	let name_string = StringInterner::intern_string(this_name, env.current_thread);
+	let name_string = StringInterner::intern_string(this_name);
+
+	this.get_mut().put_field_value0(
+		crate::globals::class_name_field_offset(),
+		Operand::Reference(Reference::Class(Arc::clone(&name_string))),
+	);
 
 	Some(Operand::Reference(Reference::Class(name_string)))
 }

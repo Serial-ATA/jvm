@@ -568,8 +568,7 @@ impl Class {
 					let raw_string = class_instance
 						.constant_pool
 						.get_string(constant_value_index);
-					let string_instance =
-						StringInterner::intern_string(raw_string, Arc::clone(&thread));
+					let string_instance = StringInterner::intern_string(raw_string);
 					class_instance.static_field_slots[field.idx] =
 						Operand::Reference(Reference::Class(string_instance));
 				},

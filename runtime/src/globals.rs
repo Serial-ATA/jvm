@@ -2,6 +2,8 @@ use classfile::FieldType;
 
 pub static mut STRING_VALUE_FIELD_OFFSET: usize = 0;
 
+pub static mut CLASS_NAME_FIELD_OFFSET: usize = 0;
+
 pub const TYPES: &[(&str, FieldType)] = &[
 	("boolean", FieldType::Boolean),
 	("char", FieldType::Char),
@@ -16,4 +18,8 @@ pub const TYPES: &[(&str, FieldType)] = &[
 
 pub fn string_value_field_offset() -> usize {
 	unsafe { STRING_VALUE_FIELD_OFFSET }
+}
+
+pub fn class_name_field_offset() -> usize {
+	unsafe { CLASS_NAME_FIELD_OFFSET }
 }

@@ -740,7 +740,7 @@ impl Interpreter {
             // a reference to an instance of class String, then value, a reference to that instance, is pushed onto the operand stack.
             ConstantPoolValueInfo::String { string_index } => {
                 let bytes = constant_pool.get_constant_utf8(*string_index);
-                let interned_string = StringInterner::get_java_string(bytes, frame.thread());
+                let interned_string = StringInterner::get_java_string(bytes);
 
                 frame.get_operand_stack_mut().push_reference(Reference::Class(interned_string));
             },

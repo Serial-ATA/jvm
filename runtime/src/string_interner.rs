@@ -1,8 +1,6 @@
-use crate::class::Class;
 use crate::class_instance::{ArrayContent, ArrayInstance, ClassInstance, Instance};
 use crate::classpath::classloader::ClassLoader;
 use crate::reference::{ClassInstanceRef, Reference};
-use crate::thread::ThreadRef;
 
 use std::collections::HashMap;
 use std::ptr::slice_from_raw_parts;
@@ -20,42 +18,36 @@ pub struct StringInterner;
 
 // TODO: Need to wipe the string pool when the instances fall out of scope
 impl StringInterner {
-	pub fn get_java_string(raw: &[u1], thread: ThreadRef) -> ClassInstanceRef {
+	pub fn get_java_string(raw: &[u1]) -> ClassInstanceRef {
 		if let Some(interned) = STRING_POOL.get(raw) {
 			return Arc::clone(interned);
 		}
 
-		Self::intern_string(raw, thread)
+		Self::intern_string(raw)
 	}
 
-	pub fn intern_string(raw: &[u1], thread: ThreadRef) -> ClassInstanceRef {
-		const STRING_CONSTRUCTOR_FROM_CHAR_ARRAY: &[u1] = b"([C)V";
-
+	pub fn intern_string(raw: &[u1]) -> ClassInstanceRef {
 		// TODO: Error handling
 		let java_string_class = ClassLoader::lookup_class(b"java/lang/String")
 			.expect("java.lang.String should be loaded at this point");
-		let char_array_class = ClassLoader::Bootstrap.load(b"[C").unwrap();
+		let byte_array_class = ClassLoader::Bootstrap.load(b"[B").unwrap();
 
-		// TODO: Actual UTF-16 handling
-		let chars_utf16 = raw.iter().map(|b| u2::from(*b)).collect::<Box<[u2]>>();
-		let reference_to_char_array = Operand::Reference(Reference::Array(ArrayInstance::new(
-			char_array_class,
-			ArrayContent::Char(chars_utf16),
+		// TODO: More efficient conversion
+		let string = unsafe { std::str::from_utf8_unchecked(raw) };
+		let mut utf16_encoded_bytes = string.encode_utf16().collect::<Box<[u16]>>();
+		let re_aligned_bytes = unsafe { utf16_encoded_bytes.align_to_mut::<i8>().1 };
+
+		let reference_to_byte_array = Operand::Reference(Reference::Array(ArrayInstance::new(
+			byte_array_class,
+			ArrayContent::Byte(re_aligned_bytes.to_vec().into_boxed_slice()),
 		)));
 
 		let new_java_string_instance = ClassInstance::new(Arc::clone(&java_string_class));
 
-		// public String(char[] value)
-		let constructor_args = vec![
-			Operand::Reference(Reference::Class(Arc::clone(&new_java_string_instance))),
-			reference_to_char_array,
-		];
-
-		Class::construct(
-			java_string_class,
-			thread,
-			STRING_CONSTRUCTOR_FROM_CHAR_ARRAY,
-			constructor_args,
+		// Set `private byte[] value`
+		new_java_string_instance.get_mut().put_field_value0(
+			crate::globals::string_value_field_offset(),
+			reference_to_byte_array,
 		);
 
 		new_java_string_instance
