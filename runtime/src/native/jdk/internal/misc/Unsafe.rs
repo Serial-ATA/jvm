@@ -1,214 +1,233 @@
-use crate::native::NativeReturn;
+use crate::native::{JNIEnv, NativeReturn};
+use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
+
+use common::int_types::s4;
+use common::traits::PtrType;
+use instructions::Operand;
 
 include!("def/Unsafe.registerNatives");
 
-pub fn getInt(_: LocalStack) -> NativeReturn {
+pub fn getInt(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#getInt")
 }
-pub fn putInt(_: LocalStack) -> NativeReturn {
+pub fn putInt(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putInt")
 }
-pub fn getReference(_: LocalStack) -> NativeReturn {
+pub fn getReference(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#getReference")
 }
-pub fn putReference(_: LocalStack) -> NativeReturn {
+pub fn putReference(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putReference")
 }
-pub fn getBoolean(_: LocalStack) -> NativeReturn {
+pub fn getBoolean(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#getBoolean")
 }
-pub fn putBoolean(_: LocalStack) -> NativeReturn {
+pub fn putBoolean(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putBoolean")
 }
-pub fn getByte(_: LocalStack) -> NativeReturn {
+pub fn getByte(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#getByte")
 }
-pub fn putByte(_: LocalStack) -> NativeReturn {
+pub fn putByte(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putByte")
 }
-pub fn getShort(_: LocalStack) -> NativeReturn {
+pub fn getShort(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#  getShort")
 }
-pub fn putShort(_: LocalStack) -> NativeReturn {
+pub fn putShort(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putShort")
 }
-pub fn getChar(_: LocalStack) -> NativeReturn {
+pub fn getChar(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#getChar")
 }
-pub fn putChar(_: LocalStack) -> NativeReturn {
+pub fn putChar(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putChar")
 }
-pub fn getLong(_: LocalStack) -> NativeReturn {
+pub fn getLong(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#getLong")
 }
-pub fn putLong(_: LocalStack) -> NativeReturn {
+pub fn putLong(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putLong")
 }
-pub fn getFloat(_: LocalStack) -> NativeReturn {
+pub fn getFloat(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#  getFloat")
 }
-pub fn putFloat(_: LocalStack) -> NativeReturn {
+pub fn putFloat(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putFloat")
 }
-pub fn getDouble(_: LocalStack) -> NativeReturn {
+pub fn getDouble(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe# getDouble")
 }
-pub fn putDouble(_: LocalStack) -> NativeReturn {
+pub fn putDouble(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putDouble")
 }
 
-pub fn getUncompressedObject(_: LocalStack) -> NativeReturn {
+pub fn getUncompressedObject(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#getUncompressedObject")
 }
 
-pub fn writeback0(_: LocalStack) -> NativeReturn {
+pub fn writeback0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#writeback0")
 }
-pub fn writebackPreSync0(_: LocalStack) -> NativeReturn {
+pub fn writebackPreSync0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#writebackPreSync0")
 }
-pub fn writebackPostSync0(_: LocalStack) -> NativeReturn {
+pub fn writebackPostSync0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#writebackPostSync0")
 }
 
-pub fn defineClass0(_: LocalStack) -> NativeReturn {
+pub fn defineClass0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#defineClass0")
 }
 
-pub fn throwException(_: LocalStack) -> NativeReturn {
+pub fn throwException(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#throwException")
 }
 
-pub fn compareAndSetReference(_: LocalStack) -> NativeReturn {
+pub fn compareAndSetReference(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndSetReference")
 }
-pub fn compareAndExchangeReference(_: LocalStack) -> NativeReturn {
+pub fn compareAndExchangeReference(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndExchangeReference")
 }
 
-pub fn compareAndSetInt(_: LocalStack) -> NativeReturn {
+pub fn compareAndSetInt(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndSetInt")
 }
-pub fn compareAndExchangeInt(_: LocalStack) -> NativeReturn {
+pub fn compareAndExchangeInt(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndExchangeInt")
 }
 
-pub fn compareAndSetLong(_: LocalStack) -> NativeReturn {
+pub fn compareAndSetLong(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndSetLong")
 }
-pub fn compareAndExchangeLong(_: LocalStack) -> NativeReturn {
+pub fn compareAndExchangeLong(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndExchangeLong")
 }
 
-pub fn getReferenceVolatile(_: LocalStack) -> NativeReturn {
+pub fn getReferenceVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#getReferenceVolatile")
 }
-pub fn putReferenceVolatile(_: LocalStack) -> NativeReturn {
+pub fn putReferenceVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putReferenceVolatile")
 }
-pub fn getIntVolatile(_: LocalStack) -> NativeReturn {
+pub fn getIntVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe# getIntVolatile")
 }
-pub fn putIntVolatile(_: LocalStack) -> NativeReturn {
+pub fn putIntVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putIntVolatile")
 }
-pub fn getBooleanVolatile(_: LocalStack) -> NativeReturn {
+pub fn getBooleanVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#getBooleanVolatile")
 }
-pub fn putBooleanVolatile(_: LocalStack) -> NativeReturn {
+pub fn putBooleanVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putBooleanVolatile")
 }
-pub fn getByteVolatile(_: LocalStack) -> NativeReturn {
+pub fn getByteVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#getByteVolatile")
 }
-pub fn putByteVolatile(_: LocalStack) -> NativeReturn {
+pub fn putByteVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putByteVolatile")
 }
-pub fn getShortVolatile(_: LocalStack) -> NativeReturn {
+pub fn getShortVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#  getShortVolatile")
 }
-pub fn putShortVolatile(_: LocalStack) -> NativeReturn {
+pub fn putShortVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putShortVolatile")
 }
-pub fn getCharVolatile(_: LocalStack) -> NativeReturn {
+pub fn getCharVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#getCharVolatile")
 }
-pub fn putCharVolatile(_: LocalStack) -> NativeReturn {
+pub fn putCharVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putCharVolatile")
 }
-pub fn getLongVolatile(_: LocalStack) -> NativeReturn {
+pub fn getLongVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#getLongVolatile")
 }
-pub fn putLongVolatile(_: LocalStack) -> NativeReturn {
+pub fn putLongVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putLongVolatile")
 }
-pub fn getFloatVolatile(_: LocalStack) -> NativeReturn {
+pub fn getFloatVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#  getFloatVolatile")
 }
-pub fn putFloatVolatile(_: LocalStack) -> NativeReturn {
+pub fn putFloatVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putFloatVolatile")
 }
-pub fn getDoubleVolatile(_: LocalStack) -> NativeReturn {
+pub fn getDoubleVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe# getDoubleVolatile")
 }
-pub fn putDoubleVolatile(_: LocalStack) -> NativeReturn {
+pub fn putDoubleVolatile(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#putDoubleVolatile")
 }
 
-pub fn unpark(_: LocalStack) -> NativeReturn {
+pub fn unpark(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#unpark")
 }
-pub fn park(_: LocalStack) -> NativeReturn {
+pub fn park(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#park")
 }
 
-pub fn fullFence(_: LocalStack) -> NativeReturn {
+pub fn fullFence(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#fullFence")
 }
 
-pub fn allocateMemory0(_: LocalStack) -> NativeReturn {
+pub fn allocateMemory0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#allocateMemory0")
 }
-pub fn reallocateMemory0(_: LocalStack) -> NativeReturn {
+pub fn reallocateMemory0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#reallocateMemory0")
 }
-pub fn freeMemory0(_: LocalStack) -> NativeReturn {
+pub fn freeMemory0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#freeMemory0")
 }
-pub fn setMemory0(_: LocalStack) -> NativeReturn {
+pub fn setMemory0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#setMemory0")
 }
-pub fn copyMemory0(_: LocalStack) -> NativeReturn {
+pub fn copyMemory0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#copyMemory0")
 }
-pub fn copySwapMemory0(_: LocalStack) -> NativeReturn {
+pub fn copySwapMemory0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#copySwapMemory0")
 }
-pub fn objectFieldOffset0(_: LocalStack) -> NativeReturn {
+pub fn objectFieldOffset0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#objectFieldOffset0")
 }
-pub fn objectFieldOffset1(_: LocalStack) -> NativeReturn {
+pub fn objectFieldOffset1(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#objectFieldOffset1")
 }
-pub fn staticFieldOffset0(_: LocalStack) -> NativeReturn {
+pub fn staticFieldOffset0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#staticFieldOffset0")
 }
-pub fn staticFieldBase0(_: LocalStack) -> NativeReturn {
+pub fn staticFieldBase0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#staticFieldBase0")
 }
-pub fn shouldBeInitialized0(_: LocalStack) -> NativeReturn {
+pub fn shouldBeInitialized0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#shouldBeInitialized0")
 }
-pub fn ensureClassInitialized0(_: LocalStack) -> NativeReturn {
+pub fn ensureClassInitialized0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#ensureClassInitialized0")
 }
-pub fn arrayBaseOffset0(_: LocalStack) -> NativeReturn {
-	unimplemented!("jdk.internal.misc.Unsafe#arrayBaseOffset0")
+pub fn arrayBaseOffset0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
+	let reference = locals[1].expect_reference();
+	let mirror = reference.extract_mirror();
+	// TODO: InvalidClassException
+	let _array = mirror.get().expect_class().unwrap_array_instance();
+
+	// TODO: We don't do byte packing like Hotspot
+	Some(Operand::Int(0))
 }
-pub fn arrayIndexScale0(_: LocalStack) -> NativeReturn {
-	unimplemented!("jdk.internal.misc.Unsafe#arrayIndexScale0")
+pub fn arrayIndexScale0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
+	let reference = locals[1].expect_reference();
+	let mirror = reference.extract_mirror();
+	// TODO: InvalidClassException
+	let _array = mirror.get().expect_class().unwrap_array_instance();
+
+	// TODO: We don't do byte packing like Hotspot
+	Some(Operand::Int(
+		core::mem::size_of::<Operand<Reference>>() as s4
+	))
 }
-pub fn getLoadAverage0(_: LocalStack) -> NativeReturn {
+pub fn getLoadAverage0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#getLoadAverage0")
 }

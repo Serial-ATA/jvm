@@ -1,7 +1,7 @@
 use crate::classpath::classloader::ClassLoader;
 use crate::frame::{Frame, FramePtr, FrameRef};
 use crate::interpreter::Interpreter;
-use crate::native::NativeMethodDef;
+use crate::native::{JNIEnv, NativeMethodDef};
 use crate::reference::{MethodRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::OperandStack;
@@ -89,8 +89,12 @@ impl Thread {
 				descriptor: &method.descriptor,
 			});
 
+			let env = JNIEnv {
+				current_thread: Arc::clone(&thread),
+			};
+
 			// Push the return value onto the frame's stack
-			if let Some(ret) = fn_ptr(locals) {
+			if let Some(ret) = fn_ptr(env, locals) {
 				thread
 					.get()
 					.current_frame()

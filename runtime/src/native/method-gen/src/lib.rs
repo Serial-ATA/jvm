@@ -114,7 +114,7 @@ use std::sync::atomic::{{AtomicBool, Ordering}};
 static NATIVES_REGISTERED: AtomicBool = AtomicBool::new(false);
 
 #[allow(trivial_casts)]
-pub fn registerNatives(_: crate::stack::local_stack::LocalStack) -> NativeReturn {{
+pub fn registerNatives(_: JNIEnv, _: crate::stack::local_stack::LocalStack) -> NativeReturn {{
 	if NATIVES_REGISTERED.compare_exchange(false, true, Ordering::SeqCst, Ordering::Acquire) != Ok(false) {{
 		return None;
 	}}

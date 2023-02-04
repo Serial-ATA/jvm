@@ -1,4 +1,4 @@
-use crate::native::NativeReturn;
+use crate::native::{JNIEnv, NativeReturn};
 use crate::stack::local_stack::LocalStack;
 
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -9,20 +9,20 @@ use instructions::Operand;
 
 include!("def/System.registerNatives");
 
-pub fn setIn0(_: LocalStack) -> NativeReturn {
+pub fn setIn0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("System#setIn0")
 }
-pub fn setOut0(_: LocalStack) -> NativeReturn {
+pub fn setOut0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("System#setOut0")
 }
-pub fn setErr0(_: LocalStack) -> NativeReturn {
+pub fn setErr0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("System#setErr0")
 }
 
-pub fn currentTimeMillis(_: LocalStack) -> NativeReturn {
+pub fn currentTimeMillis(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("System#currentTimeMillis")
 }
-pub fn nanoTime(_: LocalStack) -> NativeReturn {
+pub fn nanoTime(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	let time_nanos = SystemTime::now()
 		.duration_since(UNIX_EPOCH)
 		.expect("current system time should not be before the UNIX epoch")
@@ -31,7 +31,7 @@ pub fn nanoTime(_: LocalStack) -> NativeReturn {
 	Some(Operand::Long(time_nanos as s8))
 }
 
-pub fn arraycopy(locals: LocalStack) -> NativeReturn {
+pub fn arraycopy(_: JNIEnv, locals: LocalStack) -> NativeReturn {
 	let src = locals[0].expect_reference();
 	let src_pos = locals[1].expect_int();
 	let dest = locals[2].expect_reference();
@@ -70,10 +70,10 @@ pub fn arraycopy(locals: LocalStack) -> NativeReturn {
 	None
 }
 
-pub fn identityHashCode(_: LocalStack) -> NativeReturn {
+pub fn identityHashCode(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("System#identityHashCode")
 }
 
-pub fn mapLibraryName(_: LocalStack) -> NativeReturn {
+pub fn mapLibraryName(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("System#mapLibraryName")
 }
