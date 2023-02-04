@@ -51,7 +51,17 @@ impl Reference {
 		match self {
 			Self::Mirror(mirror) => Arc::clone(mirror),
 			Self::Null => panic!("NullPointerException"),
-			_ => panic!("Expected a class reference!"),
+			_ => panic!("Expected a mirror reference!"),
+		}
+	}
+
+	/// Extract a mirror instance from a `Class` or `Array` instance, this is NOT the same as `Reference::extract_mirror`
+	pub fn extract_class_mirror(&self) -> MirrorInstanceRef {
+		match self {
+			Reference::Class(class) => class.get().class.get_mirror(),
+			Reference::Array(arr) => arr.get().class.get_mirror(),
+			Self::Null => panic!("NullPointerException"),
+			_ => panic!("Expected a class/array reference!"),
 		}
 	}
 }

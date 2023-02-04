@@ -1,8 +1,14 @@
 use crate::native::NativeReturn;
+use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 
-pub fn getClass(_: LocalStack) -> NativeReturn {
-	unimplemented!("Object#getClass")
+use instructions::Operand;
+
+pub fn getClass(locals: LocalStack) -> NativeReturn {
+	let this = locals[0].expect_reference();
+	Some(Operand::Reference(Reference::Mirror(
+		this.extract_class_mirror(),
+	)))
 }
 
 pub fn hashCode(_: LocalStack) -> NativeReturn {
