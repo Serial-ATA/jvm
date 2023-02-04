@@ -134,6 +134,11 @@ impl ClassLoader {
 		// "Preparation may occur at any time following creation but must be completed prior to initialization."
 		Self::prepare(Arc::clone(&class));
 
+		// Set the mirror
+		if let Some(mirror_class) = Self::lookup_class(b"java/lang/Class") {
+			Class::set_mirror(mirror_class, Arc::clone(&class));
+		}
+
 		Self::insert_bootstrapped_class(name.to_vec(), Arc::clone(&class));
 
 		class
@@ -207,6 +212,11 @@ impl ClassLoader {
 		//     If the component type is a reference type, the accessibility of the array class is determined by the accessibility of its component type (§5.4.4).
 		//     Otherwise, the array class is accessible to all classes and interfaces.
 
+		// Set the mirror
+		if let Some(mirror_class) = Self::lookup_class(b"java/lang/Class") {
+			Class::set_mirror(mirror_class, Arc::clone(&array_class));
+		}
+
 		Self::insert_bootstrapped_class(descriptor.to_vec(), Arc::clone(&array_class));
 		array_class
 	}
@@ -228,5 +238,14 @@ impl ClassLoader {
 
 		// TODO:
 		// During preparation of a class or interface C, the Java Virtual Machine also imposes loading constraints (§5.3.4):
+	}
+
+	/// Recreate mirrors for all loaded classes
+	pub fn fixup_mirrors() {
+		let java_lang_class =
+			Self::lookup_class(b"java/lang/Class").expect("java.lang.Class should be loaded");
+		for (_, class) in BOOTSTRAP_LOADED_CLASSES.lock().unwrap().iter() {
+			Class::set_mirror(Arc::clone(&java_lang_class), Arc::clone(class));
+		}
 	}
 }

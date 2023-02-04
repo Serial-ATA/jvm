@@ -754,8 +754,7 @@ impl Interpreter {
                 let class_name = constant_pool.get_constant_utf8(*name_index);
                 let classref = class.loader.load(class_name).unwrap();
 
-                let new_mirror_instance = Class::create_mirrored(classref);
-                frame.get_operand_stack_mut().push_reference(Reference::Mirror(new_mirror_instance));
+                frame.get_operand_stack_mut().push_reference(Reference::Mirror(classref.get_mirror()));
             },
 
             // Otherwise, the run-time constant pool entry is a symbolic reference to a method type, a method handle,

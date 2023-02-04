@@ -1,8 +1,8 @@
 use super::field::Field;
 use super::method::Method;
 use super::reference::{ClassRef, FieldRef};
-use crate::class_instance::MirrorInstance;
 use crate::classpath::classloader::ClassLoader;
+use crate::heap::mirror::MirrorInstance;
 use crate::method_invoker::MethodInvoker;
 use crate::reference::{MethodRef, MirrorInstanceRef, Reference};
 use crate::string_interner::StringInterner;
@@ -52,6 +52,7 @@ pub struct Class {
 	pub access_flags: u2,
 	pub loader: ClassLoader,
 	pub super_class: Option<ClassRef>,
+	pub mirror: Option<MirrorInstanceRef>,
 
 	pub(crate) class_ty: ClassType,
 
@@ -165,6 +166,7 @@ impl Class {
 			access_flags,
 			loader,
 			super_class,
+			mirror: None, // Set later
 			class_ty: ClassType::Instance(class_instance),
 			init_state: ClassInitializationState::default(),
 			init_lock: Arc::default(),
@@ -240,6 +242,7 @@ impl Class {
 				ClassLoader::lookup_class(b"java/lang/Object")
 					.expect("java.lang.Object should be loaded"),
 			),
+			mirror: None, // Set later
 			class_ty: ClassType::Array(array_instance),
 			init_state: ClassInitializationState::default(),
 			init_lock: Arc::default(),
@@ -663,25 +666,13 @@ impl Class {
 		self.init_state
 	}
 
-	pub fn create_mirrored(class: ClassRef) -> MirrorInstanceRef {
-		let mirror_class = ClassLoader::lookup_class(b"java/lang/Class")
-			.expect("java.lang.Class should be loaded at this point");
+	pub fn set_mirror(mirror_class: ClassRef, target: ClassRef) {
+		let mirror = match target.get().class_ty {
+			ClassType::Instance(_) => MirrorInstance::new(mirror_class, Arc::clone(&target)),
+			ClassType::Array(_) => MirrorInstance::new_array(mirror_class, Arc::clone(&target)),
+		};
 
-		MirrorInstance::new(mirror_class, class)
-	}
-}
-
-impl Clone for Class {
-	fn clone(&self) -> Self {
-		Self {
-			name: self.name.clone(),
-			access_flags: self.access_flags,
-			super_class: self.super_class.clone(),
-			class_ty: self.class_ty.clone(),
-			loader: self.loader,
-			init_state: self.init_state,
-			init_lock: Arc::new(InitializationLock::default()),
-		}
+		target.get_mut().mirror = Some(mirror);
 	}
 }
 
@@ -693,6 +684,10 @@ impl Clone for Class {
 pub struct ClassPtr(usize);
 
 impl ClassPtr {
+	pub fn get_mirror(&self) -> MirrorInstanceRef {
+		Arc::clone(self.get().mirror.as_ref().unwrap())
+	}
+
 	pub fn unwrap_class_instance(&self) -> &ClassDescriptor {
 		match self.get().class_ty {
 			ClassType::Instance(ref instance) => instance,

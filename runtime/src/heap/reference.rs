@@ -1,7 +1,8 @@
 use super::class::ClassPtr;
 use super::field::Field;
 use super::method::Method;
-use crate::class_instance::{ArrayInstancePtr, ClassInstancePtr, Instance, MirrorInstancePtr};
+use crate::class_instance::{ArrayInstancePtr, ClassInstancePtr, Instance};
+use crate::heap::mirror::MirrorInstancePtr;
 
 use common::traits::PtrType;
 use instructions::Operand;
