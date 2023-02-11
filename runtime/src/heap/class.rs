@@ -52,6 +52,7 @@ pub struct Class {
 	pub access_flags: u2,
 	pub loader: ClassLoader,
 	pub super_class: Option<ClassRef>,
+	pub interfaces: Vec<ClassRef>,
 	pub mirror: Option<MirrorInstanceRef>,
 
 	pub(crate) class_ty: ClassType,
@@ -150,6 +151,12 @@ impl Class {
 			instance_field_count = super_class.unwrap_class_instance().instance_field_count;
 		}
 
+		let interfaces = parsed_file
+			.interfaces
+			.iter()
+			.map(|index| loader.load(constant_pool.get_class_name(*index)).unwrap())
+			.collect();
+
 		let static_field_slots = vec![Operand::Empty; static_field_count].into_boxed_slice();
 
 		// We need the Class instance to create our methods and fields
@@ -166,6 +173,7 @@ impl Class {
 			access_flags,
 			loader,
 			super_class,
+			interfaces,
 			mirror: None, // Set later
 			class_ty: ClassType::Instance(class_instance),
 			init_state: ClassInitializationState::default(),
@@ -242,6 +250,13 @@ impl Class {
 				ClassLoader::lookup_class(b"java/lang/Object")
 					.expect("java.lang.Object should be loaded"),
 			),
+			// https://docs.oracle.com/javase/specs/jls/se19/html/jls-4.html#jls-4.10.3
+			interfaces: vec![
+				ClassLoader::Bootstrap.load(b"java/lang/Cloneable").unwrap(),
+				ClassLoader::Bootstrap
+					.load(b"java/io/Serializable")
+					.unwrap(),
+			],
 			mirror: None, // Set later
 			class_ty: ClassType::Array(array_instance),
 			init_state: ClassInitializationState::default(),
