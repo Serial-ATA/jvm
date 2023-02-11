@@ -1,0 +1,9 @@
+import java.lang.Class;
+
+public class Reflection {
+    public static native Class<?> getCallerClass();
+    public static native int getClassAccessFlags(Class<?> c);
+
+    public static native boolean areNestMates(Class<?> currentClass,
+                                              Class<?> memberClass);
+}
