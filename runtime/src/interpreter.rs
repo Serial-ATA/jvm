@@ -535,7 +535,7 @@ impl Interpreter {
                         if_icmpgt  (>),
                         if_icmple  (<=),
                         if_acmpeq  (==, reference),
-                        if_acmpne  (==, reference),
+                        if_acmpne  (!=, reference),
                     ]
                 } => comparisons,
                 OpCode::fcmpl => {
