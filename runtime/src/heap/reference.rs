@@ -22,7 +22,6 @@ pub enum Reference {
 	Class(ClassInstanceRef),
 	Array(ArrayInstanceRef),
 	Mirror(MirrorInstanceRef),
-	Interface,
 	Null,
 }
 

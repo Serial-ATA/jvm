@@ -20,7 +20,6 @@ pub fn hashCode(_: JNIEnv, locals: LocalStack) -> NativeReturn {
 		Reference::Array(array) => array.as_raw() as s4,
 		Reference::Mirror(mirror) => mirror.as_raw() as s4,
 		Reference::Null => 0,
-		_ => unreachable!(),
 	};
 
 	Some(Operand::Int(hash_code))
