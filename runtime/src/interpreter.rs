@@ -255,6 +255,7 @@ macro_rules! control_return {
 pub struct Interpreter;
 
 #[rustfmt::skip]
+#[allow(unused_braces)]
 impl Interpreter {
 	pub fn instruction(frame: FrameRef) {
         // The opcodes are broken into sections as defined here:
@@ -547,9 +548,8 @@ impl Interpreter {
                 
                 // ========= References =========
                 // TODO: 
-                //       invokeinterface, invokedynamic, new,
-                //       athrow, checkcast, instanceof,
-                //       monitorenter, monitorexit
+                //       invokeinterface, invokedynamic,
+                //       athrow, monitorenter, monitorexit
                 CATEGORY: references
                 OpCode::getstatic => {
                     if let Some(field) = Self::fetch_field(FrameRef::clone(&frame)) {
@@ -649,7 +649,9 @@ impl Interpreter {
                     
                     let array_len = array_ref.get().elements.element_count();
                     stack.push_int(array_len as s4);
-                };
+                },
+                OpCode::instanceof => { Self::instanceof_checkcast(FrameRef::clone(&frame), opcode) },
+                OpCode::checkcast => { Self::instanceof_checkcast(FrameRef::clone(&frame), opcode) };
                 
                 // ========= Control =========
                 // TODO: jsr, ret, tableswitch, lookupswitch,
@@ -820,6 +822,49 @@ impl Interpreter {
                     _ => unreachable!()
                 }
             },
+        }
+    }
+    
+    fn instanceof_checkcast(frame: FrameRef, opcode: OpCode) {
+        let stack = frame.get_operand_stack_mut();
+
+        let index = frame.read_byte2();
+        let objectref = stack.pop_reference();
+
+        if objectref.is_null() {
+            match opcode {
+                // If objectref is null, the instanceof instruction pushes an int result of 0 as an int onto the operand stack.
+                OpCode::instanceof => stack.push_int(0),
+                // If objectref is null, then the operand stack is unchanged.
+                OpCode::checkcast => stack.push_reference(objectref),
+                _ => unreachable!()
+            }
+            
+            return;
+        }
+
+        let method = frame.method();
+        let class_ref = &method.class;
+
+        let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
+        let class_name = constant_pool.get_class_name(index);
+
+        let resolved_class = ClassLoader::Bootstrap.load(class_name).unwrap();
+        if objectref.is_instance_of(resolved_class) {
+            match opcode {
+                // If objectref is an instance of the resolved class or array type, or implements the resolved interface,
+                // the instanceof instruction pushes an int result of 1 as an int onto the operand stack
+                OpCode::instanceof => stack.push_int(1),
+                // If objectref can be cast to the resolved class, array, or interface type, the operand stack is unchanged
+                OpCode::checkcast => stack.push_reference(objectref),
+                _ => unreachable!()
+            }
+        } else {
+            match opcode {
+                OpCode::instanceof => stack.push_int(0),
+                OpCode::checkcast => panic!("ClassCastException"), // TODO
+                _ => unreachable!()
+            }
         }
     }
     

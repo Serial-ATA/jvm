@@ -252,6 +252,23 @@ impl ArrayInstance {
 			ArrayContent::Reference(ref mut contents) => contents[index] = value.expect_reference(),
 		}
 	}
+
+	pub fn is_type(&self, class: ClassRef) -> bool {
+		match (&self.elements, &*class.get().name) {
+			(ArrayContent::Byte(_), b"java/lang/Byte")
+			| (ArrayContent::Bool(_), b"java/lang/Bool")
+			| (ArrayContent::Short(_), b"java/lang/Short")
+			| (ArrayContent::Char(_), b"java/lang/Character")
+			| (ArrayContent::Int(_), b"java/lang/Integer")
+			| (ArrayContent::Float(_), b"java/lang/Float")
+			| (ArrayContent::Long(_), b"java/lang/Long")
+			| (ArrayContent::Double(_), b"java/lang/Double") => true,
+			(ArrayContent::Reference(_), _class_name) => {
+				unimplemented!("ArrayInstance::is_type with reference types")
+			},
+			_ => false,
+		}
+	}
 }
 
 #[derive(Debug, Clone, PartialEq)]

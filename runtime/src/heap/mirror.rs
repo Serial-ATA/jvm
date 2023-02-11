@@ -50,6 +50,13 @@ impl MirrorInstance {
 		})
 	}
 
+	pub fn has_target(&self, class: &ClassRef) -> bool {
+		match &self.target {
+			MirrorTarget::Class(target) => target == class,
+			_ => false,
+		}
+	}
+
 	pub fn expect_class(&self) -> ClassRef {
 		match &self.target {
 			MirrorTarget::Class(class) => Arc::clone(class),

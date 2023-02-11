@@ -30,6 +30,60 @@ impl Reference {
 		matches!(self, Self::Null)
 	}
 
+	pub fn is_instance_of(&self, class: ClassRef) -> bool {
+		match self {
+			Reference::Class(class_ref) => {
+				if class_ref.get().class == class {
+					return true;
+				}
+
+				// If S is a class type, then:
+				//
+				//     If T is a class type, then S must be the same class as T, or S must be a subclass of T;
+				if !class.is_interface() && !class.is_array() {
+					return class_ref.get().is_subclass_of(class);
+				}
+				//     If T is an interface type, then S must implement interface T.
+				if class.is_interface() {
+					return class_ref.get().implements(class);
+				}
+			},
+			Reference::Array(array_ref) => {
+				if array_ref.get().class == class {
+					return true;
+				}
+
+				// If S is an array type SC[], that is, an array of components of type SC, then:
+				//
+				//     If T is a class type, then T must be Object.
+				if !class.is_interface() && !class.is_array() {
+					return class.get().name == b"java/lang/Object";
+				}
+				//     If T is an interface type, then T must be one of the interfaces implemented by arrays (JLS §4.10.3).
+				if class.is_interface() {
+					let class_name = &*class.get().name;
+					return class_name == b"java/lang/Cloneable"
+						|| class_name == b"java/io/Serializable";
+				}
+				//     If T is an array type TC[], that is, an array of components of type TC, then one of the following must be true:
+				if class.is_array() {
+					//         TC and SC are the same primitive type.
+					unimplemented!("Reference::is_instance_of with arrays")
+					//         TC and SC are reference types, and type SC can be cast to TC by these run-time rules.
+				}
+			},
+			Reference::Mirror(mirror) => {
+				let mirror_deref = mirror.get();
+				if mirror_deref.class == class || mirror_deref.has_target(&class) {
+					return true;
+				}
+			},
+			Reference::Null => return false,
+		}
+
+		false
+	}
+
 	pub fn extract_array(&self) -> ArrayInstanceRef {
 		match self {
 			Self::Array(arr) => Arc::clone(arr),
