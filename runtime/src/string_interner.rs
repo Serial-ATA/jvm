@@ -7,7 +7,7 @@ use std::ptr::slice_from_raw_parts;
 use std::sync::Arc;
 
 use byte_slice_cast::AsSliceOf;
-use common::int_types::{u1, u2};
+use common::int_types::{s1, u1, u2};
 use common::traits::PtrType;
 use instructions::Operand;
 use once_cell::sync::Lazy;
@@ -34,8 +34,8 @@ impl StringInterner {
 
 		// TODO: More efficient conversion
 		let string = unsafe { std::str::from_utf8_unchecked(raw) };
-		let mut utf16_encoded_bytes = string.encode_utf16().collect::<Box<[u16]>>();
-		let re_aligned_bytes = unsafe { utf16_encoded_bytes.align_to_mut::<i8>().1 };
+		let utf16_encoded_bytes = string.encode_utf16().collect::<Box<[u16]>>();
+		let re_aligned_bytes: &[s1] = bytemuck::cast_slice(&utf16_encoded_bytes);
 
 		let reference_to_byte_array = Operand::Reference(Reference::Array(ArrayInstance::new(
 			byte_array_class,
