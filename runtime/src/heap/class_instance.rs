@@ -56,6 +56,14 @@ impl ClassInstance {
 			fields: fields.into_boxed_slice(),
 		})
 	}
+
+	pub fn is_subclass_of(&self, class: ClassRef) -> bool {
+		self.class.is_subclass_of(class)
+	}
+
+	pub fn implements(&self, class: ClassRef) -> bool {
+		self.class.implements(class)
+	}
 }
 
 impl Instance for ClassInstance {

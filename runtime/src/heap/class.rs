@@ -688,6 +688,29 @@ impl Class {
 
 		target.get_mut().mirror = Some(mirror);
 	}
+
+	pub fn is_subclass_of(&self, class: ClassRef) -> bool {
+		let mut current_class = self;
+		while let Some(super_class) = &current_class.super_class {
+			if super_class == &class {
+				return true;
+			}
+
+			current_class = super_class.get();
+		}
+
+		false
+	}
+
+	pub fn implements(&self, class: ClassRef) -> bool {
+		for interface in &self.interfaces {
+			if interface == &class {
+				return true;
+			}
+		}
+
+		false
+	}
 }
 
 // A pointer to a Class instance
@@ -700,6 +723,22 @@ pub struct ClassPtr(usize);
 impl ClassPtr {
 	pub fn get_mirror(&self) -> MirrorInstanceRef {
 		Arc::clone(self.get().mirror.as_ref().unwrap())
+	}
+
+	pub fn is_array(&self) -> bool {
+		self.get().name.starts_with(b"[")
+	}
+
+	pub fn is_interface(&self) -> bool {
+		self.get().access_flags & Class::ACC_INTERFACE != 0
+	}
+
+	pub fn is_subclass_of(&self, class: ClassRef) -> bool {
+		self.get().is_subclass_of(class)
+	}
+
+	pub fn implements(&self, class: ClassRef) -> bool {
+		self.get().implements(class)
 	}
 
 	pub fn unwrap_class_instance(&self) -> &ClassDescriptor {
