@@ -548,7 +548,7 @@ impl Interpreter {
                 
                 // ========= References =========
                 // TODO: 
-                //       invokeinterface, invokedynamic,
+                //       invokedynamic,
                 //       athrow, monitorenter, monitorexit
                 CATEGORY: references
                 OpCode::getstatic => {
@@ -601,6 +601,18 @@ impl Interpreter {
                 | OpCode::invokestatic => {
                     if let Some(method) = Self::fetch_method(FrameRef::clone(&frame)) {
                         MethodInvoker::invoke(frame, method);
+                    }
+                },
+                OpCode::invokeinterface => {
+                    if let Some(method) = Self::fetch_method(FrameRef::clone(&frame)) {
+                        // The count operand is an unsigned byte that must not be zero.
+                        let count = frame.read_byte();
+                        assert!(count > 0);
+                        
+                        // The value of the fourth operand byte must always be zero.
+                        assert_eq!(frame.read_byte(), 0);
+                        
+                        MethodInvoker::invoke_interface(frame, method);
                     }
                 },
                 OpCode::new => {

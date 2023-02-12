@@ -1,11 +1,15 @@
 use crate::frame::FrameRef;
+use crate::heap::class::Class;
 use crate::method::Method;
 use crate::reference::{MethodRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::thread::ThreadRef;
 use crate::Thread;
 
+use std::sync::Arc;
+
 use common::int_types::{u1, u2};
+use common::traits::PtrType;
 use instructions::{Operand, StackLike};
 
 macro_rules! trace_method {
@@ -26,22 +30,31 @@ impl MethodInvoker {
 	pub fn invoke_with_args(thread: ThreadRef, method: MethodRef, args: Vec<Operand<Reference>>) {
 		let max_locals = method.code.max_locals;
 		let parameter_count = method.parameter_count;
-		let is_native_method = method.access_flags & Method::ACC_NATIVE != 0;
 
-		let local_stack =
-			Self::construct_local_stack(max_locals, parameter_count, true, is_native_method, args);
+		let local_stack = Self::construct_local_stack(max_locals, parameter_count, true, args);
 
-		Self::invoke_(thread, method, local_stack)
+		Self::invoke0_(thread, method, local_stack)
 	}
 
 	/// Invoke a method
 	///
 	/// This will pop the necessary number of arguments off of the current Frame's stack
 	pub fn invoke(frame: FrameRef, method: MethodRef) {
-		let max_locals = method.code.max_locals;
+		Self::invoke_(frame, method, false)
+	}
+
+	/// Invoke an interface method
+	///
+	/// This is identical to `MethodInvoker::invoke`, except it will attempt to find
+	/// the implementation of the interface method on the `objectref` class.
+	pub fn invoke_interface(frame: FrameRef, method: MethodRef) {
+		Self::invoke_(frame, method, true)
+	}
+
+	fn invoke_(frame: FrameRef, mut method: MethodRef, reresolve_method: bool) {
+		let mut max_locals = method.code.max_locals;
 		let parameter_count = method.parameter_count;
 		let is_static_method = method.access_flags & Method::ACC_STATIC != 0;
-		let is_native_method = method.access_flags & Method::ACC_NATIVE != 0;
 
 		// Move the arguments from the previous frame into a new local stack
 		let mut args_from_frame = Vec::new();
@@ -49,29 +62,41 @@ impl MethodInvoker {
 			args_from_frame = frame.get_operand_stack_mut().popn(parameter_count as usize);
 		}
 
-		let mut local_stack = Self::construct_local_stack(
-			max_locals,
-			parameter_count,
-			is_static_method,
-			is_native_method,
-			args_from_frame,
-		);
-
 		// For non-static methods, the first argument will be `this`.
 		// We need to check for null before proceeding.
+		let mut this_argument = None;
 		if !is_static_method {
 			let this = frame.get_operand_stack_mut().pop_reference();
 			if this == Reference::Null {
 				panic!("NullPointerException")
 			}
 
-			local_stack[0] = Operand::Reference(this);
+			if reresolve_method {
+				method = Class::map_interface_method(
+					Arc::clone(&this.extract_class().get().class),
+					method,
+				);
+				max_locals = method.code.max_locals;
+			}
+
+			this_argument = Some(Operand::Reference(this));
 		}
 
-		Self::invoke_(frame.thread(), method, local_stack);
+		let mut local_stack = Self::construct_local_stack(
+			max_locals,
+			parameter_count,
+			is_static_method,
+			args_from_frame,
+		);
+
+		if let Some(this) = this_argument {
+			local_stack[0] = this;
+		}
+
+		Self::invoke0_(frame.thread(), method, local_stack);
 	}
 
-	fn invoke_(thread: ThreadRef, method: MethodRef, local_stack: LocalStack) {
+	fn invoke0_(thread: ThreadRef, method: MethodRef, local_stack: LocalStack) {
 		trace_method!(method);
 		Thread::invoke_method_with_local_stack(thread, method, local_stack);
 	}
@@ -80,12 +105,11 @@ impl MethodInvoker {
 		max_locals: u2,
 		parameter_count: u1,
 		is_static_method: bool,
-		is_native_method: bool,
 		existing_args: Vec<Operand<Reference>>,
 	) -> LocalStack {
 		let mut stack_size = max_locals;
-		if is_native_method && max_locals == 0 {
-			// A native method will not have a `max_locals`, but we still need to account for
+		if max_locals == 0 {
+			// A native/interface method will not have a `max_locals`, but we still need to account for
 			// the parameters that get passed along.
 			stack_size = u2::from(parameter_count);
 		}
