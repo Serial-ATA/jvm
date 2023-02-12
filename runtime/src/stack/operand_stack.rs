@@ -193,13 +193,25 @@ impl StackLike<Reference> for OperandStack {
 
 	fn dup(&mut self) {
 		trace_stack!(dup);
-		let top_of_stack = self.pop();
-		self.inner.push(top_of_stack.clone());
-		self.inner.push(top_of_stack);
+		let value = self.pop();
+		// The dup instruction must not be used unless value is a value of a category 1 computational type (§2.11.1).
+		assert!(!matches!(value, Operand::Long(_) | Operand::Double(_)));
+
+		self.inner.push(value.clone());
+		self.inner.push(value);
 	}
 
 	fn dup_x1(&mut self) {
-		todo!()
+		trace_stack!(dup_x1);
+		let value1 = self.pop();
+		let value2 = self.pop();
+		// The dup_x1 instruction must not be used unless both value1 and value2 are values of a category 1 computational type (§2.11.1).
+		assert!(!matches!(value1, Operand::Long(_) | Operand::Double(_)));
+		assert!(!matches!(value2, Operand::Long(_) | Operand::Double(_)));
+
+		self.inner.push(value1.clone());
+		self.inner.push(value2);
+		self.inner.push(value1);
 	}
 
 	fn dup_x2(&mut self) {
