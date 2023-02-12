@@ -472,8 +472,7 @@ impl Class {
 
 		// 3. Otherwise, if the class Object declares a method with the name and descriptor specified by the interface method reference, which has its ACC_PUBLIC flag
 		//    set and does not have its ACC_STATIC flag set, method lookup succeeds.
-		let object_class = ClassLoader::Bootstrap
-			.load(b"java/lang/Object")
+		let object_class = ClassLoader::lookup_class(b"java/lang/Object")
 			.expect("there's no way we can make it here without loading Object");
 		for method in &object_class.unwrap_class_instance().methods {
 			if method.name == method_name
@@ -687,6 +686,23 @@ impl Class {
 		};
 
 		target.get_mut().mirror = Some(mirror);
+	}
+
+	/// Find an implementation of an interface method on the target class
+	pub fn map_interface_method(class: ClassRef, method: MethodRef) -> MethodRef {
+		if let ClassType::Instance(instance) = &class.get().class_ty {
+			for instance_method in &instance.methods {
+				if instance_method.name == method.name
+					&& instance_method.descriptor == method.descriptor
+				{
+					// We found an implementation
+					return Arc::clone(instance_method);
+				}
+			}
+		}
+
+		// No implementation found, return the original method
+		method
 	}
 
 	pub fn is_subclass_of(&self, class: ClassRef) -> bool {
