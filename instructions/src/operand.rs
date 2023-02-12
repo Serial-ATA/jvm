@@ -318,7 +318,7 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 
 		if self.is_long() {
 			let lhs = self.expect_long();
-			let rhs = rhs.expect_long();
+			let rhs = rhs.expect_int();
 			assert!((0..64).contains(&rhs));
 			*self = Operand::Long(((lhs as u8) >> (rhs & 0x3F) as u8) as s8);
 			return;
