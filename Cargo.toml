@@ -14,3 +14,4 @@ members = [
 
 [workspace.dependencies]
 byte-slice-cast = "1.2.2"
+zip = "0.6.3"
