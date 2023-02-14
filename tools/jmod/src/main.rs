@@ -70,8 +70,8 @@ enum SubCommand {
 		/// Each element using one the following forms: <glob-pattern>, glob:<glob-pattern> or regex:<regex-pattern>
 		#[arg(long)]
 		exclude: Option<String>,
-		#[arg(long, help = "Target directory for extract")]
-		dir: Option<PathBuf>,
+		#[arg(long, help = "Target directory for extract", default_value = ".")]
+		dir: PathBuf,
 		#[arg(help = "Path to the jmod file to operate on")]
 		jmod_file: PathBuf,
 	},
@@ -115,13 +115,34 @@ fn main() {
 	let args = Command::parse();
 
 	match args.command {
+		SubCommand::Extract {
+			exclude,
+			dir,
+			jmod_file,
+		} => extract(exclude, dir, jmod_file),
 		SubCommand::List { jmod_file } => list(jmod_file),
 		c => unimplemented!("{:?}", c),
 	}
 	// TODO: Create subcommand
-	// TODO: Extract subcommand
 	// TODO: Describe subcommand
 	// TODO: Hash subcommand
+}
+
+// TODO: excludes
+fn extract(_exclude: Option<String>, dir: PathBuf, jmod_file: PathBuf) {
+	let mut jmod = JmodFile::read_from_path(jmod_file).unwrap();
+	jmod.for_each_entry(|mut entry| {
+		let name = entry.path();
+		if let Some(last_slash_pos) = name.rfind('/') {
+			let path = dir.join(&name[..last_slash_pos]);
+			if !path.exists() {
+				std::fs::create_dir_all(path).unwrap();
+			}
+		}
+
+		let entry_path = dir.join(name);
+		std::fs::write(entry_path, entry.content().unwrap()).unwrap();
+	});
 }
 
 fn list(jmod_file: PathBuf) {

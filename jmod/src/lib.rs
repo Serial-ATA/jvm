@@ -88,6 +88,19 @@ impl<'a> JmodEntry<'a> {
 		}
 	}
 
+	/// Returns the contents of the entry
+	///
+	/// # Errors
+	///
+	/// * [`Read::read_exact`]
+	pub fn content(&mut self) -> Result<Vec<u8>> {
+		let size = self.zip_entry.size();
+		let mut content = vec![0; size as usize];
+
+		self.zip_entry.read_exact(&mut content)?;
+		Ok(content)
+	}
+
 	/// Returns the section of this entry
 	pub fn section(&self) -> Section {
 		self.section
