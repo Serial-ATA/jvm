@@ -8,6 +8,7 @@ members = [
     "common",
     "jimage",
     "jimage-parser",
+    "jmod",
 
     "tests",
 ]

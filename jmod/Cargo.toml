@@ -1,10 +1,10 @@
 [package]
-name = "jmod_bin"
+name = "jmod"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap.workspace = true
-jmod = { path = "../../jmod" }
+common = { path = "../common" }
+zip = { workspace = true }
