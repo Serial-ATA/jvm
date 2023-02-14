@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
+use jmod::JmodFile;
 
 #[derive(Parser)]
 #[command(
@@ -114,11 +115,16 @@ fn main() {
 	let args = Command::parse();
 
 	match args.command {
+		SubCommand::List { jmod_file } => list(jmod_file),
 		c => unimplemented!("{:?}", c),
 	}
 	// TODO: Create subcommand
 	// TODO: Extract subcommand
-	// TODO: List subcommand
 	// TODO: Describe subcommand
 	// TODO: Hash subcommand
+}
+
+fn list(jmod_file: PathBuf) {
+	let mut jmod = JmodFile::read_from_path(jmod_file).unwrap();
+	jmod.for_each_entry(|entry| println!("{}", entry.path()))
 }
