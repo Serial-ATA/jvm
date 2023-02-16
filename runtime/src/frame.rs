@@ -89,27 +89,15 @@ impl FrameRef {
 	}
 
 	pub fn read_byte_signed(&self) -> s1 {
-		let frame = self.0.get_mut();
-		let thread = frame.thread.get();
-
-		let pc = thread.pc.fetch_add(1, Ordering::Relaxed);
-		frame.method.code.code[pc as usize] as s1
+		self.read_byte() as s1
 	}
 
 	pub fn read_byte2_signed(&self) -> s2 {
-		let b1 = s2::from(self.read_byte_signed());
-		let b2 = s2::from(self.read_byte_signed());
-
-		b1 << 8 | b2
+		self.read_byte2() as s2
 	}
 
 	pub fn read_byte4_signed(&self) -> s4 {
-		let b1 = s4::from(self.read_byte_signed());
-		let b2 = s4::from(self.read_byte_signed());
-		let b3 = s4::from(self.read_byte_signed());
-		let b4 = s4::from(self.read_byte_signed());
-
-		b1 << 24 | b2 << 16 | b3 << 8 | b4
+		self.read_byte4() as s4
 	}
 
 	pub fn stash_pc(&self) {
