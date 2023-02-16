@@ -60,11 +60,13 @@ impl StackLike<Reference> for OperandStack {
 	fn push_double(&mut self, double: f64) {
 		trace_stack!(push_double, double);
 		self.inner.push(Operand::Double(double));
+		self.inner.push(Operand::Empty);
 	}
 
 	fn push_long(&mut self, long: s8) {
 		trace_stack!(push_long, long);
 		self.inner.push(Operand::Long(long));
+		self.inner.push(Operand::Empty);
 	}
 
 	fn push_reference(&mut self, reference: Reference) {
@@ -102,19 +104,23 @@ impl StackLike<Reference> for OperandStack {
 		trace_stack!(popn, count);
 		assert!(self.inner.len() >= count);
 
-		let split_pos = self.inner.len() - count;
-		let mut ret = self.inner.split_off(split_pos);
-		if let Some(Operand::Empty) = ret.first() {
-			// We popped on a long/double border, pop again.
-			let l_or_d = self.inner.pop();
-			assert!(
-				matches!(l_or_d, Some(Operand::Long(_) | Operand::Double(_))),
-				"popn encountered a false long/double border"
-			);
-			ret[0] = l_or_d.unwrap();
+		let mut split_pos = self.inner.len();
+		let mut operands_encountered = 0;
+		for op in self.inner.iter().rev() {
+			if operands_encountered == count {
+				break;
+			}
+
+			split_pos -= 1;
+			if let Operand::Empty = op {
+				// Not a real operand, should be followed up by a Long/Double
+				continue;
+			}
+
+			operands_encountered += 1;
 		}
 
-		ret
+		self.inner.split_off(split_pos)
 	}
 
 	fn pop_int(&mut self) -> s4 {

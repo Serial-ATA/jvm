@@ -119,6 +119,17 @@ impl MethodInvoker {
 			stack_size += 1;
 		}
 
+		// We need to account for the `Empty` slots occupied by Long and Double arguments
+		// before we can create our `LocalStack`
+		let mut num_double_occupants = 0;
+		for arg in &existing_args {
+			if matches!(arg, Operand::Long(_) | Operand::Double(_)) {
+				num_double_occupants += 1;
+			}
+		}
+
+		stack_size += num_double_occupants;
+
 		let mut local_stack = LocalStack::new(stack_size as usize);
 
 		// The starting position of the arguments depends on the method being static,
@@ -126,7 +137,10 @@ impl MethodInvoker {
 		// stack if it is not.
 		let mut pos_in_stack = if is_static_method { 0 } else { 1 };
 
-		for arg in existing_args {
+		for arg in existing_args
+			.into_iter()
+			.filter(|arg| !matches!(arg, Operand::Empty))
+		{
 			let operand_size = match arg {
 				Operand::Double(_) | Operand::Long(_) => 2,
 				_ => 1,
