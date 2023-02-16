@@ -78,8 +78,9 @@ macro_rules! local_variable_load {
 		paste::paste! {
 			assert!(
 				local_variable.[<is_ $ty:lower>](),
-				"Invalid operand type on local stack for `{}` instruction",
-				stringify!($opcode)
+				"Invalid operand type on local stack for `{}` instruction: {:?}",
+				stringify!($opcode),
+				local_variable
 			);
 		}
 
@@ -94,8 +95,9 @@ macro_rules! local_variable_load {
 		paste::paste! {
 			assert!(
 				local_variable.[<is_ $ty:lower>](),
-				"Invalid operand type on local stack for `{}` instruction",
-				stringify!($opcode)
+				"Invalid operand type on local stack for `{}` instruction: {:?}",
+				stringify!($opcode),
+				local_variable
 			);
 		}
 
@@ -132,8 +134,9 @@ macro_rules! local_variable_store {
 		paste::paste! {
 			assert!(
 				value.[<is_ $ty:lower>](),
-				"Invalid type on operand stack for `{}` instruction",
-				stringify!($opcode)
+				"Invalid type on operand stack for `{}` instruction: {:?}",
+				stringify!($opcode),
+				value
 			);
 		}
 
@@ -240,8 +243,9 @@ macro_rules! control_return {
 		paste::paste! {
 			assert!(
 				value.[<is_ $return_ty>](),
-				"Invalid type on operand stack for `{}` instruction",
-				stringify!($instruction)
+				"Invalid type on operand stack for `{}` instruction: {:?}",
+				stringify!($instruction),
+				value
 			);
 		}
 
@@ -861,7 +865,7 @@ impl Interpreter {
         let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
         let class_name = constant_pool.get_class_name(index);
 
-        let resolved_class = ClassLoader::Bootstrap.load(class_name).unwrap();
+        let resolved_class = class_ref.get().loader.load(class_name).unwrap();
         if objectref.is_instance_of(resolved_class) {
             match opcode {
                 // If objectref is an instance of the resolved class or array type, or implements the resolved interface,
