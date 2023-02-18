@@ -822,10 +822,10 @@ impl Interpreter {
 
         // Both value1 and value2 must be of type float.
         // The values are popped from the operand stack and a floating-point comparison is performed:
-        let lhs = operand_stack.pop();
-        let rhs = operand_stack.pop();
+        let value2 = operand_stack.pop();
+        let value1 = operand_stack.pop();
 
-        match lhs.partial_cmp(&rhs) {
+        match value1.partial_cmp(&value2) {
             // If value1 is greater than value2, the int value 1 is pushed onto the operand stack.
             Some(Ordering::Greater) => operand_stack.push_int(1),
             // Otherwise, if value1 is equal to value2, the int value 0 is pushed onto the operand stack.
