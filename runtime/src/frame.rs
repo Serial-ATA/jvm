@@ -100,6 +100,20 @@ impl FrameRef {
 		self.read_byte4() as s4
 	}
 
+	pub fn skip_padding(&self) {
+		let frame = self.0.get_mut();
+		let thread = frame.thread.get();
+
+		// This is used on the opcode of the instruction, which will be read prior to calling this
+		// So we need to subtract back to it.
+		let mut pc = thread.pc.load(Ordering::Relaxed) - 1;
+		while pc % 4 != 0 {
+			pc += 1;
+		}
+
+		thread.pc.store(pc, Ordering::Relaxed);
+	}
+
 	pub fn stash_pc(&self) {
 		let frame = self.0.get_mut();
 		let current_pc = frame.thread.get().pc.load(Ordering::Relaxed);

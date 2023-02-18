@@ -670,11 +670,14 @@ impl Interpreter {
                 OpCode::checkcast => { Self::instanceof_checkcast(FrameRef::clone(&frame), opcode) };
                 
                 // ========= Control =========
-                // TODO: jsr, ret, tableswitch, lookupswitch,
+                // TODO: jsr, ret, lookupswitch,
                 CATEGORY: control
                 OpCode::goto => {
                     let address = frame.read_byte2_signed() as isize;
                     let _ = frame.thread().get().pc.fetch_add(address + COMPARISON_SEEK_BACK, MemOrdering::Relaxed);
+                },
+                OpCode::tableswitch => {
+                    Self::tableswitch(frame)
                 },
                 @GROUP {
                     [
@@ -904,5 +907,32 @@ impl Interpreter {
 
         let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
         Class::resolve_method(frame.thread(), constant_pool, method_ref_idx)
+    }
+    
+    fn tableswitch(frame: FrameRef) {
+        // Subtract 1, since we already read the opcode
+        let opcode_address = frame.thread().get().pc.load(MemOrdering::Relaxed) - 1;
+        frame.skip_padding();
+        
+        let default = frame.read_byte4_signed() as isize;
+        let low = frame.read_byte4_signed() as isize;
+        let high = frame.read_byte4_signed() as isize;
+        assert!(low <= high);
+        
+        let jump_offsets_size = (high - low + 1) as usize;
+        let mut jump_offsets = vec![0; jump_offsets_size];
+        for i in &mut jump_offsets {
+            *i =  frame.read_byte4_signed();
+        }
+        
+        let offset;
+        let index = frame.get_operand_stack_mut().pop_int() as isize;
+        if index < low || index > high {
+            offset = default;
+        } else {
+            offset = jump_offsets[(index - low) as usize] as isize;
+        }
+        
+        frame.thread().get().pc.store(opcode_address + offset, MemOrdering::Relaxed);
     }
 }
