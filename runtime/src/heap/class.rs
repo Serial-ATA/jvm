@@ -199,14 +199,14 @@ impl Class {
 				for field in &super_class.unwrap_class_instance().fields {
 					if !field.is_static() {
 						fields.push(Arc::clone(field));
-						instance_field_count += 1;
 					}
 				}
 			}
 
 			// Now the fields defined in our class
 			let mut static_idx = 0;
-			let mut instance_field_idx = 0;
+			// Continue the index from our existing instance fields
+			let mut instance_field_idx = core::cmp::max(0, instance_field_count) as usize;
 			for field in parsed_file.fields {
 				let field_idx = if field.is_static() {
 					&mut static_idx
@@ -227,7 +227,12 @@ impl Class {
 
 			// Update the instance field count if we encountered any new ones
 			if instance_field_idx > 0 {
-				class_instance.instance_field_count += instance_field_idx as u4;
+				if instance_field_count > 0 {
+					class_instance.instance_field_count +=
+						(instance_field_idx as u4) - instance_field_count;
+				} else {
+					class_instance.instance_field_count = instance_field_idx as u4;
+				}
 			}
 		}
 

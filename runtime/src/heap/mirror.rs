@@ -117,6 +117,14 @@ impl Instance for MirrorInstance {
 			);
 		}
 
+		let current = &self.fields[field_idx];
+		assert!(
+			current.is_compatible_with(&value),
+			"Expected type compatible with: {:?}, found: {:?}",
+			current,
+			value
+		);
+
 		self.fields[field_idx] = value;
 	}
 }

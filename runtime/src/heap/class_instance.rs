@@ -68,6 +68,7 @@ impl ClassInstance {
 
 impl Instance for ClassInstance {
 	fn get_field_value(&self, field: FieldRef) -> Operand<Reference> {
+		assert!(!field.is_static());
 		self.get_field_value0(field.idx)
 	}
 
@@ -96,6 +97,7 @@ impl Instance for ClassInstance {
 	}
 
 	fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>) {
+		assert!(!field.is_static());
 		self.put_field_value0(field.idx, value)
 	}
 
@@ -106,6 +108,14 @@ impl Instance for ClassInstance {
 		loop {
 			count += current_class.unwrap_class_instance().instance_field_count as usize;
 			if count > field_idx {
+				let current = &self.fields[field_idx];
+				assert!(
+					current.is_compatible_with(&value),
+					"Expected type compatible with: {:?}, found: {:?}",
+					current,
+					value
+				);
+
 				self.fields[field_idx] = value;
 				return;
 			}

@@ -587,6 +587,15 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 	pub fn is_reference(&self) -> bool {
 		matches!(self, Self::Reference(_))
 	}
+
+	/// Whether this operand is the same type as the other
+	pub fn is_compatible_with(&self, other: &Self) -> bool {
+		(self.is_int() && other.is_int())
+			|| (self.is_long() && other.is_long())
+			|| (self.is_float() && other.is_float())
+			|| (self.is_double() && other.is_double())
+			|| (self.is_reference() && other.is_reference())
+	}
 }
 
 impl<Reference: Debug + PartialEq + Clone> PartialOrd for Operand<Reference> {
