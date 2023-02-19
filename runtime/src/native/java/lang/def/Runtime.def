@@ -1,0 +1,7 @@
+public class Runtime {
+    public native int availableProcessors();
+    public native long freeMemory();
+    public native long totalMemory();
+    public native long maxMemory();
+    public native void gc();
+}

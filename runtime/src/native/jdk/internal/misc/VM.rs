@@ -23,5 +23,6 @@ pub fn getRuntimeArguments(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.VM#getRuntimeArguments")
 }
 pub fn initialize(_: JNIEnv, _: LocalStack) -> NativeReturn {
-	unimplemented!("jdk.internal.misc.VM#initialize")
+	// https://github.com/openjdk/jdk/blob/7abe26935ab4356de54acee93390a0d8be1ea289/src/java.base/share/native/libjava/VM.c#L44
+	None
 }
