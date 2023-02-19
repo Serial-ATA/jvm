@@ -42,6 +42,11 @@ impl MirrorInstance {
 	}
 
 	pub fn new_primitive(mirror_class: ClassRef, target: FieldType) -> MirrorInstanceRef {
+		assert!(
+			!matches!(target, FieldType::Array(_) | FieldType::Object(_)),
+			"`Array` and `Object` field types are incompatible with the primitive mirror"
+		);
+
 		let fields = Self::initialize_fields(Arc::clone(&mirror_class));
 		MirrorInstancePtr::new(Self {
 			class: mirror_class,
@@ -55,6 +60,10 @@ impl MirrorInstance {
 			MirrorTarget::Class(target) => target == class,
 			_ => false,
 		}
+	}
+
+	pub fn is_primitive(&self) -> bool {
+		matches!(&self.target, MirrorTarget::Primitive(_))
 	}
 
 	pub fn expect_class(&self) -> ClassRef {

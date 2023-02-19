@@ -8,6 +8,7 @@ use crate::string_interner::StringInterner;
 
 use std::sync::Arc;
 
+use common::int_types::s4;
 use common::traits::PtrType;
 use instructions::Operand;
 
@@ -29,8 +30,11 @@ pub fn isInterface(_: JNIEnv, _: LocalStack) -> NativeReturn {
 pub fn isArray(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("Class#isArray");
 }
-pub fn isPrimitive(_: JNIEnv, _: LocalStack) -> NativeReturn {
-	unimplemented!("Class#isPrimitive");
+pub fn isPrimitive(_: JNIEnv, locals: LocalStack) -> NativeReturn {
+	let this = locals[0].expect_reference().extract_mirror();
+	let is_primitive = this.get().is_primitive();
+
+	Some(Operand::Int(s4::from(is_primitive)))
 }
 
 pub fn initClassName(_: JNIEnv, locals: LocalStack) -> NativeReturn {
@@ -133,7 +137,7 @@ pub fn desiredAssertionStatus0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
 
 	let _name = &mirror.get().expect_class().get().name;
 
-	Some(Operand::Int(i32::from(false)))
+	Some(Operand::Int(s4::from(false)))
 }
 
 pub fn getNestHost0(_: JNIEnv, _: LocalStack) -> NativeReturn {
