@@ -123,7 +123,7 @@ impl MethodInvoker {
 		// before we can create our `LocalStack`
 		let mut num_double_occupants = 0;
 		for arg in &existing_args {
-			if matches!(arg, Operand::Long(_) | Operand::Double(_)) {
+			if arg.is_long() || arg.is_double() {
 				num_double_occupants += 1;
 			}
 		}
@@ -141,10 +141,10 @@ impl MethodInvoker {
 			.into_iter()
 			.filter(|arg| !matches!(arg, Operand::Empty))
 		{
-			let operand_size = match arg {
-				Operand::Double(_) | Operand::Long(_) => 2,
-				_ => 1,
-			};
+			let mut operand_size = 1;
+			if arg.is_long() || arg.is_double() {
+				operand_size = 2;
+			}
 
 			local_stack[pos_in_stack] = arg;
 			pos_in_stack += operand_size;

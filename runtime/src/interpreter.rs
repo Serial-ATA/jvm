@@ -66,7 +66,20 @@ macro_rules! push_const {
 		paste::paste! {
 			{ $frame.get_operand_stack_mut().push_op(Operand:: [<Const $value>] $((ConstOperandType:: $const_value))?); }
 		};
+        push_const!($frame, $($const_value)?)
 	}};
+    // Add `Empty` slots for long/double
+    ($frame:ident, Long) => {{
+		paste::paste! {
+			{ $frame.get_operand_stack_mut().push_op(Operand::Empty); }
+		};
+	}};
+    ($frame:ident, Double) => {{
+		paste::paste! {
+			{ $frame.get_operand_stack_mut().push_op(Operand::Empty); }
+		};
+	}};
+    ($_frame:ident, $($_const_value:ident)?) => {{}};
 }
 
 macro_rules! local_variable_load {

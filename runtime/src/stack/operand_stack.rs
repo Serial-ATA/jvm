@@ -79,7 +79,7 @@ impl StackLike<Reference> for OperandStack {
 			Some(op @ Operand::Empty) => {
 				trace_stack!(pop, op);
 				match self.inner.pop() {
-					Some(op @ (Operand::Long(_) | Operand::Double(_))) => {
+					Some(op) if op.is_long() || op.is_double() => {
 						trace_stack!(pop, op);
 						op
 					},
