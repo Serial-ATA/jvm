@@ -6,7 +6,6 @@ publish = false
 
 [dev-dependencies]
 jimage = { path = "../jimage" }
-jimage-parser = { path = "../jimage-parser" }
 
 [[test]]
 name = "jimage"

@@ -1,6 +1,7 @@
+use crate::constant_pool::{ConstantPool, ConstantPoolTag, ConstantPoolValueInfo};
+
 use std::io::Read;
 
-use classfile::{ConstantPool, ConstantPoolTag, ConstantPoolValueInfo};
 use common::int_types::u2;
 use common::traits::JavaReadExt;
 

@@ -2,6 +2,9 @@ use crate::attribute::Attribute;
 use crate::constant_pool::ConstantPoolRef;
 use crate::fieldinfo::FieldInfo;
 use crate::methodinfo::MethodInfo;
+
+use std::io::Read;
+
 use common::int_types::{u1, u2};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.1
@@ -20,6 +23,10 @@ pub struct ClassFile {
 }
 
 impl ClassFile {
+	pub fn read_from<R: Read>(reader: &mut R) -> Self {
+		crate::parse::parse_class(reader)
+	}
+
 	pub fn get_super_class(&self) -> Option<&[u1]> {
 		// For a class, the value of the super_class item either must be zero or must be a valid
 		// index into the constant_pool table.

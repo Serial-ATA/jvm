@@ -7,12 +7,10 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-class-parser = { path = "../class-parser" }
 classfile = { path = "../classfile" }
 common = { path = "../common" }
 instructions = { path = "../instructions" }
 jimage = { path = "../jimage" }
-jimage-parser = { path = "../jimage-parser" }
 bytemuck = "1.13.0"
 byte-slice-cast = { workspace = true }
 log = "0.4.17"

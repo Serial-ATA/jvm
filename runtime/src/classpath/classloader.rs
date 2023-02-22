@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::ops::RangeInclusive;
 use std::sync::{Arc, Mutex};
 
-use classfile::FieldType;
+use classfile::{ClassFile, FieldType};
 use common::int_types::u1;
 use once_cell::sync::Lazy;
 
@@ -88,7 +88,7 @@ impl ClassLoader {
 
 		// 2. Otherwise, the Java Virtual Machine attempts to parse the purported representation.
 		let classfile_bytes = super::find_classpath_entry(name);
-		let classfile = class_parser::parse_class(&mut &classfile_bytes[..]);
+		let classfile = ClassFile::read_from(&mut &classfile_bytes[..]);
 
 		//    The purported representation may not in fact be a valid representation of C, so
 		//    derivation must detect the following problems:

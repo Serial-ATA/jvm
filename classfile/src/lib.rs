@@ -3,6 +3,7 @@ mod classfile;
 mod constant_pool;
 pub mod fieldinfo;
 mod methodinfo;
+pub mod parse;
 
 pub use self::classfile::ClassFile;
 pub use attribute::{

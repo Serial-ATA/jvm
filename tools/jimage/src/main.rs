@@ -5,6 +5,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
+use classfile::ClassFile;
 use jimage::{JImage, JImageLocation};
 
 #[derive(Parser)]
@@ -139,7 +140,7 @@ fn extract(dir: String, path: PathBuf) {
 }
 
 fn info(path: PathBuf) {
-	let jimage = jimage_parser::parse(&mut fs::File::open(&path).unwrap());
+	let jimage = JImage::read_from(&mut fs::File::open(&path).unwrap());
 
 	let header = jimage.borrow_header();
 	println!(" Major Version:  {}", header.major_version());
@@ -176,7 +177,7 @@ fn verify(path: PathBuf) {
 				jimage.get_resource_from_location(location, &mut resource);
 
 				// TODO: This needs to return `Result` so we can report all errors
-				class_parser::parse_class(&mut &resource[..]);
+				ClassFile::read_from(&mut &resource[..]);
 			}
 		},
 	)
@@ -188,7 +189,7 @@ where
 	M: Fn(&str),
 	L: Fn(&str, &JImageLocation<'_>, &JImage),
 {
-	let jimage = jimage_parser::parse(&mut fs::File::open(&path).unwrap());
+	let jimage = JImage::read_from(&mut fs::File::open(&path).unwrap());
 	on_jimage_parse(&path);
 
 	let mut old_module = String::new();

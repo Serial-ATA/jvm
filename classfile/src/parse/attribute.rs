@@ -1,11 +1,13 @@
+use crate::attribute::{
+	Annotation, Attribute, AttributeTag, AttributeType, BootstrapMethod, Code, CodeException,
+	ElementValue, ElementValuePair, ElementValueTag, ElementValueType, InnerClass, LineNumber,
+	LocalVariable, MethodParameter, ModuleExport, ModuleOpen, ModuleProvide, ModuleRequire,
+	RecordComponentInfo, StackMapFrame, VerificationTypeInfo,
+};
+use crate::constant_pool::ConstantPool;
+
 use std::io::Read;
 
-use classfile::{
-	Annotation, Attribute, AttributeTag, AttributeType, BootstrapMethod, Code, CodeException,
-	ConstantPool, ElementValue, ElementValuePair, ElementValueTag, ElementValueType, InnerClass,
-	LineNumber, LocalVariable, MethodParameter, ModuleExport, ModuleOpen, ModuleProvide,
-	ModuleRequire, RecordComponentInfo, StackMapFrame, VerificationTypeInfo,
-};
 use common::int_types::u2;
 use common::traits::JavaReadExt;
 

@@ -1,13 +1,11 @@
 [workspace]
 members = [
-    "class-parser",
     "classfile",
     "instructions",
     "runtime",
     "runtime/src/native/method-gen",
     "common",
     "jimage",
-    "jimage-parser",
     "jmod",
     "versioning",
 

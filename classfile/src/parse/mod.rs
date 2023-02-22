@@ -3,9 +3,11 @@ mod constant_pool;
 mod fieldinfo;
 mod methodinfo;
 
+use crate::classfile::ClassFile;
+use crate::constant_pool::{ConstantPool, ConstantPoolRef};
+
 use std::io::Read;
 
-use classfile::{ClassFile, ConstantPool, ConstantPoolRef};
 use common::int_types::u2;
 use common::traits::JavaReadExt;
 

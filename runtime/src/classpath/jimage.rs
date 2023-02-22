@@ -49,7 +49,7 @@ pub fn lookup_vm_options() -> Option<Vec<u1>> {
 	}
 
 	let mut jimage_file = File::open(modules_path).unwrap();
-	let jimage = jimage_parser::parse(&mut jimage_file);
+	let jimage = JImage::read_from(&mut jimage_file);
 
 	unsafe {
 		*JIMAGE_FILE.get_mut() = Some(jimage);

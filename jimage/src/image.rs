@@ -5,7 +5,7 @@ use std::io::Read;
 use common::endian::Endian;
 use common::int_types::{u1, u4, u8};
 
-#[ouroboros::self_referencing(pub_extras)]
+#[ouroboros::self_referencing]
 #[derive(Debug)]
 pub struct JImage {
 	pub endian: Endian,       // Endian handler
@@ -17,6 +17,21 @@ pub struct JImage {
 }
 
 impl JImage {
+	pub fn read_from<R: Read>(reader: &mut R) -> Self {
+		let (header, endian, data) = crate::parse::parse(reader);
+
+		JImageBuilder {
+			endian,
+			data,
+			header,
+			index_builder: |data: &Vec<u1>| {
+				// Sadly we have to go back to the parse module since this is self-referential
+				crate::parse::index::read_index(data.as_slice(), header, endian)
+			},
+		}
+		.build()
+	}
+
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#LL436-L440C6
 	/// Compute number of bytes in image file index.
 	#[inline(always)]

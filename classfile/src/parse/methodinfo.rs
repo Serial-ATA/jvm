@@ -1,11 +1,12 @@
-use crate::attribute;
+use super::attribute;
+use crate::constant_pool::ConstantPool;
+use crate::methodinfo::MethodInfo;
 
 use std::io::Read;
 
-use classfile::{ConstantPool, FieldInfo};
 use common::traits::JavaReadExt;
 
-pub fn read_field_info<R>(reader: &mut R, constant_pool: &ConstantPool) -> FieldInfo
+pub fn read_method_info<R>(reader: &mut R, constant_pool: &ConstantPool) -> MethodInfo
 where
 	R: Read,
 {
@@ -17,10 +18,10 @@ where
 	let mut attributes = Vec::with_capacity(attributes_count as usize);
 
 	for _ in 0..attributes_count {
-		attributes.push(attribute::read_attribute(reader, constant_pool))
+		attributes.push(attribute::read_attribute(reader, constant_pool));
 	}
 
-	FieldInfo {
+	MethodInfo {
 		access_flags,
 		name_index,
 		descriptor_index,

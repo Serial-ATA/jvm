@@ -1,9 +1,9 @@
-use common::traits::JavaEndianAwareRead;
+use crate::header::{JImageHeader, JIMAGE_MAGIC, JIMAGE_MAGIC_INVERTED};
 
-use common::endian::Endian;
 use std::io::Read;
 
-use jimage::{JImageHeader, JIMAGE_MAGIC, JIMAGE_MAGIC_INVERTED};
+use common::endian::Endian;
+use common::traits::JavaEndianAwareRead;
 
 // The header contains information related to identification and description of
 // contents.

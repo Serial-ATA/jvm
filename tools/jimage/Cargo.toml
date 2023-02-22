@@ -5,6 +5,5 @@ edition = "2021"
 
 [dependencies]
 clap.workspace = true
-class-parser = { path = "../../class-parser" }
+classfile = { path = "../../classfile" }
 jimage = { path = "../../jimage" }
-jimage-parser = { path = "../../jimage-parser" }

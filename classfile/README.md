@@ -24,5 +24,3 @@ ClassFile {
     attribute_info attributes[attributes_count];
 }
 ```
-
-This crate only defines the structure of `ClassFile`. The parsing logic is housed in [the class-parser crate](../class-parser).

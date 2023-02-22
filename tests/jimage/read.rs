@@ -1,5 +1,6 @@
 //! https://github.com/openjdk/jdk/blob/030b071db1fb6197a2633a04b20aa95432a903bc/test/jdk/jdk/internal/jimage/JImageReadTest.java#L53
 
+use jimage::JImage;
 use std::fs::File;
 use std::path::Path;
 
@@ -28,7 +29,7 @@ fn read_classes() {
         return;
     };
 
-	let file = jimage_parser::parse(&mut image_file);
+	let file = JImage::read_from(&mut image_file);
 
 	for class in CLASSES {
 		let location = file.find_location(class);
@@ -68,7 +69,7 @@ fn image_resources() {
 		return;
 	};
 
-	let file = jimage_parser::parse(&mut image_file);
+	let file = JImage::read_from(&mut image_file);
 
 	let names = file.get_entry_names().unwrap();
 

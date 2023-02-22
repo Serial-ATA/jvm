@@ -1,7 +1,9 @@
+use crate::header::JImageHeader;
+use crate::index::JImageIndex;
+
 use byte_slice_cast::AsSliceOf;
 use common::endian::Endian;
 use common::int_types::{s4, u1, u4};
-use jimage::{JImageHeader, JImageIndex};
 
 // The following is the format of the index;
 //
