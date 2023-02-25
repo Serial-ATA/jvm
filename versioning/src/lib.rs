@@ -97,29 +97,17 @@ impl Version {
 
 	/// Returns the values of the interim element of the version number, or zero if it is absent
 	pub fn interim(&self) -> u32 {
-		if self.version.len() > 1 {
-			return self.version[1];
-		}
-
-		0
+		self.version.get(1).copied().unwrap_or(0)
 	}
 
 	/// Returns the values of the interim element of the version number, or zero if it is absent
 	pub fn update(&self) -> u32 {
-		if self.version.len() > 2 {
-			return self.version[2];
-		}
-
-		0
+		self.version.get(2).copied().unwrap_or(0)
 	}
 
 	/// Returns the values of the interim element of the version number, or zero if it is absent
 	pub fn patch(&self) -> u32 {
-		if self.version.len() > 3 {
-			return self.version[3];
-		}
-
-		0
+		self.version.get(3).copied().unwrap_or(0)
 	}
 
 	/// Returns the list of integers represented in the version number.
