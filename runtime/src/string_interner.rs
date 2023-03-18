@@ -4,7 +4,7 @@ use crate::reference::{ClassInstanceRef, Reference};
 
 use std::collections::HashMap;
 use std::ptr::slice_from_raw_parts;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use byte_slice_cast::AsSliceOf;
 use common::int_types::{s1, u1, u2};
@@ -12,14 +12,15 @@ use common::traits::PtrType;
 use instructions::Operand;
 use once_cell::sync::Lazy;
 
-static STRING_POOL: Lazy<HashMap<Vec<u1>, ClassInstanceRef>> = Lazy::new(HashMap::new);
+static STRING_POOL: Lazy<RwLock<HashMap<Vec<u1>, ClassInstanceRef>>> =
+	Lazy::new(|| RwLock::new(HashMap::new()));
 
 pub struct StringInterner;
 
 // TODO: Need to wipe the string pool when the instances fall out of scope
 impl StringInterner {
 	pub fn get_java_string(raw: &[u1]) -> ClassInstanceRef {
-		if let Some(interned) = STRING_POOL.get(raw) {
+		if let Some(interned) = STRING_POOL.read().unwrap().get(raw) {
 			return Arc::clone(interned);
 		}
 
@@ -50,7 +51,13 @@ impl StringInterner {
 			reference_to_byte_array,
 		);
 
-		new_java_string_instance
+		// TODO: Make this less of a mess
+		let ret = Arc::clone(&new_java_string_instance);
+		STRING_POOL
+			.write()
+			.unwrap()
+			.insert(raw.to_vec(), new_java_string_instance);
+		ret
 	}
 
 	pub fn rust_string_from_java_string(class: ClassInstanceRef) -> String {
