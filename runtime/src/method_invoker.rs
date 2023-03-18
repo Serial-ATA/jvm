@@ -51,6 +51,18 @@ impl MethodInvoker {
 		Self::invoke_(frame, method, true)
 	}
 
+	/// Invoke an instance method based on class
+	///
+	/// This is identical to `MethodInvoker::invoke`, except it will attempt to find
+	/// the implementation of the method on the `objectref` class.
+	pub fn invoke_virtual(frame: FrameRef, method: MethodRef) {
+		if method.is_polymorphic() {
+			unimplemented!("polymorphic virtual method invocation");
+		}
+
+		Self::invoke_(frame, method, true)
+	}
+
 	fn invoke_(frame: FrameRef, mut method: MethodRef, reresolve_method: bool) {
 		let mut max_locals = method.code.max_locals;
 		let parameter_count = method.parameter_count;
@@ -72,10 +84,7 @@ impl MethodInvoker {
 			}
 
 			if reresolve_method {
-				method = Class::map_interface_method(
-					Arc::clone(&this.extract_class().get().class),
-					method,
-				);
+				method = Class::map_interface_method(this.extract_target_class(), method);
 				max_locals = method.code.max_locals;
 			}
 

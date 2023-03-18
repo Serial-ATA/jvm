@@ -612,9 +612,12 @@ impl Interpreter {
                         object_ref.put_field_value(field, value);
                     }
                 },
-                // Static/virtual are differentiated in `MethodInvoker::invoke`
-                OpCode::invokevirtual
-                | OpCode::invokespecial
+                OpCode::invokevirtual => {
+                    if let Some(method) = Self::fetch_method(FrameRef::clone(&frame)) {
+                        MethodInvoker::invoke_virtual(frame, method);
+                    }
+                },
+                OpCode::invokespecial
                 | OpCode::invokestatic => {
                     if let Some(method) = Self::fetch_method(FrameRef::clone(&frame)) {
                         MethodInvoker::invoke(frame, method);

@@ -100,6 +100,15 @@ impl Reference {
 		}
 	}
 
+	pub fn extract_target_class(&self) -> ClassRef {
+		match self {
+			Self::Class(class) => Arc::clone(&class.get().class),
+			Self::Mirror(mirror) => Arc::clone(&mirror.get().class),
+			Self::Null => panic!("NullPointerException"),
+			_ => panic!("Expected a class or mirror reference!"),
+		}
+	}
+
 	pub fn extract_mirror(&self) -> MirrorInstanceRef {
 		match self {
 			Self::Mirror(mirror) => Arc::clone(mirror),
