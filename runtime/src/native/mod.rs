@@ -1,5 +1,7 @@
 #![allow(non_snake_case)]
 
+include!("native_modules.rs");
+
 use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::thread::ThreadRef;
@@ -11,9 +13,6 @@ use std::sync::RwLock;
 use common::int_types::u1;
 use instructions::Operand;
 use once_cell::sync::Lazy;
-
-mod java;
-mod jdk;
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub struct NativeMethodDef<'a> {

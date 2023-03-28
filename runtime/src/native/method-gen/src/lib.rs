@@ -31,17 +31,7 @@ pub fn run() {
 
 	let mut modules = Vec::new();
 	for dir in dirs_filtered {
-		let mut components = dir
-			.path()
-			.components()
-			.rev()
-			.skip(1)
-			.map(Component::as_os_str)
-			.map(OsStr::to_string_lossy)
-			.take_while(|comp| comp != "native")
-			.collect::<Vec<Cow<'_, str>>>();
-
-		components.reverse();
+		let components = create_relative_path_components(dir.path(), true);
 
 		let mut module_name = String::new();
 		for comp in components {
@@ -87,6 +77,8 @@ pub fn run() {
 	}
 
 	write!(init_fn_file, "map\n}}").unwrap();
+
+	generate_root_mod_file(&native_directory)
 }
 
 fn build_map_inserts(file: &mut File, module: &str, class: &Class) {
@@ -190,6 +182,149 @@ fn method_table_entry(module: &str, class_name: &str, method: &Method) -> String
 		class_name.replace('$', "::"),
 		method.name
 	)
+}
+
+fn generate_root_mod_file(native_directory: &Path) {
+	let mut root_mod_file = OpenOptions::new()
+		.create(true)
+		.truncate(true)
+		.write(true)
+		.open(native_directory.join("native_modules.rs"))
+		.unwrap();
+
+	let dirs_filtered = WalkDir::new(native_directory)
+		.into_iter()
+		.map(Result::unwrap)
+		.filter(|entry| {
+			entry.file_type().is_dir()
+				&& entry.file_name() != METHOD_DEFINITION_DIR_NAME
+				&& entry.path().join(METHOD_DEFINITION_DIR_NAME).exists()
+				&& !entry
+					.path()
+					.components()
+					.any(|c| c.as_os_str() == "method-gen")
+		});
+
+	let mut modules = Vec::new();
+	for dir in dirs_filtered {
+		let components = create_relative_path_components(dir.path(), false);
+		if !components.is_empty() {
+			let files = std::fs::read_dir(dir.path())
+				.unwrap()
+				.into_iter()
+				.filter_map(|entry| {
+					let entry = entry.unwrap();
+					if entry.file_type().unwrap().is_file() {
+						Some(entry.path().file_stem().unwrap().to_os_string())
+					} else {
+						None
+					}
+				})
+				.collect::<Vec<_>>();
+
+			modules.push((components, files));
+		}
+	}
+
+	let mut current_root = None;
+	let mut current_module;
+	let mut current_depth = 0;
+	let mut index = 0;
+	loop {
+		if index == modules.len() {
+			while current_depth > 0 {
+				writeln!(&mut root_mod_file, "{}}}", "\t".repeat(current_depth)).unwrap();
+				current_depth -= 1;
+			}
+			writeln!(&mut root_mod_file, "{}}}", "\t".repeat(current_depth)).unwrap();
+			break;
+		}
+
+		let (module, classes) = &modules[index];
+		if current_root != Some(&module[0]) {
+			if index != 0 {
+				while current_depth > 0 {
+					writeln!(&mut root_mod_file, "{}}}", "\t".repeat(current_depth)).unwrap();
+					current_depth -= 1;
+				}
+				writeln!(&mut root_mod_file, "}}\n").unwrap();
+			}
+
+			current_root = Some(&module[0]);
+
+			let (components, classes) = &modules[index];
+			for component in components {
+				current_module = Some(component);
+
+				writeln!(
+					&mut root_mod_file,
+					"{}pub(crate) mod {} {{",
+					"\t".repeat(current_depth),
+					current_module.unwrap()
+				)
+				.unwrap();
+				current_depth += 1;
+			}
+
+			for item in classes {
+				writeln!(
+					&mut root_mod_file,
+					"{}pub(crate) mod {};",
+					"\t".repeat(current_depth),
+					item.to_str().unwrap()
+				)
+				.unwrap();
+			}
+
+			current_depth = components.len() - 1;
+			index += 1;
+			continue;
+		}
+
+		current_module = Some(&module[current_depth]);
+		if (module.len() - 1) == current_depth {
+			writeln!(&mut root_mod_file, "{}}}", "\t".repeat(current_depth)).unwrap();
+		}
+
+		writeln!(
+			&mut root_mod_file,
+			"{}pub(crate) mod {} {{",
+			"\t".repeat(current_depth),
+			current_module.unwrap()
+		)
+		.unwrap();
+
+		if current_depth != module.len() - 1 {
+			current_depth += 1;
+		}
+
+		for item in classes {
+			writeln!(
+				&mut root_mod_file,
+				"{}pub(crate) mod {};",
+				"\t".repeat(current_depth),
+				item.to_str().unwrap()
+			)
+			.unwrap();
+		}
+
+		index += 1;
+	}
+}
+
+fn create_relative_path_components(path: &Path, skip_first: bool) -> Vec<String> {
+	let mut components = path
+		.components()
+		.rev()
+		.skip(if skip_first { 1 } else { 0 })
+		.map(Component::as_os_str)
+		.map(OsStr::to_string_lossy)
+		.take_while(|comp| comp != "native")
+		.map(Cow::into_owned)
+		.collect::<Vec<String>>();
+
+	components.reverse();
+	components
 }
 
 #[test]
