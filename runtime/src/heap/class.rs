@@ -83,6 +83,7 @@ pub enum ClassType {
 
 #[derive(Clone)]
 pub struct ClassDescriptor {
+	pub source_file_index: Option<u2>,
 	pub constant_pool: ConstantPoolRef,
 	pub methods: Vec<MethodRef>,
 	pub fields: Vec<FieldRef>,
@@ -92,12 +93,30 @@ pub struct ClassDescriptor {
 
 impl Debug for ClassDescriptor {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		f.debug_struct("ClassDescriptor")
+		let mut debug_struct = f.debug_struct("ClassDescriptor");
+
+		match self.source_file_index {
+			Some(idx) => debug_struct.field("source_file", &unsafe {
+				std::str::from_utf8_unchecked(&self.constant_pool.get_constant_utf8(idx))
+			}),
+			None => debug_struct.field("source_file", &"None"),
+		};
+
+		debug_struct
 			.field("methods", &self.methods)
 			.field("fields", &self.fields)
 			.field("static_field_slots", &self.static_field_slots)
 			.field("instance_field_count", &self.instance_field_count)
 			.finish()
+	}
+}
+
+impl ClassDescriptor {
+	pub fn find_field<F>(&self, predicate: F) -> Option<FieldRef>
+	where
+		F: FnMut(&&FieldRef) -> bool,
+	{
+		self.fields.iter().find(predicate).map(Arc::clone)
 	}
 }
 
@@ -133,6 +152,8 @@ impl Class {
 	) -> ClassRef {
 		let access_flags = parsed_file.access_flags;
 		let class_name_index = parsed_file.this_class;
+
+		let source_file_index = parsed_file.source_file_index();
 		let name = parsed_file
 			.constant_pool
 			.get_class_name(class_name_index)
@@ -161,6 +182,7 @@ impl Class {
 
 		// We need the Class instance to create our methods and fields
 		let class_instance = ClassDescriptor {
+			source_file_index,
 			constant_pool,
 			methods: Vec::new(),
 			fields: Vec::new(),
@@ -583,7 +605,7 @@ impl Class {
 					class_instance.static_field_slots[field.idx] =
 						Operand::Long(class_instance.constant_pool.get_long(constant_value_index))
 				},
-				FieldType::Object(ref obj) if obj == "java/lang/String" => {
+				FieldType::Object(ref obj) if &**obj == b"java/lang/String" => {
 					let raw_string = class_instance
 						.constant_pool
 						.get_string(constant_value_index);

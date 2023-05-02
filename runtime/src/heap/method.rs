@@ -3,8 +3,8 @@ use crate::reference::MethodRef;
 
 use std::fmt::Debug;
 
-use classfile::{Code, FieldType, MethodDescriptor, MethodInfo};
-use common::int_types::{u1, u2};
+use classfile::{Code, FieldType, LineNumber, MethodDescriptor, MethodInfo};
+use common::int_types::{s4, u1, u2};
 use common::traits::PtrType;
 
 #[derive(Clone, PartialEq)]
@@ -14,6 +14,7 @@ pub struct Method {
 	pub name: Vec<u1>,
 	pub descriptor: Vec<u1>,
 	pub parameter_count: u1,
+	pub line_number_table: Vec<LineNumber>,
 	pub code: Code,
 }
 
@@ -54,6 +55,9 @@ impl Method {
 			.try_into()
 			.unwrap();
 
+		let line_number_table = method_info
+			.get_line_number_table_attribute()
+			.unwrap_or_default();
 		let code = method_info.get_code_attribute().unwrap_or_default();
 
 		let method = Self {
@@ -62,10 +66,25 @@ impl Method {
 			name,
 			descriptor: descriptor_bytes,
 			parameter_count,
+			line_number_table,
 			code,
 		};
 
 		MethodRef::new(method)
+	}
+
+	pub fn get_line_number(&self, pc: isize) -> s4 {
+		if self.line_number_table.is_empty() {
+			return -1;
+		}
+
+		for line_number in self.line_number_table.iter().copied() {
+			if (line_number.start_pc as isize) == pc {
+				return line_number.line_number as s4;
+			}
+		}
+
+		-1
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.3
@@ -86,7 +105,7 @@ impl Method {
 		let parsed_descriptor = MethodDescriptor::parse(&mut &self.descriptor[..]);
 		match &*parsed_descriptor.parameters {
 			[FieldType::Array(arr_ty)] => match &**arr_ty {
-				FieldType::Object(ref obj) if obj == "java/lang/Object" => {},
+				FieldType::Object(ref obj) if &**obj == b"java/lang/Object" => {},
 				_ => return false,
 			},
 			_ => return false,

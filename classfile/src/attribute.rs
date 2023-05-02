@@ -287,7 +287,7 @@ pub struct InnerClass {
 }
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.12
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct LineNumber {
 	pub start_pc: u2,
 	pub line_number: u2,

@@ -1,5 +1,6 @@
 use crate::attribute::{Attribute, AttributeType, Code};
 use crate::fieldinfo::FieldType;
+use crate::LineNumber;
 
 use common::int_types::{u1, u2};
 use common::traits::JavaReadExt;
@@ -14,6 +15,19 @@ pub struct MethodInfo {
 }
 
 impl MethodInfo {
+	pub fn get_line_number_table_attribute(&self) -> Option<Vec<LineNumber>> {
+		for attr in &self.attributes {
+			if let AttributeType::LineNumberTable {
+				ref line_number_table,
+			} = attr.info
+			{
+				return Some(line_number_table.clone());
+			}
+		}
+
+		None
+	}
+
 	pub fn get_code_attribute(&self) -> Option<Code> {
 		for attr in &self.attributes {
 			if let AttributeType::Code(ref code) = attr.info {

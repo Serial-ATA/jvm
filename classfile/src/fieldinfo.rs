@@ -65,7 +65,7 @@ pub enum FieldType {
 	Short,
 	Boolean,
 	Void, // Only valid for method return types
-	Object(String),
+	Object(Box<[u1]>),
 	Array(Box<FieldType>),
 }
 
@@ -98,8 +98,7 @@ impl FieldType {
 					.bytes()
 					.flatten()
 					.take_while(|b| *b != b';')
-					.map(char::from)
-					.collect::<String>();
+					.collect::<Box<[u1]>>();
 
 				Self::Object(class_name)
 			},
@@ -141,8 +140,8 @@ impl FieldType {
 		matches!(self, Self::Long)
 	}
 
-	pub fn is_class(&self) -> bool {
-		matches!(self, Self::Object(_))
+	pub fn is_class(&self, name: &[u1]) -> bool {
+		matches!(self, Self::Object(obj) if &**obj == name)
 	}
 
 	pub fn is_short(&self) -> bool {

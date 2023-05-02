@@ -25,9 +25,7 @@ pub(crate) fn initialize(thread: ThreadRef) {
 	{
 		let string_value_field = string_class
 			.unwrap_class_instance()
-			.fields
-			.iter()
-			.find(|field| {
+			.find_field(|field| {
 				!field.is_static()
 					&& field.name == b"value"
 					&& matches!(field.descriptor, FieldType::Array(ref val) if **val == FieldType::Byte)

@@ -4,9 +4,11 @@ use super::method::Method;
 use crate::class_instance::{ArrayInstancePtr, ClassInstancePtr, Instance};
 use crate::heap::mirror::MirrorInstancePtr;
 
+use std::sync::Arc;
+
+use common::int_types::u1;
 use common::traits::PtrType;
 use instructions::Operand;
-use std::sync::Arc;
 
 pub type MethodRef = Arc<Method>;
 pub type FieldRef = Arc<Field>;
@@ -82,6 +84,15 @@ impl Reference {
 		}
 
 		false
+	}
+
+	pub fn class_name(&self) -> &[u1] {
+		match self {
+			Reference::Class(class_instance) => &*class_instance.get().class.get().name,
+			Reference::Array(array_instance) => &*array_instance.get().class.get().name,
+			Reference::Mirror(mirror_instance) => &*mirror_instance.get().class.get().name,
+			Reference::Null => panic!("NullPointerException"),
+		}
 	}
 
 	pub fn extract_array(&self) -> ArrayInstanceRef {

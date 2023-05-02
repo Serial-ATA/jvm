@@ -6,8 +6,6 @@ use crate::stack::local_stack::LocalStack;
 use crate::thread::ThreadRef;
 use crate::Thread;
 
-use std::sync::Arc;
-
 use common::int_types::{u1, u2};
 use common::traits::PtrType;
 use instructions::{Operand, StackLike};

@@ -2,6 +2,7 @@ use crate::attribute::Attribute;
 use crate::constant_pool::ConstantPoolRef;
 use crate::fieldinfo::FieldInfo;
 use crate::methodinfo::MethodInfo;
+use crate::AttributeType;
 
 use std::io::Read;
 
@@ -47,5 +48,15 @@ impl ClassFile {
 		}
 
 		super_class_name
+	}
+
+	pub fn source_file_index(&self) -> Option<u2> {
+		for attr in &self.attributes {
+			if let AttributeType::SourceFile { sourcefile_index } = attr.info {
+				return Some(sourcefile_index);
+			}
+		}
+
+		None
 	}
 }

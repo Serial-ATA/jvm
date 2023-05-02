@@ -193,7 +193,7 @@ impl ClassLoader {
 		let component = FieldType::parse(&mut &descriptor[..]);
 
 		if let FieldType::Object(ref obj) = component {
-			self.load(obj.as_bytes());
+			self.load(obj);
 		}
 
 		//     The Java Virtual Machine creates a new array class with the indicated component type and number of dimensions.
