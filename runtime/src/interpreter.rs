@@ -525,7 +525,6 @@ impl Interpreter {
                 } => conversions;
                 
                 // ========= Comparisons =========
-                // TODO: dcmpl, dcmpg
                 CATEGORY: comparisons
                 OpCode::lcmp => {
                     let stack = frame.get_operand_stack_mut();
@@ -537,6 +536,18 @@ impl Interpreter {
                         Ordering::Equal => stack.push_int(0),
                         Ordering::Less => stack.push_int(-1)
                     }
+                },
+                OpCode::fcmpl => {
+                    Interpreter::fcmp(frame, Ordering::Less);
+                },
+                OpCode::fcmpg => {
+                    Interpreter::fcmp(frame, Ordering::Greater);
+                },
+                OpCode::dcmpl => {
+                    Interpreter::dcmp(frame, Ordering::Less);
+                },
+                OpCode::dcmpg => {
+                    Interpreter::dcmp(frame, Ordering::Greater);
                 },
                 @GROUP {
                     [
@@ -555,13 +566,7 @@ impl Interpreter {
                         if_acmpeq  (==, reference),
                         if_acmpne  (!=, reference),
                     ]
-                } => comparisons,
-                OpCode::fcmpl => {
-                    Interpreter::fcmp(frame, Ordering::Less);
-                },
-                OpCode::fcmpg => {
-                    Interpreter::fcmp(frame, Ordering::Greater);
-                };
+                } => comparisons;
                 
                 // ========= References =========
                 // TODO: 
@@ -838,8 +843,8 @@ impl Interpreter {
 
         // Both value1 and value2 must be of type float.
         // The values are popped from the operand stack and a floating-point comparison is performed:
-        let value2 = operand_stack.pop();
-        let value1 = operand_stack.pop();
+        let value2 = operand_stack.pop_float();
+        let value1 = operand_stack.pop_float();
 
         match value1.partial_cmp(&value2) {
             // If value1 is greater than value2, the int value 1 is pushed onto the operand stack.
@@ -850,6 +855,34 @@ impl Interpreter {
             Some(Ordering::Less) => operand_stack.push_int(-1),
             // Otherwise, at least one of value1 or value2 is NaN.
             // The fcmpg instruction pushes the int value 1 onto the operand stack and the fcmpl instruction pushes the int value -1 onto the operand stack.
+            _ => {
+                match ordering {
+                    Ordering::Greater => operand_stack.push_int(1),
+                    Ordering::Less => operand_stack.push_int(-1),
+                    _ => unreachable!()
+                }
+            },
+        }
+    }
+
+    // https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-6.html#jvms-6.5.dcmp_op
+    fn dcmp(frame: FrameRef, ordering: Ordering) {
+        let operand_stack = frame.get_operand_stack_mut();
+
+        // Both value1 and value2 must be of type double.
+        // The values are popped from the operand stack and a floating-point comparison is performed:
+        let value2 = operand_stack.pop_double();
+        let value1 = operand_stack.pop_double();
+
+        match value1.partial_cmp(&value2) {
+            // If value1 is greater than value2, the int value 1 is pushed onto the operand stack.
+            Some(Ordering::Greater) => operand_stack.push_int(1),
+            // Otherwise, if value1 is equal to value2, the int value 0 is pushed onto the operand stack.
+            Some(Ordering::Equal) => operand_stack.push_int(0),
+            // Otherwise, if value1 is less than value2, the int value -1 is pushed onto the operand stack.
+            Some(Ordering::Less) => operand_stack.push_int(-1),
+            // Otherwise, at least one of value1 or value2 is NaN.
+            // The dcmpg instruction pushes the int value 1 onto the operand stack and the dcmpl instruction pushes the int value -1 onto the operand stack.
             _ => {
                 match ordering {
                     Ordering::Greater => operand_stack.push_int(1),
