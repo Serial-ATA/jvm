@@ -9,6 +9,7 @@ use crate::string_interner::StringInterner;
 use crate::thread::ThreadRef;
 
 use std::fmt::{Debug, Formatter};
+use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 use classfile::{ClassFile, ConstantPoolRef, FieldType};
@@ -754,6 +755,46 @@ impl Class {
 
 		false
 	}
+
+	pub fn get_mirror(&self) -> MirrorInstanceRef {
+		Arc::clone(self.mirror.as_ref().unwrap())
+	}
+
+	pub fn is_array(&self) -> bool {
+		self.name.starts_with(b"[")
+	}
+
+	pub fn is_interface(&self) -> bool {
+		self.access_flags & Class::ACC_INTERFACE != 0
+	}
+
+	pub fn unwrap_class_instance(&self) -> &ClassDescriptor {
+		match self.class_ty {
+			ClassType::Instance(ref instance) => instance,
+			_ => unreachable!(),
+		}
+	}
+
+	pub fn unwrap_class_instance_mut(&mut self) -> &mut ClassDescriptor {
+		match self.class_ty {
+			ClassType::Instance(ref mut instance) => instance,
+			_ => unreachable!(),
+		}
+	}
+
+	pub fn unwrap_array_instance(&self) -> &ArrayDescriptor {
+		match self.class_ty {
+			ClassType::Array(ref instance) => instance,
+			_ => unreachable!(),
+		}
+	}
+
+	pub fn unwrap_array_instance_mut(&mut self) -> &mut ArrayDescriptor {
+		match self.class_ty {
+			ClassType::Array(ref mut instance) => instance,
+			_ => unreachable!(),
+		}
+	}
 }
 
 // A pointer to a Class instance
@@ -764,43 +805,9 @@ impl Class {
 pub struct ClassPtr(usize);
 
 impl ClassPtr {
-	pub fn get_mirror(&self) -> MirrorInstanceRef {
-		Arc::clone(self.get().mirror.as_ref().unwrap())
-	}
-
-	pub fn is_array(&self) -> bool {
-		self.get().name.starts_with(b"[")
-	}
-
-	pub fn is_interface(&self) -> bool {
-		self.get().access_flags & Class::ACC_INTERFACE != 0
-	}
-
-	pub fn is_subclass_of(&self, class: ClassRef) -> bool {
-		self.get().is_subclass_of(class)
-	}
-
-	pub fn implements(&self, class: ClassRef) -> bool {
-		self.get().implements(class)
-	}
-
-	pub fn unwrap_class_instance(&self) -> &ClassDescriptor {
-		match self.get().class_ty {
-			ClassType::Instance(ref instance) => instance,
-			_ => unreachable!(),
-		}
-	}
-
 	pub fn unwrap_class_instance_mut(&self) -> &mut ClassDescriptor {
 		match self.get_mut().class_ty {
 			ClassType::Instance(ref mut instance) => instance,
-			_ => unreachable!(),
-		}
-	}
-
-	pub fn unwrap_array_instance(&self) -> &ArrayDescriptor {
-		match self.get().class_ty {
-			ClassType::Array(ref instance) => instance,
 			_ => unreachable!(),
 		}
 	}
@@ -842,6 +849,20 @@ impl PtrType<Class, ClassRef> for ClassPtr {
 impl Drop for ClassPtr {
 	fn drop(&mut self) {
 		let _ = unsafe { Box::from_raw(self.0 as *mut Class) };
+	}
+}
+
+impl Deref for ClassPtr {
+	type Target = Class;
+
+	fn deref(&self) -> &Self::Target {
+		unsafe { &(*self.as_raw()) }
+	}
+}
+
+impl DerefMut for ClassPtr {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		unsafe { &mut (*self.as_mut_raw()) }
 	}
 }
 
