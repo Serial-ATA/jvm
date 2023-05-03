@@ -11,7 +11,7 @@ use classfile::FieldType;
 use common::traits::PtrType;
 use instructions::Operand;
 
-#[allow(non_camel_case_types)]
+#[allow(non_upper_case_globals)]
 mod stacktrace_element {
 	use crate::class_instance::{ClassInstance, Instance};
 	use crate::frame::FrameRef;
