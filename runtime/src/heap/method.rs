@@ -1,7 +1,9 @@
 use super::reference::ClassRef;
+use crate::classpath::classloader::ClassLoader;
 use crate::reference::MethodRef;
 
 use std::fmt::Debug;
+use std::sync::Arc;
 
 use classfile::{Code, FieldType, LineNumber, MethodDescriptor, MethodInfo};
 use common::int_types::{s4, u1, u2};
@@ -85,6 +87,38 @@ impl Method {
 		}
 
 		-1
+	}
+
+	// https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-2.html#jvms-2.10
+	/// Find the exception handler for the given class and pc
+	pub fn find_exception_handler(&self, class: ClassRef, pc: isize) -> Option<isize> {
+		for exception_handler in &self.code.exception_table {
+			let active_range =
+				(exception_handler.start_pc as isize)..(exception_handler.end_pc as isize);
+			if !active_range.contains(&pc) {
+				continue;
+			}
+
+			// catch_type of 0 means this handles all exceptions
+			if exception_handler.catch_type == 0 {
+				return Some(exception_handler.handler_pc as isize);
+			}
+
+			let catch_type_class_name = self
+				.class
+				.unwrap_class_instance()
+				.constant_pool
+				.get_class_name(exception_handler.catch_type);
+			let catch_type_class = ClassLoader::Bootstrap
+				.load(catch_type_class_name)
+				.expect("catch_type should be available");
+
+			if catch_type_class == class || catch_type_class.is_subclass_of(Arc::clone(&class)) {
+				return Some(exception_handler.handler_pc as isize);
+			}
+		}
+
+		None
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.3
