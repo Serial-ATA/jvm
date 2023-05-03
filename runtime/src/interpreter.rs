@@ -1,3 +1,5 @@
+#![allow(unused_imports)] // Intellij-Rust doesn't like this file much, the imports used in macros are not recognized
+
 use crate::class::Class;
 use crate::class_instance::{ArrayInstance, ClassInstance};
 use crate::classpath::classloader::ClassLoader;

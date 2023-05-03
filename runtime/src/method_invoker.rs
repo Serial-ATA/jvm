@@ -7,7 +7,6 @@ use crate::thread::ThreadRef;
 use crate::Thread;
 
 use common::int_types::{u1, u2};
-use common::traits::PtrType;
 use instructions::{Operand, StackLike};
 
 macro_rules! trace_method {
