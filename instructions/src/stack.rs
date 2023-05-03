@@ -3,6 +3,8 @@ use crate::operand::Operand;
 use common::int_types::{s4, s8};
 
 pub trait StackLike<Reference> {
+	fn clear(&mut self);
+
 	fn push_op(&mut self, op: Operand<Reference>);
 	fn push_int(&mut self, int: s4);
 	fn push_float(&mut self, float: f32);
