@@ -27,8 +27,11 @@ pub fn isAssignableFrom(_: JNIEnv, _: LocalStack) -> NativeReturn {
 pub fn isInterface(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("Class#isInterface");
 }
-pub fn isArray(_: JNIEnv, _: LocalStack) -> NativeReturn {
-	unimplemented!("Class#isArray");
+pub fn isArray(_: JNIEnv, locals: LocalStack) -> NativeReturn {
+	let this = locals[0].expect_reference().extract_mirror();
+	let is_array = this.get().is_array();
+
+	Some(Operand::Int(s4::from(is_array)))
 }
 pub fn isPrimitive(_: JNIEnv, locals: LocalStack) -> NativeReturn {
 	let this = locals[0].expect_reference().extract_mirror();

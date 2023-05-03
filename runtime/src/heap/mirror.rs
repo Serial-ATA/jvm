@@ -66,6 +66,10 @@ impl MirrorInstance {
 		matches!(&self.target, MirrorTarget::Primitive(_))
 	}
 
+	pub fn is_array(&self) -> bool {
+		matches!(&self.target, MirrorTarget::Class(class) if class.is_array())
+	}
+
 	pub fn expect_class(&self) -> ClassRef {
 		match &self.target {
 			MirrorTarget::Class(class) => Arc::clone(class),
