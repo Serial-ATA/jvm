@@ -226,9 +226,15 @@ pub struct Code {
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.3
 #[derive(Debug, Clone, PartialEq)]
 pub struct CodeException {
+	/// The start of the range where the exception handler is active
 	pub start_pc: u2,
+	/// The end of the range where the exception handler is active
 	pub end_pc: u2,
+	/// The start of the exception handler
 	pub handler_pc: u2,
+	/// The constant pool index for the class of exceptions that this exception handler is designated to catch
+	///
+	/// If this is 0, this exception handler is called for all exceptions
 	pub catch_type: u2,
 }
 
