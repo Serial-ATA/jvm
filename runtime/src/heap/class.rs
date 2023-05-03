@@ -71,6 +71,7 @@ impl Debug for Class {
 			.field("access_flags", &self.access_flags)
 			.field("loader", &self.loader)
 			.field("super_class", &self.super_class)
+			.field("interfaces", &self.interfaces)
 			.field("instance", &self.class_ty)
 			.finish()
 	}
@@ -303,19 +304,36 @@ impl Class {
 	}
 
 	pub fn get_method(&self, name: &[u1], descriptor: &[u1], flags: u2) -> Option<MethodRef> {
-		if let ClassType::Instance(class_instance) = &self.class_ty {
-			return class_instance
-				.methods
-				.iter()
-				.find(|method| {
+		if let ClassType::Instance(class_descriptor) = &self.class_ty {
+			let search_methods = |class_descriptor: &ClassDescriptor| {
+				if let Some(method) = class_descriptor.methods.iter().find(|method| {
 					method.name == name
 						&& (flags == 0 || method.access_flags & flags == flags)
 						&& method.descriptor == descriptor
-				})
-				.map(Arc::clone);
+				}) {
+					return Some(Arc::clone(method));
+				}
+				None
+			};
+
+			if let ret @ Some(_) = search_methods(class_descriptor) {
+				return ret;
+			}
+
+			for parent in self.parent_iter() {
+				if let ret @ Some(_) = search_methods(parent.unwrap_class_instance()) {
+					return ret;
+				}
+			}
 		}
 
 		None
+	}
+
+	pub fn parent_iter(&self) -> ClassParentIterator {
+		ClassParentIterator {
+			current_class: self.super_class.clone(),
+		}
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.2
@@ -748,8 +766,16 @@ impl Class {
 
 	pub fn implements(&self, class: ClassRef) -> bool {
 		for interface in &self.interfaces {
-			if interface == &class {
+			if &class == interface || class.implements(Arc::clone(&interface)) {
 				return true;
+			}
+		}
+
+		for parent in self.parent_iter() {
+			for interface in &parent.interfaces {
+				if &class == interface || class.implements(Arc::clone(&interface)) {
+					return true;
+				}
 			}
 		}
 
@@ -794,6 +820,24 @@ impl Class {
 			ClassType::Array(ref mut instance) => instance,
 			_ => unreachable!(),
 		}
+	}
+}
+
+pub struct ClassParentIterator {
+	current_class: Option<ClassRef>,
+}
+
+impl Iterator for ClassParentIterator {
+	type Item = ClassRef;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		return match &self.current_class {
+			None => None,
+			Some(current) => {
+				self.current_class = current.super_class.as_ref().map(Arc::clone);
+				self.current_class.clone()
+			},
+		};
 	}
 }
 
