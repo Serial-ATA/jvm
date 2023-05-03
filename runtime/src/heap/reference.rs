@@ -33,16 +33,20 @@ impl Reference {
 	}
 
 	pub fn is_instance_of(&self, class: ClassRef) -> bool {
+		// The following rules are used to determine whether an objectref that is not null can be cast to the resolved type
+		//
+		// S is the type of the object referred to by objectref, and T is the resolved class, array, or interface type
+
 		match self {
 			Reference::Class(class_ref) => {
-				if class_ref.get().class == class {
-					return true;
-				}
-
 				// If S is a class type, then:
 				//
 				//     If T is a class type, then S must be the same class as T, or S must be a subclass of T;
 				if !class.is_interface() && !class.is_array() {
+					if class_ref.get().class == class {
+						return true;
+					}
+
 					return class_ref.get().is_subclass_of(class);
 				}
 				//     If T is an interface type, then S must implement interface T.
