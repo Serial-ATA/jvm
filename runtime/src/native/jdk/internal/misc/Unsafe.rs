@@ -1,7 +1,10 @@
+use crate::class::{Class, ClassInitializationState};
 use crate::native::{JNIEnv, NativeReturn};
 use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::string_interner::StringInterner;
+
+use std::sync::Arc;
 
 use common::int_types::{s4, s8};
 use common::traits::PtrType;
@@ -218,8 +221,20 @@ pub fn staticFieldBase0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 pub fn shouldBeInitialized0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#shouldBeInitialized0")
 }
-pub fn ensureClassInitialized0(_: JNIEnv, _: LocalStack) -> NativeReturn {
-	unimplemented!("jdk.internal.misc.Unsafe#ensureClassInitialized0")
+pub fn ensureClassInitialized0(env: JNIEnv, locals: LocalStack) -> NativeReturn {
+	let mirror = locals[1].expect_reference().extract_mirror();
+
+	let target_class = mirror.get().expect_class();
+	match target_class.initialization_state() {
+		ClassInitializationState::Uninit => {
+			Class::initialize(&target_class, Arc::clone(&env.current_thread))
+		},
+		ClassInitializationState::InProgress | ClassInitializationState::Init => {},
+		// Is this the best we can do?
+		ClassInitializationState::Failed => unreachable!("Failed to ensure class initialization"),
+	}
+
+	None
 }
 pub fn arrayBaseOffset0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
 	let reference = locals[1].expect_reference();
