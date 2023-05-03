@@ -1,8 +1,9 @@
 use crate::native::{JNIEnv, NativeReturn};
 use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
+use crate::string_interner::StringInterner;
 
-use common::int_types::s4;
+use common::int_types::{s4, s8};
 use common::traits::PtrType;
 use instructions::Operand;
 
@@ -193,8 +194,20 @@ pub fn copySwapMemory0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 pub fn objectFieldOffset0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#objectFieldOffset0")
 }
-pub fn objectFieldOffset1(_: JNIEnv, _: LocalStack) -> NativeReturn {
-	unimplemented!("jdk.internal.misc.Unsafe#objectFieldOffset1")
+pub fn objectFieldOffset1(_: JNIEnv, locals: LocalStack) -> NativeReturn {
+	let class = locals[1].expect_reference().extract_mirror();
+	let name = locals[2].expect_reference();
+
+	let name_str = StringInterner::rust_string_from_java_string(name.extract_class());
+	let classref = class.get().expect_class();
+	for (offset, field) in classref.unwrap_class_instance().fields.iter().enumerate() {
+		if field.name == name_str.as_bytes() {
+			return Some(Operand::Long(offset as s8));
+		}
+	}
+
+	// TODO
+	panic!("InternalError")
 }
 pub fn staticFieldOffset0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("jdk.internal.misc.Unsafe#staticFieldOffset0")
