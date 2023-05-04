@@ -1,4 +1,4 @@
-#![rustfmt::skip]
+#![cfg_attr(rustfmt, rustfmt_skip)]
 
 pub const FILE_SEPARATOR: &str = "/";
 pub const LINE_SEPARATOR: &str = "\n";

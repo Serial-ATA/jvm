@@ -4,9 +4,9 @@ mod windows;
 
 pub mod properties {
 	#[cfg(target_family = "unix")]
-	pub use unix::properties::*;
+	pub use super::unix::properties::*;
 	#[cfg(target_family = "windows")]
-	pub use windows::properties::*;
+	pub use super::windows::properties::*;
 
-	pub use shared::*;
+	pub use super::shared::*;
 }

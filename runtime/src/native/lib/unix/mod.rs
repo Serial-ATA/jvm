@@ -4,9 +4,9 @@ mod shared;
 
 pub mod properties {
 	#[cfg(target_os = "linux")]
-	pub use linux::properties::*;
+	pub use super::linux::properties::*;
 	#[cfg(target_os = "macos")]
-	pub use macos::properties::*;
+	pub use super::macos::properties::*;
 
 	pub use super::shared::*;
 }
