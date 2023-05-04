@@ -1,5 +1,7 @@
-use crate::parse::method::{AccessFlags, Method};
-use crate::parse::{lex, path1, word1};
+use crate::parse::access_flags::AccessFlags;
+use crate::parse::field::Field;
+use crate::parse::method::Method;
+use crate::parse::{lex, path1, whitespace_or_comment, word1};
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -8,7 +10,7 @@ use combine::parser::char::{char, string};
 use combine::parser::combinator::no_partial;
 use combine::stream::position::Stream as PositionStream;
 use combine::{
-	attempt, choice, many, many1, opaque, token, EasyParser, ParseError, Parser, Stream,
+	attempt, choice, many, many1, opaque, optional, token, EasyParser, ParseError, Parser, Stream,
 };
 use once_cell::sync::Lazy;
 
@@ -17,6 +19,7 @@ pub(super) static IMPORTS: Lazy<Mutex<HashMap<String, String>>> =
 
 #[derive(Clone, Debug)]
 pub enum Member {
+	Field(Field),
 	Method(Method),
 	Class(Class),
 }
@@ -74,12 +77,26 @@ where
 {
 	opaque!(no_partial((
 		lex(class_def()),
-		many(attempt(super::method::method().map(Member::Method)).or(class().map(Member::Class))),
+		whitespace_or_comment(),
+		optional(
+			attempt(string("@Native")).and(many1::<Vec<_>, _, _>(attempt(
+				super::field::field().map(Member::Field)
+			)))
+		),
+		many::<Vec<_>, _, _>(
+			attempt(super::method::method().map(Member::Method)).or(class().map(Member::Class))
+		),
 		lex(char('}')),
 	)))
-	.map(|(class_name, members, _)| Class {
-		class_name,
-		members,
+	.map(|(class_name, _, fields, mut members, _)| {
+		if let Some((_, mut fields)) = fields {
+			members.append(&mut fields);
+		}
+
+		Class {
+			class_name,
+			members,
+		}
 	})
 }
 
