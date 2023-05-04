@@ -188,7 +188,9 @@ mod tests {
 
 		assert_eq!(
 			&*method_descriptor.parameters,
-			&[FieldType::Object(String::from("java/lang/Object"))]
+			&[FieldType::Object(
+				b"java/lang/Object".to_vec().into_boxed_slice()
+			)]
 		);
 		assert_eq!(method_descriptor.return_type, FieldType::Void);
 	}
@@ -201,9 +203,9 @@ mod tests {
 		assert_eq!(
 			&*method_descriptor.parameters,
 			[
-				FieldType::Object(String::from("java/lang/Object")),
-				FieldType::Object(String::from("java/lang/Integer")),
-				FieldType::Object(String::from("java/lang/String")),
+				FieldType::Object(b"java/lang/Object".to_vec().into_boxed_slice()),
+				FieldType::Object(b"java/lang/Integer".to_vec().into_boxed_slice()),
+				FieldType::Object(b"java/lang/String".to_vec().into_boxed_slice()),
 			]
 		);
 		assert_eq!(method_descriptor.return_type, FieldType::Void);
