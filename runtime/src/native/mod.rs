@@ -1,7 +1,5 @@
 #![allow(non_snake_case)]
 
-include!("native_modules.rs");
-
 use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::thread::ThreadRef;
@@ -54,3 +52,34 @@ pub fn lookup_method(def: NativeMethodDef<'_>) -> NativeMethodPtr {
 pub(self) fn insert_method((def, ptr): (NativeMethodDef<'static>, NativeMethodPtr)) {
 	NATIVE_METHOD_TABLE.write().unwrap().insert(def, ptr);
 }
+
+// Module marker, do not remove
+pub(crate) mod jdk {
+	pub(crate) mod internal {
+		pub(crate) mod misc {
+			pub(crate) mod CDS;
+			pub(crate) mod VM;
+			pub(crate) mod Unsafe;
+		}
+		pub(crate) mod util {
+		pub(crate) mod SystemProps;
+		}
+		pub(crate) mod reflect {
+		pub(crate) mod Reflection;
+		}
+	}
+}
+
+pub(crate) mod java {
+	pub(crate) mod lang {
+		pub(crate) mod Throwable;
+		pub(crate) mod Float;
+		pub(crate) mod StringUTF16;
+		pub(crate) mod Class;
+		pub(crate) mod Double;
+		pub(crate) mod System;
+		pub(crate) mod Runtime;
+		pub(crate) mod Object;
+	}
+}
+

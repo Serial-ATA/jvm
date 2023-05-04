@@ -6,6 +6,7 @@ use crate::parse::{AccessFlags, Class, Member, Method};
 
 use std::borrow::Cow;
 use std::ffi::OsStr;
+use std::fmt::Write as _;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
@@ -17,6 +18,8 @@ static METHOD_DEFINITION_DIR_NAME: &str = "def";
 static INIT_FN_FILE_HEADER: &str = "#[allow(trivial_casts)]\nfn init_native_method_table() -> \
                                     HashMap<NativeMethodDef<'static>, NativeMethodPtr> {\nlet mut \
                                     map = HashMap::new();\n";
+
+static MODULE_MARKER_START_COMMENT: &str = "// Module marker, do not remove";
 
 pub fn run() {
 	let crate_root = PathBuf::from(CRATE_ROOT);
@@ -78,7 +81,28 @@ pub fn run() {
 
 	write!(init_fn_file, "map\n}}").unwrap();
 
-	generate_root_mod_file(&native_directory)
+	let generated_modules = generate_modules(native_directory);
+
+	let root_module_path = native_directory.join("mod.rs");
+	let root_mod_file_content = std::fs::read_to_string(&root_module_path).unwrap();
+
+	let marker_comment_start_pos = root_mod_file_content
+		.rfind(MODULE_MARKER_START_COMMENT)
+		.expect("Can't find module marker comment");
+
+	// Remove anything trailing the comment
+	let mut root_mod_file_content_bytes = root_mod_file_content.into_bytes();
+	root_mod_file_content_bytes
+		.drain(marker_comment_start_pos + MODULE_MARKER_START_COMMENT.len()..);
+
+	write!(
+		&mut root_mod_file_content_bytes,
+		"\n{}\n",
+		&generated_modules
+	)
+	.unwrap();
+	std::fs::write(&root_module_path, &root_mod_file_content_bytes)
+		.expect("Failed to write modules to native/mod.rs");
 }
 
 fn build_map_inserts(file: &mut File, module: &str, class: &Class) {
@@ -184,13 +208,8 @@ fn method_table_entry(module: &str, class_name: &str, method: &Method) -> String
 	)
 }
 
-fn generate_root_mod_file(native_directory: &Path) {
-	let mut root_mod_file = OpenOptions::new()
-		.create(true)
-		.truncate(true)
-		.write(true)
-		.open(native_directory.join("native_modules.rs"))
-		.unwrap();
+fn generate_modules(native_directory: &Path) -> String {
+	let mut modules_str = String::new();
 
 	let dirs_filtered = WalkDir::new(native_directory)
 		.into_iter()
@@ -211,7 +230,6 @@ fn generate_root_mod_file(native_directory: &Path) {
 		if !components.is_empty() {
 			let files = std::fs::read_dir(dir.path())
 				.unwrap()
-				.into_iter()
 				.filter_map(|entry| {
 					let entry = entry.unwrap();
 					if entry.file_type().unwrap().is_file() {
@@ -233,10 +251,10 @@ fn generate_root_mod_file(native_directory: &Path) {
 	loop {
 		if index == modules.len() {
 			while current_depth > 0 {
-				writeln!(&mut root_mod_file, "{}}}", "\t".repeat(current_depth)).unwrap();
+				writeln!(&mut modules_str, "{}}}", "\t".repeat(current_depth)).unwrap();
 				current_depth -= 1;
 			}
-			writeln!(&mut root_mod_file, "{}}}", "\t".repeat(current_depth)).unwrap();
+			writeln!(&mut modules_str, "{}}}", "\t".repeat(current_depth)).unwrap();
 			break;
 		}
 
@@ -244,10 +262,10 @@ fn generate_root_mod_file(native_directory: &Path) {
 		if current_root != Some(&module[0]) {
 			if index != 0 {
 				while current_depth > 0 {
-					writeln!(&mut root_mod_file, "{}}}", "\t".repeat(current_depth)).unwrap();
+					writeln!(&mut modules_str, "{}}}", "\t".repeat(current_depth)).unwrap();
 					current_depth -= 1;
 				}
-				writeln!(&mut root_mod_file, "}}\n").unwrap();
+				writeln!(&mut modules_str, "}}\n").unwrap();
 			}
 
 			current_root = Some(&module[0]);
@@ -257,7 +275,7 @@ fn generate_root_mod_file(native_directory: &Path) {
 				current_module = Some(component);
 
 				writeln!(
-					&mut root_mod_file,
+					&mut modules_str,
 					"{}pub(crate) mod {} {{",
 					"\t".repeat(current_depth),
 					current_module.unwrap()
@@ -268,7 +286,7 @@ fn generate_root_mod_file(native_directory: &Path) {
 
 			for item in classes {
 				writeln!(
-					&mut root_mod_file,
+					&mut modules_str,
 					"{}pub(crate) mod {};",
 					"\t".repeat(current_depth),
 					item.to_str().unwrap()
@@ -283,11 +301,11 @@ fn generate_root_mod_file(native_directory: &Path) {
 
 		current_module = Some(&module[current_depth]);
 		if (module.len() - 1) == current_depth {
-			writeln!(&mut root_mod_file, "{}}}", "\t".repeat(current_depth)).unwrap();
+			writeln!(&mut modules_str, "{}}}", "\t".repeat(current_depth)).unwrap();
 		}
 
 		writeln!(
-			&mut root_mod_file,
+			&mut modules_str,
 			"{}pub(crate) mod {} {{",
 			"\t".repeat(current_depth),
 			current_module.unwrap()
@@ -300,7 +318,7 @@ fn generate_root_mod_file(native_directory: &Path) {
 
 		for item in classes {
 			writeln!(
-				&mut root_mod_file,
+				&mut modules_str,
 				"{}pub(crate) mod {};",
 				"\t".repeat(current_depth),
 				item.to_str().unwrap()
@@ -310,6 +328,8 @@ fn generate_root_mod_file(native_directory: &Path) {
 
 		index += 1;
 	}
+
+	modules_str
 }
 
 fn create_relative_path_components(path: &Path, skip_first: bool) -> Vec<String> {
