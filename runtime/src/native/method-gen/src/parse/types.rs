@@ -54,6 +54,7 @@ impl Type {
 		.unwrap();
 	}
 
+	#[allow(clippy::match_same_arms)]
 	pub(crate) fn map_to_rust_ty(&self) -> String {
 		match self {
 			Type::Boolean => String::from("bool"),
