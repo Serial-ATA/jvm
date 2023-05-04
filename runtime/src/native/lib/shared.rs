@@ -1,3 +1,3 @@
-#![rustfmt::skip]
+#![cfg_attr(rustfmt, rustfmt_skip)]
 
 pub const CPU_ENDIAN: &str = if cfg!(target_endian = "big") { "big" } else { "little" };
