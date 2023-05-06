@@ -35,6 +35,7 @@ impl Debug for Frame {
 			.field("locals", &self.locals)
 			.field("stack", &self.stack)
 			.field("method", &self.method)
+			.field("cached_pc", &self.cached_pc)
 			.finish()
 	}
 }
