@@ -192,8 +192,8 @@ pub fn fillInStackTrace(env: JNIEnv, locals: LocalStack) -> NativeReturn {
 	// Create the StackTraceElement array
 	let mut stacktrace_elements =
 		vec![Reference::Null; stack_depth - frames_to_skip].into_boxed_slice();
-	for (idx, frame) in current_thread.frame_stack[frames_to_skip..]
-		.into_iter()
+	for (idx, frame) in current_thread.frame_stack[..stack_depth - frames_to_skip]
+		.iter()
 		.enumerate()
 	{
 		stacktrace_elements[idx] = stacktrace_element::from_stack_frame(
