@@ -1,12 +1,25 @@
-mod linux;
-mod macos;
-mod shared;
+use crate::native::lib::macros::conditional;
 
-pub mod properties {
+// OS specific modules
+
+conditional! {
 	#[cfg(target_os = "linux")]
-	pub use super::linux::properties::*;
-	#[cfg(target_os = "macos")]
-	pub use super::macos::properties::*;
 
-	pub use super::shared::*;
+	mod linux;
+
+	/// Items for specific OS + architecture combinations
+	pub use linux::os_arch as os_arch;
 }
+
+conditional! {
+	#[cfg(target_os = "macos")]
+
+	mod macos;
+
+	/// Items for specific OS + architecture combinations
+	pub use macos::os_arch as os_arch;
+}
+
+// Exports
+
+pub mod properties;

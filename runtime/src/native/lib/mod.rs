@@ -1,12 +1,21 @@
-mod shared;
-mod unix;
-mod windows;
+use crate::native::lib::macros::conditional;
 
-pub mod properties {
+pub mod arch;
+mod macros;
+pub mod properties;
+
+// `target_family` specific exports
+
+conditional! {
 	#[cfg(target_family = "unix")]
-	pub use super::unix::properties::*;
-	#[cfg(target_family = "windows")]
-	pub use super::windows::properties::*;
 
-	pub use super::shared::*;
+	mod unix;
+	pub use unix::os_arch;
+}
+
+conditional! {
+	#[cfg(target_family = "windows")]
+
+	mod windows;
+	pub use windows::os_arch;
 }
