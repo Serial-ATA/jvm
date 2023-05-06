@@ -32,8 +32,18 @@ pub(crate) fn initialize(thread: ThreadRef) {
 			})
 			.expect("java.lang.String should have a value field");
 
+		let string_coder_field = string_class
+			.unwrap_class_instance()
+			.find_field(|field| {
+				field.is_final()
+					&& field.name == b"coder"
+					&& matches!(field.descriptor, FieldType::Byte)
+			})
+			.expect("java.lang.String should have a value field");
+
 		unsafe {
 			crate::globals::STRING_VALUE_FIELD_OFFSET = string_value_field.idx;
+			crate::globals::STRING_CODER_FIELD_OFFSET = string_coder_field.idx;
 		}
 	}
 
