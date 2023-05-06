@@ -173,7 +173,8 @@ pub fn park(_: JNIEnv, _: LocalStack) -> NativeReturn {
 }
 
 pub fn fullFence(_: JNIEnv, _: LocalStack) -> NativeReturn {
-	unimplemented!("jdk.internal.misc.Unsafe#fullFence")
+	crate::native::lib::os_arch::ordering::fence();
+	None
 }
 
 pub fn allocateMemory0(_: JNIEnv, _: LocalStack) -> NativeReturn {
