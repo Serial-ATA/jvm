@@ -1,5 +1,7 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
+use crate::macros::match_cfg_meta;
+
 // TODO
 
 //         @Native private static final int _display_country_NDX = 0;
@@ -15,14 +17,22 @@ pub const FILE_SEPARATOR: &str = "\\";
 //         @Native private static final int _java_io_tmpdir_NDX = 1 + _https_proxyPort_NDX;
 pub const LINE_SEPARATOR: &str = "\r\n";
 // https://github.com/openjdk/jdk/blob/19373b2ff0cd795afa262c17dcb3388fd6a5be59/src/java.base/windows/native/libjava/java_props_md.c#L580-L588
-#[cfg(target_arch = "x86_64")]
-pub const OS_ARCH: &str = "amd64";
-#[cfg(target_arch = "x86")]
-pub const OS_ARCH: &str = "x64";
-#[cfg(target_arch = "aarch64")]
-pub const OS_ARCH: &str = "aarch64";
-#[cfg(not(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64")))]
-pub const OS_ARCH: &str = "unknown";
+match_cfg_meta! {
+    match cfg(target_arch) {
+        "x86_64" => {
+            pub const OS_ARCH: &str = "amd64";
+        },
+        "x86" => {
+            pub const OS_ARCH: &str = "x86";
+        },
+        "aarch64" => {
+            pub const OS_ARCH: &str = "aarch64";
+        },
+        _ => {
+            pub const OS_ARCH: &str = "unknown";
+        }
+    }
+}
 //         @Native private static final int _os_name_NDX = 1 + _os_arch_NDX;
 //         @Native private static final int _os_version_NDX = 1 + _os_name_NDX;
 pub const PATH_SEPARATOR: &str = ";";

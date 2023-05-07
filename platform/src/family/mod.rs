@@ -1,17 +1,19 @@
-use crate::macros::conditional;
+use crate::macros::match_cfg_meta;
 
 // `target_family` specific exports
 
-conditional! {
-	#[cfg(target_family = "unix")]
-
-	mod unix;
-	pub use unix::os_arch;
-}
-
-conditional! {
-	#[cfg(target_family = "windows")]
-
-	mod windows;
-	pub use windows::os_arch;
+match_cfg_meta! {
+	match cfg(target_family) {
+		"unix" => {
+			mod unix;
+			pub use unix::os_arch;
+		},
+		"windows" => {
+			mod windows;
+			pub use windows::os_arch;
+		},
+		_ => {
+			compile_error!("target family is not supported!");
+		}
+	}
 }
