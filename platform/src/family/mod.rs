@@ -1,8 +1,4 @@
-use crate::native::lib::macros::conditional;
-
-pub mod arch;
-mod macros;
-pub mod properties;
+use crate::macros::conditional;
 
 // `target_family` specific exports
 

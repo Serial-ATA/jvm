@@ -173,7 +173,7 @@ pub fn park(_: JNIEnv, _: LocalStack) -> NativeReturn {
 }
 
 pub fn fullFence(_: JNIEnv, _: LocalStack) -> NativeReturn {
-	crate::native::lib::os_arch::ordering::fence();
+	platform::os_arch::ordering::fence();
 	None
 }
 

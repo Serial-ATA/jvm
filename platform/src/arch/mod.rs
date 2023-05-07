@@ -1,4 +1,4 @@
-use crate::native::lib::macros::conditional;
+use crate::macros::conditional;
 
 conditional! {
 	#[cfg(any(
