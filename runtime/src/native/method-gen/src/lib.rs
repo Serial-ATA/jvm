@@ -293,7 +293,7 @@ fn generate_modules(native_directory: &Path) -> String {
 	for dir in dirs_filtered {
 		let components = create_relative_path_components(dir.path(), false);
 		if !components.is_empty() {
-			let files = std::fs::read_dir(dir.path())
+			let mut files = std::fs::read_dir(dir.path())
 				.unwrap()
 				.filter_map(|entry| {
 					let entry = entry.unwrap();
@@ -304,6 +304,8 @@ fn generate_modules(native_directory: &Path) -> String {
 					}
 				})
 				.collect::<Vec<_>>();
+
+			files.sort();
 
 			modules.push((components, files));
 		}
