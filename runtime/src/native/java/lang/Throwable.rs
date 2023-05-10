@@ -8,6 +8,7 @@ use crate::stack::local_stack::LocalStack;
 use std::sync::Arc;
 
 use classfile::FieldType;
+use common::box_slice;
 use common::traits::PtrType;
 use instructions::Operand;
 
@@ -190,8 +191,7 @@ pub fn fillInStackTrace(env: JNIEnv, locals: LocalStack) -> NativeReturn {
 		.expect("[Ljava/lang/StackTraceElement; should be available");
 
 	// Create the StackTraceElement array
-	let mut stacktrace_elements =
-		vec![Reference::Null; stack_depth - frames_to_skip].into_boxed_slice();
+	let mut stacktrace_elements = box_slice![Reference::Null; stack_depth - frames_to_skip];
 	for (idx, frame) in current_thread.frame_stack[..stack_depth - frames_to_skip]
 		.iter()
 		.enumerate()

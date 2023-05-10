@@ -13,6 +13,7 @@ use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 use classfile::{ClassFile, ConstantPoolRef, FieldType};
+use common::box_slice;
 use common::int_types::{u1, u2, u4};
 use common::traits::PtrType;
 use instructions::Operand;
@@ -180,7 +181,7 @@ impl Class {
 			.map(|index| loader.load(constant_pool.get_class_name(*index)).unwrap())
 			.collect();
 
-		let static_field_slots = vec![Operand::Empty; static_field_count].into_boxed_slice();
+		let static_field_slots = box_slice![Operand::Empty; static_field_count];
 
 		// We need the Class instance to create our methods and fields
 		let class_instance = ClassDescriptor {

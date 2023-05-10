@@ -5,6 +5,7 @@ use crate::reference::{ArrayInstanceRef, ClassInstanceRef, ClassRef, FieldRef, R
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
+use common::box_slice;
 use common::int_types::{s1, s2, s4, s8, u1, u2};
 use common::traits::PtrType;
 use instructions::Operand;
@@ -227,7 +228,7 @@ impl ArrayInstance {
 			panic!("NegativeArraySizeException"); // TODO
 		}
 
-		let elements = vec![Reference::Null; count as usize].into_boxed_slice();
+		let elements = box_slice![Reference::Null; count as usize];
 		ArrayInstancePtr::new(Self {
 			class: array_class,
 			elements: ArrayContent::Reference(elements),
@@ -319,14 +320,14 @@ macro_rules! expect_functions {
 impl ArrayContent {
 	fn default_initialize(type_code: u1, count: s4) -> Self {
 		match type_code {
-			4 => Self::Bool(vec![0; count as usize].into_boxed_slice()),
-			5 => Self::Char(vec![0; count as usize].into_boxed_slice()),
-			6 => Self::Float(vec![0.; count as usize].into_boxed_slice()),
-			7 => Self::Double(vec![0.; count as usize].into_boxed_slice()),
-			8 => Self::Byte(vec![0; count as usize].into_boxed_slice()),
-			9 => Self::Short(vec![0; count as usize].into_boxed_slice()),
-			10 => Self::Int(vec![0; count as usize].into_boxed_slice()),
-			11 => Self::Long(vec![0; count as usize].into_boxed_slice()),
+			4 => Self::Bool(box_slice![0; count as usize]),
+			5 => Self::Char(box_slice![0; count as usize]),
+			6 => Self::Float(box_slice![0.; count as usize]),
+			7 => Self::Double(box_slice![0.; count as usize]),
+			8 => Self::Byte(box_slice![0; count as usize]),
+			9 => Self::Short(box_slice![0; count as usize]),
+			10 => Self::Int(box_slice![0; count as usize]),
+			11 => Self::Long(box_slice![0; count as usize]),
 			_ => panic!("Invalid array type code: {}", type_code),
 		}
 	}

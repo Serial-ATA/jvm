@@ -2,6 +2,7 @@ use crate::reference::Reference;
 
 use std::ops::{Index, IndexMut};
 
+use common::box_slice;
 use instructions::Operand;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6.1
@@ -14,7 +15,7 @@ impl LocalStack {
 	pub fn new(stack_size: usize) -> Self {
 		Self {
 			// The length of the local variable array of a frame is determined at compile-time
-			inner: vec![Operand::Empty; stack_size].into_boxed_slice(),
+			inner: box_slice![Operand::Empty; stack_size],
 		}
 	}
 }

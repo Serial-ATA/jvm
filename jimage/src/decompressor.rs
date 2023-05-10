@@ -3,6 +3,7 @@ use crate::ImageStrings;
 use std::io::Write;
 use std::ptr::read_unaligned as ptread;
 
+use common::box_slice;
 use common::endian::Endian;
 use common::int_types::{u1, u4, u8};
 
@@ -115,8 +116,7 @@ pub fn decompress_resource(
 		}
 
 		// decompressed_resource array contains the result of decompression
-		let decompressed_resource =
-			vec![0; header.uncompressed_size.try_into().unwrap()].into_boxed_slice();
+		let decompressed_resource = box_slice![0; header.uncompressed_size as usize];
 
 		// We need to reconstruct our box and drop it in the next iteration
 		let decompressed_resource = Box::leak(decompressed_resource);
