@@ -1,4 +1,4 @@
-use super::attribute;
+use super::attributes::{self, Location};
 use crate::constant_pool::ConstantPool;
 use crate::methodinfo::MethodInfo;
 
@@ -18,7 +18,11 @@ where
 	let mut attributes = Vec::with_capacity(attributes_count as usize);
 
 	for _ in 0..attributes_count {
-		attributes.push(attribute::read_attribute(reader, constant_pool));
+		attributes.push(attributes::read_attribute(
+			reader,
+			constant_pool,
+			Location::MethodInfo,
+		));
 	}
 
 	MethodInfo {

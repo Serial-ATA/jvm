@@ -1,10 +1,11 @@
-mod attribute;
+mod attributes;
 mod constant_pool;
 mod fieldinfo;
 mod methodinfo;
 
 use crate::classfile::ClassFile;
 use crate::constant_pool::{ConstantPool, ConstantPoolRef};
+use crate::parse::attributes::Location;
 
 use std::io::Read;
 
@@ -55,7 +56,11 @@ where
 	let mut attributes = Vec::with_capacity(attributes_count as usize);
 
 	for _ in 0..attributes_count {
-		attributes.push(attribute::read_attribute(reader, &constant_pool));
+		attributes.push(attributes::read_attribute(
+			reader,
+			&constant_pool,
+			Location::ClassFile,
+		));
 	}
 
 	ClassFile {

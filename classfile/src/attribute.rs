@@ -3,6 +3,7 @@ use common::int_types::{u1, u2};
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7
 #[derive(Debug, Clone, PartialEq)]
 pub struct Attribute {
+	/// An index into the constant pool pointing to a `CONSTANT_Utf8_info` entry representing the name of the attribute
 	pub attribute_name_index: u2,
 	pub info: AttributeType,
 }
@@ -134,7 +135,7 @@ pub enum AttributeType {
 	},
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.14
 	LocalVariableTypeTable {
-		local_variable_type_table: Vec<LocalVariable>,
+		local_variable_type_table: Vec<LocalVariableType>,
 	},
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.15
 	Deprecated,
@@ -216,10 +217,15 @@ pub enum AttributeType {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Code {
+	/// The maximum depth of the operand stack at any point during execution
 	pub max_stack: u2,
+	/// The number of local variables allocated upon invocation of this method, including parameters
 	pub max_locals: u2,
+	/// The code that implements the method
 	pub code: Vec<u1>,
+	/// A list of exception handlers in the code
 	pub exception_table: Vec<CodeException>,
+	/// Optional attributes associated with the code
 	pub attributes: Vec<Attribute>,
 }
 
@@ -299,9 +305,19 @@ pub struct LineNumber {
 	pub line_number: u2,
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.14
+// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.13
 #[derive(Debug, Clone, PartialEq)]
 pub struct LocalVariable {
+	pub start_pc: u2,
+	pub length: u2,
+	pub name_index: u2,
+	pub descriptor_index: u2,
+	pub index: u2,
+}
+
+// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.14
+#[derive(Debug, Clone, PartialEq)]
+pub struct LocalVariableType {
 	pub start_pc: u2,
 	pub length: u2,
 	pub name_index: u2,
