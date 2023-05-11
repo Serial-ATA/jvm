@@ -3,6 +3,7 @@ use crate::AttributeType;
 
 use std::io::Read;
 
+use common::box_slice;
 use common::int_types::u4;
 
 const VALID_LOCATIONS: &[Location] = &[Location::ClassFile];
@@ -15,7 +16,7 @@ where
 
 	AttributeType::SourceDebugExtension {
 		debug_extension: {
-			let mut debug_extension = vec![0; attribute_length as usize];
+			let mut debug_extension = box_slice![0; attribute_length as usize];
 			reader.read_exact(&mut debug_extension).unwrap();
 
 			debug_extension

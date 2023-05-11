@@ -123,7 +123,7 @@ pub enum AttributeType {
 	},
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.11
 	SourceDebugExtension {
-		debug_extension: Vec<u1>,
+		debug_extension: Box<[u1]>,
 	},
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.12
 	LineNumberTable {
@@ -222,7 +222,7 @@ pub struct Code {
 	/// The number of local variables allocated upon invocation of this method, including parameters
 	pub max_locals: u2,
 	/// The code that implements the method
-	pub code: Vec<u1>,
+	pub code: Box<[u1]>,
 	/// A list of exception handlers in the code
 	pub exception_table: Vec<CodeException>,
 	/// Optional attributes associated with the code

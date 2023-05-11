@@ -268,7 +268,7 @@ pub enum ConstantPoolValueInfo {
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.7
 	Utf8 {
 		length: u2,
-		bytes: Vec<u1>,
+		bytes: Box<[u1]>,
 	},
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.8
 	MethodHandle {

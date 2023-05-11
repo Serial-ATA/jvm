@@ -3,6 +3,7 @@ use crate::{AttributeType, Code, CodeException, ConstantPool};
 
 use std::io::Read;
 
+use common::box_slice;
 use common::traits::JavaReadExt;
 
 const VALID_LOCATIONS: &[Location] = &[Location::MethodInfo];
@@ -17,7 +18,7 @@ where
 	let max_locals = reader.read_u2();
 
 	let code_length = reader.read_u4();
-	let mut code = vec![0; code_length as usize];
+	let mut code = box_slice![0; code_length as usize];
 	reader.read_exact(&mut code).unwrap();
 
 	let exception_table_length = reader.read_u2();

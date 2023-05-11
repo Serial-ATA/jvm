@@ -2,6 +2,7 @@ use crate::constant_pool::{ConstantPool, ConstantPoolTag, ConstantPoolValueInfo}
 
 use std::io::Read;
 
+use common::box_slice;
 use common::int_types::u2;
 use common::traits::JavaReadExt;
 
@@ -69,7 +70,7 @@ where
 			},
 			ConstantPoolTag::Utf8 => {
 				let length = reader.read_u2();
-				let mut bytes = vec![0; length as usize];
+				let mut bytes = box_slice![0; length as usize];
 				reader.read_exact(&mut bytes).unwrap();
 
 				ConstantPoolValueInfo::Utf8 { length, bytes }
