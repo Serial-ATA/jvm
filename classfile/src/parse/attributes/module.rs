@@ -1,5 +1,6 @@
 use super::Location;
-use crate::{AttributeType, ModuleExport, ModuleOpen, ModuleProvide, ModuleRequire};
+use crate::error::Result;
+use crate::{AttributeTag, AttributeType, ModuleExport, ModuleOpen, ModuleProvide, ModuleRequire};
 
 use std::io::Read;
 
@@ -7,11 +8,11 @@ use common::traits::JavaReadExt;
 
 const VALID_LOCATIONS: &[Location] = &[Location::ClassFile];
 
-pub fn read<R>(reader: &mut R, location: Location) -> AttributeType
+pub fn read<R>(reader: &mut R, location: Location) -> Result<AttributeType>
 where
 	R: Read,
 {
-	location.verify_valid(VALID_LOCATIONS);
+	location.verify_valid(AttributeTag::Module, VALID_LOCATIONS)?;
 
 	let module_name_index = reader.read_u2();
 	let module_flags = reader.read_u2();
@@ -92,7 +93,7 @@ where
 		});
 	}
 
-	AttributeType::Module {
+	Ok(AttributeType::Module {
 		module_name_index,
 		module_flags,
 		module_version_index,
@@ -101,14 +102,14 @@ where
 		opens,
 		uses_index,
 		provides,
-	}
+	})
 }
 
-pub fn read_packages<R>(reader: &mut R, location: Location) -> AttributeType
+pub fn read_packages<R>(reader: &mut R, location: Location) -> Result<AttributeType>
 where
 	R: Read,
 {
-	location.verify_valid(VALID_LOCATIONS);
+	location.verify_valid(AttributeTag::ModulePackages, VALID_LOCATIONS)?;
 
 	let package_count = reader.read_u2();
 	let mut package_index = Vec::with_capacity(package_count as usize);
@@ -116,15 +117,15 @@ where
 		package_index.push(reader.read_u2());
 	}
 
-	AttributeType::ModulePackages { package_index }
+	Ok(AttributeType::ModulePackages { package_index })
 }
 
-pub fn read_main_class<R>(reader: &mut R, location: Location) -> AttributeType
+pub fn read_main_class<R>(reader: &mut R, location: Location) -> Result<AttributeType>
 where
 	R: Read,
 {
-	location.verify_valid(VALID_LOCATIONS);
-	AttributeType::ModuleMainClass {
+	location.verify_valid(AttributeTag::ModuleMainClass, VALID_LOCATIONS)?;
+	Ok(AttributeType::ModuleMainClass {
 		main_class_index: reader.read_u2(),
-	}
+	})
 }

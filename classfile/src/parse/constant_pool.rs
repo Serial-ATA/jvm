@@ -1,4 +1,5 @@
 use crate::constant_pool::{ConstantPool, ConstantPoolTag, ConstantPoolValueInfo};
+use crate::error::Result;
 
 use std::io::Read;
 
@@ -6,7 +7,11 @@ use common::box_slice;
 use common::int_types::u2;
 use common::traits::JavaReadExt;
 
-pub fn read_cp_info<R>(reader: &mut R, constant_pool: &mut ConstantPool, constant_pool_count: u2)
+pub fn read_cp_info<R>(
+	reader: &mut R,
+	constant_pool: &mut ConstantPool,
+	constant_pool_count: u2,
+) -> Result<()>
 where
 	R: Read,
 {
@@ -71,7 +76,7 @@ where
 			ConstantPoolTag::Utf8 => {
 				let length = reader.read_u2();
 				let mut bytes = box_slice![0; length as usize];
-				reader.read_exact(&mut bytes).unwrap();
+				reader.read_exact(&mut bytes)?;
 
 				ConstantPoolValueInfo::Utf8 { length, bytes }
 			},
@@ -108,4 +113,6 @@ where
 			i += 1;
 		}
 	}
+
+	Ok(())
 }

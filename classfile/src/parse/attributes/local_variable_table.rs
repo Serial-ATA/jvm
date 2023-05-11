@@ -1,5 +1,6 @@
 use super::Location;
-use crate::{AttributeType, LocalVariable};
+use crate::error::Result;
+use crate::{AttributeTag, AttributeType, LocalVariable};
 
 use std::io::Read;
 
@@ -7,11 +8,11 @@ use common::traits::JavaReadExt;
 
 const VALID_LOCATIONS: &[Location] = &[Location::Code];
 
-pub fn read<R>(reader: &mut R, location: Location) -> AttributeType
+pub fn read<R>(reader: &mut R, location: Location) -> Result<AttributeType>
 where
 	R: Read,
 {
-	location.verify_valid(VALID_LOCATIONS);
+	location.verify_valid(AttributeTag::LocalVariableTable, VALID_LOCATIONS)?;
 
 	let local_variable_table_length = reader.read_u2();
 	let mut local_variable_table = Vec::with_capacity(local_variable_table_length as usize);
@@ -26,7 +27,7 @@ where
 		})
 	}
 
-	AttributeType::LocalVariableTable {
+	Ok(AttributeType::LocalVariableTable {
 		local_variable_table,
-	}
+	})
 }

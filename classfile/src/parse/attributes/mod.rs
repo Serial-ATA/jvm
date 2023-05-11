@@ -17,9 +17,10 @@ mod record;
 mod signature;
 mod source_debug_extension;
 mod source_file;
-mod stack_table_map;
+mod stack_map_table;
 mod synthetic;
 
+use super::error::{ClassFileParseError, Result};
 use crate::attribute::{Attribute, AttributeTag};
 use crate::constant_pool::ConstantPool;
 
@@ -40,9 +41,12 @@ pub enum Location {
 }
 
 impl Location {
-	fn verify_valid(self, locations: &[Location]) {
-		// TODO: errors
-		assert!(locations.contains(&self));
+	fn verify_valid(self, tag: AttributeTag, locations: &[Location]) -> Result<()> {
+		if locations.contains(&self) {
+			return Ok(());
+		}
+
+		Err(ClassFileParseError::InvalidLocation(tag, self))
 	}
 }
 
@@ -51,7 +55,7 @@ pub fn read_attribute<R>(
 	reader: &mut R,
 	constant_pool: &ConstantPool,
 	location: Location,
-) -> Attribute
+) -> Result<Attribute>
 where
 	R: Read,
 {
@@ -63,7 +67,7 @@ where
 	let info = match AttributeTag::from(attribute_name) {
 		AttributeTag::ConstantValue => constant_value::read(reader, location),
 		AttributeTag::Code => code::read(reader, constant_pool, location),
-		AttributeTag::StackMapTable => stack_table_map::read(reader, location),
+		AttributeTag::StackMapTable => stack_map_table::read(reader, location),
 		AttributeTag::Exceptions => exceptions::read(reader, location),
 		AttributeTag::InnerClasses => inner_classes::read(reader, location),
 		AttributeTag::EnclosingMethod => enclosing_method::read(reader, location),
@@ -91,10 +95,10 @@ where
 		AttributeTag::NestMembers => nest::read_members(reader, location),
 		AttributeTag::Record => record::read(reader, constant_pool, location),
 		AttributeTag::PermittedSubclasses => permitted_subclasses::read(reader, location),
-	};
+	}?;
 
-	Attribute {
+	Ok(Attribute {
 		attribute_name_index,
 		info,
-	}
+	})
 }

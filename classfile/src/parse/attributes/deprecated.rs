@@ -1,5 +1,6 @@
+use crate::error::Result;
 use crate::parse::attributes::Location;
-use crate::AttributeType;
+use crate::{AttributeTag, AttributeType};
 
 const VALID_LOCATIONS: &[Location] = &[
 	Location::ClassFile,
@@ -7,7 +8,7 @@ const VALID_LOCATIONS: &[Location] = &[
 	Location::MethodInfo,
 ];
 
-pub fn read(location: Location) -> AttributeType {
-	location.verify_valid(VALID_LOCATIONS);
-	AttributeType::Deprecated
+pub fn read(location: Location) -> Result<AttributeType> {
+	location.verify_valid(AttributeTag::Deprecated, VALID_LOCATIONS)?;
+	Ok(AttributeType::Deprecated)
 }

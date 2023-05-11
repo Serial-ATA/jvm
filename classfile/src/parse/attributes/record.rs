@@ -1,5 +1,6 @@
 use super::{read_attribute, Location};
-use crate::{AttributeType, ConstantPool, RecordComponentInfo};
+use crate::error::Result;
+use crate::{AttributeTag, AttributeType, ConstantPool, RecordComponentInfo};
 
 use std::io::Read;
 
@@ -7,11 +8,15 @@ use common::traits::JavaReadExt;
 
 const VALID_LOCATIONS: &[Location] = &[Location::ClassFile];
 
-pub fn read<R>(reader: &mut R, constant_pool: &ConstantPool, location: Location) -> AttributeType
+pub fn read<R>(
+	reader: &mut R,
+	constant_pool: &ConstantPool,
+	location: Location,
+) -> Result<AttributeType>
 where
 	R: Read,
 {
-	location.verify_valid(VALID_LOCATIONS);
+	location.verify_valid(AttributeTag::Record, VALID_LOCATIONS)?;
 
 	let components_count = reader.read_u2();
 	let mut components = Vec::with_capacity(components_count as usize);
@@ -26,7 +31,7 @@ where
 				reader,
 				constant_pool,
 				Location::RecordComponentInfo,
-			))
+			)?)
 		}
 
 		components.push(RecordComponentInfo {
@@ -36,5 +41,5 @@ where
 		})
 	}
 
-	AttributeType::Record { components }
+	Ok(AttributeType::Record { components })
 }

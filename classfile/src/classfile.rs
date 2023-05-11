@@ -2,6 +2,7 @@ use crate::attribute::Attribute;
 use crate::constant_pool::ConstantPoolRef;
 use crate::fieldinfo::FieldInfo;
 use crate::methodinfo::MethodInfo;
+use crate::parse::error::Result;
 use crate::AttributeType;
 
 use std::io::Read;
@@ -24,7 +25,7 @@ pub struct ClassFile {
 }
 
 impl ClassFile {
-	pub fn read_from<R: Read>(reader: &mut R) -> Self {
+	pub fn read_from<R: Read>(reader: &mut R) -> Result<Self> {
 		crate::parse::parse_class(reader)
 	}
 

@@ -1,5 +1,6 @@
 use super::Location;
-use crate::AttributeType;
+use crate::error::Result;
+use crate::{AttributeTag, AttributeType};
 
 use std::io::Read;
 
@@ -12,12 +13,12 @@ const VALID_LOCATIONS: &[Location] = &[
 	Location::RecordComponentInfo,
 ];
 
-pub fn read<R>(reader: &mut R, location: Location) -> AttributeType
+pub fn read<R>(reader: &mut R, location: Location) -> Result<AttributeType>
 where
 	R: Read,
 {
-	location.verify_valid(VALID_LOCATIONS);
-	AttributeType::Signature {
+	location.verify_valid(AttributeTag::Signature, VALID_LOCATIONS)?;
+	Ok(AttributeType::Signature {
 		signature_index: reader.read_u2(),
-	}
+	})
 }

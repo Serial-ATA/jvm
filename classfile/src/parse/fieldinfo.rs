@@ -1,12 +1,13 @@
 use super::attributes::{self, Location};
 use crate::constant_pool::ConstantPool;
 use crate::fieldinfo::FieldInfo;
+use crate::parse::error::Result;
 
 use std::io::Read;
 
 use common::traits::JavaReadExt;
 
-pub fn read_field_info<R>(reader: &mut R, constant_pool: &ConstantPool) -> FieldInfo
+pub fn read_field_info<R>(reader: &mut R, constant_pool: &ConstantPool) -> Result<FieldInfo>
 where
 	R: Read,
 {
@@ -22,13 +23,13 @@ where
 			reader,
 			constant_pool,
 			Location::FieldInfo,
-		))
+		)?)
 	}
 
-	FieldInfo {
+	Ok(FieldInfo {
 		access_flags,
 		name_index,
 		descriptor_index,
 		attributes,
-	}
+	})
 }

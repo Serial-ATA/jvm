@@ -88,7 +88,7 @@ impl ClassLoader {
 
 		// 2. Otherwise, the Java Virtual Machine attempts to parse the purported representation.
 		let classfile_bytes = super::find_classpath_entry(name);
-		let classfile = ClassFile::read_from(&mut &classfile_bytes[..]);
+		let classfile = ClassFile::read_from(&mut &classfile_bytes[..]).unwrap(); // TODO: handle errors
 
 		//    The purported representation may not in fact be a valid representation of C, so
 		//    derivation must detect the following problems:

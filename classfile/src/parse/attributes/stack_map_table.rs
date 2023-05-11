@@ -1,5 +1,6 @@
 use super::Location;
-use crate::{AttributeType, StackMapFrame, VerificationTypeInfo};
+use crate::error::Result;
+use crate::{AttributeTag, AttributeType, StackMapFrame, VerificationTypeInfo};
 
 use std::io::Read;
 
@@ -8,11 +9,11 @@ use common::traits::JavaReadExt;
 
 const VALID_LOCATIONS: &[Location] = &[Location::Code];
 
-pub fn read<R>(reader: &mut R, location: Location) -> AttributeType
+pub fn read<R>(reader: &mut R, location: Location) -> Result<AttributeType>
 where
 	R: Read,
 {
-	location.verify_valid(VALID_LOCATIONS);
+	location.verify_valid(AttributeTag::StackMapTable, VALID_LOCATIONS)?;
 
 	let number_of_entries = reader.read_u2();
 	let mut entries = Vec::with_capacity(number_of_entries as usize);
@@ -82,7 +83,7 @@ where
 		entries.push(stack_map_frame);
 	}
 
-	AttributeType::StackMapTable { entries }
+	Ok(AttributeType::StackMapTable { entries })
 }
 
 fn read_attribute_verification_type_info<R>(reader: &mut R) -> VerificationTypeInfo

@@ -15,3 +15,4 @@ pub use attribute::{
 pub use constant_pool::{ConstantPool, ConstantPoolRef, ConstantPoolTag, ConstantPoolValueInfo};
 pub use fieldinfo::{FieldInfo, FieldType};
 pub use methodinfo::{MethodDescriptor, MethodInfo};
+pub use parse::error;

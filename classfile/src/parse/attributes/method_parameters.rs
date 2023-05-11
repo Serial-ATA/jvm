@@ -1,5 +1,6 @@
 use super::Location;
-use crate::{AttributeType, MethodParameter};
+use crate::error::Result;
+use crate::{AttributeTag, AttributeType, MethodParameter};
 
 use std::io::Read;
 
@@ -7,11 +8,11 @@ use common::traits::JavaReadExt;
 
 const VALID_LOCATIONS: &[Location] = &[Location::MethodInfo];
 
-pub fn read<R>(reader: &mut R, location: Location) -> AttributeType
+pub fn read<R>(reader: &mut R, location: Location) -> Result<AttributeType>
 where
 	R: Read,
 {
-	location.verify_valid(VALID_LOCATIONS);
+	location.verify_valid(AttributeTag::MethodParameters, VALID_LOCATIONS)?;
 
 	let parameters_count = reader.read_u1();
 	let mut parameters = Vec::with_capacity(parameters_count as usize);
@@ -23,5 +24,5 @@ where
 		})
 	}
 
-	AttributeType::MethodParameters { parameters }
+	Ok(AttributeType::MethodParameters { parameters })
 }

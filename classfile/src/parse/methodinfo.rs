@@ -1,12 +1,13 @@
 use super::attributes::{self, Location};
 use crate::constant_pool::ConstantPool;
 use crate::methodinfo::MethodInfo;
+use crate::parse::error::Result;
 
 use std::io::Read;
 
 use common::traits::JavaReadExt;
 
-pub fn read_method_info<R>(reader: &mut R, constant_pool: &ConstantPool) -> MethodInfo
+pub fn read_method_info<R>(reader: &mut R, constant_pool: &ConstantPool) -> Result<MethodInfo>
 where
 	R: Read,
 {
@@ -22,13 +23,13 @@ where
 			reader,
 			constant_pool,
 			Location::MethodInfo,
-		));
+		)?);
 	}
 
-	MethodInfo {
+	Ok(MethodInfo {
 		access_flags,
 		name_index,
 		descriptor_index,
 		attributes,
-	}
+	})
 }
