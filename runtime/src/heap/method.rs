@@ -52,6 +52,7 @@ impl Method {
 		let descriptor_bytes = constant_pool.get_constant_utf8(descriptor_index).to_vec();
 
 		let parameter_count: u1 = MethodDescriptor::parse(&mut &descriptor_bytes[..])
+			.unwrap() // TODO: Error handling
 			.parameters
 			.len()
 			.try_into()
@@ -136,7 +137,7 @@ impl Method {
 			class.name == METHODHANDLE_CLASS_NAME || class.name == VARHANDLE_CLASS_NAME;
 
 		//     It has a single formal parameter of type Object[].
-		let parsed_descriptor = MethodDescriptor::parse(&mut &self.descriptor[..]);
+		let parsed_descriptor = MethodDescriptor::parse(&mut &self.descriptor[..]).unwrap(); // TODO: Error handling
 		match &*parsed_descriptor.parameters {
 			[FieldType::Array(arr_ty)] => match &**arr_ty {
 				FieldType::Object(ref obj) if &**obj == b"java/lang/Object" => {},

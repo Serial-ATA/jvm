@@ -14,11 +14,11 @@ where
 {
 	location.verify_valid(AttributeTag::PermittedSubclasses, VALID_LOCATIONS)?;
 
-	let number_of_classes = reader.read_u2();
+	let number_of_classes = reader.read_u2()?;
 	let mut classes = Vec::with_capacity(number_of_classes as usize);
 
 	for _ in 0..number_of_classes {
-		classes.push(reader.read_u2())
+		classes.push(reader.read_u2()?)
 	}
 
 	Ok(AttributeType::PermittedSubclasses { classes })

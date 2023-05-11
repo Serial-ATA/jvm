@@ -59,10 +59,10 @@ pub fn read_attribute<R>(
 where
 	R: Read,
 {
-	let attribute_name_index = reader.read_u2();
+	let attribute_name_index = reader.read_u2()?;
 	let attribute_name = constant_pool.get_constant_utf8(attribute_name_index);
 
-	let attribute_length = reader.read_u4();
+	let attribute_length = reader.read_u4()?;
 
 	let info = match AttributeTag::from(attribute_name) {
 		AttributeTag::ConstantValue => constant_value::read(reader, location),

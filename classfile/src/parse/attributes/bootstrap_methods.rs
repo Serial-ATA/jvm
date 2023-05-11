@@ -14,17 +14,17 @@ where
 {
 	location.verify_valid(AttributeTag::BootstrapMethods, VALID_LOCATIONS)?;
 
-	let num_bootstrap_methods = reader.read_u2();
+	let num_bootstrap_methods = reader.read_u2()?;
 	let mut bootstrap_methods = Vec::with_capacity(num_bootstrap_methods as usize);
 
 	for _ in 0..num_bootstrap_methods {
-		let bootstrap_method_ref = reader.read_u2();
+		let bootstrap_method_ref = reader.read_u2()?;
 
-		let num_bootstrap_arguments = reader.read_u2();
+		let num_bootstrap_arguments = reader.read_u2()?;
 		let mut bootstrap_arguments = Vec::with_capacity(num_bootstrap_arguments as usize);
 
 		for _ in 0..num_bootstrap_arguments {
-			bootstrap_arguments.push(reader.read_u2());
+			bootstrap_arguments.push(reader.read_u2()?);
 		}
 
 		bootstrap_methods.push(BootstrapMethod {

@@ -1,3 +1,4 @@
+use crate::error::Result;
 use crate::int_types::{s4, u1, u4, u8};
 use crate::traits::{JavaEndianAwareRead, JavaLittleEndianRead, JavaReadExt};
 
@@ -26,25 +27,25 @@ impl Endian {
 }
 
 impl<R: Read> JavaEndianAwareRead<R> for Endian {
-	fn read_u1(self, reader: &mut R) -> u1 {
+	fn read_u1(self, reader: &mut R) -> Result<u1> {
 		JavaReadExt::read_u1(reader)
 	}
 
-	fn read_u4(self, reader: &mut R) -> u4 {
+	fn read_u4(self, reader: &mut R) -> Result<u4> {
 		match self {
 			Endian::Little => JavaLittleEndianRead::read_u4(reader),
 			Endian::Big => JavaReadExt::read_u4(reader),
 		}
 	}
 
-	fn read_u8(self, reader: &mut R) -> u8 {
+	fn read_u8(self, reader: &mut R) -> Result<u8> {
 		match self {
 			Endian::Little => JavaLittleEndianRead::read_u8(reader),
 			Endian::Big => JavaReadExt::read_u8(reader),
 		}
 	}
 
-	fn read_s4(self, reader: &mut R) -> s4 {
+	fn read_s4(self, reader: &mut R) -> Result<s4> {
 		match self {
 			Endian::Little => JavaLittleEndianRead::read_s4(reader),
 			Endian::Big => JavaReadExt::read_s4(reader),

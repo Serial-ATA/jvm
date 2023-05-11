@@ -14,13 +14,13 @@ where
 {
 	location.verify_valid(AttributeTag::MethodParameters, VALID_LOCATIONS)?;
 
-	let parameters_count = reader.read_u1();
+	let parameters_count = reader.read_u1()?;
 	let mut parameters = Vec::with_capacity(parameters_count as usize);
 
 	for _ in 0..parameters_count {
 		parameters.push(MethodParameter {
-			name_index: reader.read_u2(),
-			access_flags: reader.read_u2(),
+			name_index: reader.read_u2()?,
+			access_flags: reader.read_u2()?,
 		})
 	}
 

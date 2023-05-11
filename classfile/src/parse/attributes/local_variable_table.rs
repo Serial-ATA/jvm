@@ -14,16 +14,16 @@ where
 {
 	location.verify_valid(AttributeTag::LocalVariableTable, VALID_LOCATIONS)?;
 
-	let local_variable_table_length = reader.read_u2();
+	let local_variable_table_length = reader.read_u2()?;
 	let mut local_variable_table = Vec::with_capacity(local_variable_table_length as usize);
 
 	for _ in 0..local_variable_table_length {
 		local_variable_table.push(LocalVariable {
-			start_pc: reader.read_u2(),
-			length: reader.read_u2(),
-			name_index: reader.read_u2(),
-			descriptor_index: reader.read_u2(),
-			index: reader.read_u2(),
+			start_pc: reader.read_u2()?,
+			length: reader.read_u2()?,
+			name_index: reader.read_u2()?,
+			descriptor_index: reader.read_u2()?,
+			index: reader.read_u2()?,
 		})
 	}
 

@@ -14,7 +14,7 @@ where
 {
 	location.verify_valid(AttributeTag::EnclosingMethod, VALID_LOCATIONS)?;
 	Ok(AttributeType::EnclosingMethod {
-		class_index: reader.read_u2(),
-		method_index: reader.read_u2(),
+		class_index: reader.read_u2()?,
+		method_index: reader.read_u2()?,
 	})
 }

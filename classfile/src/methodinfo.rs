@@ -1,5 +1,7 @@
 use crate::attribute::{Attribute, AttributeType, Code};
+use crate::error::ClassFileParseError;
 use crate::fieldinfo::FieldType;
+use crate::parse::error::Result;
 use crate::LineNumber;
 
 use common::int_types::{u1, u2};
@@ -47,7 +49,7 @@ pub struct MethodDescriptor {
 }
 
 impl MethodDescriptor {
-	pub fn parse(bytes: &mut &[u1]) -> Self {
+	pub fn parse(bytes: &mut &[u1]) -> Result<Self> {
 		// MethodDescriptor:
 		// 	( {ParameterDescriptor} ) ReturnDescriptor
 		//
@@ -61,26 +63,27 @@ impl MethodDescriptor {
 		// VoidDescriptor:
 		// 	V
 
-		assert_eq!(
-			bytes.read_u1(),
-			b'(',
-			"Unexpected character in method descriptor"
-		);
+		let start_paren = bytes.read_u1()?;
+		if start_paren != b'(' {
+			return Err(ClassFileParseError::InvalidMethodDescriptor(
+				"Descriptor does not start with '('",
+			));
+		}
 
 		let mut parameters = Vec::new();
 		while bytes[0] != b')' {
-			parameters.push(FieldType::parse(bytes));
+			parameters.push(FieldType::parse(bytes)?);
 		}
 
-		let _end_paren = bytes.read_u1();
+		let _end_paren = bytes.read_u1()?;
 
-		let return_type = FieldType::parse(bytes);
+		let return_type = FieldType::parse(bytes)?;
 		assert!(bytes.is_empty(), "Method descriptor is too long!");
 
-		Self {
+		Ok(Self {
 			parameters: parameters.into_boxed_slice(),
 			return_type,
-		}
+		})
 	}
 }
 

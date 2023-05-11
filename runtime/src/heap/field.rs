@@ -32,7 +32,7 @@ impl Field {
 		let descriptor_index = field_info.descriptor_index;
 		let mut descriptor_bytes = constant_pool.get_constant_utf8(descriptor_index);
 
-		let descriptor = FieldType::parse(&mut descriptor_bytes);
+		let descriptor = FieldType::parse(&mut descriptor_bytes).unwrap(); // TODO: Error handling
 		let constant_value_index = field_info.get_constant_value_attribute();
 
 		FieldRef::new(Self {

@@ -1,3 +1,4 @@
+use crate::error::Result;
 use crate::{ImageStrings, JImageHeader, JImageLocation};
 
 use std::io::Read;
@@ -17,10 +18,10 @@ pub struct JImage {
 }
 
 impl JImage {
-	pub fn read_from<R: Read>(reader: &mut R) -> Self {
-		let (header, endian, data) = crate::parse::parse(reader);
+	pub fn read_from<R: Read>(reader: &mut R) -> Result<Self> {
+		let (header, endian, data) = crate::parse::parse(reader)?;
 
-		JImageBuilder {
+		Ok(JImageBuilder {
 			endian,
 			data,
 			header,
@@ -29,7 +30,7 @@ impl JImage {
 				crate::parse::index::read_index(data.as_slice(), header, endian)
 			},
 		}
-		.build()
+		.build())
 	}
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#LL436-L440C6
@@ -259,7 +260,7 @@ impl JImage {
 	///
 	/// # Errors
 	/// * A location has a non UTF-8 attribute
-	pub fn get_entry_names(&self) -> Result<Vec<String>, core::str::Utf8Error> {
+	pub fn get_entry_names(&self) -> Result<Vec<String>> {
 		let offsets = self.borrow_index().offsets_table;
 
 		let mut names = Vec::with_capacity(offsets.len());

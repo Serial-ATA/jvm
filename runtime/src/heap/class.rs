@@ -365,7 +365,7 @@ impl Class {
 		let field_name = constant_pool.get_constant_utf8(name_index);
 		let mut descriptor = constant_pool.get_constant_utf8(descriptor_index);
 
-		let field_type = FieldType::parse(&mut descriptor);
+		let field_type = FieldType::parse(&mut descriptor).unwrap(); // TODO: Error handling
 
 		// When resolving a field reference, field resolution first attempts to look up
 		// the referenced field in C and its superclasses:

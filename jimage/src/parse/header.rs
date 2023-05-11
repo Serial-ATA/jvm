@@ -1,3 +1,4 @@
+use crate::error::{JImageError, Result};
 use crate::header::{JImageHeader, JIMAGE_MAGIC, JIMAGE_MAGIC_INVERTED};
 
 use std::io::Read;
@@ -35,7 +36,7 @@ use common::traits::JavaEndianAwareRead;
 //                   streams.
 // Strings size - the size of the region used to store strings used by the
 //                index and meta data.
-pub(crate) fn read_header<R>(reader: &mut R) -> (JImageHeader, Endian)
+pub(crate) fn read_header<R>(reader: &mut R) -> Result<(JImageHeader, Endian)>
 where
 	R: Read,
 {
@@ -44,16 +45,16 @@ where
 	#[cfg(target_endian = "big")]
 	let mut endian = Endian::Big;
 
-	let magic = endian.read_u4(reader);
+	let magic = endian.read_u4(reader)?;
 	match magic {
 		// The image was created with the target endianness, nothing to do
 		JIMAGE_MAGIC => {},
 		// The image was created on a platform with opposite endianness
 		JIMAGE_MAGIC_INVERTED => endian = endian.invert(),
-		_ => panic!("JImage has an invalid magic sequence!"),
+		_ => return Err(JImageError::InvalidMagic),
 	}
 
-	let version = endian.read_u4(reader);
+	let version = endian.read_u4(reader)?;
 
 	let major_version = version >> 16;
 	let minor_version = version & 0xFFFF;
@@ -69,12 +70,12 @@ where
 		minor_version
 	);
 
-	let flags = endian.read_u4(reader);
+	let flags = endian.read_u4(reader)?;
 
-	let resource_count = endian.read_u4(reader);
-	let table_length = endian.read_u4(reader);
-	let locations_size = endian.read_u4(reader);
-	let strings_size = endian.read_u4(reader);
+	let resource_count = endian.read_u4(reader)?;
+	let table_length = endian.read_u4(reader)?;
+	let locations_size = endian.read_u4(reader)?;
+	let strings_size = endian.read_u4(reader)?;
 
 	let header = JImageHeader {
 		__magic: magic,
@@ -86,5 +87,5 @@ where
 		strings_size,
 	};
 
-	(header, endian)
+	Ok((header, endian))
 }

@@ -1,4 +1,6 @@
+use crate::error::Result;
 use crate::{ImageStrings, JImage};
+
 use std::fmt::{Debug, Formatter};
 
 use common::int_types::{u1, u4, u8};
@@ -148,7 +150,7 @@ impl<'a> JImageLocation<'a> {
 	///
 	/// # Errors
 	/// * The location contains a non UTF-8 attribute
-	pub fn get_full_name(&self, modules_prefix: bool) -> Result<String, core::str::Utf8Error> {
+	pub fn get_full_name(&self, modules_prefix: bool) -> Result<String> {
 		let mut name = String::new();
 
 		let module_offset = self.get_attribute(attr::ATTRIBUTE_MODULE as u1);
@@ -183,36 +185,48 @@ impl<'a> JImageLocation<'a> {
 	///
 	/// # Errors
 	/// * The string at the offset is non UTF-8
-	pub fn get_module(&self) -> Result<&str, core::str::Utf8Error> {
+	pub fn get_module(&self) -> Result<&str> {
 		let strings = ImageStrings(self.image.borrow_index().string_bytes);
-		core::str::from_utf8(self.get_attribute_string(attr::ATTRIBUTE_MODULE as u4, strings))
+		Ok(core::str::from_utf8(self.get_attribute_string(
+			attr::ATTRIBUTE_MODULE as u4,
+			strings,
+		))?)
 	}
 
 	/// Retrieve the string at `ATTRIBUTE_PARENT`
 	///
 	/// # Errors
 	/// * The string at the offset is non UTF-8
-	pub fn get_parent(&self) -> Result<&str, core::str::Utf8Error> {
+	pub fn get_parent(&self) -> Result<&str> {
 		let strings = ImageStrings(self.image.borrow_index().string_bytes);
-		core::str::from_utf8(self.get_attribute_string(attr::ATTRIBUTE_PARENT as u4, strings))
+		Ok(core::str::from_utf8(self.get_attribute_string(
+			attr::ATTRIBUTE_PARENT as u4,
+			strings,
+		))?)
 	}
 
 	/// Retrieve the string at `ATTRIBUTE_BASE`
 	///
 	/// # Errors
 	/// * The string at the offset is non UTF-8
-	pub fn get_base(&self) -> Result<&str, core::str::Utf8Error> {
+	pub fn get_base(&self) -> Result<&str> {
 		let strings = ImageStrings(self.image.borrow_index().string_bytes);
-		core::str::from_utf8(self.get_attribute_string(attr::ATTRIBUTE_BASE as u4, strings))
+		Ok(core::str::from_utf8(self.get_attribute_string(
+			attr::ATTRIBUTE_BASE as u4,
+			strings,
+		))?)
 	}
 
 	/// Retrieve the string at `ATTRIBUTE_EXTENSION`
 	///
 	/// # Errors
 	/// * The string at the offset is non UTF-8
-	pub fn get_extension(&self) -> Result<&str, core::str::Utf8Error> {
+	pub fn get_extension(&self) -> Result<&str> {
 		let strings = ImageStrings(self.image.borrow_index().string_bytes);
-		core::str::from_utf8(self.get_attribute_string(attr::ATTRIBUTE_EXTENSION as u4, strings))
+		Ok(core::str::from_utf8(self.get_attribute_string(
+			attr::ATTRIBUTE_EXTENSION as u4,
+			strings,
+		))?)
 	}
 
 	/// Retrieve the `ATTRIBUTE_OFFSET`

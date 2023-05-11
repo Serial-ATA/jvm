@@ -1,4 +1,5 @@
 use crate::attribute::{Attribute, AttributeType};
+use crate::error::Result;
 
 use std::io::Read;
 
@@ -70,7 +71,7 @@ pub enum FieldType {
 }
 
 impl FieldType {
-	pub fn parse(bytes: &mut &[u1]) -> Self {
+	pub fn parse(bytes: &mut &[u1]) -> Result<Self> {
 		// FieldDescriptor:
 		// 	FieldType
 		//
@@ -79,18 +80,18 @@ impl FieldType {
 		// 	ObjectType
 		// 	ArrayType
 
-		match bytes.read_u1() {
+		match bytes.read_u1()? {
 			// BaseType:
 			// 	(one of)
 			// 	B C D F I J S Z
-			b'B' => Self::Byte,
-			b'C' => Self::Char,
-			b'D' => Self::Double,
-			b'F' => Self::Float,
-			b'I' => Self::Int,
-			b'J' => Self::Long,
-			b'S' => Self::Short,
-			b'Z' => Self::Boolean,
+			b'B' => Ok(Self::Byte),
+			b'C' => Ok(Self::Char),
+			b'D' => Ok(Self::Double),
+			b'F' => Ok(Self::Float),
+			b'I' => Ok(Self::Int),
+			b'J' => Ok(Self::Long),
+			b'S' => Ok(Self::Short),
+			b'Z' => Ok(Self::Boolean),
 			// ObjectType:
 			//  L ClassName ;
 			b'L' => {
@@ -100,19 +101,22 @@ impl FieldType {
 					.take_while(|b| *b != b';')
 					.collect::<Box<[u1]>>();
 
-				Self::Object(class_name)
+				Ok(Self::Object(class_name))
 			},
 			// ArrayType:
 			//  [ ComponentType
 			// ComponentType:
 			//  FieldType
 			b'[' => {
-				let component_type = Self::parse(bytes);
+				let component_type = Self::parse(bytes)?;
 
-				Self::Array(Box::new(component_type))
+				Ok(Self::Array(Box::new(component_type)))
 			},
-			b'V' => Self::Void,
-			_ => panic!("Invalid field type descriptor"),
+			b'V' => Ok(Self::Void),
+			_ => {
+				// TODO: Error handling
+				panic!("Invalid field type descriptor")
+			},
 		}
 	}
 

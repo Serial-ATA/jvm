@@ -15,6 +15,6 @@ where
 	location.verify_valid(AttributeTag::SourceFile, VALID_LOCATIONS)?;
 
 	Ok(AttributeType::SourceFile {
-		sourcefile_index: reader.read_u2(),
+		sourcefile_index: reader.read_u2()?,
 	})
 }

@@ -190,7 +190,7 @@ impl ClassLoader {
 		// Otherwise, the following steps are performed to create C:
 		//
 		//     If the component type is a reference type, the algorithm of this section (§5.3) is applied recursively using L in order to load and thereby create the component type of C.
-		let component = FieldType::parse(&mut &descriptor[..]);
+		let component = FieldType::parse(&mut &descriptor[..]).unwrap(); // TODO: Error handling
 
 		if let FieldType::Object(ref obj) = component {
 			self.load(obj);

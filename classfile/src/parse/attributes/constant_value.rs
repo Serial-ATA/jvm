@@ -14,6 +14,6 @@ where
 {
 	location.verify_valid(AttributeTag::ConstantValue, VALID_LOCATIONS)?;
 	Ok(AttributeType::ConstantValue {
-		constantvalue_index: reader.read_u2(),
+		constantvalue_index: reader.read_u2()?,
 	})
 }

@@ -19,6 +19,6 @@ where
 {
 	location.verify_valid(AttributeTag::Signature, VALID_LOCATIONS)?;
 	Ok(AttributeType::Signature {
-		signature_index: reader.read_u2(),
+		signature_index: reader.read_u2()?,
 	})
 }

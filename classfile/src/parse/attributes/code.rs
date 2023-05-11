@@ -19,26 +19,26 @@ where
 {
 	location.verify_valid(AttributeTag::Code, VALID_LOCATIONS)?;
 
-	let max_stack = reader.read_u2();
-	let max_locals = reader.read_u2();
+	let max_stack = reader.read_u2()?;
+	let max_locals = reader.read_u2()?;
 
-	let code_length = reader.read_u4();
+	let code_length = reader.read_u4()?;
 	let mut code = box_slice![0; code_length as usize];
 	reader.read_exact(&mut code)?;
 
-	let exception_table_length = reader.read_u2();
+	let exception_table_length = reader.read_u2()?;
 	let mut exception_table = Vec::with_capacity(exception_table_length as usize);
 
 	for _ in 0..exception_table_length {
 		exception_table.push(CodeException {
-			start_pc: reader.read_u2(),
-			end_pc: reader.read_u2(),
-			handler_pc: reader.read_u2(),
-			catch_type: reader.read_u2(),
+			start_pc: reader.read_u2()?,
+			end_pc: reader.read_u2()?,
+			handler_pc: reader.read_u2()?,
+			catch_type: reader.read_u2()?,
 		})
 	}
 
-	let attributes_count = reader.read_u2();
+	let attributes_count = reader.read_u2()?;
 	let mut attributes = Vec::with_capacity(attributes_count as usize);
 
 	for _ in 0..attributes_count {

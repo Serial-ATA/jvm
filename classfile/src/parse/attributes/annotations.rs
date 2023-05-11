@@ -27,7 +27,7 @@ where
 {
 	location.verify_valid(AttributeTag::AnnotationDefault, VALID_LOCATIONS)?;
 	Ok(AttributeType::RuntimeVisibleAnnotations {
-		annotations: read_attribute_runtime_annotations(reader, constant_pool),
+		annotations: read_attribute_runtime_annotations(reader, constant_pool)?,
 	})
 }
 
@@ -42,7 +42,7 @@ where
 {
 	location.verify_valid(AttributeTag::RuntimeVisibleAnnotations, VALID_LOCATIONS)?;
 	Ok(AttributeType::RuntimeVisibleAnnotations {
-		annotations: read_attribute_runtime_annotations(reader, constant_pool),
+		annotations: read_attribute_runtime_annotations(reader, constant_pool)?,
 	})
 }
 
@@ -57,7 +57,7 @@ where
 {
 	location.verify_valid(AttributeTag::RuntimeInvisibleAnnotations, VALID_LOCATIONS)?;
 	Ok(AttributeType::RuntimeInvisibleAnnotations {
-		annotations: read_attribute_runtime_annotations(reader, constant_pool),
+		annotations: read_attribute_runtime_annotations(reader, constant_pool)?,
 	})
 }
 
@@ -87,7 +87,7 @@ pub mod type_annotations {
 	{
 		location.verify_valid(AttributeTag::RuntimeVisibleTypeAnnotations, VALID_LOCATIONS)?;
 		Ok(AttributeType::RuntimeVisibleTypeAnnotations {
-			annotations: super::read_attribute_runtime_annotations(reader, constant_pool),
+			annotations: super::read_attribute_runtime_annotations(reader, constant_pool)?,
 		})
 	}
 
@@ -105,7 +105,7 @@ pub mod type_annotations {
 			VALID_LOCATIONS,
 		)?;
 		Ok(AttributeType::RuntimeInvisibleTypeAnnotations {
-			annotations: super::read_attribute_runtime_annotations(reader, constant_pool),
+			annotations: super::read_attribute_runtime_annotations(reader, constant_pool)?,
 		})
 	}
 }
@@ -133,7 +133,7 @@ pub mod parameter_annotations {
 			VALID_LOCATIONS,
 		)?;
 		Ok(AttributeType::RuntimeVisibleParameterAnnotations {
-			annotations: super::read_attribute_runtime_annotations(reader, constant_pool),
+			annotations: super::read_attribute_runtime_annotations(reader, constant_pool)?,
 		})
 	}
 
@@ -151,7 +151,7 @@ pub mod parameter_annotations {
 			VALID_LOCATIONS,
 		)?;
 		Ok(AttributeType::RuntimeInvisibleParameterAnnotations {
-			annotations: super::read_attribute_runtime_annotations(reader, constant_pool),
+			annotations: super::read_attribute_runtime_annotations(reader, constant_pool)?,
 		})
 	}
 }
@@ -159,90 +159,90 @@ pub mod parameter_annotations {
 fn read_attribute_runtime_annotations<R>(
 	reader: &mut R,
 	constant_pool: &ConstantPool,
-) -> Vec<Annotation>
+) -> Result<Vec<Annotation>>
 where
 	R: Read,
 {
-	let num_annotations = reader.read_u2();
+	let num_annotations = reader.read_u2()?;
 	let mut annotations = Vec::with_capacity(num_annotations as usize);
 
 	for _ in 0..num_annotations {
-		annotations.push(read_annotation(reader, constant_pool));
+		annotations.push(read_annotation(reader, constant_pool)?);
 	}
 
-	annotations
+	Ok(annotations)
 }
 
-fn read_elementvalue<R>(reader: &mut R, constant_pool: &ConstantPool) -> ElementValue
+fn read_elementvalue<R>(reader: &mut R, constant_pool: &ConstantPool) -> Result<ElementValue>
 where
 	R: Read,
 {
-	let tag = ElementValueTag::from(reader.read_u1());
-	let ty = read_element_value_type(reader, tag, constant_pool);
+	let tag = ElementValueTag::from(reader.read_u1()?);
+	let ty = read_element_value_type(reader, tag, constant_pool)?;
 
-	ElementValue { tag, ty }
+	Ok(ElementValue { tag, ty })
 }
 
 #[rustfmt::skip]
-fn read_element_value_type<R>(reader: &mut R, tag: ElementValueTag, constant_pool: &ConstantPool) -> ElementValueType
+fn read_element_value_type<R>(reader: &mut R, tag: ElementValueTag, constant_pool: &ConstantPool) -> Result<ElementValueType>
     where
         R: Read,
 {
     match tag {
         // The const_value_index item is used if the tag item is one of B, C, D, F, I, J, S, Z, or s.
-        ElementValueTag::Byte    => ElementValueType::Byte    { const_value_index: reader.read_u2() },
-        ElementValueTag::Char    => ElementValueType::Char    { const_value_index: reader.read_u2() },
-        ElementValueTag::Double  => ElementValueType::Double  { const_value_index: reader.read_u2() },
-        ElementValueTag::Float   => ElementValueType::Float   { const_value_index: reader.read_u2() },
-        ElementValueTag::Int     => ElementValueType::Int     { const_value_index: reader.read_u2() },
-        ElementValueTag::Long    => ElementValueType::Long    { const_value_index: reader.read_u2() },
-        ElementValueTag::Short   => ElementValueType::Short   { const_value_index: reader.read_u2() },
-        ElementValueTag::Boolean => ElementValueType::Boolean { const_value_index: reader.read_u2() },
-        ElementValueTag::String  => ElementValueType::String  { const_value_index: reader.read_u2() },
+        ElementValueTag::Byte    => Ok(ElementValueType::Byte    { const_value_index: reader.read_u2()? }),
+        ElementValueTag::Char    => Ok(ElementValueType::Char    { const_value_index: reader.read_u2()? }),
+        ElementValueTag::Double  => Ok(ElementValueType::Double  { const_value_index: reader.read_u2()? }),
+        ElementValueTag::Float   => Ok(ElementValueType::Float   { const_value_index: reader.read_u2()? }),
+        ElementValueTag::Int     => Ok(ElementValueType::Int     { const_value_index: reader.read_u2()? }),
+        ElementValueTag::Long    => Ok(ElementValueType::Long    { const_value_index: reader.read_u2()? }),
+        ElementValueTag::Short   => Ok(ElementValueType::Short   { const_value_index: reader.read_u2()? }),
+        ElementValueTag::Boolean => Ok(ElementValueType::Boolean { const_value_index: reader.read_u2()? }),
+        ElementValueTag::String  => Ok(ElementValueType::String  { const_value_index: reader.read_u2()? }),
 
         // The enum_const_value item is used if the tag item is e.
-        ElementValueTag::Enum => ElementValueType::Enum {
-            type_name_index: reader.read_u2(),
-            const_value_index: reader.read_u2(),
-        },
+        ElementValueTag::Enum => Ok(ElementValueType::Enum {
+            type_name_index: reader.read_u2()?,
+            const_value_index: reader.read_u2()?,
+        }),
 
         // The class_info_index item is used if the tag item is c.
-        ElementValueTag::Class => ElementValueType::Class {
-            class_info_index: reader.read_u2(),
-        },
+        ElementValueTag::Class => Ok(ElementValueType::Class {
+            class_info_index: reader.read_u2()?,
+        }),
 
         // The annotation_value item is used if the tag item is @.
-        ElementValueTag::Annotation => ElementValueType::Annotation {
-            annotation: read_annotation(reader, constant_pool),
-        },
+        ElementValueTag::Annotation => Ok(ElementValueType::Annotation {
+            annotation: read_annotation(reader, constant_pool)?,
+        }),
 
         // The array_value item is used if the tag item is [.
         ElementValueTag::Array => {
-            let num_values = reader.read_u2();
+            let num_values = reader.read_u2()?;
             let mut values = Vec::with_capacity(num_values as usize);
 
             for _ in 0..num_values {
-                values.push(read_element_value_type(reader, tag, constant_pool));
+                values.push(read_element_value_type(reader, tag, constant_pool)?);
             }
 
-            ElementValueType::Array { values }
+            Ok(ElementValueType::Array { values })
         },
     }
 }
 
-fn read_annotation<R>(reader: &mut R, constant_pool: &ConstantPool) -> Annotation
+fn read_annotation<R>(reader: &mut R, constant_pool: &ConstantPool) -> Result<Annotation>
 where
 	R: Read,
 {
-	let type_index = reader.read_u2();
+	let type_index = reader.read_u2()?;
 
-	let num_element_value_pairs = reader.read_u2();
+	let num_element_value_pairs = reader.read_u2()?;
 	let mut element_value_pairs = Vec::with_capacity(num_element_value_pairs as usize);
 
 	for _ in 0..num_element_value_pairs {
-		let element_name_index = reader.read_u2();
+		let element_name_index = reader.read_u2()?;
 
-		let value = read_elementvalue(reader, constant_pool);
+		let value = read_elementvalue(reader, constant_pool)?;
 
 		element_value_pairs.push(ElementValuePair {
 			element_name_index,
@@ -250,8 +250,8 @@ where
 		})
 	}
 
-	Annotation {
+	Ok(Annotation {
 		type_index,
 		element_value_pairs,
-	}
+	})
 }

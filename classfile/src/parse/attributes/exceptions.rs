@@ -14,11 +14,11 @@ where
 {
 	location.verify_valid(AttributeTag::Exceptions, VALID_LOCATIONS)?;
 
-	let number_of_exceptions = reader.read_u2();
+	let number_of_exceptions = reader.read_u2()?;
 	let mut exception_index_table = Vec::with_capacity(number_of_exceptions as usize);
 
 	for _ in 0..number_of_exceptions {
-		exception_index_table.push(reader.read_u2());
+		exception_index_table.push(reader.read_u2()?);
 	}
 
 	Ok(AttributeType::Exceptions {
