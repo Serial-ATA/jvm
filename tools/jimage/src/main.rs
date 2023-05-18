@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use classfile::ClassFile;
+use jimage::error::Result;
 use jimage::{JImage, JImageLocation};
 
 #[derive(Parser)]
@@ -65,25 +66,28 @@ enum SubCommand {
 fn main() {
 	let args = Command::parse();
 
-	match args.command {
+	let result = match args.command {
 		SubCommand::Extract { dir, jimage } => extract(dir, jimage),
 		SubCommand::Info { jimage } => info(jimage),
 		SubCommand::List { verbose, jimage } => list(jimage, verbose),
 		SubCommand::Verify { jimage } => verify(jimage),
+	};
+
+	if let Err(err) = result {
+		exit(err.to_string());
 	}
+
 	// TODO: glob includes
 	// TODO: regex includes
 }
 
-fn extract(dir: String, path: PathBuf) {
+fn extract(dir: String, path: PathBuf) -> Result<()> {
 	let dump_to = Path::new(&dir);
-	if !dump_to.exists() {
-		if fs::create_dir_all(dump_to).is_err() {
-			exit(format!(
-				"Cannot create directory '{}'",
-				dump_to.to_string_lossy()
-			))
-		}
+	if !dump_to.exists() && fs::create_dir_all(dump_to).is_err() {
+		exit(format!(
+			"Cannot create directory '{}'",
+			dump_to.to_string_lossy()
+		))
 	}
 
 	if !dump_to.is_dir() {
@@ -95,7 +99,7 @@ fn extract(dir: String, path: PathBuf) {
 
 	for_each_entry(
 		path,
-		|_| {},
+		|_| Ok(()),
 		|_| {},
 		move |name, location, jimage| {
 			let resource_path = Path::new(name);
@@ -124,7 +128,7 @@ fn extract(dir: String, path: PathBuf) {
 				.truncate(true)
 				.open(&local_resource_path) else {
 				exit(format!("Cannot create file '{}'", local_resource_path.to_string_lossy()));
-				return;
+				return Ok(());
 			};
 
 			let mut bytes = vec![0; location.get_uncompressed_size() as usize];
@@ -135,12 +139,15 @@ fn extract(dir: String, path: PathBuf) {
 					local_resource_path.to_string_lossy()
 				));
 			}
+
+			Ok(())
 		},
 	)
 }
 
-fn info(path: PathBuf) {
-	let jimage = JImage::read_from(&mut fs::File::open(&path).unwrap());
+fn info(path: PathBuf) -> Result<()> {
+	let mut file = fs::File::open(&path)?;
+	let jimage = JImage::read_from(&mut file)?;
 
 	let header = jimage.borrow_header();
 	println!(" Major Version:  {}", header.major_version());
@@ -153,47 +160,65 @@ fn info(path: PathBuf) {
 	println!(" Locations Size: {}", header.locations_size);
 	println!(" Strings Size:   {}", header.strings_size);
 	println!(" Index Size:     {}", header.index_length());
+
+	Ok(())
 }
 
-fn list(path: PathBuf, verbose: bool) {
+fn list(path: PathBuf, verbose: bool) -> Result<()> {
 	for_each_entry(
 		path,
-		|path| println!("jimage: {:?}", fs::canonicalize(path).unwrap()),
+		|path| {
+			println!("jimage: {:?}", fs::canonicalize(path)?);
+			Ok(())
+		},
 		|module| list_module(module, verbose),
 		move |name, location, _| {
 			print(name, verbose.then_some(location));
+			Ok(())
 		},
-	);
+	)
 }
 
-fn verify(path: PathBuf) {
+fn verify(path: PathBuf) -> Result<()> {
 	for_each_entry(
 		path,
-		|path| println!("jimage: {:?}", fs::canonicalize(path).unwrap()),
+		|path| {
+			println!("jimage: {:?}", fs::canonicalize(path)?);
+			Ok(())
+		},
 		|_| {},
 		|name, location, jimage| {
 			if name.ends_with(".class") && !name.ends_with("module-info.class") {
 				let mut resource = vec![0; location.get_uncompressed_size() as usize];
 				jimage.get_resource_from_location(location, &mut resource);
 
-				// TODO: This needs to return `Result` so we can report all errors
-				ClassFile::read_from(&mut &resource[..]);
+				if let Err(err) = ClassFile::read_from(&mut &resource[..]) {
+					exit(err.to_string())
+				}
 			}
+
+			Ok(())
 		},
 	)
 }
 
-fn for_each_entry<P, M, L>(path: PathBuf, on_jimage_parse: P, on_new_module: M, on_new_resource: L)
+fn for_each_entry<P, M, L>(
+	path: PathBuf,
+	on_jimage_parse: P,
+	on_new_module: M,
+	on_new_resource: L,
+) -> Result<()>
 where
-	P: Fn(&Path),
+	P: Fn(&Path) -> Result<()>,
 	M: Fn(&str),
-	L: Fn(&str, &JImageLocation<'_>, &JImage),
+	L: Fn(&str, &JImageLocation<'_>, &JImage) -> Result<()>,
 {
-	let jimage = JImage::read_from(&mut fs::File::open(&path).unwrap());
-	on_jimage_parse(&path);
+	let mut file = fs::File::open(&path)?;
+	let jimage = JImage::read_from(&mut file)?;
+	on_jimage_parse(&path)?;
 
 	let mut old_module = String::new();
-	for name in jimage.get_entry_names().unwrap() {
+	for name in jimage.get_entry_names()? {
 		if !JImage::is_tree_info_resource(&name) {
 			let new_module = module_name(&name);
 
@@ -203,10 +228,12 @@ where
 			}
 
 			if let Some(location) = jimage.find_location(&name) {
-				on_new_resource(&name, &location, &jimage);
+				on_new_resource(&name, &location, &jimage)?;
 			}
 		}
 	}
+
+	Ok(())
 }
 
 fn module_name(path: &str) -> &str {
