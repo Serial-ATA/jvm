@@ -7,6 +7,7 @@ use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::OperandStack;
 
 use std::fmt::{Debug, Formatter};
+use std::ops::Deref;
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
 
@@ -55,7 +56,7 @@ impl Thread {
 
 		if !jvm_options.dry_run {
 			// TODO: Convert rust string args to java strings to pass to main
-			Thread::invoke_method(Arc::clone(&thread), main_method);
+			Thread::invoke_method(Arc::clone(&thread), main_method, None);
 		}
 
 		thread
@@ -63,14 +64,24 @@ impl Thread {
 
 	// This is just `invoke_method`, but it calls `run` since we aren't
 	// in the main method yet.
-	pub fn pre_main_invoke_method(thread: ThreadRef, method: MethodRef) {
-		Self::invoke_method(Arc::clone(&thread), method);
+	pub fn pre_main_invoke_method(
+		thread: ThreadRef,
+		method: MethodRef,
+		args: Option<Vec<Operand<Reference>>>,
+	) {
+		Self::invoke_method(Arc::clone(&thread), method, args);
 		Thread::run(&thread)
 	}
 
-	pub fn invoke_method(thread: ThreadRef, method: MethodRef) {
+	fn invoke_method(thread: ThreadRef, method: MethodRef, args: Option<Vec<Operand<Reference>>>) {
 		let max_locals = method.code.max_locals;
-		let local_stack = LocalStack::new(max_locals as usize);
+		let mut local_stack = LocalStack::new(max_locals as usize);
+
+		if let Some(args) = args {
+			for (idx, arg) in args.into_iter().enumerate() {
+				local_stack[idx] = arg;
+			}
+		}
 
 		Self::invoke_method_with_local_stack(thread, method, local_stack);
 	}
@@ -197,6 +208,14 @@ impl PtrType<Thread, ThreadRef> for ThreadPtr {
 impl Drop for ThreadPtr {
 	fn drop(&mut self) {
 		let _ = unsafe { Box::from_raw(self.0 as *mut Thread) };
+	}
+}
+
+impl Deref for ThreadPtr {
+	type Target = Thread;
+
+	fn deref(&self) -> &Self::Target {
+		unsafe { &(*self.as_raw()) }
 	}
 }
 
