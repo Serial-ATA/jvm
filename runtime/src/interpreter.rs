@@ -8,6 +8,7 @@ use crate::heap::class_instance::Instance;
 use crate::method_invoker::MethodInvoker;
 use crate::reference::{FieldRef, MethodRef, Reference};
 use crate::string_interner::StringInterner;
+use crate::thread::Thread;
 
 use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
@@ -572,8 +573,7 @@ impl Interpreter {
                 
                 // ========= References =========
                 // TODO: 
-                //       invokedynamic,
-                //       athrow, monitorenter, monitorexit
+                //       invokedynamic, monitorenter, monitorexit
                 CATEGORY: references
                 OpCode::getstatic => {
                     if let Some(field) = Self::fetch_field(FrameRef::clone(&frame)) {
@@ -688,6 +688,10 @@ impl Interpreter {
                     
                     let array_len = array_ref.get().elements.element_count();
                     stack.push_int(array_len as s4);
+                },
+                OpCode::athrow => {
+                    let object_ref = frame.get_operand_stack_mut().pop_reference();
+                    Thread::throw_exception(frame.thread(), object_ref);
                 },
                 OpCode::instanceof => { Self::instanceof_checkcast(FrameRef::clone(&frame), opcode) },
                 OpCode::checkcast => { Self::instanceof_checkcast(FrameRef::clone(&frame), opcode) };

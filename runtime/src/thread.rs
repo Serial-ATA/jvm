@@ -170,6 +170,70 @@ impl Thread {
 			Interpreter::instruction(current_frame);
 		}
 	}
+
+	pub fn throw_exception(thread: ThreadRef, object_ref: Reference) {
+		// https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-6.html#jvms-6.5.athrow
+		// The objectref must be of type reference and must refer to an object that is an instance of class Throwable or of a subclass of Throwable.
+		let class_instance;
+		match object_ref {
+			Reference::Class(ref instance) => class_instance = instance,
+			Reference::Null => {
+				thread.get_mut().throw_npe();
+				return;
+			},
+			_ => unreachable!("Invalid reference type on operand stack for athrow instruction"),
+		};
+
+		let throwable_class = ClassLoader::Bootstrap
+			.load(b"java/lang/Throwable")
+			.expect("java/lang/Throwable class should be available");
+		assert!(
+			class_instance.get().class == throwable_class
+				|| class_instance.get().class.is_subclass_of(throwable_class)
+		);
+
+		// Search each frame for an exception handler
+		thread.get_mut().stash_and_reset_pc();
+		while let Some(current_frame) = thread.current_frame() {
+			let current_frame_pc = current_frame.get_stashed_pc();
+
+			// If an exception handler that matches objectref is found, it contains the location of the code intended to handle this exception.
+			if let Some(handler_pc) = current_frame
+				.method()
+				.find_exception_handler(Arc::clone(&class_instance.get().class), current_frame_pc)
+			{
+				// The pc register is reset to that location,the operand stack of the current frame is cleared, objectref
+				// is pushed back onto the operand stack, and execution continues.
+				thread.get_mut().pc = AtomicIsize::new(handler_pc);
+
+				let stack = current_frame.get_operand_stack_mut();
+				stack.clear();
+				stack.push_reference(object_ref);
+
+				return;
+			}
+
+			let _ = thread.get_mut().frame_stack.pop();
+		}
+
+		// No handler found, we have to print the stack trace and exit
+		thread.get_mut().frame_stack.clear();
+
+		let print_stack_trace = class_instance
+			.get()
+			.class
+			.get_method(b"printStackTrace", b"()V", 0)
+			.expect("java/lang/Throwable#printStackTrace should exist");
+
+		let mut locals = LocalStack::new(1);
+		locals[0] = Operand::Reference(object_ref);
+
+		Thread::invoke_method_with_local_stack(thread, print_stack_trace, locals);
+	}
+
+	pub fn throw_npe(&mut self) {
+		todo!()
+	}
 }
 
 // A pointer to a Thread instance
