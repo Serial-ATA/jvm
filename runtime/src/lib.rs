@@ -1,6 +1,7 @@
 #![feature(lint_reasons)]
 
 pub mod classpath;
+mod error;
 mod frame;
 pub mod globals;
 mod heap;

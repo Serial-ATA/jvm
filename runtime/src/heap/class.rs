@@ -752,6 +752,38 @@ impl Class {
 		method
 	}
 
+	pub fn shares_package_with(&self, other: &Self) -> bool {
+		if self.loader != other.loader {
+			return false;
+		}
+
+		if self.name == other.name {
+			return true;
+		}
+
+		// TODO: We can probably cache these at some point
+		let Ok(other_pkg) = ClassLoader::package_name_for_class(&other.name) else {
+			return false;
+		};
+
+		// We should never receive an empty string from `package_name_for_class`
+		if let Some(other_pkg_str) = other_pkg {
+			assert!(!other_pkg_str.is_empty(), "Package name is an empty string");
+		}
+
+		let Ok(this_pkg) = ClassLoader::package_name_for_class(&other.name) else {
+			return false;
+		};
+
+		if this_pkg.is_none() || other_pkg.is_none() {
+			// One of the two doesn't have a package, so we'll only return
+			// `true` if *both* have no package.
+			return this_pkg == other_pkg;
+		}
+
+		return this_pkg.unwrap() == other_pkg.unwrap();
+	}
+
 	pub fn is_subclass_of(&self, class: ClassRef) -> bool {
 		let mut current_class = self;
 		while let Some(super_class) = &current_class.super_class {

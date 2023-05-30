@@ -1,3 +1,4 @@
+use crate::error::{Result, RuntimeError};
 use crate::field::Field;
 use crate::heap::class::Class;
 use crate::heap::reference::ClassRef;
@@ -247,5 +248,34 @@ impl ClassLoader {
 		for (_, class) in BOOTSTRAP_LOADED_CLASSES.lock().unwrap().iter() {
 			Class::set_mirror(Arc::clone(&java_lang_class), Arc::clone(class));
 		}
+	}
+
+	/// Get the package name from a fully qualified class name
+	pub fn package_name_for_class(name: &[u1]) -> Result<Option<&[u1]>> {
+		if name.is_empty() {
+			return Err(RuntimeError::BadClassName);
+		}
+
+		let Some(end) = name.iter().rposition(|c| *c == b'/') else {
+			return Ok(None);
+		};
+
+		let mut start_index = 0;
+
+		// Skip over '['
+		if name.starts_with(b"[") {
+			start_index = name.iter().skip_while(|c| **c == b'[').count();
+
+			// A fully qualified class name should not contain a 'L'
+			if start_index >= name.len() || name[start_index] == b'L' {
+				return Err(RuntimeError::BadClassName);
+			}
+		}
+
+		if start_index >= name.len() {
+			return Err(RuntimeError::BadClassName);
+		}
+
+		return Ok(Some(&name[start_index..end]));
 	}
 }
