@@ -21,4 +21,4 @@ once_cell = { workspace = true }
 zip = { workspace = true }
 
 [build-dependencies]
-method-gen = { path = "src/native/method-gen" }
+native_methods = { path = "../generators/native_methods" }

@@ -21,11 +21,14 @@ static INIT_FN_FILE_HEADER: &str = "#[allow(trivial_casts)]\nfn init_native_meth
 
 static MODULE_MARKER_START_COMMENT: &str = "// Module marker, do not remove";
 
-pub fn run() {
+pub fn generate() {
+	// Do a bunch of path work to get to ../../runtime/src/native
 	let crate_root = PathBuf::from(CRATE_ROOT);
-	let native_directory = crate_root.parent().unwrap();
+	let project_root = crate_root.parent().unwrap().parent().unwrap();
 
-	let dirs_filtered = WalkDir::new(native_directory)
+	let native_directory = project_root.join("runtime").join("src").join("native");
+
+	let dirs_filtered = WalkDir::new(&native_directory)
 		.into_iter()
 		.map(Result::unwrap)
 		.filter(|entry| {
@@ -82,7 +85,7 @@ pub fn run() {
 
 	write!(init_fn_file, "map\n}}").unwrap();
 
-	let generated_modules = generate_modules(native_directory);
+	let generated_modules = generate_modules(&native_directory);
 
 	let root_module_path = native_directory.join("mod.rs");
 	let root_mod_file_content = std::fs::read_to_string(&root_module_path).unwrap();
@@ -234,7 +237,7 @@ fn generate_register_natives_table(module: &str, class: &mut Class, def_path: &P
 				.count()
 		)
 	)
-	.unwrap();
+		.unwrap();
 
 	for ref member in class.members.drain_filter(|member| {
 		matches!(member, Member::Method(method) if method.name != "registerNatives" && !method.modifiers.contains(AccessFlags::ACC_STATIC))
@@ -283,10 +286,6 @@ fn generate_modules(native_directory: &Path) -> String {
 			entry.file_type().is_dir()
 				&& entry.file_name() != METHOD_DEFINITION_DIR_NAME
 				&& entry.path().join(METHOD_DEFINITION_DIR_NAME).exists()
-				&& !entry
-					.path()
-					.components()
-					.any(|c| c.as_os_str() == "method-gen")
 		});
 
 	let mut modules = Vec::new();
@@ -416,5 +415,5 @@ fn create_relative_path_components(path: &Path, skip_first: bool) -> Vec<String>
 
 #[test]
 fn test_parse() {
-	run();
+	generate();
 }

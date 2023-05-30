@@ -6,6 +6,7 @@ use combine::{attempt, choice, ParseError, Parser, Stream};
 use common::int_types::u2;
 
 bitflags::bitflags! {
+	#[derive(Copy, Clone, Debug)]
 	pub struct AccessFlags: u2 {
 		const ACC_PUBLIC       = 0x0001;
 		const ACC_PRIVATE      = 0x0002;
