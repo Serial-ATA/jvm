@@ -505,7 +505,7 @@ impl Class {
 		// When resolving an interface method reference:
 
 		// 1. If C is not an interface, interface method resolution throws an IncompatibleClassChangeError.
-		if classref.get().access_flags & Class::ACC_INTERFACE != Class::ACC_INTERFACE {
+		if !classref.is_interface() {
 			panic!("IncompatibleClassChangeError"); // TODO
 		}
 
@@ -531,15 +531,60 @@ impl Class {
 			}
 		}
 
-		// TODO: Method resolution in superinterfaces
 		// 4. Otherwise, if the maximally-specific superinterface methods (§5.4.3.3) of C for the name and descriptor specified by the method reference include exactly
 		//    one method that does not have its ACC_ABSTRACT flag set, then this method is chosen and method lookup succeeds.
+		if let Some(method) = Class::resolve_method_in_superinterfaces(
+			method_name,
+			descriptor,
+			Arc::clone(&classref),
+			true,
+		) {
+			return Some(method);
+		}
 
 		// 5. Otherwise, if any superinterface of C declares a method with the name and descriptor specified by the method reference that has neither its ACC_PRIVATE flag
 		//    nor its ACC_STATIC flag set, one of these is arbitrarily chosen and method lookup succeeds.
+		if let Some(method) = Class::resolve_method_in_superinterfaces(
+			method_name,
+			descriptor,
+			Arc::clone(&classref),
+			false,
+		) {
+			return Some(method);
+		}
 
 		// 6. Otherwise, method lookup fails.
 		panic!("NoSuchMethodError") // TODO
+	}
+
+	fn resolve_method_in_superinterfaces(
+		method_name: &[u1],
+		descriptor: &[u1],
+		classref: ClassRef,
+		// TODO: Deal with maximally-specific check (§5.4.3.3)
+		maximally_specific: bool,
+	) -> Option<MethodRef> {
+		for interface in &classref.interfaces {
+			if let Some(method) = Class::resolve_method_in_superinterfaces(
+				method_name,
+				descriptor,
+				Arc::clone(interface),
+				maximally_specific,
+			) {
+				return Some(method);
+			}
+
+			// TODO: Some way to provide negative flags
+			if let Some(method) = interface.get_method(method_name, descriptor, 0) {
+				if method.is_private() || method.is_static() {
+					continue;
+				}
+
+				return Some(method);
+			}
+		}
+
+		None
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
