@@ -61,14 +61,14 @@ impl StringInterner {
 
 		// Set `private byte[] value`
 		new_java_string_instance.get_mut().put_field_value0(
-			crate::globals::string_value_field_offset(),
+			crate::globals::field_offsets::string_value_field_offset(),
 			reference_to_byte_array,
 		);
 
 		// Set `private final byte coder`
 		let coder = if is_latin1 { CODER_LATIN1 } else { CODER_UTF16 };
 		new_java_string_instance.get_mut().put_field_value0(
-			crate::globals::string_coder_field_offset(),
+			crate::globals::field_offsets::string_coder_field_offset(),
 			Operand::Int(coder),
 		);
 
@@ -84,10 +84,10 @@ impl StringInterner {
 	pub fn rust_string_from_java_string(class: ClassInstanceRef) -> String {
 		let string_value_field = class
 			.get()
-			.get_field_value0(crate::globals::string_value_field_offset());
+			.get_field_value0(crate::globals::field_offsets::string_value_field_offset());
 		let string_coder_field = class
 			.get()
-			.get_field_value0(crate::globals::string_coder_field_offset())
+			.get_field_value0(crate::globals::field_offsets::string_coder_field_offset())
 			.expect_int();
 
 		let char_array = string_value_field.expect_reference().extract_array();

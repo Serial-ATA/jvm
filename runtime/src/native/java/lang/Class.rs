@@ -47,7 +47,7 @@ pub fn initClassName(_: JNIEnv, locals: LocalStack) -> NativeReturn {
 	let name_string = StringInterner::intern_string(this_name);
 
 	this.get_mut().put_field_value0(
-		crate::globals::class_name_field_offset(),
+		crate::globals::field_offsets::class_name_field_offset(),
 		Operand::Reference(Reference::Class(Arc::clone(&name_string))),
 	);
 
