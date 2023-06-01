@@ -37,10 +37,14 @@ impl Class {
 			.unwrap()
 			.insert(name.to_string(), format!("{}{}", module, name));
 
-		let mut class = class_file()
-			.easy_parse(PositionStream::new(&*text))
-			.unwrap()
-			.0;
+		let mut class;
+		match class_file().easy_parse(PositionStream::new(&*text)) {
+			Ok((c, _)) => class = c,
+			Err(e) => {
+				eprintln!("Failed to parse class definition `{}`:\n{}", name, e);
+				std::process::exit(1);
+			},
+		}
 
 		for member in &mut class.members {
 			if let Member::Method(method) = member {
