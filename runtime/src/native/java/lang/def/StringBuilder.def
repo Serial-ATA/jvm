@@ -1,0 +1,24 @@
+import java.lang.String;
+
+public final class StringBuilder {
+    @IntrinsicCandidate
+    public StringBuilder();
+
+    @IntrinsicCandidate
+    public StringBuilder(int capacity);
+
+    @IntrinsicCandidate
+    public StringBuilder(String str);
+
+    @IntrinsicCandidate
+    public StringBuilder append(String str);
+
+    @IntrinsicCandidate
+    public StringBuilder append(char c);
+
+    @IntrinsicCandidate
+    public StringBuilder append(int i);
+
+    @IntrinsicCandidate
+    public String toString();
+}

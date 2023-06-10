@@ -74,14 +74,15 @@ pub(crate) mod jdk {
 
 pub(crate) mod java {
 	pub(crate) mod lang {
-		pub(crate) mod Class;
-		pub(crate) mod Double;
-		pub(crate) mod Float;
-		pub(crate) mod Object;
+		pub(crate) mod StringBuilder;
 		pub(crate) mod Runtime;
 		pub(crate) mod StringUTF16;
 		pub(crate) mod System;
+		pub(crate) mod Float;
+		pub(crate) mod Double;
 		pub(crate) mod Throwable;
+		pub(crate) mod Object;
+		pub(crate) mod Class;
 	}
 }
 
