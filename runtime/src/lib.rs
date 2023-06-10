@@ -8,7 +8,7 @@ mod heap;
 mod initialization;
 mod interpreter;
 mod method_invoker;
-mod native;
+pub mod native;
 pub mod stack;
 mod string_interner;
 mod thread;

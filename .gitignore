@@ -4,5 +4,6 @@
 Cargo.lock
 .idea
 runtime/src/native/native_init.rs
+runtime/src/native/intrinsics_generated.rs
 *.registerNatives
 *.constants

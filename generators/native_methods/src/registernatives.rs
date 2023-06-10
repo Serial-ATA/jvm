@@ -25,11 +25,9 @@ pub fn registerNatives(_: JNIEnv, _: crate::stack::local_stack::LocalStack) -> N
 }
 
 pub(crate) fn generate_register_natives_table(module: &str, class: &mut Class, def_path: &Path) {
-	if !class
-		.members
-		.iter()
-		.any(|member| matches!(member, Member::Method(method) if method.name == "registerNatives"))
-	{
+	if !class.members.iter().any(
+		|member| matches!(member, Member::Method(method) if method.name() == "registerNatives"),
+	) {
 		return;
 	}
 
@@ -42,21 +40,21 @@ pub(crate) fn generate_register_natives_table(module: &str, class: &mut Class, d
 		.unwrap();
 
 	write!(
-        native_method_table_file,
-        "{}",
-        format_args!(
-            native_method_table_file_header!(),
-            class
-                .members
-                .iter()
-                .filter(|member| matches!(member, Member::Method(method) if !method.modifiers.contains(AccessFlags::ACC_STATIC)))
-                .count()
-        )
-    )
-        .unwrap();
+		native_method_table_file,
+		"{}",
+		format_args!(
+			native_method_table_file_header!(),
+			class
+				.methods()
+				.filter(|method| method.modifiers.contains(AccessFlags::ACC_NATIVE)
+					&& !method.modifiers.contains(AccessFlags::ACC_STATIC))
+				.count()
+		)
+	)
+	.unwrap();
 
 	for ref member in class.members.drain_filter(|member| {
-        matches!(member, Member::Method(method) if method.name != "registerNatives" && !method.modifiers.contains(AccessFlags::ACC_STATIC))
+        matches!(member, Member::Method(method) if method.name() != "registerNatives" && method.modifiers.contains(AccessFlags::ACC_NATIVE) && !method.modifiers.contains(AccessFlags::ACC_STATIC))
     }) {
         match member {
             Member::Method(method) => {

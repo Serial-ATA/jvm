@@ -1,5 +1,7 @@
 #![allow(non_snake_case)]
 
+pub mod intrinsics;
+
 use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::thread::ThreadRef;

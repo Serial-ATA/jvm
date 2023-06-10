@@ -1,11 +1,13 @@
 #![feature(drain_filter)]
 
 mod field;
+mod intrinsics;
 mod modules;
 mod parse;
 mod registernatives;
 mod util;
 
+use crate::intrinsics::generate_intrinsics;
 use crate::modules::Module;
 use crate::parse::{Class, Member};
 
@@ -33,6 +35,7 @@ pub fn generate() {
 	let native_directory = get_runtime_native_directory();
 	let modules = modules::get_modules_from(&native_directory);
 
+	generate_intrinsics(&native_directory, &modules);
 	create_native_method_table(&native_directory, &modules);
 	generate_modules(&native_directory, &modules);
 }
@@ -61,6 +64,10 @@ fn build_map_inserts(file: &mut File, module: &str, class: &Class) {
 	for member in &class.members {
 		match member {
 			Member::Method(method) => {
+				if method.is_intrinsic {
+					continue; // TODO
+				}
+
 				writeln!(
 					file,
 					"map.insert({});",

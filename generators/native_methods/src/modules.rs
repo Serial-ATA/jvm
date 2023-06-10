@@ -1,4 +1,4 @@
-use crate::parse::Class;
+use crate::parse::{Class, Member};
 use crate::{field, parse, registernatives, util};
 
 use std::path::Path;
@@ -53,10 +53,24 @@ impl Module {
 			classes,
 		}
 	}
+
+	pub fn for_each_class<F>(&self, mut map: F)
+	where
+		F: FnMut(&Class),
+	{
+		for class in &self.classes {
+			map(class);
+			for member in &class.members {
+				if let Member::Class(subclass) = member {
+					map(subclass)
+				}
+			}
+		}
+	}
 }
 
 pub(crate) fn get_modules_from(native_directory: &Path) -> Vec<Module> {
-	let dirs_filtered = WalkDir::new(&native_directory)
+	let dirs_filtered = WalkDir::new(native_directory)
 		.into_iter()
 		.map(Result::unwrap)
 		.filter(|entry| {
