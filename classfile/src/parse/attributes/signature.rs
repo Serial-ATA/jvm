@@ -1,4 +1,5 @@
 use super::Location;
+use crate::attribute::Signature;
 use crate::error::Result;
 use crate::{AttributeTag, AttributeType};
 
@@ -18,7 +19,7 @@ where
 	R: Read,
 {
 	location.verify_valid(AttributeTag::Signature, VALID_LOCATIONS)?;
-	Ok(AttributeType::Signature {
+	Ok(AttributeType::Signature(Signature {
 		signature_index: reader.read_u2()?,
-	})
+	}))
 }

@@ -1,4 +1,5 @@
 use super::Location;
+use crate::attribute::BootstrapMethods;
 use crate::error::Result;
 use crate::{AttributeTag, AttributeType, BootstrapMethod};
 
@@ -33,5 +34,7 @@ where
 		})
 	}
 
-	Ok(AttributeType::BootstrapMethods { bootstrap_methods })
+	Ok(AttributeType::BootstrapMethods(BootstrapMethods {
+		bootstrap_methods,
+	}))
 }

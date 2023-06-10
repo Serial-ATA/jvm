@@ -1,4 +1,5 @@
-use crate::attribute::{Attribute, AttributeType, Code};
+use crate::attribute::{Attribute, AttributeType, Code, LineNumberTable};
+use crate::constant_pool::ConstantPoolRef;
 use crate::error::ClassFileParseError;
 use crate::fieldinfo::FieldType;
 use crate::parse::error::Result;
@@ -19,9 +20,9 @@ pub struct MethodInfo {
 impl MethodInfo {
 	pub fn get_line_number_table_attribute(&self) -> Option<Vec<LineNumber>> {
 		for attr in &self.attributes {
-			if let AttributeType::LineNumberTable {
+			if let AttributeType::LineNumberTable(LineNumberTable {
 				ref line_number_table,
-			} = attr.info
+			}) = attr.info
 			{
 				return Some(line_number_table.clone());
 			}
@@ -38,6 +39,22 @@ impl MethodInfo {
 		}
 
 		None
+	}
+
+	pub fn is_intrinsic_candidate(&self, constant_pool: ConstantPoolRef) -> bool {
+		const INTRINSIC_CANDIDATE_TYPE: &[u1] = b"Ljdk/internal/vm/annotation/IntrinsicCandidate;";
+
+		for attr in &self.attributes {
+			if let Some(anno) = attr.runtime_visible_annotations() {
+				if anno.annotations.iter().any(|anno| {
+					constant_pool.get_constant_utf8(anno.type_index) == INTRINSIC_CANDIDATE_TYPE
+				}) {
+					return true;
+				}
+			}
+		}
+
+		false
 	}
 }
 

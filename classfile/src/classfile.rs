@@ -1,4 +1,4 @@
-use crate::attribute::Attribute;
+use crate::attribute::{Attribute, SourceFile};
 use crate::constant_pool::ConstantPoolRef;
 use crate::fieldinfo::FieldInfo;
 use crate::methodinfo::MethodInfo;
@@ -53,7 +53,7 @@ impl ClassFile {
 
 	pub fn source_file_index(&self) -> Option<u2> {
 		for attr in &self.attributes {
-			if let AttributeType::SourceFile { sourcefile_index } = attr.info {
+			if let AttributeType::SourceFile(SourceFile { sourcefile_index }) = attr.info {
 				return Some(sourcefile_index);
 			}
 		}

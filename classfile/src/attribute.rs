@@ -1,11 +1,79 @@
 use common::int_types::{u1, u2};
 
+macro_rules! attribute_getter_methods {
+	($($([$flag:ident])? $variant:ident),+ $(,)?) => {
+		impl Attribute {
+			paste::paste! {
+				$(
+					attribute_getter_methods!($($flag)? [<$variant:snake>]; $variant);
+				)+
+			}
+		}
+	};
+	(COPY $snake_name:ident; $variant:ident) => {
+		pub fn $snake_name(&self) -> Option<$variant> {
+			match self.info {
+				AttributeType::$variant(inner) => Some(inner),
+				_ => None
+			}
+		}
+	};
+	(MARKER $snake_name:ident; $variant:ident) => {
+		paste::paste! {
+			pub fn [<is_ $snake_name>](&self) -> bool {
+				matches!(self.info, AttributeType::$variant)
+			}
+		}
+	};
+	($snake_name:ident; $variant:ident) => {
+		pub fn $snake_name(&self) -> Option<&$variant> {
+			match &self.info {
+				AttributeType::$variant(inner) => Some(inner),
+				_ => None
+			}
+		}
+	};
+}
+
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7
 #[derive(Debug, Clone, PartialEq)]
 pub struct Attribute {
 	/// An index into the constant pool pointing to a `CONSTANT_Utf8_info` entry representing the name of the attribute
 	pub attribute_name_index: u2,
 	pub info: AttributeType,
+}
+
+attribute_getter_methods! {
+	[COPY  ] ConstantValue,
+	Code,
+	StackMapTable,
+	Exceptions,
+	InnerClasses,
+	[COPY  ] EnclosingMethod,
+	[MARKER] Synthetic,
+	[COPY  ] Signature,
+	[COPY  ] SourceFile,
+	SourceDebugExtension,
+	LineNumberTable,
+	LocalVariableTable,
+	LocalVariableTypeTable,
+	[MARKER] Deprecated,
+	RuntimeVisibleAnnotations,
+	RuntimeInvisibleAnnotations,
+	RuntimeVisibleParameterAnnotations,
+	RuntimeInvisibleParameterAnnotations,
+	RuntimeVisibleTypeAnnotations,
+	RuntimeInvisibleTypeAnnotations,
+	AnnotationDefault,
+	BootstrapMethods,
+	MethodParameters,
+	Module,
+	ModulePackages,
+	[COPY  ] ModuleMainClass,
+	[COPY  ] NestHost,
+	NestMembers,
+	Record,
+	PermittedSubclasses,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -89,130 +157,71 @@ impl From<&[u1]> for AttributeTag {
 #[derive(Debug, Clone, PartialEq)]
 pub enum AttributeType {
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.2
-	ConstantValue {
-		constantvalue_index: u2,
-	},
+	ConstantValue(ConstantValue),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.3
 	Code(Code),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.4
-	StackMapTable {
-		entries: Vec<StackMapFrame>,
-	},
+	StackMapTable(StackMapTable),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.5
-	Exceptions {
-		exception_index_table: Vec<u2>,
-	},
+	Exceptions(Exceptions),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.6
-	InnerClasses {
-		classes: Vec<InnerClass>,
-	},
+	InnerClasses(InnerClasses),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.7
-	EnclosingMethod {
-		class_index: u2,
-		method_index: u2,
-	},
+	EnclosingMethod(EnclosingMethod),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.8
 	Synthetic,
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.9
-	Signature {
-		signature_index: u2,
-	},
+	Signature(Signature),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.10
-	SourceFile {
-		sourcefile_index: u2,
-	},
+	SourceFile(SourceFile),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.11
-	SourceDebugExtension {
-		debug_extension: Box<[u1]>,
-	},
+	SourceDebugExtension(SourceDebugExtension),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.12
-	LineNumberTable {
-		line_number_table: Vec<LineNumber>,
-	},
+	LineNumberTable(LineNumberTable),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.13
-	LocalVariableTable {
-		local_variable_table: Vec<LocalVariable>,
-	},
+	LocalVariableTable(LocalVariableTable),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.14
-	LocalVariableTypeTable {
-		local_variable_type_table: Vec<LocalVariableType>,
-	},
+	LocalVariableTypeTable(LocalVariableTypeTable),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.15
 	Deprecated,
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.16
-	RuntimeVisibleAnnotations {
-		annotations: Vec<Annotation>,
-	},
+	RuntimeVisibleAnnotations(RuntimeVisibleAnnotations),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.17
-	RuntimeInvisibleAnnotations {
-		annotations: Vec<Annotation>,
-	},
+	RuntimeInvisibleAnnotations(RuntimeInvisibleAnnotations),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.18
-	RuntimeVisibleParameterAnnotations {
-		annotations: Vec<Annotation>,
-	},
+	RuntimeVisibleParameterAnnotations(RuntimeVisibleParameterAnnotations),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.19
-	RuntimeInvisibleParameterAnnotations {
-		annotations: Vec<Annotation>,
-	},
+	RuntimeInvisibleParameterAnnotations(RuntimeInvisibleParameterAnnotations),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.20
-	RuntimeVisibleTypeAnnotations {
-		annotations: Vec<Annotation>,
-	},
+	RuntimeVisibleTypeAnnotations(RuntimeVisibleTypeAnnotations),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.21
-	RuntimeInvisibleTypeAnnotations {
-		annotations: Vec<Annotation>,
-	},
+	RuntimeInvisibleTypeAnnotations(RuntimeInvisibleTypeAnnotations),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.22
-	AnnotationDefault {
-		default_value: ElementValue,
-	},
+	AnnotationDefault(AnnotationDefault),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.23
-	BootstrapMethods {
-		bootstrap_methods: Vec<BootstrapMethod>,
-	},
+	BootstrapMethods(BootstrapMethods),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.24
-	MethodParameters {
-		parameters: Vec<MethodParameter>,
-	},
+	MethodParameters(MethodParameters),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.25
-	Module {
-		module_name_index: u2,
-		module_flags: u2,
-		module_version_index: u2,
-
-		requires: Vec<ModuleRequire>,
-		exports: Vec<ModuleExport>,
-		opens: Vec<ModuleOpen>,
-
-		uses_index: Vec<u2>,
-
-		provides: Vec<ModuleProvide>,
-	},
+	Module(Module),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.26
-	ModulePackages {
-		package_index: Vec<u2>,
-	},
+	ModulePackages(ModulePackages),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.27
-	ModuleMainClass {
-		main_class_index: u2,
-	},
+	ModuleMainClass(ModuleMainClass),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.28
-	NestHost {
-		host_class_index: u2,
-	},
+	NestHost(NestHost),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.29
-	NestMembers {
-		classes: Vec<u2>,
-	},
+	NestMembers(NestMembers),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.30
-	Record {
-		components: Vec<RecordComponentInfo>,
-	},
+	Record(Record),
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.31
-	PermittedSubclasses {
-		classes: Vec<u2>,
-	},
+	PermittedSubclasses(PermittedSubclasses),
+}
+
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
+pub struct ConstantValue {
+	pub constantvalue_index: u2,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -227,6 +236,171 @@ pub struct Code {
 	pub exception_table: Vec<CodeException>,
 	/// Optional attributes associated with the code
 	pub attributes: Vec<Attribute>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct StackMapTable {
+	pub entries: Vec<StackMapFrame>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Exceptions {
+	pub exception_index_table: Vec<u2>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct InnerClasses {
+	pub classes: Vec<InnerClass>,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
+pub struct EnclosingMethod {
+	pub class_index: u2,
+	pub method_index: u2,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
+pub struct Signature {
+	pub signature_index: u2,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
+pub struct SourceFile {
+	pub sourcefile_index: u2,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct SourceDebugExtension {
+	pub debug_extension: Box<[u1]>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct LineNumberTable {
+	pub line_number_table: Vec<LineNumber>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct LocalVariableTable {
+	pub local_variable_table: Vec<LocalVariable>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct LocalVariableTypeTable {
+	pub local_variable_type_table: Vec<LocalVariableType>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct RuntimeVisibleAnnotations {
+	pub annotations: Vec<Annotation>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct RuntimeInvisibleAnnotations {
+	pub annotations: Vec<Annotation>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct RuntimeVisibleParameterAnnotations {
+	pub annotations: Vec<Annotation>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct RuntimeInvisibleParameterAnnotations {
+	pub annotations: Vec<Annotation>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct RuntimeVisibleTypeAnnotations {
+	pub annotations: Vec<Annotation>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct RuntimeInvisibleTypeAnnotations {
+	pub annotations: Vec<Annotation>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnnotationDefault {
+	pub default_value: ElementValue,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct BootstrapMethods {
+	pub bootstrap_methods: Vec<BootstrapMethod>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct MethodParameters {
+	pub parameters: Vec<MethodParameter>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Module {
+	pub module_name_index: u2,
+	pub module_flags: u2,
+	pub module_version_index: u2,
+
+	pub requires: Vec<ModuleRequire>,
+	pub exports: Vec<ModuleExport>,
+	pub opens: Vec<ModuleOpen>,
+
+	pub uses_index: Vec<u2>,
+
+	pub provides: Vec<ModuleProvide>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ModulePackages {
+	pub package_index: Vec<u2>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
+pub struct ModuleMainClass {
+	pub main_class_index: u2,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
+pub struct NestHost {
+	pub host_class_index: u2,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct NestMembers {
+	pub classes: Vec<u2>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Record {
+	pub components: Vec<RecordComponentInfo>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct PermittedSubclasses {
+	pub classes: Vec<u2>,
 }
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.3

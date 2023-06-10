@@ -1,4 +1,5 @@
 use super::Location;
+use crate::attribute::MethodParameters;
 use crate::error::Result;
 use crate::{AttributeTag, AttributeType, MethodParameter};
 
@@ -24,5 +25,7 @@ where
 		})
 	}
 
-	Ok(AttributeType::MethodParameters { parameters })
+	Ok(AttributeType::MethodParameters(MethodParameters {
+		parameters,
+	}))
 }

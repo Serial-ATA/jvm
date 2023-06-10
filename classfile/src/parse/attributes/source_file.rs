@@ -1,4 +1,5 @@
 use super::Location;
+use crate::attribute::SourceFile;
 use crate::error::Result;
 use crate::{AttributeTag, AttributeType};
 
@@ -14,7 +15,7 @@ where
 {
 	location.verify_valid(AttributeTag::SourceFile, VALID_LOCATIONS)?;
 
-	Ok(AttributeType::SourceFile {
+	Ok(AttributeType::SourceFile(SourceFile {
 		sourcefile_index: reader.read_u2()?,
-	})
+	}))
 }

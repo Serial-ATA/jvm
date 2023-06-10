@@ -1,4 +1,5 @@
 use super::{read_attribute, Location};
+use crate::attribute::Record;
 use crate::error::Result;
 use crate::{AttributeTag, AttributeType, ConstantPool, RecordComponentInfo};
 
@@ -41,5 +42,5 @@ where
 		})
 	}
 
-	Ok(AttributeType::Record { components })
+	Ok(AttributeType::Record(Record { components }))
 }

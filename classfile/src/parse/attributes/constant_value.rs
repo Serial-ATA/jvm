@@ -1,6 +1,6 @@
 use super::Location;
+use crate::attribute::{AttributeTag, AttributeType, ConstantValue};
 use crate::error::Result;
-use crate::{AttributeTag, AttributeType};
 
 use std::io::Read;
 
@@ -13,7 +13,7 @@ where
 	R: Read,
 {
 	location.verify_valid(AttributeTag::ConstantValue, VALID_LOCATIONS)?;
-	Ok(AttributeType::ConstantValue {
+	Ok(AttributeType::ConstantValue(ConstantValue {
 		constantvalue_index: reader.read_u2()?,
-	})
+	}))
 }

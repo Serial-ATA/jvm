@@ -1,4 +1,5 @@
 use super::Location;
+use crate::attribute::{Module, ModuleMainClass, ModulePackages};
 use crate::error::Result;
 use crate::{AttributeTag, AttributeType, ModuleExport, ModuleOpen, ModuleProvide, ModuleRequire};
 
@@ -93,7 +94,7 @@ where
 		});
 	}
 
-	Ok(AttributeType::Module {
+	Ok(AttributeType::Module(Module {
 		module_name_index,
 		module_flags,
 		module_version_index,
@@ -102,7 +103,7 @@ where
 		opens,
 		uses_index,
 		provides,
-	})
+	}))
 }
 
 pub fn read_packages<R>(reader: &mut R, location: Location) -> Result<AttributeType>
@@ -117,7 +118,9 @@ where
 		package_index.push(reader.read_u2()?);
 	}
 
-	Ok(AttributeType::ModulePackages { package_index })
+	Ok(AttributeType::ModulePackages(ModulePackages {
+		package_index,
+	}))
 }
 
 pub fn read_main_class<R>(reader: &mut R, location: Location) -> Result<AttributeType>
@@ -125,7 +128,7 @@ where
 	R: Read,
 {
 	location.verify_valid(AttributeTag::ModuleMainClass, VALID_LOCATIONS)?;
-	Ok(AttributeType::ModuleMainClass {
+	Ok(AttributeType::ModuleMainClass(ModuleMainClass {
 		main_class_index: reader.read_u2()?,
-	})
+	}))
 }

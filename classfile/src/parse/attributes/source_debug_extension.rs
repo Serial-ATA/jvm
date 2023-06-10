@@ -1,4 +1,5 @@
 use super::Location;
+use crate::attribute::SourceDebugExtension;
 use crate::error::Result;
 use crate::{AttributeTag, AttributeType};
 
@@ -15,12 +16,12 @@ where
 {
 	location.verify_valid(AttributeTag::SourceDebugExtension, VALID_LOCATIONS)?;
 
-	Ok(AttributeType::SourceDebugExtension {
+	Ok(AttributeType::SourceDebugExtension(SourceDebugExtension {
 		debug_extension: {
 			let mut debug_extension = box_slice![0; attribute_length as usize];
 			reader.read_exact(&mut debug_extension)?;
 
 			debug_extension
 		},
-	})
+	}))
 }

@@ -18,6 +18,7 @@ pub struct Method {
 	pub parameter_count: u1,
 	pub line_number_table: Vec<LineNumber>,
 	pub code: Code,
+	pub is_intrinsic: bool, // TODO: This can be done better
 }
 
 #[rustfmt::skip]
@@ -41,7 +42,7 @@ impl Method {
 
 impl Method {
 	pub fn new(class: ClassRef, method_info: &MethodInfo) -> MethodRef {
-		let constant_pool = &class.unwrap_class_instance().constant_pool;
+		let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
 
 		let access_flags = method_info.access_flags;
 
@@ -63,6 +64,8 @@ impl Method {
 			.unwrap_or_default();
 		let code = method_info.get_code_attribute().unwrap_or_default();
 
+		let is_intrinsic = method_info.is_intrinsic_candidate(constant_pool);
+
 		let method = Self {
 			class,
 			access_flags,
@@ -71,6 +74,7 @@ impl Method {
 			parameter_count,
 			line_number_table,
 			code,
+			is_intrinsic,
 		};
 
 		MethodRef::new(method)

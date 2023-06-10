@@ -33,7 +33,9 @@ impl Field {
 		let mut descriptor_bytes = constant_pool.get_constant_utf8(descriptor_index);
 
 		let descriptor = FieldType::parse(&mut descriptor_bytes).unwrap(); // TODO: Error handling
-		let constant_value_index = field_info.get_constant_value_attribute();
+		let constant_value_index = field_info
+			.get_constant_value_attribute()
+			.map(|constant_value| constant_value.constantvalue_index);
 
 		FieldRef::new(Self {
 			idx,

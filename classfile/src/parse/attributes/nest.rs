@@ -1,4 +1,5 @@
 use super::Location;
+use crate::attribute::{NestHost, NestMembers};
 use crate::error::Result;
 use crate::{AttributeTag, AttributeType};
 
@@ -13,9 +14,9 @@ where
 	R: Read,
 {
 	location.verify_valid(AttributeTag::NestHost, VALID_LOCATIONS)?;
-	Ok(AttributeType::NestHost {
+	Ok(AttributeType::NestHost(NestHost {
 		host_class_index: reader.read_u2()?,
-	})
+	}))
 }
 
 pub fn read_members<R>(reader: &mut R, location: Location) -> Result<AttributeType>
@@ -31,5 +32,5 @@ where
 		classes.push(reader.read_u2()?)
 	}
 
-	Ok(AttributeType::NestMembers { classes })
+	Ok(AttributeType::NestMembers(NestMembers { classes }))
 }

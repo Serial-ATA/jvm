@@ -1,4 +1,5 @@
 use super::Location;
+use crate::attribute::LocalVariableTypeTable;
 use crate::error::Result;
 use crate::{AttributeTag, AttributeType, LocalVariableType};
 
@@ -27,7 +28,9 @@ where
 		})
 	}
 
-	Ok(AttributeType::LocalVariableTypeTable {
-		local_variable_type_table,
-	})
+	Ok(AttributeType::LocalVariableTypeTable(
+		LocalVariableTypeTable {
+			local_variable_type_table,
+		},
+	))
 }

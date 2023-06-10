@@ -1,4 +1,4 @@
-use crate::attribute::{Attribute, AttributeType};
+use crate::attribute::{Attribute, ConstantValue};
 use crate::error::Result;
 
 use std::io::Read;
@@ -32,17 +32,10 @@ impl FieldInfo {
 }
 
 impl FieldInfo {
-	pub fn get_constant_value_attribute(&self) -> Option<u2> {
-		for attr in &self.attributes {
-			if let AttributeType::ConstantValue {
-				constantvalue_index,
-			} = attr.info
-			{
-				return Some(constantvalue_index);
-			}
-		}
-
-		None
+	pub fn get_constant_value_attribute(&self) -> Option<ConstantValue> {
+		self.attributes
+			.iter()
+			.find_map(|attr| attr.constant_value())
 	}
 
 	pub fn is_static(&self) -> bool {

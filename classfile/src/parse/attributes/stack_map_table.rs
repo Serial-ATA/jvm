@@ -1,6 +1,8 @@
 use super::Location;
+use crate::attribute::{
+	AttributeTag, AttributeType, StackMapFrame, StackMapTable, VerificationTypeInfo,
+};
 use crate::error::Result;
-use crate::{AttributeTag, AttributeType, StackMapFrame, VerificationTypeInfo};
 
 use std::io::Read;
 
@@ -83,7 +85,7 @@ where
 		entries.push(stack_map_frame);
 	}
 
-	Ok(AttributeType::StackMapTable { entries })
+	Ok(AttributeType::StackMapTable(StackMapTable { entries }))
 }
 
 fn read_attribute_verification_type_info<R>(reader: &mut R) -> Result<VerificationTypeInfo>

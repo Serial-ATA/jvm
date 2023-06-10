@@ -1,4 +1,5 @@
 use super::Location;
+use crate::attribute::Exceptions;
 use crate::error::Result;
 use crate::{AttributeTag, AttributeType};
 
@@ -21,7 +22,7 @@ where
 		exception_index_table.push(reader.read_u2()?);
 	}
 
-	Ok(AttributeType::Exceptions {
+	Ok(AttributeType::Exceptions(Exceptions {
 		exception_index_table,
-	})
+	}))
 }

@@ -1,4 +1,5 @@
 use super::Location;
+use crate::attribute::PermittedSubclasses;
 use crate::error::Result;
 use crate::{AttributeTag, AttributeType};
 
@@ -21,5 +22,7 @@ where
 		classes.push(reader.read_u2()?)
 	}
 
-	Ok(AttributeType::PermittedSubclasses { classes })
+	Ok(AttributeType::PermittedSubclasses(PermittedSubclasses {
+		classes,
+	}))
 }

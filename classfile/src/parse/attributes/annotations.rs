@@ -1,4 +1,5 @@
 use super::Location;
+use crate::attribute::{RuntimeInvisibleAnnotations, RuntimeVisibleAnnotations};
 use crate::error::Result;
 use crate::{
 	Annotation, AttributeTag, AttributeType, ConstantPool, ElementValue, ElementValuePair,
@@ -26,9 +27,11 @@ where
 	R: Read,
 {
 	location.verify_valid(AttributeTag::AnnotationDefault, VALID_LOCATIONS)?;
-	Ok(AttributeType::RuntimeVisibleAnnotations {
-		annotations: read_attribute_runtime_annotations(reader, constant_pool)?,
-	})
+	Ok(AttributeType::RuntimeVisibleAnnotations(
+		RuntimeVisibleAnnotations {
+			annotations: read_attribute_runtime_annotations(reader, constant_pool)?,
+		},
+	))
 }
 
 /// Read `RuntimeVisibleAnnotations` attribute
@@ -41,9 +44,11 @@ where
 	R: Read,
 {
 	location.verify_valid(AttributeTag::RuntimeVisibleAnnotations, VALID_LOCATIONS)?;
-	Ok(AttributeType::RuntimeVisibleAnnotations {
-		annotations: read_attribute_runtime_annotations(reader, constant_pool)?,
-	})
+	Ok(AttributeType::RuntimeVisibleAnnotations(
+		RuntimeVisibleAnnotations {
+			annotations: read_attribute_runtime_annotations(reader, constant_pool)?,
+		},
+	))
 }
 
 /// Read `RuntimeInvisibleAnnotations` attribute
@@ -56,9 +61,11 @@ where
 	R: Read,
 {
 	location.verify_valid(AttributeTag::RuntimeInvisibleAnnotations, VALID_LOCATIONS)?;
-	Ok(AttributeType::RuntimeInvisibleAnnotations {
-		annotations: read_attribute_runtime_annotations(reader, constant_pool)?,
-	})
+	Ok(AttributeType::RuntimeInvisibleAnnotations(
+		RuntimeInvisibleAnnotations {
+			annotations: read_attribute_runtime_annotations(reader, constant_pool)?,
+		},
+	))
 }
 
 pub mod type_annotations {
@@ -66,6 +73,7 @@ pub mod type_annotations {
 	use crate::error::Result;
 	use crate::{AttributeTag, AttributeType, ConstantPool};
 
+	use crate::attribute::{RuntimeInvisibleTypeAnnotations, RuntimeVisibleTypeAnnotations};
 	use std::io::Read;
 
 	const VALID_LOCATIONS: &[Location] = &[
@@ -86,9 +94,11 @@ pub mod type_annotations {
 		R: Read,
 	{
 		location.verify_valid(AttributeTag::RuntimeVisibleTypeAnnotations, VALID_LOCATIONS)?;
-		Ok(AttributeType::RuntimeVisibleTypeAnnotations {
-			annotations: super::read_attribute_runtime_annotations(reader, constant_pool)?,
-		})
+		Ok(AttributeType::RuntimeVisibleTypeAnnotations(
+			RuntimeVisibleTypeAnnotations {
+				annotations: super::read_attribute_runtime_annotations(reader, constant_pool)?,
+			},
+		))
 	}
 
 	/// Read `RuntimeInvisibleTypeAnnotations` attribute
@@ -104,9 +114,11 @@ pub mod type_annotations {
 			AttributeTag::RuntimeInvisibleTypeAnnotations,
 			VALID_LOCATIONS,
 		)?;
-		Ok(AttributeType::RuntimeInvisibleTypeAnnotations {
-			annotations: super::read_attribute_runtime_annotations(reader, constant_pool)?,
-		})
+		Ok(AttributeType::RuntimeInvisibleTypeAnnotations(
+			RuntimeInvisibleTypeAnnotations {
+				annotations: super::read_attribute_runtime_annotations(reader, constant_pool)?,
+			},
+		))
 	}
 }
 
@@ -115,6 +127,9 @@ pub mod parameter_annotations {
 	use crate::error::Result;
 	use crate::{AttributeTag, AttributeType, ConstantPool};
 
+	use crate::attribute::{
+		RuntimeInvisibleParameterAnnotations, RuntimeVisibleParameterAnnotations,
+	};
 	use std::io::Read;
 
 	const VALID_LOCATIONS: &[Location] = &[Location::MethodInfo];
@@ -132,9 +147,11 @@ pub mod parameter_annotations {
 			AttributeTag::RuntimeVisibleParameterAnnotations,
 			VALID_LOCATIONS,
 		)?;
-		Ok(AttributeType::RuntimeVisibleParameterAnnotations {
-			annotations: super::read_attribute_runtime_annotations(reader, constant_pool)?,
-		})
+		Ok(AttributeType::RuntimeVisibleParameterAnnotations(
+			RuntimeVisibleParameterAnnotations {
+				annotations: super::read_attribute_runtime_annotations(reader, constant_pool)?,
+			},
+		))
 	}
 
 	/// Read `RuntimeInvisibleParameterAnnotations` attribute
@@ -150,9 +167,11 @@ pub mod parameter_annotations {
 			AttributeTag::RuntimeInvisibleParameterAnnotations,
 			VALID_LOCATIONS,
 		)?;
-		Ok(AttributeType::RuntimeInvisibleParameterAnnotations {
-			annotations: super::read_attribute_runtime_annotations(reader, constant_pool)?,
-		})
+		Ok(AttributeType::RuntimeInvisibleParameterAnnotations(
+			RuntimeInvisibleParameterAnnotations {
+				annotations: super::read_attribute_runtime_annotations(reader, constant_pool)?,
+			},
+		))
 	}
 }
 

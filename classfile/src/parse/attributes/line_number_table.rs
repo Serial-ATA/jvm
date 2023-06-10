@@ -1,4 +1,5 @@
 use super::Location;
+use crate::attribute::LineNumberTable;
 use crate::error::Result;
 use crate::{AttributeTag, AttributeType, LineNumber};
 
@@ -24,5 +25,7 @@ where
 		})
 	}
 
-	Ok(AttributeType::LineNumberTable { line_number_table })
+	Ok(AttributeType::LineNumberTable(LineNumberTable {
+		line_number_table,
+	}))
 }

@@ -1,4 +1,5 @@
 use super::Location;
+use crate::attribute::EnclosingMethod;
 use crate::error::Result;
 use crate::{AttributeTag, AttributeType};
 
@@ -13,8 +14,8 @@ where
 	R: Read,
 {
 	location.verify_valid(AttributeTag::EnclosingMethod, VALID_LOCATIONS)?;
-	Ok(AttributeType::EnclosingMethod {
+	Ok(AttributeType::EnclosingMethod(EnclosingMethod {
 		class_index: reader.read_u2()?,
 		method_index: reader.read_u2()?,
-	})
+	}))
 }

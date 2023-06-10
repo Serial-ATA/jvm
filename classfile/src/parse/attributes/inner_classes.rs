@@ -1,4 +1,5 @@
 use super::Location;
+use crate::attribute::InnerClasses;
 use crate::error::Result;
 use crate::{AttributeTag, AttributeType, InnerClass};
 
@@ -26,5 +27,5 @@ where
 		})
 	}
 
-	Ok(AttributeType::InnerClasses { classes })
+	Ok(AttributeType::InnerClasses(InnerClasses { classes }))
 }
