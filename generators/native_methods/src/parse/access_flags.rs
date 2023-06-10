@@ -1,12 +1,12 @@
-use crate::parse::{lex, whitespace_or_comment};
+use crate::parse::lex;
 
 use combine::parser::char::string;
-use combine::{attempt, choice, ParseError, Parser, Stream};
+use combine::{attempt, choice, many1, ParseError, Parser, Stream};
 
 use common::int_types::u2;
 
 bitflags::bitflags! {
-	#[derive(Copy, Clone, Debug)]
+	#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 	pub struct AccessFlags: u2 {
 		const ACC_PUBLIC       = 0x0001;
 		const ACC_PRIVATE      = 0x0002;
@@ -23,35 +23,47 @@ bitflags::bitflags! {
 	}
 }
 
+pub fn access_flags<Input>() -> impl Parser<Input, Output = AccessFlags>
+where
+	Input: Stream<Token = char>,
+	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+	many1::<Vec<AccessFlags>, _, _>(modifier()).map(|flags| {
+		flags
+			.iter()
+			.fold::<AccessFlags, _>(AccessFlags::empty(), |mut acc, x| {
+				acc.insert(*x);
+				acc
+			})
+	})
+}
+
 pub fn modifier<Input>() -> impl Parser<Input, Output = AccessFlags>
 where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-	(
-		whitespace_or_comment(),
-		choice((
-			attempt(lex(string("public"))),
-			attempt(lex(string("private"))),
-			attempt(lex(string("protected"))),
-			attempt(lex(string("static"))),
-			attempt(lex(string("final"))),
-			attempt(lex(string("synchronized"))),
-			attempt(lex(string("native"))),
-			attempt(lex(string("abstract"))),
-			attempt(lex(string("strict"))),
-		)),
-	)
-		.map(|(_, modifier)| match modifier {
-			"public" => AccessFlags::ACC_PUBLIC,
-			"private" => AccessFlags::ACC_PRIVATE,
-			"protected" => AccessFlags::ACC_PROTECTED,
-			"static" => AccessFlags::ACC_STATIC,
-			"final" => AccessFlags::ACC_FINAL,
-			"synchronized" => AccessFlags::ACC_SYNCHRONIZED,
-			"native" => AccessFlags::ACC_NATIVE,
-			"abstract" => AccessFlags::ACC_ABSTRACT,
-			"strict" => AccessFlags::ACC_STRICT,
-			c => unreachable!("{}", c),
-		})
+	lex(choice((
+		attempt(lex(string("public"))),
+		attempt(lex(string("private"))),
+		attempt(lex(string("protected"))),
+		attempt(lex(string("static"))),
+		attempt(lex(string("final"))),
+		attempt(lex(string("synchronized"))),
+		attempt(lex(string("native"))),
+		attempt(lex(string("abstract"))),
+		attempt(lex(string("strict"))),
+	)))
+	.map(|modifier| match modifier {
+		"public" => AccessFlags::ACC_PUBLIC,
+		"private" => AccessFlags::ACC_PRIVATE,
+		"protected" => AccessFlags::ACC_PROTECTED,
+		"static" => AccessFlags::ACC_STATIC,
+		"final" => AccessFlags::ACC_FINAL,
+		"synchronized" => AccessFlags::ACC_SYNCHRONIZED,
+		"native" => AccessFlags::ACC_NATIVE,
+		"abstract" => AccessFlags::ACC_ABSTRACT,
+		"strict" => AccessFlags::ACC_STRICT,
+		c => unreachable!("{}", c),
+	})
 }

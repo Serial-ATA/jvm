@@ -1,7 +1,7 @@
 use crate::parse::access_flags::AccessFlags;
 use crate::parse::field::Field;
 use crate::parse::method::Method;
-use crate::parse::{lex, path1, whitespace_or_comment, word1};
+use crate::parse::{lex, path1, word1};
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -10,7 +10,8 @@ use combine::parser::char::{char, string};
 use combine::parser::combinator::no_partial;
 use combine::stream::position::Stream as PositionStream;
 use combine::{
-	attempt, choice, many, many1, opaque, optional, token, EasyParser, ParseError, Parser, Stream,
+	attempt, choice, dispatch, many, many1, opaque, optional, token, EasyParser, ParseError,
+	Parser, Stream,
 };
 use once_cell::sync::Lazy;
 
@@ -28,6 +29,15 @@ pub enum Member {
 pub struct Class {
 	pub class_name: String,
 	pub members: Vec<Member>,
+}
+
+impl Class {
+	pub fn methods(&self) -> impl Iterator<Item = &Method> {
+		self.members.iter().filter_map(|member| match member {
+			Member::Method(method) => Some(method),
+			_ => None,
+		})
+	}
 }
 
 impl Class {
@@ -49,10 +59,10 @@ impl Class {
 		for member in &mut class.members {
 			if let Member::Method(method) = member {
 				assert!(
-					method.modifiers.contains(AccessFlags::ACC_NATIVE),
-					"Method `{}#{}` is not declared as native!",
+					method.modifiers.contains(AccessFlags::ACC_NATIVE) || method.is_intrinsic,
+					"Method `{}#{}` is not declared as native or an intrinsic candidate!",
 					class.class_name,
-					method.name
+					method.name()
 				);
 			}
 
@@ -79,29 +89,55 @@ where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-	opaque!(no_partial((
-		lex(class_def()),
-		whitespace_or_comment(),
-		optional(
-			attempt(string("@Native")).and(many1::<Vec<_>, _, _>(attempt(
-				super::field::field().map(Member::Field)
-			)))
-		),
-		many::<Vec<_>, _, _>(
-			attempt(super::method::method().map(Member::Method)).or(class().map(Member::Class))
-		),
+	(
+		lex(class_def()).message("While parsing class definition"),
+		lex(many::<Vec<_>, _, _>(member())).message("While parsing fields/methods"),
 		lex(char('}')),
-	)))
-	.map(|(class_name, _, fields, mut members, _)| {
-		if let Some((_, mut fields)) = fields {
-			members.append(&mut fields);
-		}
-
-		Class {
+	)
+		.message("While parsing class")
+		.map(|(class_name, members, _)| Class {
 			class_name,
 			members,
-		}
+		})
+}
+
+fn member<Input>() -> impl Parser<Input, Output = Member>
+where
+	Input: Stream<Token = char>,
+	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+	optional(annotation()).then(|annotation| {
+		dispatch!(
+			annotation;
+			Some("@IntrinsicCandidate") => choice((
+				attempt(super::method::constructor(annotation).map(Member::Method)),
+				super::method::method(annotation).map(Member::Method),
+			)),
+			Some("@Native") => super::field::field(annotation).map(Member::Field),
+			_ => choice((
+				attempt(super::method::constructor(annotation).map(Member::Method)),
+				attempt(super::method::method(annotation).map(Member::Method)),
+				attempt(super::field::field(annotation).map(Member::Field)),
+				subclass().map(Member::Class),
+			))
+		)
 	})
+}
+
+fn annotation<Input>() -> impl Parser<Input, Output = &'static str>
+where
+	Input: Stream<Token = char>,
+	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+	attempt(lex(string("@Native"))).or(attempt(lex(string("@IntrinsicCandidate"))))
+}
+
+fn subclass<Input>() -> impl Parser<Input, Output = Class>
+where
+	Input: Stream<Token = char>,
+	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+	opaque!(no_partial(class())).message("While parsing subclasses")
 }
 
 fn imports<Input>() -> impl Parser<Input, Output = ()>
@@ -122,6 +158,7 @@ where
 				.insert(class_name.to_string(), import);
 		}
 	})
+	.message("While parsing class imports")
 }
 
 fn class_def<Input>() -> impl Parser<Input, Output = String>

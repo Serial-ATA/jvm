@@ -7,7 +7,7 @@ use combine::parser::char::{char, string};
 use combine::parser::combinator::no_partial;
 use combine::{choice, many1, opaque, optional, token, value, ParseError, Parser, Stream};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Type {
 	Boolean,
 	Byte,
@@ -23,7 +23,23 @@ pub enum Type {
 }
 
 impl Type {
-	pub(crate) fn write_to(&self, string: &mut String) {
+	pub(crate) fn human_readable_name(&self) -> &str {
+		match self {
+			Type::Boolean => "bool",
+			Type::Byte => "byte",
+			Type::Char => "char",
+			Type::Double => "double",
+			Type::Float => "float",
+			Type::Int => "int",
+			Type::Long => "long",
+			Type::Short => "short",
+			Type::Void => "void",
+			Type::Class(class) => class.as_str(),
+			Type::Array(_) => unreachable!(),
+		}
+	}
+
+	pub(crate) fn write_to(&self, string: &mut String, use_imports: bool) {
 		match self {
 			Type::Boolean => write!(string, "Z"),
 			Type::Byte => write!(string, "B"),
@@ -38,17 +54,20 @@ impl Type {
 				if name.contains('.') {
 					// Trust we were provided a full path
 					write!(string, "L{};", name)
+				} else if use_imports {
+					let guard = IMPORTS.lock().unwrap();
+					let Some(name) = guard.get(name) else {
+						panic!("Failed to find import {}", name);
+					};
+
+					write!(string, "L{};", name.replace('.', "/"))
 				} else {
-					write!(
-						string,
-						"L{};",
-						IMPORTS.lock().unwrap()[name].replace('.', "/")
-					)
+					write!(string, "{}", name.replace('.', "_"))
 				}
 			},
 			Type::Array(ty) => {
 				write!(string, "[").unwrap();
-				return ty.write_to(string);
+				return ty.write_to(string, use_imports);
 			},
 		}
 		.unwrap();

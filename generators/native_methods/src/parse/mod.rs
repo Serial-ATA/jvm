@@ -4,15 +4,15 @@ mod field;
 mod method;
 mod types;
 
-use combine::parser::char::space;
-use combine::{
-	many1, satisfy, skip_many, skip_many1, token, ParseError, Parser, Stream, StreamOnce,
-};
-
 pub use access_flags::AccessFlags;
 pub use class::{Class, Member};
 pub use field::Field;
 pub use method::Method;
+
+use combine::parser::char::space;
+use combine::{
+	many1, satisfy, skip_many, skip_many1, token, ParseError, Parser, Stream, StreamOnce,
+};
 
 fn lex<Input, P>(p: P) -> impl Parser<Input, Output = P::Output>
 where
