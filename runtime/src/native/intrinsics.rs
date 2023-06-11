@@ -1,11 +1,55 @@
-use common::int_types::u1;
+use crate::reference::MethodRef;
+
+use std::sync::Mutex;
+
+use once_cell::sync::Lazy;
+
+// The automatically generated intrinsic candidates
+include!("intrinsics_generated.rs");
+
+static REGISTERED_INTRINSICS: Lazy<Mutex<Vec<IntrinsicEntry>>> =
+	Lazy::new(|| Mutex::new(Vec::new()));
+
+pub fn find_intrinsic(_method: MethodRef, _is_virtual: bool) -> Option<IntrinsicEntry> {
+	todo!()
+}
 
 /// An intrinsic definition
 pub struct IntrinsicEntry {
-	pub class: &'static [u1],
-	pub name: &'static [u1],
-	pub descriptor: &'static [u1],
-	pub flags: IntrinsicFlags,
+	is_virtual: bool,
+	does_virtual_dispatch: bool,
+	intrinsic_id: IntrinsicId,
+	method: MethodRef,
+	flags: IntrinsicFlags,
+}
+
+impl IntrinsicEntry {
+	pub fn new(
+		method: MethodRef,
+		is_virtual: bool,
+		does_virtual_dispatch: bool,
+		intrinsic_id: IntrinsicId,
+	) -> Self {
+		Self {
+			is_virtual,
+			does_virtual_dispatch,
+			intrinsic_id,
+			method,
+			flags: IntrinsicFlags::Native,
+		}
+	}
+
+	pub fn is_virtual(&self) -> bool {
+		self.is_virtual
+	}
+
+	pub fn does_virtual_dispatch(&self) -> bool {
+		self.does_virtual_dispatch
+	}
+
+	pub fn intrinsic_id(&self) -> IntrinsicId {
+		self.intrinsic_id
+	}
 }
 
 /// Access flag combinations relevant to intrinsic methods
