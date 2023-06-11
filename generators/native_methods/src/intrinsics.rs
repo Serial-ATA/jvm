@@ -81,7 +81,7 @@ fn create_intrinsic_name_table(intrinsic_ids: &[String]) -> String {
 
 fn create_intrinsic_id_enum(intrinsic_ids: &[String]) -> String {
 	let mut intrinsic_name_enum =
-		String::from("#[allow(non_camel_case_types)]\npub enum IntrinsicId {\n");
+		String::from("#[allow(non_camel_case_types)]\n#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]\npub enum IntrinsicId {\n");
 	for id in intrinsic_ids {
 		writeln!(intrinsic_name_enum, "\t{},", id).unwrap();
 	}
