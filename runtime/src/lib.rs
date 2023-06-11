@@ -12,6 +12,7 @@ pub mod native;
 pub mod stack;
 mod string_interner;
 mod thread;
+mod symbols;
 
 pub use frame::Frame;
 pub use heap::*;
