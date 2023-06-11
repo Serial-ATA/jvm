@@ -1,5 +1,11 @@
 [workspace]
 resolver = "2"
 members = [
-    "native_methods"
+    "native_methods",
+    "vm_symbols"
 ]
+
+[workspace.dependencies]
+syn = { version = "2", features = ["full"] }
+proc-macro2 = "1"
+quote = "1"
