@@ -71,6 +71,14 @@ impl Symbol {
 	}
 }
 
+/// Gets a generated symbol using the names defined in `vm_symbols::define_symbols!`
+#[macro_export]
+macro_rules! sym {
+	($symbol:ident) => {
+		$crate::symbols::generated_symbols::$symbol
+	}
+}
+
 // Defined in $ROOT/generators/vm_symbols
 vm_symbols::define_symbols! {
 	// Classes

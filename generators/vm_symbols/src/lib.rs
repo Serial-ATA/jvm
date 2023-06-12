@@ -46,6 +46,9 @@ pub fn define_symbols(input: TokenStream) -> TokenStream {
 
 	let mut index = 0u32;
 
+	// TODO: Remove duplicates
+	// TODO: Sort alphabetically
+
 	let mut symbol_value_stream = quote! {};
 	let mut symbol_const_stream = quote! {};
 	for symbol in symbols.0 {
@@ -67,7 +70,8 @@ pub fn define_symbols(input: TokenStream) -> TokenStream {
 		const PREINTERED_SYMBOLS_COUNT: u32 = #index;
 
 		#[allow(non_upper_case_globals)]
-		mod generated_symbols {
+		#[doc(hidden)]
+		pub mod generated_symbols {
 			use super::Symbol;
 			#symbol_const_stream
 		}
