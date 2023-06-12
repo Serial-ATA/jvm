@@ -24,9 +24,18 @@ impl Module {
 		}
 
 		// Skip over /home/.../ until we make it to `native`
-		let non_absolute_generated_path = root.components().skip_while(|c| c.as_os_str().to_str().unwrap() != "native").skip(1).collect::<PathBuf>();
+		let non_absolute_generated_path = root
+			.components()
+			.skip_while(|c| c.as_os_str().to_str().unwrap() != "native")
+			.skip(1)
+			.collect::<PathBuf>();
 
-		let generated_root = format!("{}{}{}", generated_directory.display(), std::path::MAIN_SEPARATOR, non_absolute_generated_path.display());
+		let generated_root = format!(
+			"{}{}{}",
+			generated_directory.display(),
+			std::path::MAIN_SEPARATOR,
+			non_absolute_generated_path.display()
+		);
 		std::fs::create_dir_all(&generated_root).unwrap();
 
 		let mut classes = Vec::new();
@@ -48,7 +57,11 @@ impl Module {
 			);
 
 			field::generate_native_constant_fields(&mut class, Path::new(&generated_root));
-			registernatives::generate_register_natives_table(&name, &mut class, Path::new(&generated_root));
+			registernatives::generate_register_natives_table(
+				&name,
+				&mut class,
+				Path::new(&generated_root),
+			);
 
 			classes.push(class);
 		}

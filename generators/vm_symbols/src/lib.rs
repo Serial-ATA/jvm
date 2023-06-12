@@ -53,7 +53,9 @@ pub fn define_symbols(input: TokenStream) -> TokenStream {
 	let mut symbol_const_stream = quote! {};
 	for symbol in symbols.0 {
 		let name = &symbol.variant_name;
-		let value = symbol.value.map_or_else(|| name.to_string(), |value| value.value());
+		let value = symbol
+			.value
+			.map_or_else(|| name.to_string(), |value| value.value());
 
 		symbol_value_stream.extend(quote! {
 			#value,
@@ -83,5 +85,6 @@ pub fn define_symbols(input: TokenStream) -> TokenStream {
 				]);
 			}
 		}
-	}.into()
+	}
+	.into()
 }

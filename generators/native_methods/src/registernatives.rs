@@ -31,7 +31,8 @@ pub(crate) fn generate_register_natives_table(module: &str, class: &mut Class, d
 		return;
 	}
 
-	let native_method_table_path = def_path.join(format!("{}.registerNatives.rs", class.class_name));
+	let native_method_table_path =
+		def_path.join(format!("{}.registerNatives.rs", class.class_name));
 	let mut native_method_table_file = OpenOptions::new()
 		.write(true)
 		.truncate(true)
