@@ -4,14 +4,25 @@ use std::sync::Mutex;
 
 use once_cell::sync::Lazy;
 
-// The automatically generated intrinsic candidates
-include!("intrinsics_generated.rs");
-
 static REGISTERED_INTRINSICS: Lazy<Mutex<Vec<IntrinsicEntry>>> =
 	Lazy::new(|| Mutex::new(Vec::new()));
 
 pub fn find_intrinsic(_method: MethodRef, _is_virtual: bool) -> Option<IntrinsicEntry> {
 	todo!()
+}
+
+// The automatically generated intrinsic candidates
+include!("intrinsics_generated.rs");
+
+impl IntrinsicId {
+	pub fn does_virtual_dispatch(self) -> bool {
+		matches!(self, Self::Object_hashCode | Self::Object_clone)
+	}
+
+	/// Whether the intrinsic is available, according to the platform and JVM flags
+	pub fn is_enabled(self) -> bool {
+		true // TODO
+	}
 }
 
 /// An intrinsic definition
