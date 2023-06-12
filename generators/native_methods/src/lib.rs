@@ -31,17 +31,25 @@ fn get_runtime_native_directory() -> PathBuf {
 	project_root.join("runtime").join("src").join("native")
 }
 
+fn get_generated_directory() -> PathBuf {
+	let crate_root = PathBuf::from(CRATE_ROOT);
+	let project_root = crate_root.parent().unwrap().parent().unwrap();
+
+	project_root.join("generated").join("native")
+}
+
 pub fn generate() {
 	let native_directory = get_runtime_native_directory();
-	let modules = modules::get_modules_from(&native_directory);
+	let generated_directory = get_generated_directory();
+	let modules = modules::get_modules_from(&generated_directory, &native_directory);
 
 	generate_intrinsics(&native_directory, &modules);
-	create_native_method_table(&native_directory, &modules);
+	create_native_method_table(&generated_directory, &modules);
 	generate_modules(&native_directory, &modules);
 }
 
-fn create_native_method_table(native_directory: &Path, modules: &[Module]) {
-	let init_fn_file_path = native_directory.join("native_init.rs");
+fn create_native_method_table(generated_directory: &Path, modules: &[Module]) {
+	let init_fn_file_path = generated_directory.join("native_init.rs");
 	let mut init_fn_file = OpenOptions::new()
 		.write(true)
 		.truncate(true)

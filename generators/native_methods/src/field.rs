@@ -35,7 +35,7 @@ fn create_constant_field_file_for_class(class: &Class, def_path: &Path) -> Optio
 		return None;
 	}
 
-	let constant_fields_path = def_path.join(format!("{}.constants", class.class_name));
+	let constant_fields_path = def_path.join(format!("{}.constants.rs", class.class_name));
 	let constant_fields_file = OpenOptions::new()
 		.write(true)
 		.truncate(true)

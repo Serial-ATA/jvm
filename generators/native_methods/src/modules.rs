@@ -1,7 +1,7 @@
 use crate::parse::{Class, Member};
 use crate::{field, parse, registernatives, util};
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use walkdir::WalkDir;
 
@@ -14,7 +14,7 @@ pub(crate) struct Module {
 }
 
 impl Module {
-	fn from_path(root: &Path) -> Self {
+	fn from_path(generated_directory: &Path, root: &Path) -> Self {
 		let components = util::create_relative_path_components(root, true);
 
 		let mut name = String::new();
@@ -22,6 +22,12 @@ impl Module {
 			name.push_str(comp);
 			name.push('/');
 		}
+
+		// Skip over /home/.../ until we make it to `native`
+		let non_absolute_generated_path = root.components().skip_while(|c| c.as_os_str().to_str().unwrap() != "native").skip(1).collect::<PathBuf>();
+
+		let generated_root = format!("{}{}{}", generated_directory.display(), std::path::MAIN_SEPARATOR, non_absolute_generated_path.display());
+		std::fs::create_dir_all(&generated_root).unwrap();
 
 		let mut classes = Vec::new();
 		for entry in std::fs::read_dir(root).unwrap().map(Result::unwrap) {
@@ -41,8 +47,8 @@ impl Module {
 				&name,
 			);
 
-			field::generate_native_constant_fields(&mut class, root);
-			registernatives::generate_register_natives_table(&name, &mut class, root);
+			field::generate_native_constant_fields(&mut class, Path::new(&generated_root));
+			registernatives::generate_register_natives_table(&name, &mut class, Path::new(&generated_root));
 
 			classes.push(class);
 		}
@@ -69,7 +75,7 @@ impl Module {
 	}
 }
 
-pub(crate) fn get_modules_from(native_directory: &Path) -> Vec<Module> {
+pub(crate) fn get_modules_from(generated_directory: &Path, native_directory: &Path) -> Vec<Module> {
 	let dirs_filtered = WalkDir::new(native_directory)
 		.into_iter()
 		.map(Result::unwrap)
@@ -79,7 +85,7 @@ pub(crate) fn get_modules_from(native_directory: &Path) -> Vec<Module> {
 
 	let mut modules = Vec::new();
 	for dir in dirs_filtered {
-		modules.push(Module::from_path(dir.path()))
+		modules.push(Module::from_path(generated_directory, dir.path()))
 	}
 
 	modules
