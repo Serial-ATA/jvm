@@ -10,7 +10,7 @@ use common::int_types::{s4, s8};
 use common::traits::PtrType;
 use instructions::Operand;
 
-include!("def/Unsafe.registerNatives");
+include!("../../../../../../generated/native/jdk/internal/misc/def/Unsafe.registerNatives.rs");
 
 pub fn getInt(_: JNIEnv, locals: LocalStack) -> NativeReturn {
 	let _object = locals[1].expect_reference(); // java.lang.Object

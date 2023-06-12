@@ -7,7 +7,7 @@ use common::int_types::s8;
 use common::traits::PtrType;
 use instructions::Operand;
 
-include!("def/System.registerNatives");
+include!("../../../../../generated/native/java/lang/def/System.registerNatives.rs");
 
 pub fn setIn0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("System#setIn0")

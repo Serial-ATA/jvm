@@ -12,7 +12,7 @@ use common::int_types::s4;
 use common::traits::PtrType;
 use instructions::Operand;
 
-include!("def/Class.registerNatives");
+include!("../../../../../generated/native/java/lang/def/Class.registerNatives.rs");
 
 pub fn forName0(_: JNIEnv, _: LocalStack) -> NativeReturn {
 	unimplemented!("Class#forName0");

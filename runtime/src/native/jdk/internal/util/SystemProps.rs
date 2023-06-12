@@ -1,5 +1,5 @@
 pub mod Raw {
-	include!("def/SystemProps$Raw.constants");
+	include!("../../../../../../generated/native/jdk/internal/util/def/SystemProps$Raw.constants.rs");
 
 	use crate::class_instance::ArrayInstance;
 	use crate::classpath::classloader::ClassLoader;
