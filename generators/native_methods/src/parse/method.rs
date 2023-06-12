@@ -57,6 +57,33 @@ impl Method {
 		Some(ret)
 	}
 
+	pub fn generated_name(&self) -> &str {
+		match &self.name {
+			Some(name) => name,
+			None => "<init>",
+		}
+	}
+
+	pub fn name_symbol(&self) -> &str {
+		let name = self.generated_name();
+		if name == "<init>" {
+			return "object_initializer_name";
+		}
+
+		name
+	}
+
+	pub fn signature_symbol_name(&self) -> String {
+		let mut signature_symbol = String::new();
+		for param in &self.params {
+			signature_symbol.push_str(&format!("{}_", param.human_readable_name()));
+		}
+
+		signature_symbol.push_str(self.return_ty.human_readable_name());
+		signature_symbol.push_str("_signature");
+		signature_symbol
+	}
+
 	pub fn intrinsic_flags(&self) -> &'static str {
 		// If a method's access flags do not intersect with this, then it is considered regular
 		const STATIC_NATIVE_SYNCHRONIZED: AccessFlags = AccessFlags::from_bits_retain(
@@ -73,29 +100,29 @@ impl Method {
 		);
 
 		if !self.modifiers.intersects(STATIC_NATIVE_SYNCHRONIZED) {
-			return "super::intrinsics::IntrinsicFlags::Regular";
+			return "IntrinsicFlags::Regular";
 		}
 
 		if self.modifiers.contains(STATIC)
 			&& !self.modifiers.contains(NATIVE)
 			&& !self.modifiers.contains(SYNCHRONIZED)
 		{
-			return "super::intrinsics::IntrinsicFlags::Static";
+			return "IntrinsicFlags::Static";
 		}
 
 		if self.modifiers.contains(SYNCHRONIZED) && !self.modifiers.intersects(STATIC_NATIVE) {
-			return "super::intrinsics::IntrinsicFlags::Synchronized";
+			return "IntrinsicFlags::Synchronized";
 		}
 
 		if self.modifiers.contains(NATIVE)
 			&& !self.modifiers.contains(STATIC)
 			&& !self.modifiers.contains(SYNCHRONIZED)
 		{
-			return "super::intrinsics::IntrinsicFlags::Native";
+			return "IntrinsicFlags::Native";
 		}
 
 		if self.modifiers.contains(STATIC_NATIVE) && !self.modifiers.contains(SYNCHRONIZED) {
-			return "super::intrinsics::IntrinsicFlags::Native";
+			return "IntrinsicFlags::Native";
 		}
 
 		panic!("Method contains no relevant modifiers, see `IntrinsicFlags`");

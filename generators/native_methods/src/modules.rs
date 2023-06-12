@@ -73,6 +73,10 @@ impl Module {
 			}
 		}
 	}
+
+	pub fn name_for_class(&self, class_name: &str) -> String {
+		format!("{}{}", self.name, class_name)
+	}
 }
 
 pub(crate) fn get_modules_from(generated_directory: &Path, native_directory: &Path) -> Vec<Module> {

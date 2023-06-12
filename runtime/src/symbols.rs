@@ -53,6 +53,7 @@ static INTERNER: Lazy<Mutex<SymbolInterner>> = Lazy::new(|| Mutex::new(SymbolInt
 ///
 /// These are used for quick actions frequently accessed strings
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[repr(transparent)]
 pub struct Symbol(u32);
 
 impl Symbol {
@@ -73,6 +74,7 @@ impl Symbol {
 	}
 
 	/// Access the `u32` representation of this symbol
+	#[inline]
 	pub fn as_u32(&self) -> u32 {
 		self.0
 	}
@@ -87,18 +89,26 @@ macro_rules! sym {
 }
 
 // Defined in $ROOT/generators/vm_symbols
+//
+// NOTE: **ONLY ADD MANUAL ENTRIES ABOVE THE MARKER COMMENTS**
+//       Other generators may inject into this macro, take note of the marker comments below
 vm_symbols::define_symbols! {
 	// Classes
 	java_lang_Class: "java/lang/Class",
 	java_lang_Object: "java/lang/Object",
 	java_lang_System: "java/lang/System",
+	// -- GENERATED CLASS NAME MARKER, DO NOT DELETE --
 
 	// Signatures
-	void_method_signature: "()V",
+	// -- GENERATED METHOD SIGNATURE MARKER, DO NOT DELETE --
 
+	// Types
 	bool_array: "[Z",
 	byte_array: "[B",
 	char_array: "[C",
 	int_array:  "[I",
 	long_array: "[J",
+
+	// Methods
+	// -- GENERATED METHOD NAME MARKER, DO NOT DELETE --
 }

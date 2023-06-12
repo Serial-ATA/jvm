@@ -3,6 +3,7 @@ use crate::reference::MethodRef;
 use std::sync::Mutex;
 
 use once_cell::sync::Lazy;
+use crate::symbols::Symbol;
 
 static REGISTERED_INTRINSICS: Lazy<Mutex<Vec<IntrinsicEntry>>> =
 	Lazy::new(|| Mutex::new(Vec::new()));
@@ -12,7 +13,7 @@ pub fn find_intrinsic(_method: MethodRef, _is_virtual: bool) -> Option<Intrinsic
 }
 
 // The automatically generated intrinsic candidates
-include!("intrinsics_generated.rs");
+include!("../../../generated/native/intrinsics_generated.rs");
 
 impl IntrinsicId {
 	pub fn does_virtual_dispatch(self) -> bool {
