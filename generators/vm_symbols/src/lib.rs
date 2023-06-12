@@ -1,3 +1,6 @@
+use std::path::PathBuf;
+use std::str::FromStr;
+
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
@@ -35,8 +38,32 @@ impl Parse for Symbols {
 	}
 }
 
+const CRATE_ROOT: &str = env!("CARGO_MANIFEST_DIR");
+
 #[proc_macro]
-pub fn define_symbols(input: TokenStream) -> TokenStream {
+pub fn define_symbols(mut input: TokenStream) -> TokenStream {
+	let project_root = PathBuf::from_str(CRATE_ROOT).unwrap();
+	let generated_dir = project_root
+		.parent()
+		.unwrap()
+		.parent()
+		.unwrap()
+		.join("generated");
+
+	let symbols_files = walkdir::WalkDir::new(generated_dir)
+		.into_iter()
+		.map(Result::unwrap)
+		.filter(|entry| {
+			entry.file_type().is_file()
+				&& entry.path().extension().map(std::ffi::OsStr::to_str) == Some(Some("symbols"))
+		});
+
+	for file in symbols_files {
+		input.extend(TokenStream::from_str(
+			&std::fs::read_to_string(file.path()).unwrap(),
+		))
+	}
+
 	let symbols: Symbols = match syn::parse2(input.into()) {
 		Ok(input) => input,
 		Err(e) => {

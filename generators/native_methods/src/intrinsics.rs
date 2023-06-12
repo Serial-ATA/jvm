@@ -388,7 +388,7 @@ impl IntrinsicId {
 "#,
 	);
 
-	for (id, (class_name, method)) in intrinsic_ids {
+	for (_, (class_name, method)) in intrinsic_ids {
 		writeln!(
 			intrinsic_id_method_mapping,
 			"\t\t\tid3 if id3 == intrinsics_id3!(sym!({}), sym!({}), sym!({})) => {{ if \
@@ -397,7 +397,7 @@ impl IntrinsicId {
 			method.name_symbol,
 			method.signature_symbol,
 			method.intrinsic_flags,
-			id
+			method.name_symbol,
 		)
 		.unwrap();
 	}
