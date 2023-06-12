@@ -6,7 +6,7 @@ use combine::parser::char::char;
 use combine::parser::repeat::take_until;
 use combine::{struct_parser, ParseError, Parser, Stream};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Field {
 	pub name: String,
 	pub ty: Type,

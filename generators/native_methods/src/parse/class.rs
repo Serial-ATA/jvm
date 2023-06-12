@@ -18,14 +18,14 @@ use once_cell::sync::Lazy;
 pub(super) static IMPORTS: Lazy<Mutex<HashMap<String, String>>> =
 	Lazy::new(|| Mutex::new(HashMap::new()));
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Member {
 	Field(Field),
 	Method(Method),
 	Class(Class),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Class {
 	pub class_name: String,
 	pub members: Vec<Member>,

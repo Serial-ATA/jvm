@@ -7,7 +7,7 @@ use std::fmt::Write;
 use combine::parser::char::{char, string};
 use combine::{optional, sep_by, ParseError, Parser, Stream};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Method {
 	pub modifiers: AccessFlags,
 	pub is_intrinsic: bool,

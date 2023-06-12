@@ -7,7 +7,7 @@ use combine::parser::char::{char, string};
 use combine::parser::combinator::no_partial;
 use combine::{choice, many1, opaque, optional, token, value, ParseError, Parser, Stream};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Type {
 	Boolean,
 	Byte,
