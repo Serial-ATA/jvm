@@ -1,6 +1,5 @@
 use crate::frame::FrameRef;
 use crate::heap::class::Class;
-use crate::method::Method;
 use crate::reference::{MethodRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::thread::ThreadRef;
@@ -63,7 +62,7 @@ impl MethodInvoker {
 	fn invoke_(frame: FrameRef, mut method: MethodRef, reresolve_method: bool) {
 		let mut max_locals = method.code.max_locals;
 		let parameter_count = method.parameter_count;
-		let is_static_method = method.access_flags & Method::ACC_STATIC != 0;
+		let is_static_method = method.is_static();
 
 		// Move the arguments from the previous frame into a new local stack
 		let mut args_from_frame = Vec::new();

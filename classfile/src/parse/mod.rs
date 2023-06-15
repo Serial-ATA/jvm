@@ -4,6 +4,7 @@ pub mod error;
 mod fieldinfo;
 mod methodinfo;
 
+use crate::accessflags::ClassAccessFlags;
 use crate::classfile::ClassFile;
 use crate::constant_pool::{ConstantPool, ConstantPoolRef};
 use crate::parse::attributes::Location;
@@ -69,7 +70,7 @@ where
 		minor_version,
 		major_version,
 		constant_pool: ConstantPoolRef::new(constant_pool),
-		access_flags,
+		access_flags: ClassAccessFlags::from(access_flags),
 		this_class,
 		super_class,
 		interfaces,

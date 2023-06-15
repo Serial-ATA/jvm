@@ -1,4 +1,5 @@
 use super::attributes::{self, Location};
+use crate::accessflags::FieldAccessFlags;
 use crate::constant_pool::ConstantPool;
 use crate::fieldinfo::FieldInfo;
 use crate::parse::error::Result;
@@ -27,7 +28,7 @@ where
 	}
 
 	Ok(FieldInfo {
-		access_flags,
+		access_flags: FieldAccessFlags::from(access_flags),
 		name_index,
 		descriptor_index,
 		attributes,

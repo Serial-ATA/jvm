@@ -1,3 +1,4 @@
+use crate::accessflags::ClassAccessFlags;
 use crate::attribute::{Attribute, SourceFile};
 use crate::constant_pool::ConstantPoolRef;
 use crate::fieldinfo::FieldInfo;
@@ -15,7 +16,7 @@ pub struct ClassFile {
 	pub minor_version: u2,
 	pub major_version: u2,
 	pub constant_pool: ConstantPoolRef,
-	pub access_flags: u2,
+	pub access_flags: ClassAccessFlags,
 	pub this_class: u2,
 	pub super_class: u2,
 	pub interfaces: Vec<u2>,

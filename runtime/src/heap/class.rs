@@ -12,6 +12,7 @@ use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
+use classfile::accessflags::{ClassAccessFlags, MethodAccessFlags};
 use classfile::{ClassFile, ConstantPoolRef, FieldType};
 use common::box_slice;
 use common::int_types::{u1, u2, u4};
@@ -51,7 +52,7 @@ impl InitializationLock {
 
 pub struct Class {
 	pub name: Vec<u1>,
-	pub access_flags: u2,
+	pub access_flags: ClassAccessFlags,
 	pub loader: ClassLoader,
 	pub super_class: Option<ClassRef>,
 	pub interfaces: Vec<ClassRef>,
@@ -129,24 +130,6 @@ pub struct ArrayDescriptor {
 	pub component: FieldType,
 }
 
-#[rustfmt::skip]
-impl Class {
-	// Access flags
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.1-200-E.1
-
-	pub const ACC_PUBLIC    : u2 = 0x0001; /* Declared public; may be accessed from outside its package. */
-	pub const ACC_FINAL     : u2 = 0x0010; /* Declared final; no subclasses allowed. */
-	pub const ACC_SUPER     : u2 = 0x0020; /* Treat superclass methods specially when invoked by the invokespecial instruction. */
-	pub const ACC_INTERFACE : u2 = 0x0200; /* Is an interface, not a class. */
-	pub const ACC_ABSTRACT  : u2 = 0x0400; /* Declared abstract; must not be instantiated. */
-	pub const ACC_SYNTHETIC : u2 = 0x1000; /* Declared synthetic; not present in the source code. */
-	pub const ACC_ANNOTATION: u2 = 0x2000; /* Declared as an annotation interface. */
-	pub const ACC_ENUM      : u2 = 0x4000; /* Declared as an enum class. */
-	pub const ACC_MODULE    : u2 = 0x8000; /* Is a module, not a class or interface. */
-
-	pub const ANY_FLAGS     : u2 = 0x0000; /* NOT PART OF SPEC, used internally when access flags do not matter */
-}
-
 impl Class {
 	pub fn new(
 		parsed_file: ClassFile,
@@ -167,7 +150,7 @@ impl Class {
 		let static_field_count = parsed_file
 			.fields
 			.iter()
-			.filter(|field| field.is_static())
+			.filter(|field| field.access_flags.is_static())
 			.count();
 		let mut instance_field_count = 0;
 
@@ -233,7 +216,7 @@ impl Class {
 			// Continue the index from our existing instance fields
 			let mut instance_field_idx = core::cmp::max(0, instance_field_count) as usize;
 			for field in parsed_file.fields {
-				let field_idx = if field.is_static() {
+				let field_idx = if field.access_flags.is_static() {
 					&mut static_idx
 				} else {
 					&mut instance_field_idx
@@ -274,7 +257,7 @@ impl Class {
 
 		let class = Self {
 			name: name.to_vec(),
-			access_flags: 0,
+			access_flags: ClassAccessFlags::NONE,
 			loader,
 			super_class: Some(
 				ClassLoader::lookup_class(b"java/lang/Object")
@@ -299,17 +282,24 @@ impl Class {
 	pub fn get_main_method(&self) -> Option<MethodRef> {
 		const MAIN_METHOD_NAME: &[u1] = b"main";
 		const MAIN_METHOD_DESCRIPTOR: &[u1] = b"([Ljava/lang/String;)V";
-		const MAIN_METHOD_FLAGS: u2 = Method::ACC_PUBLIC | Method::ACC_STATIC;
+		const MAIN_METHOD_FLAGS: MethodAccessFlags =
+			MethodAccessFlags::ACC_PUBLIC | MethodAccessFlags::ACC_STATIC;
 
 		self.get_method(MAIN_METHOD_NAME, MAIN_METHOD_DESCRIPTOR, MAIN_METHOD_FLAGS)
 	}
 
-	pub fn get_method(&self, name: &[u1], descriptor: &[u1], flags: u2) -> Option<MethodRef> {
+	pub fn get_method(
+		&self,
+		name: &[u1],
+		descriptor: &[u1],
+		flags: MethodAccessFlags,
+	) -> Option<MethodRef> {
 		if let ClassType::Instance(class_descriptor) = &self.class_ty {
 			let search_methods = |class_descriptor: &ClassDescriptor| {
 				if let Some(method) = class_descriptor.methods.iter().find(|method| {
 					method.name == name
-						&& (flags == 0 || method.access_flags & flags == flags)
+						&& (flags == MethodAccessFlags::NONE
+							|| method.access_flags & flags == flags)
 						&& method.descriptor == descriptor
 				}) {
 					return Some(Arc::clone(method));
@@ -433,7 +423,7 @@ impl Class {
 		// When resolving a method reference:
 
 		//  1. If C is an interface, method resolution throws an IncompatibleClassChangeError.
-		if classref.get().access_flags & Class::ACC_INTERFACE != 0 {
+		if classref.get().is_interface() {
 			panic!("IncompatibleClassChangeError"); // TODO
 		}
 
@@ -575,7 +565,9 @@ impl Class {
 			}
 
 			// TODO: Some way to provide negative flags
-			if let Some(method) = interface.get_method(method_name, descriptor, 0) {
+			if let Some(method) =
+				interface.get_method(method_name, descriptor, MethodAccessFlags::NONE)
+			{
 				if method.is_private() || method.is_static() {
 					continue;
 				}
@@ -731,7 +723,7 @@ impl Class {
 		// A method is an instance initialization method if all of the following are true:
 
 		//     It is defined in a class (not an interface).
-		if class.get().access_flags & Class::ACC_INTERFACE > 0 {
+		if class.get().is_interface() {
 			return;
 		}
 
@@ -740,7 +732,7 @@ impl Class {
 			.get_method(
 				CONSTRUCTOR_METHOD_NAME, // It has the special name <init>.
 				descriptor,              // It is void (§4.3.3).
-				Class::ANY_FLAGS,
+				MethodAccessFlags::NONE,
 			)
 			.unwrap();
 
@@ -757,9 +749,9 @@ impl Class {
 		// TODO: Check version number for flags and parameters
 		// A method is a class or interface initialization method if all of the following are true:
 		let method = class.get().get_method(
-			b"<clinit>",        /* It has the special name <clinit>. */
-			b"()V",        /* It is void (§4.3.3). */
-			Method::ACC_STATIC /* In a class file whose version number is 51.0 or above, the method has its ACC_STATIC flag set and takes no arguments (§4.6). */
+			b"<clinit>",                   /* It has the special name <clinit>. */
+			b"()V",                   /* It is void (§4.3.3). */
+			MethodAccessFlags::ACC_STATIC /* In a class file whose version number is 51.0 or above, the method has its ACC_STATIC flag set and takes no arguments (§4.6). */
 		);
 
 		if let Some(method) = method {
@@ -910,7 +902,7 @@ impl Class {
 	}
 
 	pub fn is_interface(&self) -> bool {
-		self.access_flags & Class::ACC_INTERFACE != 0
+		self.access_flags.is_interface()
 	}
 
 	pub fn unwrap_class_instance(&self) -> &ClassDescriptor {

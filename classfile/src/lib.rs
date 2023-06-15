@@ -1,3 +1,4 @@
+pub mod accessflags;
 mod attribute;
 mod classfile;
 mod constant_pool;

@@ -6,6 +6,7 @@ use crate::reference::{MethodRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::OperandStack;
 
+use classfile::accessflags::MethodAccessFlags;
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
 use std::sync::atomic::{AtomicIsize, Ordering};
@@ -222,7 +223,7 @@ impl Thread {
 		let print_stack_trace = class_instance
 			.get()
 			.class
-			.get_method(b"printStackTrace", b"()V", 0)
+			.get_method(b"printStackTrace", b"()V", MethodAccessFlags::NONE)
 			.expect("java/lang/Throwable#printStackTrace should exist");
 
 		let mut locals = LocalStack::new(1);

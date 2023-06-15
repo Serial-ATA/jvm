@@ -1,3 +1,4 @@
+use crate::accessflags::MethodAccessFlags;
 use crate::attribute::{Attribute, AttributeType, Code, LineNumberTable};
 use crate::constant_pool::ConstantPoolRef;
 use crate::error::ClassFileParseError;
@@ -11,7 +12,7 @@ use common::traits::JavaReadExt;
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.6
 #[derive(Debug, Clone, PartialEq)]
 pub struct MethodInfo {
-	pub access_flags: u2,
+	pub access_flags: MethodAccessFlags,
 	pub name_index: u2,
 	pub descriptor_index: u2,
 	pub attributes: Vec<Attribute>,

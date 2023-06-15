@@ -2,6 +2,7 @@ use super::reference::{ClassRef, FieldRef, Reference};
 
 use std::fmt::{Debug, Formatter};
 
+use classfile::accessflags::FieldAccessFlags;
 use classfile::{ConstantPool, FieldInfo, FieldType};
 use common::int_types::{u1, u2};
 use instructions::Operand;
@@ -10,7 +11,7 @@ use instructions::Operand;
 pub struct Field {
 	pub idx: usize, // Used to set the value on `ClassInstance`s
 	pub class: ClassRef,
-	pub access_flags: u2,
+	pub access_flags: FieldAccessFlags,
 	pub name: Vec<u1>,
 	pub descriptor: FieldType,
 	pub constant_value_index: Option<u2>,
@@ -48,11 +49,11 @@ impl Field {
 	}
 
 	pub fn is_static(&self) -> bool {
-		self.access_flags & FieldInfo::ACC_STATIC != 0
+		self.access_flags.is_static()
 	}
 
 	pub fn is_final(&self) -> bool {
-		self.access_flags & FieldInfo::ACC_FINAL != 0
+		self.access_flags.is_final()
 	}
 
 	pub fn get_static_value(&self) -> Operand<Reference> {

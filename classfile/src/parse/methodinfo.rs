@@ -1,4 +1,5 @@
 use super::attributes::{self, Location};
+use crate::accessflags::MethodAccessFlags;
 use crate::constant_pool::ConstantPool;
 use crate::methodinfo::MethodInfo;
 use crate::parse::error::Result;
@@ -27,7 +28,7 @@ where
 	}
 
 	Ok(MethodInfo {
-		access_flags,
+		access_flags: MethodAccessFlags::from(access_flags),
 		name_index,
 		descriptor_index,
 		attributes,
