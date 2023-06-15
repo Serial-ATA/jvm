@@ -4,6 +4,8 @@ use std::sync::Mutex;
 
 use once_cell::sync::Lazy;
 use crate::symbols::Symbol;
+use classfile::accessflags::MethodAccessFlags;
+use once_cell::sync::Lazy;
 
 static REGISTERED_INTRINSICS: Lazy<Mutex<Vec<IntrinsicEntry>>> =
 	Lazy::new(|| Mutex::new(Vec::new()));
@@ -42,6 +44,13 @@ impl IntrinsicEntry {
 		does_virtual_dispatch: bool,
 		intrinsic_id: IntrinsicId,
 	) -> Self {
+		assert_ne!(
+			intrinsic_id,
+			IntrinsicId::None,
+			"Attempted to register an intrinsic entry for non-intrinsic method: {:?}",
+			method
+		);
+
 		Self {
 			is_virtual,
 			does_virtual_dispatch,
@@ -99,5 +108,51 @@ impl IntrinsicFlags {
 			Self::Native | Self::StaticNative => true,
 			_ => false,
 		}
+	}
+}
+
+impl From<MethodAccessFlags> for IntrinsicFlags {
+	fn from(value: MethodAccessFlags) -> Self {
+		let is_static = value.is_static();
+		let is_native = value.is_native();
+		let is_synchronized = value.is_synchronized();
+
+		if !is_static && !is_native && !is_synchronized {
+			return Self::Regular;
+		}
+
+		if is_static {
+			assert!(
+				(!is_native && !is_synchronized) || is_native && !is_synchronized,
+				"Invalid intrinsic flags: {:?} (Must be either Static and Native OR Static)",
+				value
+			);
+
+			if !is_native && !is_synchronized {
+				return Self::Static;
+			}
+
+			if is_native && !is_synchronized {
+				return Self::StaticNative;
+			}
+		}
+
+		if is_native {
+			assert!(
+				!is_synchronized,
+				"Invalid intrinsic flags: {:?} (Must be Native AND !Synchronized)",
+				value
+			);
+
+			return Self::Native;
+		}
+
+		assert!(
+			is_synchronized,
+			"Invalid intrisic flags: {:?} (Must be Synchronized)",
+			value
+		);
+
+		Self::Synchronized
 	}
 }

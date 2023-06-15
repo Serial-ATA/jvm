@@ -11,6 +11,12 @@ use common::int_types::u2;
 /// performing the operations on `self.0`,
 macro_rules! impl_accessflags_for {
 	($impl_for:ident) => {
+		impl $impl_for {
+			pub const fn union(self, other: Self) -> Self {
+				Self(self.0 | other.0)
+			}
+		}
+
 		impl From<u2> for $impl_for {
 			fn from(value: u2) -> $impl_for {
 				Self(value)

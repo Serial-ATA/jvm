@@ -283,7 +283,7 @@ impl Class {
 		const MAIN_METHOD_NAME: &[u1] = b"main";
 		const MAIN_METHOD_DESCRIPTOR: &[u1] = b"([Ljava/lang/String;)V";
 		const MAIN_METHOD_FLAGS: MethodAccessFlags =
-			MethodAccessFlags::ACC_PUBLIC | MethodAccessFlags::ACC_STATIC;
+			MethodAccessFlags::ACC_PUBLIC.union(MethodAccessFlags::ACC_STATIC);
 
 		self.get_method(MAIN_METHOD_NAME, MAIN_METHOD_DESCRIPTOR, MAIN_METHOD_FLAGS)
 	}

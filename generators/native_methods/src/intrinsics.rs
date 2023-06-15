@@ -372,7 +372,7 @@ fn create_method_mappings<'a>(
 		r#"
 impl IntrinsicId {
 	/// Attempt to map the method to an `IntrinsicId`
-	pub fn for_method(class: Symbol, method_name: Symbol, signature: Symbol) -> Self {
+	pub fn for_method(class: Symbol, method_name: Symbol, signature: Symbol, flags: MethodAccessFlags) -> Self {
 		use crate::sym;
 
 		// Creates a unique ID for a method using its class, name, and signature
@@ -388,16 +388,16 @@ impl IntrinsicId {
 "#,
 	);
 
-	for (_, (class_name, method)) in intrinsic_ids {
+	for (id, (class_name, method)) in intrinsic_ids {
 		writeln!(
 			intrinsic_id_method_mapping,
 			"\t\t\tid3 if id3 == intrinsics_id3!(sym!({}), sym!({}), sym!({})) => {{ if \
-			 IntrinsicFlags::from(flags) == {} {{ return sym!({}) }} }}",
+			 IntrinsicFlags::from(flags) == {} {{ return IntrinsicId::{} }} }}",
 			class_name.replace('/', "_"),
 			method.name_symbol,
 			method.signature_symbol,
 			method.intrinsic_flags,
-			method.name_symbol,
+			id,
 		)
 		.unwrap();
 	}
