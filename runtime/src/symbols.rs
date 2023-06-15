@@ -71,6 +71,12 @@ impl Symbol {
 		Self(index)
 	}
 
+	/// Maps a string to its interned representation
+	pub fn intern(string: &str) -> Self {
+		let mut guard = INTERNER.lock().unwrap();
+		guard.intern(string)
+	}
+
 	/// Access the actual string associated with this symbol
 	pub fn as_str(&self) -> &str {
 		let guard = INTERNER.lock().unwrap();
