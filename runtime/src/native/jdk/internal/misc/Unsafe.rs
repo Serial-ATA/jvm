@@ -1,4 +1,5 @@
-use crate::class::{Class, ClassInitializationState};
+use crate::class::Class;
+use crate::heap::spec::class::ClassInitializationState;
 use crate::native::{JNIEnv, NativeReturn};
 use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;

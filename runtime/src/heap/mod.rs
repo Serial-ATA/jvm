@@ -5,3 +5,4 @@ pub mod method;
 pub mod mirror;
 pub mod module;
 pub mod reference;
+pub mod spec;
