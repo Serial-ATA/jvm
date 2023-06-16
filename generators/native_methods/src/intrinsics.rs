@@ -42,11 +42,7 @@ impl From<&Method> for IntrinsicMethod {
 	}
 }
 
-pub(crate) fn generate_intrinsics(
-	native_directory: &Path,
-	generated_directory: &Path,
-	modules: &[Module],
-) {
+pub(crate) fn generate_intrinsics(generated_directory: &Path, modules: &[Module]) {
 	let mut intrinsic_methods = HashMap::new();
 	for module in modules {
 		module.for_each_class(|class| {
@@ -65,11 +61,7 @@ pub(crate) fn generate_intrinsics(
 	}
 
 	// Generate any additional symbols that we need
-	generate_symbols(
-		native_directory,
-		generated_directory,
-		intrinsic_methods.values(),
-	);
+	generate_symbols(generated_directory, intrinsic_methods.values());
 
 	let generated_file_path = generated_directory.join("intrinsics_generated.rs");
 	let mut generated_file = OpenOptions::new()
@@ -120,11 +112,17 @@ pub(crate) fn generate_intrinsics(
 /// Generates additional symbols, injecting them into the `vm_symbols::define_symbols!` call
 /// in `runtime/src/symbols.rs`
 fn generate_symbols<'a>(
-	native_directory: &Path,
 	generated_directory: &Path,
 	iter: impl Iterator<Item = &'a (String, IntrinsicMethod)> + Clone,
 ) {
-	let symbols_file_path = native_directory.parent().unwrap().join("symbols.rs");
+	// ../../symbols/src/lib.rs
+	let symbols_project_dir = generated_directory
+		.parent()
+		.unwrap()
+		.parent()
+		.unwrap()
+		.join("symbols");
+	let symbols_file_path = symbols_project_dir.join("src").join("lib.rs");
 
 	let mut symbols_file_contents = std::fs::read_to_string(&symbols_file_path).unwrap();
 
@@ -373,14 +371,14 @@ fn create_method_mappings<'a>(
 impl IntrinsicId {
 	/// Attempt to map the method to an `IntrinsicId`
 	pub fn for_method(class: Symbol, method_name: Symbol, signature: Symbol, flags: MethodAccessFlags) -> Self {
-		use crate::sym;
+		use symbols::sym;
 
 		// Creates a unique ID for a method using its class, name, and signature
 		macro_rules! intrinsics_id3 {
 			($class:expr, $method_name:expr, $method_signature:expr) => {
 				(($method_signature.as_u32() as u64) +
-					(($method_name.as_u32()  as u64) <<    crate::symbols::Symbol::LOG2_LIMIT) +
-					(($class .as_u32()       as u64) << (2*crate::symbols::Symbol::LOG2_LIMIT)))
+					(($method_name.as_u32()  as u64) <<    Symbol::LOG2_LIMIT) +
+					(($class .as_u32()       as u64) << (2*Symbol::LOG2_LIMIT)))
 			};
 		}
 

@@ -43,7 +43,7 @@ pub fn generate() {
 	let generated_directory = get_generated_directory();
 	let modules = modules::get_modules_from(&generated_directory, &native_directory);
 
-	generate_intrinsics(&native_directory, &generated_directory, &modules);
+	generate_intrinsics(&generated_directory, &modules);
 	create_native_method_table(&generated_directory, &modules);
 	generate_modules(&native_directory, &modules);
 }

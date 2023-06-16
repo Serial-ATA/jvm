@@ -11,7 +11,6 @@ mod method_invoker;
 pub mod native;
 pub mod stack;
 mod string_interner;
-mod symbols;
 mod thread;
 
 pub use frame::Frame;
