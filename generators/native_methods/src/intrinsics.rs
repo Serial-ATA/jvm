@@ -2,7 +2,6 @@ use crate::modules::Module;
 use crate::parse::Method;
 
 use std::collections::{HashMap, HashSet};
-
 use std::fmt::Write as _;
 use std::fs::OpenOptions;
 use std::io::Write as _;
@@ -46,17 +45,18 @@ pub(crate) fn generate_intrinsics(generated_directory: &Path, modules: &[Module]
 	let mut intrinsic_methods = HashMap::new();
 	for module in modules {
 		module.for_each_class(|class| {
-			intrinsic_methods.extend(class.methods().filter_map(|method| {
-				method.intrinsic_name(class).map(|id| {
-					(
-						id,
+			intrinsic_methods.extend(class.methods().filter_map(
+				|method| match method.is_intrinsic {
+					false => None,
+					true => Some((
+						method.full_name_symbol(class),
 						(
 							module.name_for_class(&class.class_name),
 							IntrinsicMethod::from(method),
 						),
-					)
-				})
-			}))
+					)),
+				},
+			))
 		});
 	}
 
@@ -126,26 +126,9 @@ fn generate_symbols<'a>(
 
 	let mut symbols_file_contents = std::fs::read_to_string(&symbols_file_path).unwrap();
 
-	generate_class_name_symbols(
-		generated_directory,
-		&mut symbols_file_contents,
-		iter.clone(),
-	);
-	generate_method_name_symbols(
-		generated_directory,
-		&mut symbols_file_contents,
-		iter.clone(),
-	);
-	generate_method_signature_symbols(generated_directory, &mut symbols_file_contents, iter);
-
-	let mut symbols_file = OpenOptions::new()
-		.truncate(true)
-		.write(true)
-		.open(&symbols_file_path)
-		.unwrap();
-	symbols_file
-		.write_all(symbols_file_contents.as_bytes())
-		.unwrap();
+	generate_class_name_symbols(generated_directory, &symbols_file_contents, iter.clone());
+	generate_method_name_symbols(generated_directory, &symbols_file_contents, iter.clone());
+	generate_method_signature_symbols(generated_directory, &symbols_file_contents, iter);
 }
 
 /// Gets the position of a marker comment (eg. "// Classes")

@@ -1,19 +1,21 @@
-use crate::parse::Method;
+use crate::parse::{Class, Method};
 
 use std::borrow::Cow;
 use std::ffi::OsStr;
 use std::path::{Component, Path};
 
 /// Create a `NativeMethodDef` for a method
-pub(crate) fn method_table_entry(module: &str, class_name: &str, method: &Method) -> String {
+pub(crate) fn method_table_entry(module: &str, class: &Class, method: &Method) -> String {
 	format!(
-		"NativeMethodDef {{ class: &{:?}, name: &{:?}, descriptor: &{:?} }}, \
+		"NativeMethodDef {{ class: sym!({}), name: sym!({}), descriptor: sym!({}) }}, \
 		 crate::native::{}{}::{} as NativeMethodPtr",
-		format!("{}{}", module, class_name).as_bytes(),
-		method.name().as_bytes(),
-		method.descriptor.as_bytes(),
+		format!("{}{}", module, class.class_name)
+			.replace('/', "_")
+			.replace('$', "_"),
+		method.full_name_symbol(class).replace('$', "_"),
+		method.signature_symbol_name(),
 		module.replace('/', "::"),
-		class_name.replace('$', "::"),
+		class.class_name.replace('$', "::"),
 		method.name()
 	)
 }

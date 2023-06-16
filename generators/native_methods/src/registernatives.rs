@@ -15,11 +15,13 @@ static NATIVES_REGISTERED: AtomicBool = AtomicBool::new(false);
 
 #[allow(trivial_casts)]
 pub fn registerNatives(_: JNIEnv, _: crate::stack::local_stack::LocalStack) -> NativeReturn {{
+	use symbols::sym;
+	
 	if NATIVES_REGISTERED.compare_exchange(false, true, Ordering::SeqCst, Ordering::Acquire) != Ok(false) {{
 		return None;
 	}}
 	
-	let natives: [(NativeMethodDef<'static>, NativeMethodPtr); {}] = [
+	let natives: [(NativeMethodDef, NativeMethodPtr); {}] = [
 "#
 	};
 }
@@ -56,13 +58,13 @@ pub(crate) fn generate_register_natives_table(module: &str, class: &mut Class, d
 
 	for ref member in class.members.drain_filter(|member| {
         matches!(member, Member::Method(method) if method.name() != "registerNatives" && method.modifiers.contains(AccessFlags::ACC_NATIVE) && !method.modifiers.contains(AccessFlags::ACC_STATIC))
-    }) {
+    }).collect::<Vec<_>>() {
         match member {
             Member::Method(method) => {
                 writeln!(
                     native_method_table_file,
                     "\t\t({}),",
-                    util::method_table_entry(module, &class.class_name, method)
+                    util::method_table_entry(module, &class, method)
                 )
                     .unwrap();
             }

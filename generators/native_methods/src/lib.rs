@@ -18,8 +18,8 @@ use std::path::{Path, PathBuf};
 
 static CRATE_ROOT: &str = env!("CARGO_MANIFEST_DIR");
 static INIT_FN_FILE_HEADER: &str = "#[allow(trivial_casts)]\nfn init_native_method_table() -> \
-                                    HashMap<NativeMethodDef<'static>, NativeMethodPtr> {\nlet mut \
-                                    map = HashMap::new();\n";
+                                    HashMap<NativeMethodDef, NativeMethodPtr> {\n\tuse \
+                                    symbols::sym;\n\tlet mut map = HashMap::new();\n";
 
 static MODULE_MARKER_START_COMMENT: &str = "// Module marker, do not remove";
 
@@ -59,13 +59,14 @@ fn create_native_method_table(generated_directory: &Path, modules: &[Module]) {
 
 	write!(init_fn_file, "{}", INIT_FN_FILE_HEADER).unwrap();
 
+	// TODO: Generate missing symbols
 	for module in modules {
 		for class in &module.classes {
 			build_map_inserts(&mut init_fn_file, &module.name, class);
 		}
 	}
 
-	write!(init_fn_file, "map\n}}").unwrap();
+	write!(init_fn_file, "\tmap\n}}").unwrap();
 }
 
 fn build_map_inserts(file: &mut File, module: &str, class: &Class) {
@@ -78,8 +79,8 @@ fn build_map_inserts(file: &mut File, module: &str, class: &Class) {
 
 				writeln!(
 					file,
-					"map.insert({});",
-					util::method_table_entry(module, &class.class_name, method)
+					"\tmap.insert({});",
+					util::method_table_entry(module, &class, method)
 				)
 				.unwrap();
 			},

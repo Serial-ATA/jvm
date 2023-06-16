@@ -25,11 +25,10 @@ impl Method {
 		}
 	}
 
-	pub fn intrinsic_name(&self, class: &Class) -> Option<String> {
-		if !self.is_intrinsic {
-			return None;
-		}
-
+	/// The symbol for the class name + method name
+	///
+	/// For example, `java.lang.Object#hashCode` would become `java_lang_Object_hashCode`.
+	pub fn full_name_symbol(&self, class: &Class) -> String {
 		let append_params = class
 			.methods()
 			.any(|method| method != self && method.is_intrinsic && self.name == method.name);
@@ -40,7 +39,7 @@ impl Method {
 				let mut ret = String::new();
 				self.return_ty.write_to(&mut ret, false);
 				if self.params.is_empty() {
-					return Some(format!("{ret}_void"));
+					return format!("{ret}_void");
 				}
 
 				ret
@@ -54,7 +53,7 @@ impl Method {
 			}
 		}
 
-		Some(ret)
+		ret
 	}
 
 	pub fn generated_name(&self) -> &str {
@@ -79,7 +78,7 @@ impl Method {
 			signature_symbol.push_str(&format!("{}_", param.human_readable_name()));
 		}
 
-		signature_symbol.push_str(self.return_ty.human_readable_name());
+		signature_symbol.push_str(&self.return_ty.human_readable_name());
 		signature_symbol.push_str("_signature");
 		signature_symbol
 	}

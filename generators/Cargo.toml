@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "native_methods",
-    "vm_symbols"
+    "vm_symbols",
 ]
 
 [workspace.dependencies]

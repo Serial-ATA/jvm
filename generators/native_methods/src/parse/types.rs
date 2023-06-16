@@ -23,19 +23,19 @@ pub enum Type {
 }
 
 impl Type {
-	pub(crate) fn human_readable_name(&self) -> &str {
+	pub(crate) fn human_readable_name(&self) -> String {
 		match self {
-			Type::Boolean => "bool",
-			Type::Byte => "byte",
-			Type::Char => "char",
-			Type::Double => "double",
-			Type::Float => "float",
-			Type::Int => "int",
-			Type::Long => "long",
-			Type::Short => "short",
-			Type::Void => "void",
-			Type::Class(class) => class.as_str(),
-			Type::Array(_) => unreachable!(),
+			Type::Boolean => String::from("bool"),
+			Type::Byte => String::from("byte"),
+			Type::Char => String::from("char"),
+			Type::Double => String::from("double"),
+			Type::Float => String::from("float"),
+			Type::Int => String::from("int"),
+			Type::Long => String::from("long"),
+			Type::Short => String::from("short"),
+			Type::Void => String::from("void"),
+			Type::Class(class) => class.clone(),
+			Type::Array(ty) => format!("{}_array", ty.human_readable_name()),
 		}
 	}
 
