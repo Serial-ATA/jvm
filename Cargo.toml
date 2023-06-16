@@ -9,6 +9,7 @@ members = [
     "jmod",
     "versioning",
     "platform",
+    "symbols",
 
     "tests",
 ]

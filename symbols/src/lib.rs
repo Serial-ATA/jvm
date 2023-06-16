@@ -1,5 +1,6 @@
 use std::sync::Mutex;
 
+use common::int_types::u1;
 use fxhash::FxBuildHasher;
 use indexmap::IndexSet;
 use once_cell::sync::Lazy;
@@ -23,7 +24,7 @@ impl SymbolInterner {
 		this.preintern();
 		assert!(
 			this.set.len() < (1 << Symbol::LOG2_LIMIT),
-			"Too many symbols registered (> 2048)"
+			"Too many symbols registered for pre-intern (> 2048)"
 		);
 
 		this
@@ -61,9 +62,9 @@ static INTERNER: Lazy<Mutex<SymbolInterner>> =
 pub struct Symbol(u32);
 
 impl Symbol {
-	/// The maximum number of bits that a symbol ID can occupy
+	/// The maximum number of bits that a pre-interned symbol ID can occupy
 	///
-	/// This currently allows for up to 2048 symbols
+	/// This currently allows for up to 2048 VM symbols
 	pub const LOG2_LIMIT: u8 = 11;
 
 	/// Create a new symbol with the specified index
@@ -73,6 +74,16 @@ impl Symbol {
 
 	/// Maps a string to its interned representation
 	pub fn intern(string: &str) -> Self {
+		let mut guard = INTERNER.lock().unwrap();
+		guard.intern(string)
+	}
+
+	/// Same as [`Symbol::intern`], but takes a byte slice, which is used
+	/// heavily in the VM
+	pub fn intern_bytes(bytes: &[u1]) -> Self {
+		// TODO: Actually check this for correctness
+		let string = unsafe { std::str::from_utf8_unchecked(bytes) };
+
 		let mut guard = INTERNER.lock().unwrap();
 		guard.intern(string)
 	}
@@ -94,7 +105,7 @@ impl Symbol {
 #[macro_export]
 macro_rules! sym {
 	($symbol:ident) => {
-		$crate::symbols::generated_symbols::$symbol
+		$crate::generated_symbols::$symbol
 	};
 }
 
@@ -106,7 +117,13 @@ vm_symbols::define_symbols! {
 	// Classes
 	java_lang_Class: "java/lang/Class",
 	java_lang_Object: "java/lang/Object",
+	java_lang_String: "java/lang/String",
 	java_lang_System: "java/lang/System",
+	java_lang_Cloneable: "java/lang/Cloneable",
+	java_io_Serializable: "java/lang/Serializable",
+	java_lang_StackTraceElement: "java/lang/StackTraceElement",
+	java_lang_invoke_MethodHandle: "java/lang/invoke/MethodHandle",
+	java_lang_invoke_VarHandle: "java/lang/invoke/VarHandle",
 	// -- GENERATED CLASS NAME MARKER, DO NOT DELETE --
 
 	// Signatures
@@ -118,6 +135,10 @@ vm_symbols::define_symbols! {
 	char_array: "[C",
 	int_array:  "[I",
 	long_array: "[J",
+
+	object_array: "[Ljava/lang/Object;",
+	string_array: "[Ljava/lang/String;",
+	StackTraceElement_array: "[Ljava/lang/StackTraceElement;",
 
 	// Methods
 	// -- GENERATED METHOD NAME MARKER, DO NOT DELETE --
