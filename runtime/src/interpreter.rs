@@ -18,6 +18,7 @@ use classfile::ConstantPoolValueInfo;
 use common::int_types::{s2, s4, s8, u2};
 use common::traits::PtrType;
 use instructions::{ConstOperandType, OpCode, Operand, StackLike};
+use symbols::{sym, Symbol};
 
 macro_rules! trace_instruction {
     (@START $instruction:tt, $category:ident) => {{
@@ -651,7 +652,7 @@ impl Interpreter {
                     // TODO: if the symbolic reference to the class or interface type resolves to an
                     //       interface or an abstract class, new throws an InstantiationError. 
                     let class_name = constant_pool.get_class_name(index);
-                    let classref = class.get().loader.load(class_name).unwrap();
+                    let classref = class.get().loader.load(Symbol::intern_bytes(class_name)).unwrap();
     
                     let new_class_instance = ClassInstance::new(classref);
                     frame.get_operand_stack_mut().push_reference(Reference::Class(new_class_instance));
@@ -677,7 +678,7 @@ impl Interpreter {
                     let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
                     let array_class_name = constant_pool.get_class_name(index);
                     
-                    let array_class = ClassLoader::Bootstrap.load(array_class_name).unwrap();
+                    let array_class = ClassLoader::Bootstrap.load(Symbol::intern_bytes(array_class_name)).unwrap();
                     let array_ref = ArrayInstance::new_reference(count, array_class);
                     stack.push_reference(Reference::Array(array_ref));
                 },
@@ -788,7 +789,7 @@ impl Interpreter {
             // a reference to an instance of class String, then value, a reference to that instance, is pushed onto the operand stack.
             ConstantPoolValueInfo::String { string_index } => {
                 let bytes = constant_pool.get_constant_utf8(*string_index);
-                let interned_string = StringInterner::get_java_string(bytes);
+                let interned_string = StringInterner::get_java_string_bytes(bytes);
 
                 frame.get_operand_stack_mut().push_reference(Reference::Class(interned_string));
             },
@@ -800,7 +801,7 @@ impl Interpreter {
                 let class = class_ref.get();
 
                 let class_name = constant_pool.get_constant_utf8(*name_index);
-                let classref = class.loader.load(class_name).unwrap();
+                let classref = class.loader.load(Symbol::intern_bytes(class_name)).unwrap();
 
                 frame.get_operand_stack_mut().push_reference(Reference::Mirror(classref.get_mirror()));
             },
@@ -923,7 +924,7 @@ impl Interpreter {
         let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
         let class_name = constant_pool.get_class_name(index);
 
-        let resolved_class = class_ref.get().loader.load(class_name).unwrap();
+        let resolved_class = class_ref.get().loader.load(Symbol::intern_bytes(class_name)).unwrap();
         if objectref.is_instance_of(resolved_class) {
             match opcode {
                 // If objectref is an instance of the resolved class or array type, or implements the resolved interface,

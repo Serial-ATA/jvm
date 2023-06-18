@@ -57,7 +57,7 @@ static INTERNER: Lazy<Mutex<SymbolInterner>> =
 /// An index representation of an interned string
 ///
 /// These are used for quick actions frequently accessed strings
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 #[repr(transparent)]
 pub struct Symbol(u32);
 
@@ -89,7 +89,7 @@ impl Symbol {
 	}
 
 	/// Access the actual string associated with this symbol
-	pub fn as_str(&self) -> &str {
+	pub fn as_str(&self) -> &'static str {
 		let guard = INTERNER.lock().unwrap();
 		unsafe { core::mem::transmute::<&str, &'static str>(guard.get(*self)) }
 	}
@@ -120,26 +120,51 @@ vm_symbols::define_symbols! {
 	java_lang_String: "java/lang/String",
 	java_lang_System: "java/lang/System",
 	java_lang_Cloneable: "java/lang/Cloneable",
-	java_io_Serializable: "java/lang/Serializable",
+	java_io_Serializable: "java/io/Serializable",
 	java_lang_StackTraceElement: "java/lang/StackTraceElement",
 	java_lang_invoke_MethodHandle: "java/lang/invoke/MethodHandle",
 	java_lang_invoke_VarHandle: "java/lang/invoke/VarHandle",
+
+	java_lang_Byte: "java/lang/Byte",
+	java_lang_Bool: "java/lang/Bool",
+	java_lang_Short: "java/lang/Short",
+	java_lang_Character: "java/lang/Character",
+	java_lang_Integer: "java/lang/Integer",
+	java_lang_Float: "java/lang/Float",
+	java_lang_Long: "java/lang/Long",
+	java_lang_Double: "java/lang/Double",
 	// -- GENERATED CLASS NAME MARKER, DO NOT DELETE --
 
 	// Signatures
+	main_signature: "([Ljava/lang/String;)V",
+	void_method_signature: "()V",
+	bool_bool_int_signature: "(ZZ)I",
 	// -- GENERATED METHOD SIGNATURE MARKER, DO NOT DELETE --
 
 	// Types
 	bool_array: "[Z",
 	byte_array: "[B",
 	char_array: "[C",
+	double_array: "[D",
+	float_array:  "[F",
 	int_array:  "[I",
 	long_array: "[J",
+	short_array: "[S",
 
 	object_array: "[Ljava/lang/Object;",
 	string_array: "[Ljava/lang/String;",
 	StackTraceElement_array: "[Ljava/lang/StackTraceElement;",
 
 	// Methods
+	main_name: "main",
+	object_initializer_name: "<init>",
+	class_initializer_name: "<clinit>",
+	athrow_name: "<athrow>",
+
+	initPhase1_name: "initPhase1",
+	initPhase2_name: "initPhase2",
+	initPhase3_name: "initPhase3",
+
+	printStackTrace_name: "printStackTrace",
 	// -- GENERATED METHOD NAME MARKER, DO NOT DELETE --
 }

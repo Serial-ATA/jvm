@@ -8,13 +8,14 @@ use std::sync::Arc;
 use classfile::accessflags::MethodAccessFlags;
 use classfile::{Code, LineNumber, MethodDescriptor, MethodInfo};
 use common::int_types::{s4, u1};
+use symbols::Symbol;
 
 #[derive(Clone, PartialEq)]
 pub struct Method {
 	pub class: ClassRef,
 	pub access_flags: MethodAccessFlags,
-	pub name: Vec<u1>,
-	pub descriptor: Vec<u1>,
+	pub name: Symbol,
+	pub descriptor: Symbol,
 	pub parameter_count: u1,
 	pub line_number_table: Vec<LineNumber>,
 	pub code: Code,
@@ -28,10 +29,10 @@ impl Method {
 		let access_flags = method_info.access_flags;
 
 		let name_index = method_info.name_index;
-		let name = constant_pool.get_constant_utf8(name_index).to_vec();
+		let name = constant_pool.get_constant_utf8(name_index);
 
 		let descriptor_index = method_info.descriptor_index;
-		let descriptor_bytes = constant_pool.get_constant_utf8(descriptor_index).to_vec();
+		let descriptor_bytes = constant_pool.get_constant_utf8(descriptor_index);
 
 		let parameter_count: u1 = MethodDescriptor::parse(&mut &descriptor_bytes[..])
 			.unwrap() // TODO: Error handling
@@ -45,13 +46,13 @@ impl Method {
 			.unwrap_or_default();
 		let code = method_info.get_code_attribute().unwrap_or_default();
 
-		let is_intrinsic = method_info.is_intrinsic_candidate(constant_pool);
+		let is_intrinsic = method_info.is_intrinsic_candidate(Arc::clone(&constant_pool));
 
 		let method = Self {
 			class,
 			access_flags,
-			name,
-			descriptor: descriptor_bytes,
+			name: Symbol::intern_bytes(name),
+			descriptor: Symbol::intern_bytes(&descriptor_bytes),
 			parameter_count,
 			line_number_table,
 			code,
@@ -96,7 +97,7 @@ impl Method {
 				.constant_pool
 				.get_class_name(exception_handler.catch_type);
 			let catch_type_class = ClassLoader::Bootstrap
-				.load(catch_type_class_name)
+				.load(Symbol::intern_bytes(catch_type_class_name))
 				.expect("catch_type should be available");
 
 			if catch_type_class == class || catch_type_class.is_subclass_of(Arc::clone(&class)) {
@@ -141,12 +142,8 @@ impl Debug for Method {
 		f.debug_struct("Method")
 			.field("class", &self.class)
 			.field("access_flags", &self.access_flags)
-			.field("name", unsafe {
-				&std::str::from_utf8_unchecked(&self.name)
-			})
-			.field("descriptor", unsafe {
-				&std::str::from_utf8_unchecked(&self.descriptor)
-			})
+			.field("name", &self.name.as_str())
+			.field("descriptor", &self.descriptor.as_str())
 			.field("parameter_count", &self.parameter_count)
 			.field("code_len", &self.code.code.len())
 			.finish()

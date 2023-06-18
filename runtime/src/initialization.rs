@@ -8,6 +8,7 @@ use std::sync::Arc;
 use classfile::FieldType;
 use common::int_types::s4;
 use instructions::Operand;
+use symbols::sym;
 
 static JVM_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
@@ -22,9 +23,9 @@ pub(crate) fn initialize(thread: ThreadRef) {
 	}
 
 	// Load some important classes first
-	ClassLoader::Bootstrap.load(b"java/lang/Object").unwrap();
-	ClassLoader::Bootstrap.load(b"java/lang/Class").unwrap();
-	let string_class = ClassLoader::Bootstrap.load(b"java/lang/String").unwrap();
+	ClassLoader::Bootstrap.load(sym!(java_lang_Object)).unwrap();
+	ClassLoader::Bootstrap.load(sym!(java_lang_Class)).unwrap();
+	let string_class = ClassLoader::Bootstrap.load(sym!(java_lang_String)).unwrap();
 	{
 		let string_value_field = string_class
 			.unwrap_class_instance()
@@ -82,9 +83,14 @@ pub(crate) fn initialize(thread: ThreadRef) {
 /// * OS-specific system settings
 /// * Thread group of the main thread
 fn init_phase_1(thread: ThreadRef) {
-	let system_class = ClassLoader::Bootstrap.load(b"java/lang/System").unwrap();
+	let system_class = ClassLoader::Bootstrap.load(sym!(java_lang_System)).unwrap();
 
-	let init_phase_1 = Class::resolve_method_step_two(system_class, b"initPhase1", b"()V").unwrap();
+	let init_phase_1 = Class::resolve_method_step_two(
+		system_class,
+		sym!(initPhase1_name),
+		sym!(void_method_signature),
+	)
+	.unwrap();
 	Thread::pre_main_invoke_method(Arc::clone(&thread), init_phase_1, None);
 }
 
@@ -93,7 +99,7 @@ fn init_phase_1(thread: ThreadRef) {
 /// This is responsible for initializing the module system. Prior to this point, the only module
 /// available to us is `java.base`.
 fn init_phase_2(thread: ThreadRef) {
-	let system_class = ClassLoader::Bootstrap.load(b"java/lang/System").unwrap();
+	let system_class = ClassLoader::Bootstrap.load(sym!(java_lang_System)).unwrap();
 
 	// TODO: Actually set these arguments accordingly
 	let display_vm_output_to_stderr = false;
@@ -104,8 +110,12 @@ fn init_phase_2(thread: ThreadRef) {
 	];
 
 	// TODO: Need some way to check failure
-	let init_phase_2 =
-		Class::resolve_method_step_two(system_class, b"initPhase2", b"(ZZ)I").unwrap();
+	let init_phase_2 = Class::resolve_method_step_two(
+		system_class,
+		sym!(initPhase2_name),
+		sym!(bool_bool_int_signature),
+	)
+	.unwrap();
 	Thread::pre_main_invoke_method(thread, init_phase_2, Some(init_phase_2_args));
 
 	unsafe {
@@ -121,8 +131,13 @@ fn init_phase_2(thread: ThreadRef) {
 /// * Setting the system class loader
 /// * Setting the thread context class loader
 fn init_phase_3(thread: ThreadRef) {
-	let system_class = ClassLoader::Bootstrap.load(b"java/lang/System").unwrap();
+	let system_class = ClassLoader::Bootstrap.load(sym!(java_lang_System)).unwrap();
 
-	let init_phase_3 = Class::resolve_method_step_two(system_class, b"initPhase2", b"()V").unwrap();
+	let init_phase_3 = Class::resolve_method_step_two(
+		system_class,
+		sym!(initPhase3_name),
+		sym!(void_method_signature),
+	)
+	.unwrap();
 	Thread::pre_main_invoke_method(thread, init_phase_3, None);
 }

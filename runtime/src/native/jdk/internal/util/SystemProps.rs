@@ -1,5 +1,7 @@
 pub mod Raw {
-	include!("../../../../../../generated/native/jdk/internal/util/def/SystemProps$Raw.constants.rs");
+	include!(
+		"../../../../../../generated/native/jdk/internal/util/def/SystemProps$Raw.constants.rs"
+	);
 
 	use crate::class_instance::ArrayInstance;
 	use crate::classpath::classloader::ClassLoader;
@@ -7,11 +9,13 @@ pub mod Raw {
 	use crate::reference::Reference;
 	use crate::stack::local_stack::LocalStack;
 
+	use common::traits::PtrType;
 	use instructions::Operand;
+	use symbols::sym;
 
 	// TODO
 	pub fn vmProperties(_: JNIEnv, _: LocalStack) -> NativeReturn {
-		let string_array_class = ClassLoader::Bootstrap.load(b"[Ljava/lang/Object;").unwrap();
+		let string_array_class = ClassLoader::Bootstrap.load(sym!(object_array)).unwrap();
 		let prop_array = ArrayInstance::new_reference(FIXED_LENGTH, string_array_class);
 		Some(Operand::Reference(Reference::Array(prop_array)))
 	}

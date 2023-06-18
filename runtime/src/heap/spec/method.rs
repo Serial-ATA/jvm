@@ -1,26 +1,24 @@
 use crate::method::Method;
 
 use classfile::{FieldType, MethodDescriptor};
-use common::int_types::u1;
 use common::traits::PtrType;
+use symbols::sym;
 
 impl Method {
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.3
 	pub fn is_polymorphic(&self) -> bool {
-		const METHODHANDLE_CLASS_NAME: &[u1] = b"java/lang/invoke/MethodHandle";
-		const VARHANDLE_CLASS_NAME: &[u1] = b"java/lang/invoke/VarHandle";
-
 		let class = self.class.get();
 		let mut is_polymorphic = false;
 
 		// A method is signature polymorphic if all of the following are true:
 
 		//     It is declared in the java.lang.invoke.MethodHandle class or the java.lang.invoke.VarHandle class.
-		is_polymorphic |=
-			class.name == METHODHANDLE_CLASS_NAME || class.name == VARHANDLE_CLASS_NAME;
+		is_polymorphic |= class.name == sym!(java_lang_invoke_MethodHandle)
+			|| class.name == sym!(java_lang_invoke_VarHandle);
 
 		//     It has a single formal parameter of type Object[].
-		let parsed_descriptor = MethodDescriptor::parse(&mut &self.descriptor[..]).unwrap(); // TODO: Error handling
+		let parsed_descriptor =
+			MethodDescriptor::parse(&mut &self.descriptor.as_str().as_bytes()[..]).unwrap(); // TODO: Error handling
 		match &*parsed_descriptor.parameters {
 			[FieldType::Array(arr_ty)] => match &**arr_ty {
 				FieldType::Object(ref obj) if &**obj == b"java/lang/Object" => {},

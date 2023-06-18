@@ -11,15 +11,16 @@ use common::int_types::u1;
 use once_cell::sync::Lazy;
 use zip::ZipArchive;
 
+use symbols::Symbol;
+
 static CLASSPATH: Lazy<RwLock<ClassPath>> = Lazy::new(|| RwLock::new(ClassPath::default()));
 
 pub fn add_classpath_entry(entry: ClassPathEntry) {
 	CLASSPATH.write().unwrap().entries.push(entry);
 }
 
-pub fn find_classpath_entry(name: &[u1]) -> Vec<u1> {
-	let name = std::str::from_utf8(name).unwrap();
-	let mut name = name.replace('.', "/");
+pub fn find_classpath_entry(name: Symbol) -> Vec<u1> {
+	let mut name = name.as_str().replace('.', "/");
 	name.push_str(".class");
 
 	if jimage::initialized() {

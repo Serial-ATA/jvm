@@ -10,13 +10,14 @@ use std::sync::{Arc, Mutex};
 use classfile::{ClassFile, FieldType};
 use common::int_types::u1;
 use once_cell::sync::Lazy;
+use symbols::{sym, Symbol};
 
 const SUPPORTED_MAJOR_LOWER_BOUND: u1 = 45;
 const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 64;
 const SUPPORTED_MAJOR_VERSION_RANGE: RangeInclusive<u1> =
 	SUPPORTED_MAJOR_LOWER_BOUND..=SUPPORTED_MAJOR_UPPER_BOUND;
 
-static BOOTSTRAP_LOADED_CLASSES: Lazy<Mutex<HashMap<Vec<u1>, ClassRef>>> =
+static BOOTSTRAP_LOADED_CLASSES: Lazy<Mutex<HashMap<Symbol, ClassRef>>> =
 	Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -26,21 +27,21 @@ pub enum ClassLoader {
 }
 
 impl ClassLoader {
-	pub(crate) fn lookup_class(name: &[u1]) -> Option<ClassRef> {
+	pub(crate) fn lookup_class(name: Symbol) -> Option<ClassRef> {
 		let loaded_classes = BOOTSTRAP_LOADED_CLASSES.lock().unwrap();
 
-		let classref = loaded_classes.get(name);
+		let classref = loaded_classes.get(&name);
 		classref.map(Arc::clone)
 	}
 
-	fn insert_bootstrapped_class(name: Vec<u1>, classref: ClassRef) {
+	fn insert_bootstrapped_class(name: Symbol, classref: ClassRef) {
 		let mut loaded_classes = BOOTSTRAP_LOADED_CLASSES.lock().unwrap();
 		loaded_classes.insert(name, classref);
 	}
 }
 
 impl ClassLoader {
-	pub fn load(&self, name: &[u1]) -> Option<ClassRef> {
+	pub fn load(&self, name: Symbol) -> Option<ClassRef> {
 		match self {
 			ClassLoader::Bootstrap => Self::load_bootstrap(name),
 			ClassLoader::UserDefined => unimplemented!("User defined loader"),
@@ -48,7 +49,7 @@ impl ClassLoader {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.3.1
-	fn load_bootstrap(name: &[u1]) -> Option<ClassRef> {
+	fn load_bootstrap(name: Symbol) -> Option<ClassRef> {
 		// First, the Java Virtual Machine determines whether the bootstrap class loader has
 		// already been recorded as an initiating loader of a class or interface denoted by N.
 		// If so, this class or interface is C, and no class loading or creation is necessary.
@@ -73,12 +74,13 @@ impl ClassLoader {
 
 	// Deriving a Class from a class File Representation
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.3.5
-	fn load_class_by_name(self, name: &[u1]) -> ClassRef {
+	fn load_class_by_name(self, name: Symbol) -> ClassRef {
 		if let Some(class) = Self::lookup_class(name) {
 			return class;
 		}
 
-		if name.first() == Some(&b'[') {
+		let name_str = name.as_str();
+		if name_str.starts_with('[') {
 			return self.create_array_class(name);
 		}
 
@@ -118,7 +120,7 @@ impl ClassLoader {
 		let mut super_class = None;
 
 		if let Some(super_class_name) = classfile.get_super_class() {
-			super_class = Some(self.resolve_super_class(super_class_name));
+			super_class = Some(self.resolve_super_class(Symbol::intern_bytes(super_class_name)));
 		}
 
 		// TODO:
@@ -136,16 +138,16 @@ impl ClassLoader {
 		Self::prepare(Arc::clone(&class));
 
 		// Set the mirror
-		if let Some(mirror_class) = Self::lookup_class(b"java/lang/Class") {
+		if let Some(mirror_class) = Self::lookup_class(sym!(java_lang_Class)) {
 			Class::set_mirror(mirror_class, Arc::clone(&class));
 		}
 
-		Self::insert_bootstrapped_class(name.to_vec(), Arc::clone(&class));
+		Self::insert_bootstrapped_class(name, Arc::clone(&class));
 
 		class
 	}
 
-	fn resolve_super_class(self, super_class_name: &[u1]) -> ClassRef {
+	fn resolve_super_class(self, super_class_name: Symbol) -> ClassRef {
 		// Any exception that can be thrown as a result of failure of class or interface resolution
 		// can be thrown as a result of derivation. In addition, derivation must detect the following problems:
 
@@ -178,7 +180,7 @@ impl ClassLoader {
 
 	// Creating array classes
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.3.3
-	fn create_array_class(self, descriptor: &[u1]) -> ClassRef {
+	fn create_array_class(self, descriptor: Symbol) -> ClassRef {
 		// The following steps are used to create the array class C denoted by the name N in association with the class loader L.
 		// L may be either the bootstrap class loader or a user-defined class loader.
 
@@ -191,10 +193,10 @@ impl ClassLoader {
 		// Otherwise, the following steps are performed to create C:
 		//
 		//     If the component type is a reference type, the algorithm of this section (§5.3) is applied recursively using L in order to load and thereby create the component type of C.
-		let component = FieldType::parse(&mut &descriptor[..]).unwrap(); // TODO: Error handling
+		let component = FieldType::parse(&mut descriptor.as_str().as_bytes()).unwrap(); // TODO: Error handling
 
 		if let FieldType::Object(ref obj) = component {
-			self.load(obj);
+			self.load(Symbol::intern_bytes(&obj));
 		}
 
 		//     The Java Virtual Machine creates a new array class with the indicated component type and number of dimensions.
@@ -214,11 +216,11 @@ impl ClassLoader {
 		//     Otherwise, the array class is accessible to all classes and interfaces.
 
 		// Set the mirror
-		if let Some(mirror_class) = Self::lookup_class(b"java/lang/Class") {
+		if let Some(mirror_class) = Self::lookup_class(sym!(java_lang_Class)) {
 			Class::set_mirror(mirror_class, Arc::clone(&array_class));
 		}
 
-		Self::insert_bootstrapped_class(descriptor.to_vec(), Arc::clone(&array_class));
+		Self::insert_bootstrapped_class(descriptor, Arc::clone(&array_class));
 		array_class
 	}
 
@@ -244,38 +246,40 @@ impl ClassLoader {
 	/// Recreate mirrors for all loaded classes
 	pub fn fixup_mirrors() {
 		let java_lang_class =
-			Self::lookup_class(b"java/lang/Class").expect("java.lang.Class should be loaded");
+			Self::lookup_class(sym!(java_lang_Class)).expect("java.lang.Class should be loaded");
 		for (_, class) in BOOTSTRAP_LOADED_CLASSES.lock().unwrap().iter() {
 			Class::set_mirror(Arc::clone(&java_lang_class), Arc::clone(class));
 		}
 	}
 
 	/// Get the package name from a fully qualified class name
-	pub fn package_name_for_class(name: &[u1]) -> Result<Option<&[u1]>> {
-		if name.is_empty() {
+	pub fn package_name_for_class(name: Symbol) -> Result<Option<&'static str>> {
+		let name_str = name.as_str();
+
+		if name_str.is_empty() {
 			return Err(RuntimeError::BadClassName);
 		}
 
-		let Some(end) = name.iter().rposition(|c| *c == b'/') else {
+		let Some(end) = name_str.as_bytes().iter().rposition(|c| *c == b'/') else {
 			return Ok(None);
 		};
 
 		let mut start_index = 0;
 
 		// Skip over '['
-		if name.starts_with(b"[") {
-			start_index = name.iter().skip_while(|c| **c == b'[').count();
+		if name_str.starts_with('[') {
+			start_index = name_str.chars().skip_while(|c| *c == '[').count();
 
 			// A fully qualified class name should not contain a 'L'
-			if start_index >= name.len() || name[start_index] == b'L' {
+			if start_index >= name_str.len() || name_str.as_bytes()[start_index] == b'L' {
 				return Err(RuntimeError::BadClassName);
 			}
 		}
 
-		if start_index >= name.len() {
+		if start_index >= name_str.len() {
 			return Err(RuntimeError::BadClassName);
 		}
 
-		return Ok(Some(&name[start_index..end]));
+		return Ok(Some(&name_str[start_index..end]));
 	}
 }

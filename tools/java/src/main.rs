@@ -96,7 +96,7 @@ fn main() {
 		},
 	};
 
-	let thread = Thread::new_main(main_class.as_bytes(), args.options.into(), args.args);
+	let thread = Thread::new_main(&main_class, args.options.into(), args.args);
 	Thread::run(&thread);
 }
 

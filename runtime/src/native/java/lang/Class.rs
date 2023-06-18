@@ -11,6 +11,7 @@ use std::sync::Arc;
 use common::int_types::s4;
 use common::traits::PtrType;
 use instructions::Operand;
+use symbols::sym;
 
 include!("../../../../../generated/native/java/lang/def/Class.registerNatives.rs");
 
@@ -43,8 +44,8 @@ pub fn isPrimitive(_: JNIEnv, locals: LocalStack) -> NativeReturn {
 pub fn initClassName(_: JNIEnv, locals: LocalStack) -> NativeReturn {
 	let this = locals[0].expect_reference().extract_mirror();
 	let this_mirror_target = this.get().expect_class(); // TODO: Support primitive mirrors
-	let this_name = &this_mirror_target.get().name;
-	let name_string = StringInterner::intern_string(this_name);
+	let this_name = this_mirror_target.get().name;
+	let name_string = StringInterner::intern_symbol(this_name);
 
 	this.get_mut().put_field_value0(
 		crate::globals::field_offsets::class_name_field_offset(),
@@ -88,7 +89,7 @@ pub fn getPrimitiveClass(_: JNIEnv, locals: LocalStack) -> NativeReturn {
 
 	for (name, ty) in crate::globals::TYPES {
 		if &name_string == name {
-			let java_lang_class = ClassLoader::lookup_class(b"java/lang/Class")
+			let java_lang_class = ClassLoader::lookup_class(sym!(java_lang_Class))
 				.expect("java.lang.Class should be loaded");
 			return Some(Operand::Reference(Reference::Mirror(
 				MirrorInstance::new_primitive(java_lang_class, ty.clone()),

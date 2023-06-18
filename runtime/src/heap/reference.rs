@@ -6,9 +6,9 @@ use crate::heap::mirror::MirrorInstancePtr;
 
 use std::sync::Arc;
 
-use common::int_types::u1;
 use common::traits::PtrType;
 use instructions::Operand;
+use symbols::{sym, Symbol};
 
 pub type MethodRef = Arc<Method>;
 pub type FieldRef = Arc<Field>;
@@ -63,13 +63,13 @@ impl Reference {
 				//
 				//     If T is a class type, then T must be Object.
 				if !class.is_interface() && !class.is_array() {
-					return class.get().name == b"java/lang/Object";
+					return class.get().name == sym!(java_lang_Object);
 				}
 				//     If T is an interface type, then T must be one of the interfaces implemented by arrays (JLS §4.10.3).
 				if class.is_interface() {
-					let class_name = &*class.get().name;
-					return class_name == b"java/lang/Cloneable"
-						|| class_name == b"java/io/Serializable";
+					let class_name = class.get().name;
+					return class_name == sym!(java_lang_Cloneable)
+						|| class_name == sym!(java_io_Serializable);
 				}
 				//     If T is an array type TC[], that is, an array of components of type TC, then one of the following must be true:
 				if class.is_array() {
@@ -90,11 +90,11 @@ impl Reference {
 		false
 	}
 
-	pub fn class_name(&self) -> &[u1] {
+	pub fn class_name(&self) -> Symbol {
 		match self {
-			Reference::Class(class_instance) => &*class_instance.get().class.get().name,
-			Reference::Array(array_instance) => &*array_instance.get().class.get().name,
-			Reference::Mirror(mirror_instance) => &*mirror_instance.get().class.get().name,
+			Reference::Class(class_instance) => class_instance.get().class.get().name,
+			Reference::Array(array_instance) => array_instance.get().class.get().name,
+			Reference::Mirror(mirror_instance) => mirror_instance.get().class.get().name,
 			Reference::Null => panic!("NullPointerException"),
 		}
 	}

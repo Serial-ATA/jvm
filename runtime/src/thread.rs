@@ -6,15 +6,15 @@ use crate::reference::{MethodRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::OperandStack;
 
-use classfile::accessflags::MethodAccessFlags;
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
 
-use common::int_types::u1;
+use classfile::accessflags::MethodAccessFlags;
 use common::traits::PtrType;
 use instructions::{Operand, StackLike};
+use symbols::{sym, Symbol};
 
 pub struct JVMOptions {
 	pub dry_run: bool,
@@ -45,14 +45,16 @@ impl Thread {
 	}
 
 	pub fn new_main(
-		class_name: &[u1],
+		class_name: &str,
 		jvm_options: JVMOptions,
 		_main_args: Vec<String>,
 	) -> ThreadRef {
 		let thread = Thread::new();
 		crate::initialization::initialize(Arc::clone(&thread));
 
-		let class = ClassLoader::Bootstrap.load(class_name).unwrap();
+		let main_class_name = Symbol::intern(class_name);
+
+		let class = ClassLoader::Bootstrap.load(main_class_name).unwrap();
 		let main_method = class.get().get_main_method().unwrap();
 
 		if !jvm_options.dry_run {
@@ -96,9 +98,9 @@ impl Thread {
 		// behind until we return.
 		if method.is_native() {
 			let fn_ptr = super::native::lookup_method(NativeMethodDef {
-				class: &method.class.get().name,
-				name: &method.name,
-				descriptor: &method.descriptor,
+				class: method.class.get().name,
+				name: method.name,
+				descriptor: method.descriptor,
 			});
 
 			let env = JNIEnv {
@@ -186,7 +188,7 @@ impl Thread {
 		};
 
 		let throwable_class = ClassLoader::Bootstrap
-			.load(b"java/lang/Throwable")
+			.load(sym!(java_lang_Throwable))
 			.expect("java/lang/Throwable class should be available");
 		assert!(
 			class_instance.get().class == throwable_class
@@ -223,7 +225,11 @@ impl Thread {
 		let print_stack_trace = class_instance
 			.get()
 			.class
-			.get_method(b"printStackTrace", b"()V", MethodAccessFlags::NONE)
+			.get_method(
+				sym!(printStackTrace_name),
+				sym!(void_method_signature),
+				MethodAccessFlags::NONE,
+			)
 			.expect("java/lang/Throwable#printStackTrace should exist");
 
 		let mut locals = LocalStack::new(1);

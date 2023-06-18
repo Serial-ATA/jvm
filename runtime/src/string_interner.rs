@@ -11,6 +11,7 @@ use common::int_types::{s1, s4, u1, u2};
 use common::traits::PtrType;
 use instructions::Operand;
 use once_cell::sync::Lazy;
+use symbols::{sym, Symbol};
 
 // Possible coders for Strings
 const CODER_LATIN1: s4 = 0;
@@ -19,37 +20,51 @@ const CODER_UTF16: s4 = 1;
 // Compact strings are enabled by default
 const COMPACT_STRINGS: bool = true;
 
-static STRING_POOL: Lazy<RwLock<HashMap<Vec<u1>, ClassInstanceRef>>> =
+static STRING_POOL: Lazy<RwLock<HashMap<String, ClassInstanceRef>>> =
 	Lazy::new(|| RwLock::new(HashMap::new()));
 
 pub struct StringInterner;
 
 // TODO: Need to wipe the string pool when the instances fall out of scope
 impl StringInterner {
-	pub fn get_java_string(raw: &[u1]) -> ClassInstanceRef {
-		if let Some(interned) = STRING_POOL.read().unwrap().get(raw) {
+	pub fn get_java_string_bytes(bytes: &[u1]) -> ClassInstanceRef {
+		let string = std::str::from_utf8(bytes).expect("valid UTF-8");
+		Self::get_java_string(string)
+	}
+
+	pub fn get_java_string(string: &str) -> ClassInstanceRef {
+		if let Some(interned) = STRING_POOL.read().unwrap().get(string) {
 			return Arc::clone(interned);
 		}
 
-		Self::intern_string(raw)
+		Self::intern_string(string)
 	}
 
-	pub fn intern_string(raw: &[u1]) -> ClassInstanceRef {
+	pub fn intern_symbol(symbol: Symbol) -> ClassInstanceRef {
+		Self::intern_string(symbol.as_str())
+	}
+
+	pub fn intern_bytes(bytes: &[u1]) -> ClassInstanceRef {
+		let string = std::str::from_utf8(bytes).expect("valid UTF-8");
+		Self::intern_string(string)
+	}
+
+	pub fn intern_string(string: &str) -> ClassInstanceRef {
 		// TODO: Error handling
-		let java_string_class = ClassLoader::lookup_class(b"java/lang/String")
+		let java_string_class = ClassLoader::lookup_class(sym!(java_lang_String))
 			.expect("java.lang.String should be loaded at this point");
-		let byte_array_class = ClassLoader::Bootstrap.load(b"[B").unwrap();
+		let byte_array_class = ClassLoader::Bootstrap.load(sym!(byte_array)).unwrap();
 
 		let mut is_latin1 = false;
 		if COMPACT_STRINGS {
-			is_latin1 = str_is_latin1(raw);
+			is_latin1 = str_is_latin1(string);
 		}
 
 		let encoded_str;
 		if is_latin1 {
-			encoded_str = latin1_encode(raw);
+			encoded_str = latin1_encode(string);
 		} else {
-			encoded_str = utf_16_encode(raw);
+			encoded_str = utf_16_encode(string);
 		}
 
 		let reference_to_byte_array = Operand::Reference(Reference::Array(ArrayInstance::new(
@@ -77,7 +92,7 @@ impl StringInterner {
 		STRING_POOL
 			.write()
 			.unwrap()
-			.insert(raw.to_vec(), new_java_string_instance);
+			.insert(string.to_string(), new_java_string_instance);
 		ret
 	}
 
@@ -103,9 +118,9 @@ impl StringInterner {
 	}
 }
 
-fn str_is_latin1(raw: &[u1]) -> bool {
+fn str_is_latin1(string: &str) -> bool {
 	let mut prev = 0;
-	for byte in raw {
+	for byte in string.as_bytes() {
 		// 0x80 denotes a multibyte sequence, but could also be a valid Latin-1 character
 		if *byte == 0x80 && prev <= 0xC3 {
 			return false;
@@ -116,16 +131,15 @@ fn str_is_latin1(raw: &[u1]) -> bool {
 	true
 }
 
-fn utf_16_encode(raw: &[u1]) -> Box<[s1]> {
+fn utf_16_encode(string: &str) -> Box<[s1]> {
 	// TODO: More efficient conversion
-	let string = unsafe { std::str::from_utf8_unchecked(raw) };
 	let utf16_encoded_bytes = string.encode_utf16().collect::<Box<[u16]>>();
 	bytemuck::cast_slice(&utf16_encoded_bytes)
 		.to_vec()
 		.into_boxed_slice()
 }
 
-fn latin1_encode(raw: &[u1]) -> Box<[s1]> {
-	let re_aligned_bytes: &[s1] = bytemuck::cast_slice(raw);
+fn latin1_encode(string: &str) -> Box<[s1]> {
+	let re_aligned_bytes: &[s1] = bytemuck::cast_slice(string.as_bytes());
 	re_aligned_bytes.to_vec().into_boxed_slice()
 }

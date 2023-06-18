@@ -8,6 +8,8 @@ use common::int_types::{s4, s8, u1, u2, u4};
 
 pub type ConstantPoolRef = Arc<ConstantPool>;
 
+// TODO: Need to make a cache so we don't need to keep resolving classes and interning strings
+
 #[derive(PartialEq, Clone)]
 #[repr(transparent)]
 pub struct ConstantPool {
@@ -25,6 +27,7 @@ impl ConstantPool {
 		self.inner.push(value);
 	}
 
+	// TODO: Should return a Symbol
 	pub fn get_class_name(&self, idx: u2) -> &[u1] {
 		let constant = &self[idx];
 

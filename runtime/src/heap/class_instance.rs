@@ -9,6 +9,7 @@ use common::box_slice;
 use common::int_types::{s1, s2, s4, s8, u1, u2};
 use common::traits::PtrType;
 use instructions::Operand;
+use symbols::sym;
 
 pub trait Instance {
 	fn get_field_value(&self, field: FieldRef) -> Operand<Reference>;
@@ -178,7 +179,7 @@ impl Drop for ClassInstancePtr {
 impl Debug for ClassInstancePtr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		let class = self.get();
-		f.write_str(unsafe { std::str::from_utf8_unchecked(&class.class.get().name) })
+		f.write_str(class.class.get().name.as_str())
 	}
 }
 
@@ -199,21 +200,19 @@ impl ArrayInstance {
 			panic!("NegativeArraySizeException"); // TODO
 		}
 
-		let type_character = match type_code {
-			4 => b'Z',
-			5 => b'C',
-			6 => b'F',
-			7 => b'D',
-			8 => b'B',
-			9 => b'S',
-			10 => b'I',
-			11 => b'J',
+		let array_signature = match type_code {
+			4 => sym!(bool_array),
+			5 => sym!(char_array),
+			6 => sym!(float_array),
+			7 => sym!(double_array),
+			8 => sym!(byte_array),
+			9 => sym!(short_array),
+			10 => sym!(int_array),
+			11 => sym!(long_array),
 			_ => panic!("Invalid array type code: {}", type_code),
 		};
 
-		let array_class = ClassLoader::Bootstrap
-			.load(&[b'[', type_character])
-			.unwrap();
+		let array_class = ClassLoader::Bootstrap.load(array_signature).unwrap();
 		let elements = ArrayContent::default_initialize(type_code, count);
 
 		ArrayInstancePtr::new(Self {
@@ -265,15 +264,15 @@ impl ArrayInstance {
 	}
 
 	pub fn is_type(&self, class: ClassRef) -> bool {
-		match (&self.elements, &*class.get().name) {
-			(ArrayContent::Byte(_), b"java/lang/Byte")
-			| (ArrayContent::Bool(_), b"java/lang/Bool")
-			| (ArrayContent::Short(_), b"java/lang/Short")
-			| (ArrayContent::Char(_), b"java/lang/Character")
-			| (ArrayContent::Int(_), b"java/lang/Integer")
-			| (ArrayContent::Float(_), b"java/lang/Float")
-			| (ArrayContent::Long(_), b"java/lang/Long")
-			| (ArrayContent::Double(_), b"java/lang/Double") => true,
+		match (&self.elements, class.get().name) {
+			(ArrayContent::Byte(_), sym!(java_lang_Byte))
+			| (ArrayContent::Bool(_), sym!(java_lang_Bool))
+			| (ArrayContent::Short(_), sym!(java_lang_Short))
+			| (ArrayContent::Char(_), sym!(java_lang_Character))
+			| (ArrayContent::Int(_), sym!(java_lang_Integer))
+			| (ArrayContent::Float(_), sym!(java_lang_Float))
+			| (ArrayContent::Long(_), sym!(java_lang_Long))
+			| (ArrayContent::Double(_), sym!(java_lang_Double)) => true,
 			(ArrayContent::Reference(_), _class_name) => {
 				unimplemented!("ArrayInstance::is_type with reference types")
 			},
@@ -455,6 +454,6 @@ impl Drop for ArrayInstancePtr {
 impl Debug for ArrayInstancePtr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		let class = self.get();
-		f.write_str(unsafe { std::str::from_utf8_unchecked(&class.class.get().name) })
+		f.write_str(&class.class.get().name.as_str())
 	}
 }

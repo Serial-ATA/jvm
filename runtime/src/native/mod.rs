@@ -24,9 +24,9 @@ pub struct NativeMethodDef {
 impl Debug for NativeMethodDef {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("NativeMethodDef")
-			.field("class", self.class.as_str())
-			.field("name", self.name.as_str())
-			.field("descriptor", self.descriptor.as_str())
+			.field("class", &self.class.as_str())
+			.field("name", &self.name.as_str())
+			.field("descriptor", &self.descriptor.as_str())
 			.finish()
 	}
 }

@@ -11,6 +11,7 @@ use classfile::FieldType;
 use common::box_slice;
 use common::traits::PtrType;
 use instructions::Operand;
+use symbols::sym;
 
 #[allow(non_upper_case_globals)]
 mod stacktrace_element {
@@ -107,13 +108,13 @@ mod stacktrace_element {
 			// TODO: classLoaderName
 			// TODO: moduleName
 			// TODO: moduleVersion
-			let declaring_class = StringInterner::intern_string(&method.class.get().name);
+			let declaring_class = StringInterner::intern_symbol(method.class.get().name);
 			stacktrace_element.get_mut().put_field_value0(
 				StackTraceElement_declaringClass_FIELD_OFFSET,
 				Operand::Reference(Reference::Class(declaring_class)),
 			);
 
-			let method_name = StringInterner::intern_string(&method.name);
+			let method_name = StringInterner::intern_symbol(method.name);
 			stacktrace_element.get_mut().put_field_value0(
 				StackTraceElement_methodName_FIELD_OFFSET,
 				Operand::Reference(Reference::Class(method_name)),
@@ -121,7 +122,7 @@ mod stacktrace_element {
 
 			match method_class.source_file_index {
 				Some(idx) => {
-					let file_name = StringInterner::intern_string(
+					let file_name = StringInterner::intern_bytes(
 						method_class.constant_pool.get_constant_utf8(idx),
 					);
 					stacktrace_element.get_mut().put_field_value0(
@@ -176,18 +177,18 @@ pub fn fillInStackTrace(env: JNIEnv, locals: LocalStack) -> NativeReturn {
 	}
 
 	// We need to skip the <athrow> method
-	if current_thread.frame_stack[frames_to_skip].method().name == b"<athrow>" {
+	if current_thread.frame_stack[frames_to_skip].method().name == sym!(athrow_name) {
 		frames_to_skip += 1;
 	}
 
 	assert!(frames_to_skip < stack_depth);
 
 	let stacktrace_element_class = ClassLoader::Bootstrap
-		.load(b"java/lang/StackTraceElement")
+		.load(sym!(java_lang_StackTraceElement))
 		.expect("StackTraceElement should be available");
 
 	let stacktrace_element_array_class = ClassLoader::Bootstrap
-		.load(b"[Ljava/lang/StackTraceElement;")
+		.load(sym!(StackTraceElement_array))
 		.expect("[Ljava/lang/StackTraceElement; should be available");
 
 	// Create the StackTraceElement array

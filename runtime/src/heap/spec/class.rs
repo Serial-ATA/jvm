@@ -9,9 +9,10 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 use classfile::accessflags::MethodAccessFlags;
 use classfile::{ConstantPoolRef, FieldType};
-use common::int_types::{u1, u2};
+use common::int_types::u2;
 use common::traits::PtrType;
 use instructions::Operand;
+use symbols::{sym, Symbol};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
@@ -55,7 +56,9 @@ impl Class {
 		let (class_name_index, name_and_type_index) = constant_pool.get_field_ref(field_ref_idx);
 
 		let class_name = constant_pool.get_class_name(class_name_index);
-		let classref = ClassLoader::Bootstrap.load(class_name).unwrap();
+		let classref = ClassLoader::Bootstrap
+			.load(Symbol::intern_bytes(class_name))
+			.unwrap();
 
 		if classref.get().initialization_state() != ClassInitializationState::Init {
 			// TODO: This is a hack, really need a better way to signal to the caller that a class is
@@ -115,7 +118,9 @@ impl Class {
 			constant_pool.get_method_ref(method_ref_idx);
 
 		let class_name = constant_pool.get_class_name(class_name_index);
-		let classref = ClassLoader::Bootstrap.load(class_name).unwrap();
+		let classref = ClassLoader::Bootstrap
+			.load(Symbol::intern_bytes(class_name))
+			.unwrap();
 
 		if classref.get().initialization_state() != ClassInitializationState::Init {
 			// TODO: This is a hack, really need a better way to signal to the caller that a class is
@@ -132,8 +137,11 @@ impl Class {
 		let (method_name_index, method_descriptor_index) =
 			constant_pool.get_name_and_type(name_and_type_index);
 
-		let method_name = constant_pool.get_constant_utf8(method_name_index);
-		let descriptor = constant_pool.get_constant_utf8(method_descriptor_index);
+		let method_name_raw = constant_pool.get_constant_utf8(method_name_index);
+		let descriptor_raw = constant_pool.get_constant_utf8(method_descriptor_index);
+
+		let method_name = Symbol::intern_bytes(method_name_raw);
+		let descriptor = Symbol::intern_bytes(descriptor_raw);
 
 		if interface_method {
 			return Self::resolve_interface_method(thread, classref, method_name, descriptor);
@@ -166,8 +174,8 @@ impl Class {
 
 	pub fn resolve_method_step_two(
 		class_ref: ClassRef,
-		method_name: &[u1],
-		descriptor: &[u1],
+		method_name: Symbol,
+		descriptor: Symbol,
 	) -> Option<MethodRef> {
 		//    2.1. If C declares exactly one method with the name specified by the method reference, and the declaration
 		//         is a signature polymorphic method (§2.9.3), then method lookup succeeds. All the class names mentioned
@@ -208,8 +216,8 @@ impl Class {
 	fn resolve_interface_method(
 		_thread: ThreadRef,
 		classref: ClassRef,
-		method_name: &[u1],
-		descriptor: &[u1],
+		method_name: Symbol,
+		descriptor: Symbol,
 	) -> Option<MethodRef> {
 		// When resolving an interface method reference:
 
@@ -228,7 +236,7 @@ impl Class {
 
 		// 3. Otherwise, if the class Object declares a method with the name and descriptor specified by the interface method reference, which has its ACC_PUBLIC flag
 		//    set and does not have its ACC_STATIC flag set, method lookup succeeds.
-		let object_class = ClassLoader::lookup_class(b"java/lang/Object")
+		let object_class = ClassLoader::lookup_class(sym!(java_lang_Object))
 			.expect("there's no way we can make it here without loading Object");
 		for method in &object_class.unwrap_class_instance().methods {
 			if method.name == method_name
@@ -267,8 +275,8 @@ impl Class {
 	}
 
 	fn resolve_method_in_superinterfaces(
-		method_name: &[u1],
-		descriptor: &[u1],
+		method_name: Symbol,
+		descriptor: Symbol,
 		classref: ClassRef,
 		// TODO: Deal with maximally-specific check (§5.4.3.3)
 		maximally_specific: bool,
@@ -385,7 +393,7 @@ impl Class {
 					let raw_string = class_instance
 						.constant_pool
 						.get_string(constant_value_index);
-					let string_instance = StringInterner::intern_string(raw_string);
+					let string_instance = StringInterner::intern_bytes(raw_string);
 					class_instance.static_field_slots[field.idx] =
 						Operand::Reference(Reference::Class(string_instance));
 				},
@@ -432,11 +440,9 @@ impl Class {
 	pub fn construct(
 		class: ClassRef,
 		thread: ThreadRef,
-		descriptor: &[u1],
+		descriptor: Symbol,
 		args: Vec<Operand<Reference>>,
 	) {
-		const CONSTRUCTOR_METHOD_NAME: &[u1] = b"<init>";
-
 		// A class has zero or more instance initialization methods, each typically corresponding to a constructor written in the Java programming language.
 
 		// A method is an instance initialization method if all of the following are true:
@@ -449,8 +455,8 @@ impl Class {
 		let method = class
 			.get()
 			.get_method(
-				CONSTRUCTOR_METHOD_NAME, // It has the special name <init>.
-				descriptor,              // It is void (§4.3.3).
+				sym!(object_initializer_name), // It has the special name <init>.
+				descriptor,                    // It is void (§4.3.3).
 				MethodAccessFlags::NONE,
 			)
 			.unwrap();
@@ -468,9 +474,9 @@ impl Class {
         // TODO: Check version number for flags and parameters
         // A method is a class or interface initialization method if all of the following are true:
         let method = class.get().get_method(
-            b"<clinit>",                   /* It has the special name <clinit>. */
-            b"()V",                   /* It is void (§4.3.3). */
-            MethodAccessFlags::ACC_STATIC /* In a class file whose version number is 51.0 or above, the method has its ACC_STATIC flag set and takes no arguments (§4.6). */
+            sym!(class_initializer_name),     /* It has the special name <clinit>. */
+            sym!(void_method_signature), /* It is void (§4.3.3). */
+            MethodAccessFlags::ACC_STATIC    /* In a class file whose version number is 51.0 or above, the method has its ACC_STATIC flag set and takes no arguments (§4.6). */
         );
 
         if let Some(method) = method {
@@ -523,8 +529,8 @@ impl Class {
 			//    Otherwise, the maximally-specific superinterface methods of C are determined (§5.4.3.3). If exactly one matches mR's name
 			//    and descriptor and is not abstract, then it is the selected method.
 			if let Some(superinterface_method) = Class::resolve_method_in_superinterfaces(
-				&method.name,
-				&method.descriptor,
+				method.name,
+				method.descriptor,
 				class,
 				true,
 			) {

@@ -85,6 +85,12 @@ impl Method {
 
 		signature_symbol.push_str(&self.return_ty.human_readable_name().replace('.', "_"));
 		signature_symbol.push_str("_signature");
+
+		// TODO: Hack till SymbolCollector can recognize duplicate values
+		if signature_symbol == "void_signature" {
+			return String::from("void_method_signature");
+		}
+
 		signature_symbol
 	}
 

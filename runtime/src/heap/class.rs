@@ -16,9 +16,10 @@ use common::box_slice;
 use common::int_types::{u1, u2, u4};
 use common::traits::PtrType;
 use instructions::Operand;
+use symbols::{sym, Symbol};
 
 pub struct Class {
-	pub name: Vec<u1>,
+	pub name: Symbol,
 	pub access_flags: ClassAccessFlags,
 	pub loader: ClassLoader,
 	pub super_class: Option<ClassRef>,
@@ -36,9 +37,7 @@ pub struct Class {
 impl Debug for Class {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("Class")
-			.field("name", &unsafe {
-				std::str::from_utf8_unchecked(&self.name)
-			})
+			.field("name", &self.name.as_str())
 			.field("access_flags", &self.access_flags)
 			.field("loader", &self.loader)
 			.field("super_class", &self.super_class)
@@ -109,12 +108,11 @@ impl Class {
 		let class_name_index = parsed_file.this_class;
 
 		let source_file_index = parsed_file.source_file_index();
-		let name = parsed_file
-			.constant_pool
-			.get_class_name(class_name_index)
-			.to_vec();
 
 		let constant_pool = parsed_file.constant_pool;
+
+		let name_raw = constant_pool.get_class_name(class_name_index);
+		let name = Symbol::intern_bytes(name_raw);
 
 		let static_field_count = parsed_file
 			.fields
@@ -130,7 +128,11 @@ impl Class {
 		let interfaces = parsed_file
 			.interfaces
 			.iter()
-			.map(|index| loader.load(constant_pool.get_class_name(*index)).unwrap())
+			.map(|index| {
+				loader
+					.load(Symbol::intern_bytes(constant_pool.get_class_name(*index)))
+					.unwrap()
+			})
 			.collect();
 
 		let static_field_slots = box_slice![Operand::Empty; static_field_count];
@@ -216,8 +218,12 @@ impl Class {
 		classref
 	}
 
-	pub fn new_array(name: &[u1], component: FieldType, loader: ClassLoader) -> ClassRef {
-		let dimensions = name.iter().take_while(|char_| **char_ == b'[').count() as u1;
+	pub fn new_array(name: Symbol, component: FieldType, loader: ClassLoader) -> ClassRef {
+		let dimensions = name
+			.as_str()
+			.chars()
+			.take_while(|char_| *char_ == '[')
+			.count() as u1;
 
 		let array_instance = ArrayDescriptor {
 			dimensions,
@@ -225,18 +231,20 @@ impl Class {
 		};
 
 		let class = Self {
-			name: name.to_vec(),
+			name,
 			access_flags: ClassAccessFlags::NONE,
 			loader,
 			super_class: Some(
-				ClassLoader::lookup_class(b"java/lang/Object")
+				ClassLoader::lookup_class(sym!(java_lang_Object))
 					.expect("java.lang.Object should be loaded"),
 			),
 			// https://docs.oracle.com/javase/specs/jls/se19/html/jls-4.html#jls-4.10.3
 			interfaces: vec![
-				ClassLoader::Bootstrap.load(b"java/lang/Cloneable").unwrap(),
 				ClassLoader::Bootstrap
-					.load(b"java/io/Serializable")
+					.load(sym!(java_lang_Cloneable))
+					.unwrap(),
+				ClassLoader::Bootstrap
+					.load(sym!(java_io_Serializable))
 					.unwrap(),
 			],
 			mirror: None, // Set later
@@ -253,18 +261,16 @@ impl Class {
 	}
 
 	pub fn get_main_method(&self) -> Option<MethodRef> {
-		const MAIN_METHOD_NAME: &[u1] = b"main";
-		const MAIN_METHOD_DESCRIPTOR: &[u1] = b"([Ljava/lang/String;)V";
 		const MAIN_METHOD_FLAGS: MethodAccessFlags =
 			MethodAccessFlags::ACC_PUBLIC.union(MethodAccessFlags::ACC_STATIC);
 
-		self.get_method(MAIN_METHOD_NAME, MAIN_METHOD_DESCRIPTOR, MAIN_METHOD_FLAGS)
+		self.get_method(sym!(main_name), sym!(main_signature), MAIN_METHOD_FLAGS)
 	}
 
 	pub fn get_method(
 		&self,
-		name: &[u1],
-		descriptor: &[u1],
+		name: Symbol,
+		descriptor: Symbol,
 		flags: MethodAccessFlags,
 	) -> Option<MethodRef> {
 		if let ClassType::Instance(class_descriptor) = &self.class_ty {
@@ -323,7 +329,7 @@ impl Class {
 		}
 
 		// TODO: We can probably cache these at some point
-		let Ok(other_pkg) = ClassLoader::package_name_for_class(&other.name) else {
+		let Ok(other_pkg) = ClassLoader::package_name_for_class(other.name) else {
 			return false;
 		};
 
@@ -332,7 +338,7 @@ impl Class {
 			assert!(!other_pkg_str.is_empty(), "Package name is an empty string");
 		}
 
-		let Ok(this_pkg) = ClassLoader::package_name_for_class(&other.name) else {
+		let Ok(this_pkg) = ClassLoader::package_name_for_class(other.name) else {
 			return false;
 		};
 
@@ -381,7 +387,7 @@ impl Class {
 	}
 
 	pub fn is_array(&self) -> bool {
-		self.name.starts_with(b"[")
+		matches!(self.class_ty, ClassType::Array(_))
 	}
 
 	pub fn is_interface(&self) -> bool {
@@ -507,6 +513,6 @@ impl DerefMut for ClassPtr {
 impl Debug for ClassPtr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		let class = self.get();
-		f.write_str(unsafe { std::str::from_utf8_unchecked(&class.name) })
+		f.write_str(class.name.as_str())
 	}
 }
