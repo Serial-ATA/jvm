@@ -10,7 +10,7 @@ use combine::{optional, sep_by, ParseError, Parser, Stream};
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Method {
 	pub modifiers: AccessFlags,
-	pub is_intrinsic: bool,
+	pub is_intrinsic_candidate: bool,
 	pub name: Option<String>, // Either a method name or `None` if its a constructor
 	pub descriptor: String,
 	pub params: Vec<Type>,
@@ -27,18 +27,20 @@ impl Method {
 
 	/// The symbol for the class name + method name
 	///
-	/// For example, `java.lang.Object#hashCode` would become `java_lang_Object_hashCode`.
+	/// For example, `java.lang.Object#hashCode` would become `Object_hashCode`.
+	///
+	/// If the class makes use of overloading, the parameters will be appended to the name.
 	pub fn full_name_symbol(&self, class: &Class) -> String {
-		let append_params = class
-			.methods()
-			.any(|method| method != self && method.is_intrinsic && self.name == method.name);
+		let append_params = class.methods().any(|method| {
+			method != self && method.is_intrinsic_candidate && self.name == method.name
+		});
 
 		let mut ret = match &self.name {
-			Some(name) => format!("{}_{name}", class.class_name),
+			Some(name) => format!("{}_{name}", class.class_name.replace('$', "_")),
 			None => {
 				let mut ret = String::new();
 				self.return_ty.write_to(&mut ret, false);
-				if self.params.is_empty() {
+				if self.params.is_empty() && append_params {
 					return format!("{ret}_void");
 				}
 
@@ -63,22 +65,25 @@ impl Method {
 		}
 	}
 
-	pub fn name_symbol(&self) -> &str {
-		let name = self.generated_name();
+	pub fn name_symbol(&self) -> String {
+		let mut name = self.generated_name();
 		if name == "<init>" {
-			return "object_initializer_name";
+			return String::from("object_initializer_name");
 		}
 
-		name
+		format!("{name}_name")
 	}
 
 	pub fn signature_symbol_name(&self) -> String {
 		let mut signature_symbol = String::new();
 		for param in &self.params {
-			signature_symbol.push_str(&format!("{}_", param.human_readable_name()));
+			signature_symbol.push_str(&format!(
+				"{}_",
+				param.human_readable_name().replace('.', "_")
+			));
 		}
 
-		signature_symbol.push_str(&self.return_ty.human_readable_name());
+		signature_symbol.push_str(&self.return_ty.human_readable_name().replace('.', "_"));
 		signature_symbol.push_str("_signature");
 		signature_symbol
 	}
@@ -150,7 +155,7 @@ where
 
 			Method {
 				modifiers,
-				is_intrinsic,
+				is_intrinsic_candidate: is_intrinsic,
 				name: None,
 				descriptor: create_signature(params.clone(), return_ty.clone()),
 				params,
@@ -172,7 +177,7 @@ where
 		.message("While parsing method")
 		.map(move |((modifiers, return_ty, name, params), ..)| Method {
 			modifiers,
-			is_intrinsic,
+			is_intrinsic_candidate: is_intrinsic,
 			name: Some(name),
 			descriptor: create_signature(params.clone(), return_ty.clone()),
 			params,

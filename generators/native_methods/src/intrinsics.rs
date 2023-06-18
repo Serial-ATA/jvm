@@ -1,7 +1,8 @@
 use crate::modules::Module;
-use crate::parse::Method;
+use crate::parse::{AccessFlags, Method};
+use crate::SymbolCollector;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::fs::OpenOptions;
 use std::io::Write as _;
@@ -19,16 +20,18 @@ const NUMBER_OF_INTRINSICS: u8 = {};
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct IntrinsicMethod {
+struct IntrinsicMethodDefinition {
 	name: String,
 	generated_name: String,
 	descriptor: String,
 	signature_symbol: String,
 	name_symbol: String,
 	intrinsic_flags: &'static str,
+	is_intrinsic: bool,
+	is_native: bool,
 }
 
-impl From<&Method> for IntrinsicMethod {
+impl From<&Method> for IntrinsicMethodDefinition {
 	fn from(value: &Method) -> Self {
 		Self {
 			name: value.name(),
@@ -37,31 +40,39 @@ impl From<&Method> for IntrinsicMethod {
 			signature_symbol: value.signature_symbol_name(),
 			name_symbol: value.name_symbol().to_string(),
 			intrinsic_flags: value.intrinsic_flags(),
+			is_intrinsic: value.is_intrinsic_candidate,
+			is_native: value.modifiers.contains(AccessFlags::ACC_NATIVE),
 		}
 	}
 }
 
-pub(crate) fn generate_intrinsics(generated_directory: &Path, modules: &[Module]) {
+pub(crate) fn generate_intrinsics<'a>(
+	generated_directory: &Path,
+	modules: &[Module],
+	symbol_collector: &mut SymbolCollector,
+) {
 	let mut intrinsic_methods = HashMap::new();
 	for module in modules {
 		module.for_each_class(|class| {
-			intrinsic_methods.extend(class.methods().filter_map(
-				|method| match method.is_intrinsic {
+			intrinsic_methods.extend(class.methods().filter_map(|method| {
+				match method.is_intrinsic_candidate {
 					false => None,
-					true => Some((
-						method.full_name_symbol(class),
-						(
-							module.name_for_class(&class.class_name),
-							IntrinsicMethod::from(method),
-						),
-					)),
-				},
-			))
+					true => {
+						symbol_collector.add_class_name(module.name_for_class(&class.class_name));
+						symbol_collector.add_method(method, class);
+
+						Some((
+							method.full_name_symbol(class),
+							(
+								module.name_for_class(&class.class_name),
+								IntrinsicMethodDefinition::from(method),
+							),
+						))
+					},
+				}
+			}))
 		});
 	}
-
-	// Generate any additional symbols that we need
-	generate_symbols(generated_directory, intrinsic_methods.values());
 
 	let generated_file_path = generated_directory.join("intrinsics_generated.rs");
 	let mut generated_file = OpenOptions::new()
@@ -109,212 +120,6 @@ pub(crate) fn generate_intrinsics(generated_directory: &Path, modules: &[Module]
 	.unwrap();
 }
 
-/// Generates additional symbols, injecting them into the `vm_symbols::define_symbols!` call
-/// in `runtime/src/symbols.rs`
-fn generate_symbols<'a>(
-	generated_directory: &Path,
-	iter: impl Iterator<Item = &'a (String, IntrinsicMethod)> + Clone,
-) {
-	// ../../symbols/src/lib.rs
-	let symbols_project_dir = generated_directory
-		.parent()
-		.unwrap()
-		.parent()
-		.unwrap()
-		.join("symbols");
-	let symbols_file_path = symbols_project_dir.join("src").join("lib.rs");
-
-	let mut symbols_file_contents = std::fs::read_to_string(&symbols_file_path).unwrap();
-
-	generate_class_name_symbols(generated_directory, &symbols_file_contents, iter.clone());
-	generate_method_name_symbols(generated_directory, &symbols_file_contents, iter.clone());
-	generate_method_signature_symbols(generated_directory, &symbols_file_contents, iter);
-}
-
-/// Gets the position of a marker comment (eg. "// Classes")
-fn get_position_of_marker_comment(contents: &str, section_marker_comment: &str) -> usize {
-	contents.rfind(section_marker_comment).expect(&format!(
-		"Failed to find marker comment: {}",
-		section_marker_comment
-	)) + section_marker_comment.len()
-}
-
-fn check_in_section(
-	contents: &str,
-	section_header_position: usize,
-	marker_comment_position: usize,
-	check_for: &str,
-) -> bool {
-	contents[section_header_position..marker_comment_position]
-		.contains(&format!("\"{}\"", check_for))
-}
-
-/// Generates `Symbol`s for intrinsic class names
-///
-/// For example, `java.lang.StringBuilder` will have a symbol created like so:
-///
-/// ```
-/// vm_symbols::define_symbols! {
-/// 	// ...
-/// 	java_lang_StringBuilder: "java/lang/StringBuilder",
-/// 	// ...
-/// }
-/// ```
-fn generate_class_name_symbols<'a>(
-	generated_directory: &Path,
-	symbols_file_contents: &str,
-	iter: impl Iterator<Item = &'a (String, IntrinsicMethod)>,
-) {
-	const SECTION_HEADER: &str = "// Classes";
-	const MARKER_COMMENT: &str = "// -- GENERATED CLASS NAME MARKER, DO NOT DELETE --";
-
-	let section_header_position =
-		get_position_of_marker_comment(symbols_file_contents, SECTION_HEADER);
-	let marker_comment_position =
-		get_position_of_marker_comment(symbols_file_contents, MARKER_COMMENT);
-
-	let mut class_names_to_add = HashSet::new();
-	for (class_name, _) in iter {
-		class_names_to_add.insert(class_name);
-	}
-
-	let mut class_name_symbols_file = OpenOptions::new()
-		.write(true)
-		.truncate(true)
-		.create(true)
-		.open(generated_directory.join("class_names.symbols"))
-		.unwrap();
-
-	for class_name in class_names_to_add {
-		if !check_in_section(
-			symbols_file_contents,
-			section_header_position,
-			marker_comment_position,
-			class_name,
-		) {
-			writeln!(
-				class_name_symbols_file,
-				"{}: {:?},",
-				class_name.replace('/', "_"),
-				class_name
-			)
-			.unwrap();
-		}
-	}
-}
-
-/// Generates `Symbol`s for intrinsic method names
-///
-/// For example, `java.lang.Object#hashCode` will have a symbol created like so:
-///
-/// ```
-/// vm_symbols::define_symbols! {
-/// 	// ...
-/// 	object_hashcode_name: "hashCode",
-/// 	// ...
-/// }
-/// ```
-fn generate_method_name_symbols<'a>(
-	generated_directory: &Path,
-	symbols_file_contents: &str,
-	iter: impl Iterator<Item = &'a (String, IntrinsicMethod)>,
-) {
-	const SECTION_HEADER: &str = "// Methods";
-	const MARKER_COMMENT: &str = "// -- GENERATED METHOD NAME MARKER, DO NOT DELETE --";
-
-	let section_header_position =
-		get_position_of_marker_comment(symbols_file_contents, SECTION_HEADER);
-	let marker_comment_position =
-		get_position_of_marker_comment(symbols_file_contents, MARKER_COMMENT);
-
-	let mut methods_to_add = Vec::new();
-	for (_, method) in iter {
-		methods_to_add.push((&method.name_symbol, &method.generated_name));
-	}
-
-	methods_to_add.sort();
-	methods_to_add.dedup();
-
-	let mut method_name_symbols_file = OpenOptions::new()
-		.write(true)
-		.truncate(true)
-		.create(true)
-		.open(generated_directory.join("method_names.symbols"))
-		.unwrap();
-
-	for (name_symbol, generated_name) in methods_to_add {
-		if !check_in_section(
-			symbols_file_contents,
-			section_header_position,
-			marker_comment_position,
-			generated_name,
-		) {
-			writeln!(
-				method_name_symbols_file,
-				"{}: {:?},",
-				name_symbol, generated_name
-			)
-			.unwrap();
-		}
-	}
-}
-
-/// Generates `Symbol`s for intrinsic method signatures
-///
-/// For example, a method with a signatures of `(ZZ)V` will have a symbol created like so:
-///
-/// ```
-/// vm_symbols::define_symbols! {
-/// 	// ...
-/// 	bool_bool_void_signature: "(ZZ)V",
-/// 	// ...
-/// }
-/// ```
-fn generate_method_signature_symbols<'a>(
-	generated_directory: &Path,
-	symbols_file_contents: &str,
-	iter: impl Iterator<Item = &'a (String, IntrinsicMethod)>,
-) {
-	const SECTION_HEADER: &str = "// Signatures";
-	const MARKER_COMMENT: &str = "// -- GENERATED METHOD SIGNATURE MARKER, DO NOT DELETE --";
-
-	let section_header_position =
-		get_position_of_marker_comment(symbols_file_contents, SECTION_HEADER);
-	let marker_comment_position =
-		get_position_of_marker_comment(symbols_file_contents, MARKER_COMMENT);
-
-	let mut signatures_to_add = Vec::new();
-	for (_, method) in iter {
-		signatures_to_add.push((&method.signature_symbol, &method.descriptor));
-	}
-
-	signatures_to_add.sort();
-	signatures_to_add.dedup();
-
-	let mut signature_symbols_file = OpenOptions::new()
-		.write(true)
-		.truncate(true)
-		.create(true)
-		.open(generated_directory.join("signature_names.symbols"))
-		.unwrap();
-
-	for (signature_symbol, descriptor) in signatures_to_add {
-		if !check_in_section(
-			symbols_file_contents,
-			section_header_position,
-			marker_comment_position,
-			descriptor,
-		) {
-			writeln!(
-				signature_symbols_file,
-				"{}: {:?},",
-				signature_symbol, descriptor
-			)
-			.unwrap();
-		}
-	}
-}
-
 fn create_intrinsic_name_table<'a>(
 	intrinsic_ids: impl Iterator<Item = &'a str>,
 	total_ids: usize,
@@ -347,7 +152,7 @@ fn create_intrinsic_id_enum<'a>(intrinsic_ids: impl Iterator<Item = &'a str>) ->
 
 /// Creates the `IntrinsicId::for_method` method
 fn create_method_mappings<'a>(
-	intrinsic_ids: impl Iterator<Item = (&'a String, &'a (String, IntrinsicMethod))>,
+	intrinsic_ids: impl Iterator<Item = (&'a String, &'a (String, IntrinsicMethodDefinition))>,
 ) -> String {
 	let mut intrinsic_id_method_mapping = String::from(
 		r#"

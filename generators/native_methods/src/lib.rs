@@ -9,8 +9,9 @@ mod util;
 
 use crate::intrinsics::generate_intrinsics;
 use crate::modules::Module;
-use crate::parse::{Class, Member};
+use crate::parse::{AccessFlags, Class, Member, Method};
 
+use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -22,6 +23,133 @@ static INIT_FN_FILE_HEADER: &str = "#[allow(trivial_casts)]\nfn init_native_meth
                                     symbols::sym;\n\tlet mut map = HashMap::new();\n";
 
 static MODULE_MARKER_START_COMMENT: &str = "// Module marker, do not remove";
+
+#[derive(Default)]
+struct SymbolCollector {
+	class_name_symbols_to_add: HashMap<String, String>,
+	method_name_symbols_to_add: HashMap<String, String>,
+	method_signature_symbols_to_add: HashMap<String, String>,
+}
+
+impl SymbolCollector {
+	pub fn add_class_name(&mut self, value: String) {
+		let symbol_name = value.replace('/', "_").replace('$', "_");
+		self.class_name_symbols_to_add.insert(symbol_name, value);
+	}
+
+	pub fn add_method(&mut self, method: &Method, class: &Class) {
+		self.method_name_symbols_to_add
+			.insert(method.name_symbol(), method.generated_name().to_string());
+		self.method_signature_symbols_to_add.insert(
+			method.signature_symbol_name(),
+			method.descriptor.to_string(),
+		);
+	}
+
+	/// Generates additional symbols, injecting them into the `vm_symbols::define_symbols!` call
+	/// in `runtime/src/symbols.rs`
+	fn generate_symbols<'a>(&self, generated_directory: &Path) {
+		// ../../symbols/src/lib.rs
+		let symbols_project_dir = generated_directory
+			.parent()
+			.unwrap()
+			.parent()
+			.unwrap()
+			.join("symbols");
+		let symbols_file_path = symbols_project_dir.join("src").join("lib.rs");
+
+		let symbols_file_contents = std::fs::read_to_string(&symbols_file_path).unwrap();
+
+		const CLASS_NAME_SECTION_HEADER: &str = "// Classes";
+		const CLASS_NAME_MARKER_COMMENT: &str =
+			"// -- GENERATED CLASS NAME MARKER, DO NOT DELETE --";
+
+		Self::generate_symbols_inner(
+			&self.class_name_symbols_to_add,
+			CLASS_NAME_SECTION_HEADER,
+			CLASS_NAME_MARKER_COMMENT,
+			generated_directory,
+			"class_names.symbols",
+			&symbols_file_contents,
+		);
+
+		const METHOD_NAME_SECTION_HEADER: &str = "// Methods";
+		const METHOD_NAME_MARKER_COMMENT: &str =
+			"// -- GENERATED METHOD NAME MARKER, DO NOT DELETE --";
+
+		Self::generate_symbols_inner(
+			&self.method_name_symbols_to_add,
+			METHOD_NAME_SECTION_HEADER,
+			METHOD_NAME_MARKER_COMMENT,
+			generated_directory,
+			"method_names.symbols",
+			&symbols_file_contents,
+		);
+
+		const METHOD_SIGNATURE_SECTION_HEADER: &str = "// Signatures";
+		const METHOD_SIGNATURE_MARKER_COMMENT: &str =
+			"// -- GENERATED METHOD SIGNATURE MARKER, DO NOT DELETE --";
+
+		Self::generate_symbols_inner(
+			&self.method_signature_symbols_to_add,
+			METHOD_SIGNATURE_SECTION_HEADER,
+			METHOD_SIGNATURE_MARKER_COMMENT,
+			generated_directory,
+			"signature_names.symbols",
+			&symbols_file_contents,
+		);
+	}
+
+	/// Gets the position of a marker comment (eg. "// Classes")
+	fn get_position_of_marker_comment(contents: &str, section_marker_comment: &str) -> usize {
+		contents.rfind(section_marker_comment).expect(&format!(
+			"Failed to find marker comment: {}",
+			section_marker_comment
+		)) + section_marker_comment.len()
+	}
+
+	fn check_in_section(
+		contents: &str,
+		section_header_position: usize,
+		marker_comment_position: usize,
+		check_for: &str,
+	) -> bool {
+		contents[section_header_position..marker_comment_position]
+			.contains(&format!("{}", check_for))
+	}
+
+	fn generate_symbols_inner<'a>(
+		symbol_iter: &HashMap<String, String>,
+		section_header: &str,
+		marker_comment: &str,
+		generated_directory: &Path,
+		file_name: &str,
+		symbols_file_contents: &str,
+	) {
+		let section_header_position =
+			Self::get_position_of_marker_comment(symbols_file_contents, section_header);
+		let marker_comment_position =
+			Self::get_position_of_marker_comment(symbols_file_contents, marker_comment);
+
+		let mut symbols_file = OpenOptions::new()
+			.write(true)
+			.truncate(true)
+			.create(true)
+			.open(generated_directory.join(file_name))
+			.unwrap();
+
+		for (symbol, value) in symbol_iter {
+			if !Self::check_in_section(
+				symbols_file_contents,
+				section_header_position,
+				marker_comment_position,
+				symbol,
+			) {
+				writeln!(symbols_file, "{}: {:?},", symbol.replace('/', "_"), value).unwrap();
+			}
+		}
+	}
+}
 
 fn get_runtime_native_directory() -> PathBuf {
 	// Do a bunch of path work to get to ../../runtime/src/native
@@ -38,17 +166,32 @@ fn get_generated_directory() -> PathBuf {
 	project_root.join("generated").join("native")
 }
 
+/// Generate native and intrinsic method definitions
 pub fn generate() {
+	let mut symbol_collector = SymbolCollector::default();
+
 	let native_directory = get_runtime_native_directory();
 	let generated_directory = get_generated_directory();
-	let modules = modules::get_modules_from(&generated_directory, &native_directory);
+	let modules = modules::get_modules_from(
+		&generated_directory,
+		&native_directory,
+		&mut symbol_collector,
+	);
 
-	generate_intrinsics(&generated_directory, &modules);
-	create_native_method_table(&generated_directory, &modules);
+	generate_intrinsics(&generated_directory, &modules, &mut symbol_collector);
+	create_native_method_table(&generated_directory, &modules, &mut symbol_collector);
+
+	// Generate any new symbols we found that are not defined in `../../symbols/src/lib.rs`
+	symbol_collector.generate_symbols(&generated_directory);
+
 	generate_modules(&native_directory, &modules);
 }
 
-fn create_native_method_table(generated_directory: &Path, modules: &[Module]) {
+fn create_native_method_table(
+	generated_directory: &Path,
+	modules: &[Module],
+	symbol_collector: &mut SymbolCollector,
+) {
 	let init_fn_file_path = generated_directory.join("native_init.rs");
 	let mut init_fn_file = OpenOptions::new()
 		.write(true)
@@ -59,32 +202,40 @@ fn create_native_method_table(generated_directory: &Path, modules: &[Module]) {
 
 	write!(init_fn_file, "{}", INIT_FN_FILE_HEADER).unwrap();
 
-	// TODO: Generate missing symbols
 	for module in modules {
 		for class in &module.classes {
-			build_map_inserts(&mut init_fn_file, &module.name, class);
+			build_map_inserts(&mut init_fn_file, module, class, symbol_collector);
 		}
 	}
 
 	write!(init_fn_file, "\tmap\n}}").unwrap();
 }
 
-fn build_map_inserts(file: &mut File, module: &str, class: &Class) {
+fn build_map_inserts(
+	file: &mut File,
+	module: &Module,
+	class: &Class,
+	symbol_collector: &mut SymbolCollector,
+) {
+	symbol_collector.add_class_name(module.name_for_class(&class.class_name));
+
 	for member in &class.members {
 		match member {
 			Member::Method(method) => {
-				if method.is_intrinsic {
-					continue; // TODO
+				if !method.modifiers.contains(AccessFlags::ACC_NATIVE) {
+					continue;
 				}
+
+				symbol_collector.add_method(method, class);
 
 				writeln!(
 					file,
 					"\tmap.insert({});",
-					util::method_table_entry(module, &class, method)
+					util::method_table_entry(&module.name, &class, method)
 				)
 				.unwrap();
 			},
-			Member::Class(class_) => build_map_inserts(file, module, class_),
+			Member::Class(class_) => build_map_inserts(file, module, class_, symbol_collector),
 			_ => {},
 		}
 	}

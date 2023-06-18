@@ -1,5 +1,5 @@
 use crate::parse::{AccessFlags, Class, Member};
-use crate::util;
+use crate::{util, SymbolCollector};
 
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -26,7 +26,12 @@ pub fn registerNatives(_: JNIEnv, _: crate::stack::local_stack::LocalStack) -> N
 	};
 }
 
-pub(crate) fn generate_register_natives_table(module: &str, class: &mut Class, def_path: &Path) {
+pub(crate) fn generate_register_natives_table(
+	module: &str,
+	class: &mut Class,
+	def_path: &Path,
+	symbol_collector: &mut SymbolCollector,
+) {
 	if !class.members.iter().any(
 		|member| matches!(member, Member::Method(method) if method.name() == "registerNatives"),
 	) {
@@ -61,6 +66,8 @@ pub(crate) fn generate_register_natives_table(module: &str, class: &mut Class, d
     }).collect::<Vec<_>>() {
         match member {
             Member::Method(method) => {
+				symbol_collector.add_method(method, class);
+
                 writeln!(
                     native_method_table_file,
                     "\t\t({}),",

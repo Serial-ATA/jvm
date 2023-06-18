@@ -12,7 +12,7 @@ pub(crate) fn method_table_entry(module: &str, class: &Class, method: &Method) -
 		format!("{}{}", module, class.class_name)
 			.replace('/', "_")
 			.replace('$', "_"),
-		method.full_name_symbol(class).replace('$', "_"),
+		method.name_symbol(),
 		method.signature_symbol_name(),
 		module.replace('/', "::"),
 		class.class_name.replace('$', "::"),

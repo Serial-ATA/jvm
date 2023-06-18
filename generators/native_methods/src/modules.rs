@@ -1,5 +1,5 @@
 use crate::parse::{Class, Member};
-use crate::{field, parse, registernatives, util};
+use crate::{field, parse, registernatives, util, SymbolCollector};
 
 use std::path::{Path, PathBuf};
 
@@ -14,7 +14,11 @@ pub(crate) struct Module {
 }
 
 impl Module {
-	fn from_path(generated_directory: &Path, root: &Path) -> Self {
+	fn from_path(
+		generated_directory: &Path,
+		root: &Path,
+		symbol_collector: &mut SymbolCollector,
+	) -> Self {
 		let components = util::create_relative_path_components(root, true);
 
 		let mut name = String::new();
@@ -61,6 +65,7 @@ impl Module {
 				&name,
 				&mut class,
 				Path::new(&generated_root),
+				symbol_collector,
 			);
 
 			classes.push(class);
@@ -92,7 +97,11 @@ impl Module {
 	}
 }
 
-pub(crate) fn get_modules_from(generated_directory: &Path, native_directory: &Path) -> Vec<Module> {
+pub(crate) fn get_modules_from(
+	generated_directory: &Path,
+	native_directory: &Path,
+	symbol_collector: &mut SymbolCollector,
+) -> Vec<Module> {
 	let dirs_filtered = WalkDir::new(native_directory)
 		.into_iter()
 		.map(Result::unwrap)
@@ -102,7 +111,11 @@ pub(crate) fn get_modules_from(generated_directory: &Path, native_directory: &Pa
 
 	let mut modules = Vec::new();
 	for dir in dirs_filtered {
-		modules.push(Module::from_path(generated_directory, dir.path()))
+		modules.push(Module::from_path(
+			generated_directory,
+			dir.path(),
+			symbol_collector,
+		))
 	}
 
 	modules

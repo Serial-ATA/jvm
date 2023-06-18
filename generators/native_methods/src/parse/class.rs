@@ -59,7 +59,8 @@ impl Class {
 		for member in &mut class.members {
 			if let Member::Method(method) = member {
 				assert!(
-					method.modifiers.contains(AccessFlags::ACC_NATIVE) || method.is_intrinsic,
+					method.modifiers.contains(AccessFlags::ACC_NATIVE)
+						|| method.is_intrinsic_candidate,
 					"Method `{}#{}` is not declared as native or an intrinsic candidate!",
 					class.class_name,
 					method.name()
