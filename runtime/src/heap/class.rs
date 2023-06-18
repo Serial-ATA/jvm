@@ -434,8 +434,9 @@ impl Iterator for ClassParentIterator {
 		return match &self.current_class {
 			None => None,
 			Some(current) => {
+				let ret = self.current_class.clone();
 				self.current_class = current.super_class.as_ref().map(Arc::clone);
-				self.current_class.clone()
+				ret
 			},
 		};
 	}
