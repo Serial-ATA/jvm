@@ -18,9 +18,17 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 static CRATE_ROOT: &str = env!("CARGO_MANIFEST_DIR");
-static INIT_FN_FILE_HEADER: &str = "#[allow(trivial_casts)]\nfn init_native_method_table() -> \
-                                    HashMap<NativeMethodDef, NativeMethodPtr> {\n\tuse \
-                                    symbols::sym;\n\tlet mut map = HashMap::new();\n";
+static INIT_FN_FILE_HEADER: &str = r#"#[allow(trivial_casts)]
+fn init_native_method_table() -> HashMap<NativeMethodDef, NativeMethodPtr> {
+	use symbols::sym;
+	
+	fn insert(map: &mut HashMap<NativeMethodDef, NativeMethodPtr>, key: NativeMethodDef, value: NativeMethodPtr) {
+		let existing = map.insert(key, value);
+		assert!(existing.is_none(), "Double registration of native method: {:?}", key);
+	}
+	
+	let mut map = HashMap::new();
+"#;
 
 static MODULE_MARKER_START_COMMENT: &str = "// Module marker, do not remove";
 
@@ -231,7 +239,7 @@ fn build_map_inserts(
 
 				writeln!(
 					file,
-					"\tmap.insert({});",
+					"\tinsert(&mut map, {});",
 					util::method_table_entry(&module.name, &class, method)
 				)
 				.unwrap();
