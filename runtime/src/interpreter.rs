@@ -698,7 +698,7 @@ impl Interpreter {
                 OpCode::checkcast => { Self::instanceof_checkcast(FrameRef::clone(&frame), opcode) };
                 
                 // ========= Control =========
-                // TODO: jsr, ret, lookupswitch,
+                // TODO: jsr, ret,
                 CATEGORY: control
                 OpCode::goto => {
                     let address = frame.read_byte2_signed() as isize;
@@ -706,6 +706,9 @@ impl Interpreter {
                 },
                 OpCode::tableswitch => {
                     Self::tableswitch(frame)
+                },
+                OpCode::lookupswitch => {
+                    Self::lookupswitch(frame)
                 },
                 @GROUP {
                     [
@@ -989,6 +992,32 @@ impl Interpreter {
             offset = jump_offsets[(index - low) as usize] as isize;
         }
         
+        frame.thread().get().pc.store(opcode_address + offset, MemOrdering::Relaxed);
+    }
+
+    fn lookupswitch(frame: FrameRef) {
+        // Subtract 1, since we already read the opcode
+        let opcode_address = frame.thread().get().pc.load(MemOrdering::Relaxed) - 1;
+        frame.skip_padding();
+        let default = frame.read_byte4_signed() as isize;
+        let npairs = frame.read_byte4_signed();
+        assert!(npairs >= 0);
+        
+        let mut match_offset_pairs = vec![(0i32, 0i32); npairs as usize];
+        for (match_, offset) in &mut match_offset_pairs {
+            *match_ = frame.read_byte4_signed();
+            *offset = frame.read_byte4_signed();
+        }
+
+        let key = frame.get_operand_stack_mut().pop_int();
+        let offset;
+        
+        if let Some((_, matched_offset)) = match_offset_pairs.iter().find(|(match_, _)| *match_ == key) {
+            offset = *matched_offset as isize;
+        } else {
+            offset = default;
+        }
+
         frame.thread().get().pc.store(opcode_address + offset, MemOrdering::Relaxed);
     }
 }

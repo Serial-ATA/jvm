@@ -105,9 +105,7 @@ impl FrameRef {
 		let frame = self.0.get_mut();
 		let thread = frame.thread.get();
 
-		// This is used on the opcode of the instruction, which will be read prior to calling this
-		// So we need to subtract back to it.
-		let mut pc = thread.pc.load(Ordering::Relaxed) - 1;
+		let mut pc = thread.pc.load(Ordering::Relaxed);
 		while pc % 4 != 0 {
 			pc += 1;
 		}
