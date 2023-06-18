@@ -59,7 +59,7 @@ pub(crate) fn generate_intrinsics<'a>(
 					false => None,
 					true => {
 						symbol_collector.add_class_name(module.name_for_class(&class.class_name));
-						symbol_collector.add_method(method, class);
+						symbol_collector.add_method(method);
 
 						Some((
 							method.full_name_symbol(class),

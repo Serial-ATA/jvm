@@ -31,13 +31,14 @@ struct SymbolCollector {
 	method_signature_symbols_to_add: HashMap<String, String>,
 }
 
+// TODO: If a duplicate symbol value is found under another name, the generated files should use the defined name
 impl SymbolCollector {
 	pub fn add_class_name(&mut self, value: String) {
 		let symbol_name = value.replace('/', "_").replace('$', "_");
 		self.class_name_symbols_to_add.insert(symbol_name, value);
 	}
 
-	pub fn add_method(&mut self, method: &Method, class: &Class) {
+	pub fn add_method(&mut self, method: &Method) {
 		self.method_name_symbols_to_add
 			.insert(method.name_symbol(), method.generated_name().to_string());
 		self.method_signature_symbols_to_add.insert(
@@ -115,7 +116,7 @@ impl SymbolCollector {
 		check_for: &str,
 	) -> bool {
 		contents[section_header_position..marker_comment_position]
-			.contains(&format!("{}", check_for))
+			.contains(&format!("\t{}", check_for))
 	}
 
 	fn generate_symbols_inner<'a>(
@@ -226,7 +227,7 @@ fn build_map_inserts(
 					continue;
 				}
 
-				symbol_collector.add_method(method, class);
+				symbol_collector.add_method(method);
 
 				writeln!(
 					file,

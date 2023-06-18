@@ -66,7 +66,7 @@ pub(crate) fn generate_register_natives_table(
     }).collect::<Vec<_>>() {
         match member {
             Member::Method(method) => {
-				symbol_collector.add_method(method, class);
+				symbol_collector.add_method(method);
 
                 writeln!(
                     native_method_table_file,

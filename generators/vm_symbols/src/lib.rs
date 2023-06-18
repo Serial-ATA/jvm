@@ -89,6 +89,7 @@ pub fn define_symbols(mut input: TokenStream) -> TokenStream {
 		});
 
 		symbol_const_stream.extend(quote! {
+			#[doc = #value]
 			pub const #name: Symbol = Symbol::new(#index);
 		});
 

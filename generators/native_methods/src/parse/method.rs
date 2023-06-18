@@ -66,7 +66,7 @@ impl Method {
 	}
 
 	pub fn name_symbol(&self) -> String {
-		let mut name = self.generated_name();
+		let name = self.generated_name();
 		if name == "<init>" {
 			return String::from("object_initializer_name");
 		}
