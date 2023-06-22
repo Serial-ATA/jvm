@@ -9,4 +9,4 @@ edition = "2021"
 byte-slice-cast = { workspace = true }
 common = { path = "../common" }
 ouroboros = "0.15.5"
-zip = "0.6.3"
+zip = { workspace = true }

@@ -13,9 +13,10 @@ instructions = { path = "../instructions" }
 jimage = { path = "../jimage" }
 bytemuck = "1.13.0"
 byte-slice-cast = { workspace = true }
-log = "0.4.17"
+jni = { path = "../jni" }
+log = { workspace = true }
 num_cpus = "1.15.0"
-paste = "1.0.9"
+paste = { workspace = true }
 platform = { path = "../platform" }
 once_cell = { workspace = true }
 symbols = { path = "../symbols" }
