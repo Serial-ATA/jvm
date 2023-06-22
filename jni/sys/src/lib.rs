@@ -23,8 +23,6 @@
 use core::ffi::VaList;
 use core::ffi::{c_void, c_char};
 
-pub type va_list = *mut c_void;
-
 pub type jint = i32;
 pub type jlong = i64;
 pub type jbyte = i8;

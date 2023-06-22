@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 pub mod intrinsics;
+pub mod jni;
 
 use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;

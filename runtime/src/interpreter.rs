@@ -999,6 +999,7 @@ impl Interpreter {
         // Subtract 1, since we already read the opcode
         let opcode_address = frame.thread().get().pc.load(MemOrdering::Relaxed) - 1;
         frame.skip_padding();
+        
         let default = frame.read_byte4_signed() as isize;
         let npairs = frame.read_byte4_signed();
         assert!(npairs >= 0);

@@ -1,4 +1,5 @@
 #![feature(lint_reasons)]
+#![feature(c_variadic)]
 
 pub mod classpath;
 mod error;
