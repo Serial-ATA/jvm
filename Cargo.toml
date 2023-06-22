@@ -10,6 +10,8 @@ members = [
     "versioning",
     "platform",
     "symbols",
+    "jni",
+    "jni/sys",
 
     "tests",
 ]
