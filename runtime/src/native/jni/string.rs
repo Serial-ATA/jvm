@@ -1,5 +1,5 @@
 use core::ffi::c_char;
-use jni::{jboolean, jchar, jsize, jstring, JNIEnv};
+use jni::sys::{jboolean, jchar, jsize, jstring, JNIEnv};
 
 pub extern "system" fn NewString(env: *mut JNIEnv, unicode: *const jchar, len: jsize) -> jstring {
 	unimplemented!("jni::NewString");
@@ -9,7 +9,7 @@ pub extern "system" fn GetStringLength(env: *mut JNIEnv, str: jstring) -> jsize 
 	unimplemented!("jni::GetStringLength");
 }
 
-extern "system" fn GetStringChars(
+pub extern "system" fn GetStringChars(
 	env: *mut JNIEnv,
 	str: jstring,
 	isCopy: *mut jboolean,
@@ -29,7 +29,7 @@ pub extern "system" fn GetStringUTFLength(env: *mut JNIEnv, str: jstring) -> jsi
 	unimplemented!("jni::GetStringUTFLength");
 }
 
-extern "system" fn GetStringUTFChars(
+pub extern "system" fn GetStringUTFChars(
 	env: *mut JNIEnv,
 	str: jstring,
 	isCopy: *mut jboolean,
@@ -41,7 +41,7 @@ pub extern "system" fn ReleaseStringUTFChars(env: *mut JNIEnv, str: jstring, cha
 	unimplemented!("jni::ReleaseStringUTFChars");
 }
 
-extern "system" fn GetStringRegion(
+pub extern "system" fn GetStringRegion(
 	env: *mut JNIEnv,
 	str: jstring,
 	start: jsize,
@@ -51,7 +51,7 @@ extern "system" fn GetStringRegion(
 	unimplemented!("jni::GetStringRegion")
 }
 
-extern "system" fn GetStringUTFRegion(
+pub extern "system" fn GetStringUTFRegion(
 	env: *mut JNIEnv,
 	str: jstring,
 	start: jsize,
@@ -61,7 +61,7 @@ extern "system" fn GetStringUTFRegion(
 	unimplemented!("jni::GetStringUTFRegion")
 }
 
-extern "system" fn GetStringCritical(
+pub extern "system" fn GetStringCritical(
 	env: *mut JNIEnv,
 	string: jstring,
 	isCopy: *mut jboolean,

@@ -1,5 +1,5 @@
 use core::ffi::VaList;
-use jni::{jboolean, jclass, jmethodID, jobject, jobjectRefType, jvalue, JNIEnv};
+use jni::sys::{jboolean, jclass, jmethodID, jobject, jobjectRefType, jvalue, JNIEnv};
 
 pub extern "system" fn AllocObject(env: *mut JNIEnv, clazz: jclass) -> jobject {
 	unimplemented!("jni::AllocObject");
@@ -18,7 +18,7 @@ pub unsafe extern "C" fn NewObject(
 	unimplemented!("jni::NewObject");
 }
 
-extern "system" fn NewObjectV(
+pub extern "system" fn NewObjectV(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -27,7 +27,7 @@ extern "system" fn NewObjectV(
 	unimplemented!("jni::NewObjectV")
 }
 
-extern "system" fn NewObjectA(
+pub extern "system" fn NewObjectA(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,

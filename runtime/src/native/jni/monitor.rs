@@ -1,4 +1,4 @@
-use jni::{jint, jobject, JNIEnv};
+use jni::sys::{jint, jobject, JNIEnv};
 
 pub extern "system" fn MonitorEnter(env: *mut JNIEnv, obj: jobject) -> jint {
 	unimplemented!("jni::MonitorEnter");

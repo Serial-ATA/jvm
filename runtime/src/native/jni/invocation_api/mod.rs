@@ -3,7 +3,7 @@
 //! Vendors can deliver Java-enabled applications without having to link with the Java VM source code.
 
 use core::ffi::c_void;
-use jni::{jint, jsize, JavaVM};
+use jni::sys::{jint, jsize, JavaVM};
 
 pub mod library;
 

@@ -1,5 +1,5 @@
 use core::ffi::c_char;
-use jni::{jboolean, jclass, jint, jthrowable, JNIEnv};
+use jni::sys::{jboolean, jclass, jint, jthrowable, JNIEnv};
 
 pub extern "system" fn Throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
 	unimplemented!("jni::Throw");

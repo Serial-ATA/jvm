@@ -23,7 +23,7 @@
 //! These functions will return `NULL` if the object has been freed. Otherwise, the new reference will prevent the underlying object from being freed.
 //! The new reference, if non-`NULL`, can then be used to access the underlying object, and deleted when such access is no longer needed.
 
-use jni::{jobject, jweak, JNIEnv};
+use jni::sys::{jobject, jweak, JNIEnv};
 
 pub extern "system" fn NewWeakGlobalRef(env: *mut JNIEnv, obj: jobject) -> jweak {
 	unimplemented!("jni::NewWeakGlobalRef");

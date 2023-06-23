@@ -1,5 +1,5 @@
 use core::ffi::c_char;
-use jni::{
+use jni::sys::{
 	jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, jobject, jshort, JNIEnv,
 };
 
@@ -7,7 +7,7 @@ use jni::{
 //   NON-STATIC
 // --------------
 
-extern "system" fn GetFieldID(
+pub extern "system" fn GetFieldID(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	name: *const c_char,
@@ -129,7 +129,7 @@ pub extern "system" fn SetDoubleField(
 //     STATIC
 // --------------
 
-extern "system" fn GetStaticFieldID(
+pub extern "system" fn GetStaticFieldID(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	name: *const c_char,
@@ -210,7 +210,7 @@ pub extern "system" fn GetStaticDoubleField(
 	unimplemented!("jni::GetStaticDoubleField");
 }
 
-extern "system" fn SetStaticObjectField(
+pub extern "system" fn SetStaticObjectField(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	fieldID: jfieldID,
@@ -219,7 +219,7 @@ extern "system" fn SetStaticObjectField(
 	unimplemented!("jni::SetStaticObjectField")
 }
 
-extern "system" fn SetStaticBooleanField(
+pub extern "system" fn SetStaticBooleanField(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	fieldID: jfieldID,
@@ -246,7 +246,7 @@ pub extern "system" fn SetStaticCharField(
 	unimplemented!("jni::SetStaticCharField");
 }
 
-extern "system" fn SetStaticShortField(
+pub extern "system" fn SetStaticShortField(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	fieldID: jfieldID,
@@ -273,7 +273,7 @@ pub extern "system" fn SetStaticLongField(
 	unimplemented!("jni::SetStaticLongField");
 }
 
-extern "system" fn SetStaticFloatField(
+pub extern "system" fn SetStaticFloatField(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	fieldID: jfieldID,
@@ -282,7 +282,7 @@ extern "system" fn SetStaticFloatField(
 	unimplemented!("jni::SetStaticFloatField")
 }
 
-extern "system" fn SetStaticDoubleField(
+pub extern "system" fn SetStaticDoubleField(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	fieldID: jfieldID,

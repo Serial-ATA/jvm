@@ -6,7 +6,8 @@
 
 use crate::heap::reference::ClassRef;
 
-use jni::jclass;
+use jni::env::JNIEnv;
+use jni::sys::{jclass, JNINativeInterface_};
 
 pub mod array;
 pub mod class;

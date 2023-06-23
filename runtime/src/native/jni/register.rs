@@ -1,6 +1,6 @@
-use jni::{jclass, jint, JNIEnv, JNINativeMethod};
+use jni::sys::{jclass, jint, JNIEnv, JNINativeMethod};
 
-extern "system" fn RegisterNatives(
+pub extern "system" fn RegisterNatives(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methods: *const JNINativeMethod,

@@ -14,7 +14,7 @@
 //!  * In addition, native libraries can be unloaded when their corresponding class loaders are garbage collected.
 
 use core::ffi::c_void;
-use jni::{jint, JavaVM};
+use jni::sys::{jint, JavaVM};
 
 extern "system" {
 	pub fn JNI_OnLoad(vm: *mut JavaVM, reserved: *mut c_void) -> jint;

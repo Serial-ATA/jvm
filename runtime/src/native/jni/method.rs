@@ -1,5 +1,5 @@
 use core::ffi::{c_char, VaList};
-use jni::{
+use jni::sys::{
 	jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, jobject, jshort,
 	jvalue, JNIEnv,
 };
@@ -8,7 +8,7 @@ use jni::{
 //   NON-STATIC
 // --------------
 
-extern "system" fn GetMethodID(
+pub extern "system" fn GetMethodID(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	name: *const c_char,
@@ -26,7 +26,7 @@ pub unsafe extern "C" fn CallObjectMethod(
 	unimplemented!("jni::CallObjectMethod");
 }
 
-extern "system" fn CallObjectMethodV(
+pub extern "system" fn CallObjectMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -35,7 +35,7 @@ extern "system" fn CallObjectMethodV(
 	unimplemented!("jni::CallObjectMethodV")
 }
 
-extern "system" fn CallObjectMethodA(
+pub extern "system" fn CallObjectMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -53,7 +53,7 @@ pub unsafe extern "C" fn CallBooleanMethod(
 	unimplemented!("jni::CallBooleanMethod");
 }
 
-extern "system" fn CallBooleanMethodV(
+pub extern "system" fn CallBooleanMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -62,7 +62,7 @@ extern "system" fn CallBooleanMethodV(
 	unimplemented!("jni::CallBooleanMethodV")
 }
 
-extern "system" fn CallBooleanMethodA(
+pub extern "system" fn CallBooleanMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -80,7 +80,7 @@ pub unsafe extern "C" fn CallByteMethod(
 	unimplemented!("jni::CallByteMethod");
 }
 
-extern "system" fn CallByteMethodV(
+pub extern "system" fn CallByteMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -89,7 +89,7 @@ extern "system" fn CallByteMethodV(
 	unimplemented!("jni::CallByteMethodV")
 }
 
-extern "system" fn CallByteMethodA(
+pub extern "system" fn CallByteMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -107,7 +107,7 @@ pub unsafe extern "C" fn CallCharMethod(
 	unimplemented!("jni::CallCharMethod");
 }
 
-extern "system" fn CallCharMethodV(
+pub extern "system" fn CallCharMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -116,7 +116,7 @@ extern "system" fn CallCharMethodV(
 	unimplemented!("jni::CallCharMethodV")
 }
 
-extern "system" fn CallCharMethodA(
+pub extern "system" fn CallCharMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -134,7 +134,7 @@ pub unsafe extern "C" fn CallShortMethod(
 	unimplemented!("jni::CallShortMethod");
 }
 
-extern "system" fn CallShortMethodV(
+pub extern "system" fn CallShortMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -143,7 +143,7 @@ extern "system" fn CallShortMethodV(
 	unimplemented!("jni::CallShortMethodV")
 }
 
-extern "system" fn CallShortMethodA(
+pub extern "system" fn CallShortMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -161,7 +161,7 @@ pub unsafe extern "C" fn CallIntMethod(
 	unimplemented!("jni::CallIntMethod");
 }
 
-extern "system" fn CallIntMethodV(
+pub extern "system" fn CallIntMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -170,7 +170,7 @@ extern "system" fn CallIntMethodV(
 	unimplemented!("jni::CallIntMethodV")
 }
 
-extern "system" fn CallIntMethodA(
+pub extern "system" fn CallIntMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -188,7 +188,7 @@ pub unsafe extern "C" fn CallLongMethod(
 	unimplemented!("jni::CallLongMethod");
 }
 
-extern "system" fn CallLongMethodV(
+pub extern "system" fn CallLongMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -197,7 +197,7 @@ extern "system" fn CallLongMethodV(
 	unimplemented!("jni::CallLongMethodV")
 }
 
-extern "system" fn CallLongMethodA(
+pub extern "system" fn CallLongMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -215,7 +215,7 @@ pub unsafe extern "C" fn CallFloatMethod(
 	unimplemented!("jni::CallFloatMethod");
 }
 
-extern "system" fn CallFloatMethodV(
+pub extern "system" fn CallFloatMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -224,7 +224,7 @@ extern "system" fn CallFloatMethodV(
 	unimplemented!("jni::CallFloatMethodV")
 }
 
-extern "system" fn CallFloatMethodA(
+pub extern "system" fn CallFloatMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -242,7 +242,7 @@ pub unsafe extern "C" fn CallDoubleMethod(
 	unimplemented!("jni::CallDoubleMethod");
 }
 
-extern "system" fn CallDoubleMethodV(
+pub extern "system" fn CallDoubleMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -251,7 +251,7 @@ extern "system" fn CallDoubleMethodV(
 	unimplemented!("jni::CallDoubleMethodV")
 }
 
-extern "system" fn CallDoubleMethodA(
+pub extern "system" fn CallDoubleMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -264,7 +264,7 @@ pub unsafe extern "C" fn CallVoidMethod(env: *mut JNIEnv, obj: jobject, methodID
 	unimplemented!("jni::CallVoidMethod");
 }
 
-extern "system" fn CallVoidMethodV(
+pub extern "system" fn CallVoidMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -273,7 +273,7 @@ extern "system" fn CallVoidMethodV(
 	unimplemented!("jni::CallVoidMethodV")
 }
 
-extern "system" fn CallVoidMethodA(
+pub extern "system" fn CallVoidMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
@@ -296,7 +296,7 @@ pub unsafe extern "C" fn CallNonvirtualObjectMethod(
 	unimplemented!("jni::CallNonvirtualObjectMethod")
 }
 
-extern "system" fn CallNonvirtualObjectMethodV(
+pub extern "system" fn CallNonvirtualObjectMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -306,7 +306,7 @@ extern "system" fn CallNonvirtualObjectMethodV(
 	unimplemented!("jni::CallNonvirtualObjectMethodV")
 }
 
-extern "system" fn CallNonvirtualObjectMethodA(
+pub extern "system" fn CallNonvirtualObjectMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -326,7 +326,7 @@ pub unsafe extern "C" fn CallNonvirtualBooleanMethod(
 	unimplemented!("jni::CallNonvirtualBooleanMethod")
 }
 
-extern "system" fn CallNonvirtualBooleanMethodV(
+pub extern "system" fn CallNonvirtualBooleanMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -336,7 +336,7 @@ extern "system" fn CallNonvirtualBooleanMethodV(
 	unimplemented!("jni::CallNonvirtualBooleanMethodV")
 }
 
-extern "system" fn CallNonvirtualBooleanMethodA(
+pub extern "system" fn CallNonvirtualBooleanMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -356,7 +356,7 @@ pub unsafe extern "C" fn CallNonvirtualByteMethod(
 	unimplemented!("jni::CallNonvirtualByteMethod")
 }
 
-extern "system" fn CallNonvirtualByteMethodV(
+pub extern "system" fn CallNonvirtualByteMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -366,7 +366,7 @@ extern "system" fn CallNonvirtualByteMethodV(
 	unimplemented!("jni::CallNonvirtualByteMethodV")
 }
 
-extern "system" fn CallNonvirtualByteMethodA(
+pub extern "system" fn CallNonvirtualByteMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -386,7 +386,7 @@ pub unsafe extern "C" fn CallNonvirtualCharMethod(
 	unimplemented!("jni::CallNonvirtualCharMethod")
 }
 
-extern "system" fn CallNonvirtualCharMethodV(
+pub extern "system" fn CallNonvirtualCharMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -396,7 +396,7 @@ extern "system" fn CallNonvirtualCharMethodV(
 	unimplemented!("jni::CallNonvirtualCharMethodV")
 }
 
-extern "system" fn CallNonvirtualCharMethodA(
+pub extern "system" fn CallNonvirtualCharMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -416,7 +416,7 @@ pub unsafe extern "C" fn CallNonvirtualShortMethod(
 	unimplemented!("jni::CallNonvirtualShortMethod")
 }
 
-extern "system" fn CallNonvirtualShortMethodV(
+pub extern "system" fn CallNonvirtualShortMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -426,7 +426,7 @@ extern "system" fn CallNonvirtualShortMethodV(
 	unimplemented!("jni::CallNonvirtualShortMethodV")
 }
 
-extern "system" fn CallNonvirtualShortMethodA(
+pub extern "system" fn CallNonvirtualShortMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -446,7 +446,7 @@ pub unsafe extern "C" fn CallNonvirtualIntMethod(
 	unimplemented!("jni::CallNonvirtualIntMethod")
 }
 
-extern "system" fn CallNonvirtualIntMethodV(
+pub extern "system" fn CallNonvirtualIntMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -456,7 +456,7 @@ extern "system" fn CallNonvirtualIntMethodV(
 	unimplemented!("jni::CallNonvirtualIntMethodV")
 }
 
-extern "system" fn CallNonvirtualIntMethodA(
+pub extern "system" fn CallNonvirtualIntMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -476,7 +476,7 @@ pub unsafe extern "C" fn CallNonvirtualLongMethod(
 	unimplemented!("jni::CallNonvirtualLongMethod")
 }
 
-extern "system" fn CallNonvirtualLongMethodV(
+pub extern "system" fn CallNonvirtualLongMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -486,7 +486,7 @@ extern "system" fn CallNonvirtualLongMethodV(
 	unimplemented!("jni::CallNonvirtualLongMethodV")
 }
 
-extern "system" fn CallNonvirtualLongMethodA(
+pub extern "system" fn CallNonvirtualLongMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -506,7 +506,7 @@ pub unsafe extern "C" fn CallNonvirtualFloatMethod(
 	unimplemented!("jni::CallNonvirtualFloatMethod")
 }
 
-extern "system" fn CallNonvirtualFloatMethodV(
+pub extern "system" fn CallNonvirtualFloatMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -516,7 +516,7 @@ extern "system" fn CallNonvirtualFloatMethodV(
 	unimplemented!("jni::CallNonvirtualFloatMethodV")
 }
 
-extern "system" fn CallNonvirtualFloatMethodA(
+pub extern "system" fn CallNonvirtualFloatMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -536,7 +536,7 @@ pub unsafe extern "C" fn CallNonvirtualDoubleMethod(
 	unimplemented!("jni::CallNonvirtualDoubleMethod")
 }
 
-extern "system" fn CallNonvirtualDoubleMethodV(
+pub extern "system" fn CallNonvirtualDoubleMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -546,7 +546,7 @@ extern "system" fn CallNonvirtualDoubleMethodV(
 	unimplemented!("jni::CallNonvirtualDoubleMethodV")
 }
 
-extern "system" fn CallNonvirtualDoubleMethodA(
+pub extern "system" fn CallNonvirtualDoubleMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -566,7 +566,7 @@ pub unsafe extern "C" fn CallNonvirtualVoidMethod(
 	unimplemented!("jni::CallNonvirtualVoidMethod")
 }
 
-extern "system" fn CallNonvirtualVoidMethodV(
+pub extern "system" fn CallNonvirtualVoidMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -576,7 +576,7 @@ extern "system" fn CallNonvirtualVoidMethodV(
 	unimplemented!("jni::CallNonvirtualVoidMethodV")
 }
 
-extern "system" fn CallNonvirtualVoidMethodA(
+pub extern "system" fn CallNonvirtualVoidMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
 	clazz: jclass,
@@ -590,7 +590,7 @@ extern "system" fn CallNonvirtualVoidMethodA(
 //     STATIC
 // --------------
 
-extern "system" fn GetStaticMethodID(
+pub extern "system" fn GetStaticMethodID(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	name: *const c_char,
@@ -608,7 +608,7 @@ pub unsafe extern "C" fn CallStaticObjectMethod(
 	unimplemented!("jni::CallStaticObjectMethod");
 }
 
-extern "system" fn CallStaticObjectMethodV(
+pub extern "system" fn CallStaticObjectMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -617,7 +617,7 @@ extern "system" fn CallStaticObjectMethodV(
 	unimplemented!("jni::CallStaticObjectMethodV")
 }
 
-extern "system" fn CallStaticObjectMethodA(
+pub extern "system" fn CallStaticObjectMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -635,7 +635,7 @@ pub unsafe extern "C" fn CallStaticBooleanMethod(
 	unimplemented!("jni::CallStaticBooleanMethod");
 }
 
-extern "system" fn CallStaticBooleanMethodV(
+pub extern "system" fn CallStaticBooleanMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -644,7 +644,7 @@ extern "system" fn CallStaticBooleanMethodV(
 	unimplemented!("jni::CallStaticBooleanMethodV")
 }
 
-extern "system" fn CallStaticBooleanMethodA(
+pub extern "system" fn CallStaticBooleanMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -662,7 +662,7 @@ pub unsafe extern "C" fn CallStaticByteMethod(
 	unimplemented!("jni::CallStaticByteMethod");
 }
 
-extern "system" fn CallStaticByteMethodV(
+pub extern "system" fn CallStaticByteMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -671,7 +671,7 @@ extern "system" fn CallStaticByteMethodV(
 	unimplemented!("jni::CallStaticByteMethodV")
 }
 
-extern "system" fn CallStaticByteMethodA(
+pub extern "system" fn CallStaticByteMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -689,7 +689,7 @@ pub unsafe extern "C" fn CallStaticCharMethod(
 	unimplemented!("jni::CallStaticCharMethod");
 }
 
-extern "system" fn CallStaticCharMethodV(
+pub extern "system" fn CallStaticCharMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -698,7 +698,7 @@ extern "system" fn CallStaticCharMethodV(
 	unimplemented!("jni::CallStaticCharMethodV")
 }
 
-extern "system" fn CallStaticCharMethodA(
+pub extern "system" fn CallStaticCharMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -716,7 +716,7 @@ pub unsafe extern "C" fn CallStaticShortMethod(
 	unimplemented!("jni::CallStaticShortMethod");
 }
 
-extern "system" fn CallStaticShortMethodV(
+pub extern "system" fn CallStaticShortMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -725,7 +725,7 @@ extern "system" fn CallStaticShortMethodV(
 	unimplemented!("jni::CallStaticShortMethodV")
 }
 
-extern "system" fn CallStaticShortMethodA(
+pub extern "system" fn CallStaticShortMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -743,7 +743,7 @@ pub unsafe extern "C" fn CallStaticIntMethod(
 	unimplemented!("jni::CallStaticIntMethod");
 }
 
-extern "system" fn CallStaticIntMethodV(
+pub extern "system" fn CallStaticIntMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -752,7 +752,7 @@ extern "system" fn CallStaticIntMethodV(
 	unimplemented!("jni::CallStaticIntMethodV")
 }
 
-extern "system" fn CallStaticIntMethodA(
+pub extern "system" fn CallStaticIntMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -770,7 +770,7 @@ pub unsafe extern "C" fn CallStaticLongMethod(
 	unimplemented!("jni::CallStaticLongMethod");
 }
 
-extern "system" fn CallStaticLongMethodV(
+pub extern "system" fn CallStaticLongMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -779,7 +779,7 @@ extern "system" fn CallStaticLongMethodV(
 	unimplemented!("jni::CallStaticLongMethodV")
 }
 
-extern "system" fn CallStaticLongMethodA(
+pub extern "system" fn CallStaticLongMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -797,7 +797,7 @@ pub unsafe extern "C" fn CallStaticFloatMethod(
 	unimplemented!("jni::CallStaticFloatMethod");
 }
 
-extern "system" fn CallStaticFloatMethodV(
+pub extern "system" fn CallStaticFloatMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -806,7 +806,7 @@ extern "system" fn CallStaticFloatMethodV(
 	unimplemented!("jni::CallStaticFloatMethodV")
 }
 
-extern "system" fn CallStaticFloatMethodA(
+pub extern "system" fn CallStaticFloatMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -824,7 +824,7 @@ pub unsafe extern "C" fn CallStaticDoubleMethod(
 	unimplemented!("jni::CallStaticDoubleMethod");
 }
 
-extern "system" fn CallStaticDoubleMethodV(
+pub extern "system" fn CallStaticDoubleMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -833,7 +833,7 @@ extern "system" fn CallStaticDoubleMethodV(
 	unimplemented!("jni::CallStaticDoubleMethodV")
 }
 
-extern "system" fn CallStaticDoubleMethodA(
+pub extern "system" fn CallStaticDoubleMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -851,7 +851,7 @@ pub unsafe extern "C" fn CallStaticVoidMethod(
 	unimplemented!("jni::CallStaticVoidMethod");
 }
 
-extern "system" fn CallStaticVoidMethodV(
+pub extern "system" fn CallStaticVoidMethodV(
 	env: *mut JNIEnv,
 	cls: jclass,
 	methodID: jmethodID,
@@ -860,7 +860,7 @@ extern "system" fn CallStaticVoidMethodV(
 	unimplemented!("jni::CallStaticVoidMethodV")
 }
 
-extern "system" fn CallStaticVoidMethodA(
+pub extern "system" fn CallStaticVoidMethodA(
 	env: *mut JNIEnv,
 	cls: jclass,
 	methodID: jmethodID,

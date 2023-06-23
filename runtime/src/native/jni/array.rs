@@ -1,5 +1,5 @@
 use core::ffi::c_void;
-use jni::{
+use jni::sys::{
 	jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jclass, jdouble,
 	jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, jobject, jobjectArray,
 	jshort, jshortArray, jsize, JNIEnv,
@@ -9,7 +9,7 @@ pub extern "system" fn GetArrayLength(env: *mut JNIEnv, array: jarray) -> jsize 
 	unimplemented!("jni::GetArrayLength");
 }
 
-extern "system" fn NewObjectArray(
+pub extern "system" fn NewObjectArray(
 	env: *mut JNIEnv,
 	len: jsize,
 	clazz: jclass,
@@ -26,7 +26,7 @@ pub extern "system" fn GetObjectArrayElement(
 	unimplemented!("jni::GetObjectArrayElement");
 }
 
-extern "system" fn SetObjectArrayElement(
+pub extern "system" fn SetObjectArrayElement(
 	env: *mut JNIEnv,
 	array: jobjectArray,
 	index: jsize,
@@ -67,7 +67,7 @@ pub extern "system" fn NewDoubleArray(env: *mut JNIEnv, len: jsize) -> jdoubleAr
 	unimplemented!("jni::NewDoubleArray");
 }
 
-extern "system" fn GetBooleanArrayElements(
+pub extern "system" fn GetBooleanArrayElements(
 	env: *mut JNIEnv,
 	array: jbooleanArray,
 	isCopy: *mut jboolean,
@@ -75,7 +75,7 @@ extern "system" fn GetBooleanArrayElements(
 	unimplemented!("jni::GetBooleanArrayElements")
 }
 
-extern "system" fn GetByteArrayElements(
+pub extern "system" fn GetByteArrayElements(
 	env: *mut JNIEnv,
 	array: jbyteArray,
 	isCopy: *mut jboolean,
@@ -83,7 +83,7 @@ extern "system" fn GetByteArrayElements(
 	unimplemented!("jni::GetByteArrayElements")
 }
 
-extern "system" fn GetCharArrayElements(
+pub extern "system" fn GetCharArrayElements(
 	env: *mut JNIEnv,
 	array: jcharArray,
 	isCopy: *mut jboolean,
@@ -91,7 +91,7 @@ extern "system" fn GetCharArrayElements(
 	unimplemented!("jni::GetCharArrayElements")
 }
 
-extern "system" fn GetShortArrayElements(
+pub extern "system" fn GetShortArrayElements(
 	env: *mut JNIEnv,
 	array: jshortArray,
 	isCopy: *mut jboolean,
@@ -99,7 +99,7 @@ extern "system" fn GetShortArrayElements(
 	unimplemented!("jni::GetShortArrayElements")
 }
 
-extern "system" fn GetIntArrayElements(
+pub extern "system" fn GetIntArrayElements(
 	env: *mut JNIEnv,
 	array: jintArray,
 	isCopy: *mut jboolean,
@@ -107,7 +107,7 @@ extern "system" fn GetIntArrayElements(
 	unimplemented!("jni::GetIntArrayElements")
 }
 
-extern "system" fn GetLongArrayElements(
+pub extern "system" fn GetLongArrayElements(
 	env: *mut JNIEnv,
 	array: jlongArray,
 	isCopy: *mut jboolean,
@@ -115,7 +115,7 @@ extern "system" fn GetLongArrayElements(
 	unimplemented!("jni::GetLongArrayElements")
 }
 
-extern "system" fn GetFloatArrayElements(
+pub extern "system" fn GetFloatArrayElements(
 	env: *mut JNIEnv,
 	array: jfloatArray,
 	isCopy: *mut jboolean,
@@ -123,7 +123,7 @@ extern "system" fn GetFloatArrayElements(
 	unimplemented!("jni::GetFloatArrayElements")
 }
 
-extern "system" fn GetDoubleArrayElements(
+pub extern "system" fn GetDoubleArrayElements(
 	env: *mut JNIEnv,
 	array: jdoubleArray,
 	isCopy: *mut jboolean,
@@ -131,7 +131,7 @@ extern "system" fn GetDoubleArrayElements(
 	unimplemented!("jni::GetDoubleArrayElements")
 }
 
-extern "system" fn ReleaseBooleanArrayElements(
+pub extern "system" fn ReleaseBooleanArrayElements(
 	env: *mut JNIEnv,
 	array: jbooleanArray,
 	elems: *mut jboolean,
@@ -140,7 +140,7 @@ extern "system" fn ReleaseBooleanArrayElements(
 	unimplemented!("jni::ReleaseBooleanArrayElements")
 }
 
-extern "system" fn ReleaseByteArrayElements(
+pub extern "system" fn ReleaseByteArrayElements(
 	env: *mut JNIEnv,
 	array: jbyteArray,
 	elems: *mut jbyte,
@@ -149,7 +149,7 @@ extern "system" fn ReleaseByteArrayElements(
 	unimplemented!("jni::ReleaseByteArrayElements")
 }
 
-extern "system" fn ReleaseCharArrayElements(
+pub extern "system" fn ReleaseCharArrayElements(
 	env: *mut JNIEnv,
 	array: jcharArray,
 	elems: *mut jchar,
@@ -158,7 +158,7 @@ extern "system" fn ReleaseCharArrayElements(
 	unimplemented!("jni::ReleaseCharArrayElements")
 }
 
-extern "system" fn ReleaseShortArrayElements(
+pub extern "system" fn ReleaseShortArrayElements(
 	env: *mut JNIEnv,
 	array: jshortArray,
 	elems: *mut jshort,
@@ -176,7 +176,7 @@ pub extern "system" fn ReleaseIntArrayElements(
 	unimplemented!("jni::ReleaseIntArrayElements");
 }
 
-extern "system" fn ReleaseLongArrayElements(
+pub extern "system" fn ReleaseLongArrayElements(
 	env: *mut JNIEnv,
 	array: jlongArray,
 	elems: *mut jlong,
@@ -185,7 +185,7 @@ extern "system" fn ReleaseLongArrayElements(
 	unimplemented!("jni::ReleaseLongArrayElements")
 }
 
-extern "system" fn ReleaseFloatArrayElements(
+pub extern "system" fn ReleaseFloatArrayElements(
 	env: *mut JNIEnv,
 	array: jfloatArray,
 	elems: *mut jfloat,
@@ -194,7 +194,7 @@ extern "system" fn ReleaseFloatArrayElements(
 	unimplemented!("jni::ReleaseFloatArrayElements")
 }
 
-extern "system" fn ReleaseDoubleArrayElements(
+pub extern "system" fn ReleaseDoubleArrayElements(
 	env: *mut JNIEnv,
 	array: jdoubleArray,
 	elems: *mut jdouble,
@@ -203,7 +203,7 @@ extern "system" fn ReleaseDoubleArrayElements(
 	unimplemented!("jni::ReleaseDoubleArrayElements")
 }
 
-extern "system" fn GetBooleanArrayRegion(
+pub extern "system" fn GetBooleanArrayRegion(
 	env: *mut JNIEnv,
 	array: jbooleanArray,
 	start: jsize,
@@ -213,7 +213,7 @@ extern "system" fn GetBooleanArrayRegion(
 	unimplemented!("jni::GetBooleanArrayRegion")
 }
 
-extern "system" fn GetByteArrayRegion(
+pub extern "system" fn GetByteArrayRegion(
 	env: *mut JNIEnv,
 	array: jbyteArray,
 	start: jsize,
@@ -223,7 +223,7 @@ extern "system" fn GetByteArrayRegion(
 	unimplemented!("jni::GetByteArrayRegion")
 }
 
-extern "system" fn GetCharArrayRegion(
+pub extern "system" fn GetCharArrayRegion(
 	env: *mut JNIEnv,
 	array: jcharArray,
 	start: jsize,
@@ -233,7 +233,7 @@ extern "system" fn GetCharArrayRegion(
 	unimplemented!("jni::GetCharArrayRegion")
 }
 
-extern "system" fn GetShortArrayRegion(
+pub extern "system" fn GetShortArrayRegion(
 	env: *mut JNIEnv,
 	array: jshortArray,
 	start: jsize,
@@ -243,7 +243,7 @@ extern "system" fn GetShortArrayRegion(
 	unimplemented!("jni::GetShortArrayRegion")
 }
 
-extern "system" fn GetIntArrayRegion(
+pub extern "system" fn GetIntArrayRegion(
 	env: *mut JNIEnv,
 	array: jintArray,
 	start: jsize,
@@ -253,7 +253,7 @@ extern "system" fn GetIntArrayRegion(
 	unimplemented!("jni::GetIntArrayRegion")
 }
 
-extern "system" fn GetLongArrayRegion(
+pub extern "system" fn GetLongArrayRegion(
 	env: *mut JNIEnv,
 	array: jlongArray,
 	start: jsize,
@@ -263,7 +263,7 @@ extern "system" fn GetLongArrayRegion(
 	unimplemented!("jni::GetLongArrayRegion")
 }
 
-extern "system" fn GetFloatArrayRegion(
+pub extern "system" fn GetFloatArrayRegion(
 	env: *mut JNIEnv,
 	array: jfloatArray,
 	start: jsize,
@@ -273,7 +273,7 @@ extern "system" fn GetFloatArrayRegion(
 	unimplemented!("jni::GetFloatArrayRegion")
 }
 
-extern "system" fn GetDoubleArrayRegion(
+pub extern "system" fn GetDoubleArrayRegion(
 	env: *mut JNIEnv,
 	array: jdoubleArray,
 	start: jsize,
@@ -283,7 +283,7 @@ extern "system" fn GetDoubleArrayRegion(
 	unimplemented!("jni::GetDoubleArrayRegion")
 }
 
-extern "system" fn SetBooleanArrayRegion(
+pub extern "system" fn SetBooleanArrayRegion(
 	env: *mut JNIEnv,
 	array: jbooleanArray,
 	start: jsize,
@@ -293,7 +293,7 @@ extern "system" fn SetBooleanArrayRegion(
 	unimplemented!("jni::SetBooleanArrayRegion")
 }
 
-extern "system" fn SetByteArrayRegion(
+pub extern "system" fn SetByteArrayRegion(
 	env: *mut JNIEnv,
 	array: jbyteArray,
 	start: jsize,
@@ -303,7 +303,7 @@ extern "system" fn SetByteArrayRegion(
 	unimplemented!("jni::SetByteArrayRegion")
 }
 
-extern "system" fn SetCharArrayRegion(
+pub extern "system" fn SetCharArrayRegion(
 	env: *mut JNIEnv,
 	array: jcharArray,
 	start: jsize,
@@ -313,7 +313,7 @@ extern "system" fn SetCharArrayRegion(
 	unimplemented!("jni::SetCharArrayRegion")
 }
 
-extern "system" fn SetShortArrayRegion(
+pub extern "system" fn SetShortArrayRegion(
 	env: *mut JNIEnv,
 	array: jshortArray,
 	start: jsize,
@@ -323,7 +323,7 @@ extern "system" fn SetShortArrayRegion(
 	unimplemented!("jni::SetShortArrayRegion")
 }
 
-extern "system" fn SetIntArrayRegion(
+pub extern "system" fn SetIntArrayRegion(
 	env: *mut JNIEnv,
 	array: jintArray,
 	start: jsize,
@@ -333,7 +333,7 @@ extern "system" fn SetIntArrayRegion(
 	unimplemented!("jni::SetIntArrayRegion")
 }
 
-extern "system" fn SetLongArrayRegion(
+pub extern "system" fn SetLongArrayRegion(
 	env: *mut JNIEnv,
 	array: jlongArray,
 	start: jsize,
@@ -343,7 +343,7 @@ extern "system" fn SetLongArrayRegion(
 	unimplemented!("jni::SetLongArrayRegion")
 }
 
-extern "system" fn SetFloatArrayRegion(
+pub extern "system" fn SetFloatArrayRegion(
 	env: *mut JNIEnv,
 	array: jfloatArray,
 	start: jsize,
@@ -353,7 +353,7 @@ extern "system" fn SetFloatArrayRegion(
 	unimplemented!("jni::SetFloatArrayRegion")
 }
 
-extern "system" fn SetDoubleArrayRegion(
+pub extern "system" fn SetDoubleArrayRegion(
 	env: *mut JNIEnv,
 	array: jdoubleArray,
 	start: jsize,
@@ -363,7 +363,7 @@ extern "system" fn SetDoubleArrayRegion(
 	unimplemented!("jni::SetDoubleArrayRegion")
 }
 
-extern "system" fn GetPrimitiveArrayCritical(
+pub extern "system" fn GetPrimitiveArrayCritical(
 	env: *mut JNIEnv,
 	array: jarray,
 	isCopy: *mut jboolean,

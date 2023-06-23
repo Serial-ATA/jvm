@@ -1,4 +1,4 @@
-use jni::{jint, jobject, JNIEnv};
+use jni::sys::{jint, jobject, JNIEnv};
 
 pub extern "system" fn PushLocalFrame(env: *mut JNIEnv, capacity: jint) -> jint {
 	unimplemented!("jni::PushLocalFrame");

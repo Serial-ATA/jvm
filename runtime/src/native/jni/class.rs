@@ -4,7 +4,7 @@ use crate::classpath::classloader::ClassLoader;
 use core::ffi::{c_char, CStr};
 use std::sync::Arc;
 
-use jni::{jboolean, jbyte, jclass, jobject, jsize, JNIEnv};
+use jni::sys::{jboolean, jbyte, jclass, jobject, jsize, JNIEnv};
 use symbols::Symbol;
 
 pub extern "system" fn DefineClass(
@@ -17,7 +17,7 @@ pub extern "system" fn DefineClass(
 	unimplemented!("jni::DefineClass")
 }
 
-pub extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -> jclass {
+pub unsafe extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -> jclass {
 	let name = unsafe { CStr::from_ptr(name) };
 
 	if let Some(class) = ClassLoader::lookup_class(Symbol::intern_bytes(name.to_bytes())) {
@@ -27,7 +27,7 @@ pub extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -> jclas
 	return core::ptr::null() as jclass;
 }
 
-pub extern "system" unsafe fn GetSuperclass(env: *mut JNIEnv, sub: jclass) -> jclass {
+pub unsafe extern "system" fn GetSuperclass(env: *mut JNIEnv, sub: jclass) -> jclass {
 	if let Some(class) = classref_from_jclass(sub) {
 		if let Some(super_class) = class.super_class.map(Arc::clone) {
 			return jclass_from_classref(super_class);

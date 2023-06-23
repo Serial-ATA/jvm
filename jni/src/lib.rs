@@ -3,4 +3,7 @@
 
 mod error;
 
-pub use jni_sys::*;
+/// `jni_sys` reexports
+pub mod sys {
+	pub use jni_sys::*;
+}
