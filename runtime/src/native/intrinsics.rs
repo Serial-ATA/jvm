@@ -2,8 +2,6 @@ use crate::reference::MethodRef;
 
 use std::sync::Mutex;
 
-use once_cell::sync::Lazy;
-use crate::symbols::Symbol;
 use classfile::accessflags::MethodAccessFlags;
 use once_cell::sync::Lazy;
 
@@ -11,6 +9,10 @@ static REGISTERED_INTRINSICS: Lazy<Mutex<Vec<IntrinsicEntry>>> =
 	Lazy::new(|| Mutex::new(Vec::new()));
 
 pub fn find_intrinsic(_method: MethodRef, _is_virtual: bool) -> Option<IntrinsicEntry> {
+	todo!()
+}
+
+fn register_intrinsic(_method: MethodRef, _is_virtual: bool) {
 	todo!()
 }
 
