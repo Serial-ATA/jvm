@@ -4,6 +4,10 @@
 
 #![allow(unused_variables, non_snake_case)]
 
+use crate::heap::reference::ClassRef;
+
+use jni::jclass;
+
 pub mod array;
 pub mod class;
 pub mod exceptions;
@@ -20,3 +24,17 @@ pub mod string;
 pub mod version;
 pub mod vm;
 pub mod weak;
+
+/// Create a `jclass` from a `ClassRef`
+pub fn jclass_from_classref(class: ClassRef) -> jclass {
+	ClassRef::into_raw(class) as jclass
+}
+
+/// Create a `ClassRef` from a `jclass`
+pub unsafe fn classref_from_jclass(class: jclass) -> Option<ClassRef> {
+	if class.is_null() {
+		return None;
+	}
+
+	Some(ClassRef::from_raw(class))
+}
