@@ -135,12 +135,14 @@ impl Clone for JNINativeMethod {
 pub type JNIEnv = *const JNINativeInterface_;
 pub type JavaVM = *const JNIInvokeInterface_;
 
+// Option<unsafe extern "system" fn(...) -> ...>
 macro_rules! jni_system_fn {
 	(($($param:tt)*) $(-> $ret:ty)?) => {
 		Option<unsafe extern "system" fn($($param)*) $(-> $ret)?>
 	}
 }
 
+// Option<unsafe extern "C" fn(...) -> ...>
 macro_rules! jni_c_fn {
 	(($($param:tt)*) $(-> $ret:ty)?) => {
 		Option<unsafe extern "C" fn($($param)*) $(-> $ret)?>
@@ -813,6 +815,39 @@ pub struct JNINativeInterface_ {
 	/// Returns `JNI_TRUE` if `obj` can be cast to `clazz`; otherwise, returns `JNI_FALSE`. A `NULL` object can be cast to any class.
 	pub IsInstanceOf: jni_system_fn!((env: *mut JNIEnv, obj: jobject, clazz: jclass) -> jboolean),
 	
+	/// Returns the method ID for an instance (nonstatic) method of a class or interface. 
+	/// 
+	/// The method may be defined in one of the clazz’s superclasses and inherited by clazz. The method is determined by its name and signature.
+	/// 
+	/// `GetMethodID()` causes an uninitialized class to be initialized.
+	/// 
+	/// To obtain the method ID of a constructor, supply `<init>` as the method name and void (V) as the return type.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 33 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `clazz`: a Java class object.
+	/// 
+	/// `name`: the method name in a 0-terminated modified UTF-8 string.
+	/// 
+	/// `sig`: the method signature in 0-terminated modified UTF-8 string.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns a method ID, or `NULL` if the specified method cannot be found.
+	/// 
+	/// ## THROWS
+	/// 
+	/// `NoSuchMethodError`: if the specified method cannot be found.
+	/// 
+	/// `ExceptionInInitializerError`: if the class initializer fails due to an exception.
+	/// 
+	/// `OutOfMemoryError`: if the system runs out of memory.
 	pub GetMethodID: jni_system_fn!((
 			env: *mut JNIEnv,
 			clazz: jclass,
@@ -1220,6 +1255,39 @@ pub struct JNINativeInterface_ {
 			args: *const jvalue,
 		)),
 	
+	/// Returns the field ID for an instance (nonstatic) field of a class.
+	/// 
+	/// The field is specified by its name and signature. The Get<type>Field and Set<type>Field families of accessor functions use field IDs to retrieve object fields.
+	/// 
+	/// `GetFieldID()` causes an uninitialized class to be initialized.
+	/// 
+	/// `GetFieldID() `cannot be used to obtain the length field of an array. Use `GetArrayLength()` instead.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 94 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `clazz`: a Java class object.
+	/// 
+	/// `name`: the field name in a 0-terminated modified UTF-8 string.
+	/// 
+	/// `sig`: the field signature in a 0-terminated modified UTF-8 string.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns a field ID, or `NULL` if the operation fails.
+	/// 
+	/// ## THROWS
+	/// 
+	/// `NoSuchFieldError`: if the specified field cannot be found.
+	/// 
+	/// `ExceptionInInitializerError`: if the class initializer fails due to an exception.
+	/// 
+	/// `OutOfMemoryError`: if the system runs out of memory.
 	pub GetFieldID: jni_system_fn!((
 			env: *mut JNIEnv,
 			clazz: jclass,
@@ -1498,32 +1566,214 @@ pub struct JNINativeInterface_ {
 			value: jdouble,
 		)),
 	
+	/// Constructs a new `java.lang.String` object from an array of Unicode characters.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 163 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `unicodeChars`: pointer to a Unicode string.
+	/// 
+	/// `len`: length of the Unicode string.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns a Java string object, or `NULL` if the string cannot be constructed.
+	/// 
+	/// ## THROWS
+	/// 
+	/// `OutOfMemoryError`: if the system runs out of memory.
 	pub NewString: jni_system_fn!((env: *mut JNIEnv, unicode: *const jchar, len: jsize) -> jstring),
 	
+	/// Returns the length (the count of Unicode characters) of a Java string.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 164 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `string`: a Java string object.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns the length of the Java string.
 	pub GetStringLength: jni_system_fn!((env: *mut JNIEnv, str: jstring) -> jsize),
 	
+	/// Returns a pointer to the array of Unicode characters of the string.
+	/// 
+	/// This pointer is valid until `ReleaseStringChars()` is called.
+	/// 
+	/// If `isCopy` is not `NULL`, then *isCopy is set to `JNI_TRUE` if a copy is made; or it is set to `JNI_FALSE` if no copy is made.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 165 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `string`: a Java string object.
+	/// 
+	/// `isCopy`: a pointer to a boolean.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns a pointer to a Unicode string, or `NULL` if the operation fails.
 	pub GetStringChars: jni_system_fn!((
 			env: *mut JNIEnv,
 			str: jstring,
 			isCopy: *mut jboolean,
 		) -> *const jchar),
 	
+	/// Informs the VM that the native code no longer needs access to chars.
+	/// 
+	/// The chars argument is a pointer obtained from string using `GetStringChars()`.
+	/// 
+	/// ## LINKAGE
+	///
+	/// Index 166 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `string`: a Java string object.
+	/// 
+	/// `chars`: a pointer to a Unicode string.
 	pub ReleaseStringChars: jni_system_fn!((env: *mut JNIEnv, str: jstring, chars: *const jchar)),
 	
+	/// Constructs a new `java.lang.String` object from an array of characters in modified UTF-8 encoding.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 167 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `bytes`: the pointer to a modified UTF-8 string.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns a Java string object, or `NULL` if the string cannot be constructed.
+	/// 
+	/// ## THROWS
+	/// 
+	/// `OutOfMemoryError`: if the system runs out of memory.
 	pub NewStringUTF: jni_system_fn!((env: *mut JNIEnv, utf: *const c_char) -> jstring),
 	
+	/// Returns the length in bytes of the modified UTF-8 representation of a string.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 168 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `string`: a Java string object.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns the UTF-8 length of the string.
 	pub GetStringUTFLength: jni_system_fn!((env: *mut JNIEnv, str: jstring) -> jsize),
 	
+	/// Returns a pointer to an array of bytes representing the string in modified UTF-8 encoding.
+	/// 
+	/// This array is valid until it is released by `ReleaseStringUTFChars()`.
+	/// 
+	/// If `isCopy` is not `NULL`, then *isCopy is set to `JNI_TRUE` if a copy is made; or it is set to `JNI_FALSE` if no copy is made.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 169 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `string`: a Java string object.
+	/// 
+	/// `isCopy`: a pointer to a boolean.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns a pointer to a modified UTF-8 string, or `NULL` if the operation fails.
 	pub GetStringUTFChars: jni_system_fn!((
 			env: *mut JNIEnv,
 			str: jstring,
 			isCopy: *mut jboolean,
 		) -> *const c_char),
 	
+	/// Informs the VM that the native code no longer needs access to `utf`.
+	/// 
+	/// The `utf` argument is a pointer derived from string using `GetStringUTFChars()`.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 170 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `string`: a Java string object.
+	/// 
+	/// `utf`: a pointer to a modified UTF-8 string.
 	pub ReleaseStringUTFChars: jni_system_fn!((env: *mut JNIEnv, str: jstring, chars: *const c_char)),
 	
+	/// Returns the number of elements in the array.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 171 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `array`: a Java array object.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns the length of the array.
 	pub GetArrayLength: jni_system_fn!((env: *mut JNIEnv, array: jarray) -> jsize),
 	
+	/// Constructs a new array holding objects in class `elementClass`.
+	/// 
+	/// All elements are initially set to initialElement.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 172 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `length`: array size.
+	/// 
+	/// `elementClass`: array element class.
+	/// 
+	/// `initialElement`: initialization value.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns a Java array object, or `NULL` if the array cannot be constructed.
+	/// 
+	/// ## THROWS
+	/// 
+	/// `OutOfMemoryError`: if the system runs out of memory.
 	pub NewObjectArray: jni_system_fn!((
 			env: *mut JNIEnv,
 			len: jsize,
@@ -1531,8 +1781,50 @@ pub struct JNINativeInterface_ {
 			init: jobject,
 		) -> jobjectArray),
 	
+	/// Returns an element of an Object array.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 173 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `array`: a Java array.
+	/// 
+	/// `index`: array index.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns a Java object.
+	/// 
+	/// ## THROWS
+	/// 
+	/// `ArrayIndexOutOfBoundsException`: if index does not specify a valid index in the array.
 	pub GetObjectArrayElement: jni_system_fn!((env: *mut JNIEnv, array: jobjectArray, index: jsize) -> jobject),
 	
+	/// Sets an element of an Object array.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 174 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `array`: a Java array.
+	/// 
+	/// `index`: array index.
+	/// 
+	/// `value`: the new value.
+	/// 
+	/// ## THROWS
+	/// 
+	/// `ArrayIndexOutOfBoundsException`: if index does not specify a valid index in the array.
+	/// 
+	/// `ArrayStoreException`: if the class of value is not a subclass of the element class of the array.
 	pub SetObjectArrayElement: jni_system_fn!((
 			env: *mut JNIEnv,
 			array: jobjectArray,
@@ -1783,6 +2075,55 @@ pub struct JNINativeInterface_ {
 			buf: *const jdouble,
 		)),
 	
+	/// Registers native methods with the class specified by the `clazz` argument.
+	/// 
+	/// The `methods` parameter specifies an array of `JNINativeMethod` structures that contain the names, signatures, and function pointers of the native methods.
+	/// 
+	/// The name and signature fields of the `JNINativeMethod` structure are pointers to modified UTF-8 strings.
+	/// 
+	/// The `nMethods` parameter specifies the number of native methods in the array.
+	/// 
+	/// The `JNINativeMethod` structure is defined as follows:
+	/// 
+	/// ```c
+	/// typedef struct {
+	/// 
+	///     char *name;
+	/// 
+	///     char *signature;
+	/// 
+	///     void *fnPtr;
+	/// 
+	/// } JNINativeMethod;
+	/// ```
+	/// 
+	/// The function pointers nominally must have the following signature:
+	/// 
+	/// ```text
+	/// ReturnType (*fnPtr)(JNIEnv *env, jobject objectOrClass, ...);
+	/// ```
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 215 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `clazz`: a Java class object.
+	/// 
+	/// `methods`: the native methods in the class.
+	/// 
+	/// `nMethods`: the number of native methods in the class.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns “0” on success; returns a negative value on failure.
+	/// 
+	/// ## THROWS
+	/// 
+	/// `NoSuchMethodError`: if a specified method cannot be found or if the method is not native.
 	pub RegisterNatives: jni_system_fn!((
 			env: *mut JNIEnv,
 			clazz: jclass,
@@ -1790,14 +2131,114 @@ pub struct JNINativeInterface_ {
 			nMethods: jint,
 		) -> jint),
 	
+	/// Unregisters native methods of a class.
+	/// 
+	/// The class goes back to the state before it was linked or registered with its native method functions.
+	/// 
+	/// This function should not be used in normal native code. Instead, it provides special programs a way to reload and relink native libraries.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 216 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `clazz`: a Java class object.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns “0” on success; returns a negative value on failure.
 	pub UnregisterNatives: jni_system_fn!((env: *mut JNIEnv, clazz: jclass) -> jint),
 	
+	/// Enters the monitor associated with the underlying Java object referred to by `obj`.
+	/// 
+	/// Enters the monitor associated with the object referred to by `obj`. The `obj` reference must not be `NULL`.
+	/// 
+	/// Each Java object has a monitor associated with it. If the current thread already owns the monitor associated with `obj`,
+	/// it increments a counter in the monitor indicating the number of times this thread has entered the monitor.
+	/// If the monitor associated with `obj` is not owned by any thread, the current thread becomes the owner of the monitor,
+	/// setting the entry count of this monitor to 1. If another thread already owns the monitor associated with `obj`, the current thread waits until the monitor is released,
+	/// then tries again to gain ownership.
+	/// 
+	/// A monitor entered through a `MonitorEnter` JNI function call cannot be exited using the `monitorexit` Java virtual machine instruction or a `synchronized` method return.
+	/// 
+	/// A `MonitorEnter` JNI function call and a `monitorenter` Java virtual machine instruction may race to enter the monitor associated with the same object.
+	/// 
+	/// To avoid deadlocks, a monitor entered through a `MonitorEnter` JNI function call must be exited using the `MonitorExit` JNI call,
+	/// unless the `DetachCurrentThread` call is used to implicitly release JNI monitors.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 217 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `obj`: a normal Java object or class object.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns “0” on success; returns a negative value on failure.
 	pub MonitorEnter: jni_system_fn!((env: *mut JNIEnv, obj: jobject) -> jint),
 	
+	/// The current thread must be the owner of the monitor associated with the underlying Java object referred to by `obj`.
+	/// 
+	/// The thread decrements the counter indicating the number of times it has entered this monitor. If the value of the counter becomes zero, the current thread releases the monitor.
+	/// 
+	/// Native code must not use `MonitorExit` to exit a monitor entered through a synchronized method or a `monitorenter` Java virtual machine instruction.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 218 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `obj`: a normal Java object or class object.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns “0” on success; returns a negative value on failure.
+	/// 
+	/// ## EXCEPTIONS
+	/// 
+	/// `IllegalMonitorStateException`: if the current thread does not own the monitor.
 	pub MonitorExit: jni_system_fn!((env: *mut JNIEnv, obj: jobject) -> jint),
 	
+	/// Returns the Java VM interface (used in the Invocation API) associated with the current thread.
+	/// 
+	/// The result is placed at the location pointed to by the second argument, `vm`.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 219 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `vm`: a pointer to where the result should be placed.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns “0” on success; returns a negative value on failure.
 	pub GetJavaVM: jni_system_fn!((env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint),
 	
+	/// Copies `len` number of Unicode characters beginning at offset `start` to the given buffer `buf`.
+	/// 
+	/// Throws `StringIndexOutOfBoundsException` on index overflow.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 220 in the `JNIEnv` interface function table.
+	/// 
+	/// ## SINCE
+	/// 
+	/// JDK/JRE 1.2
 	pub GetStringRegion: jni_system_fn!((
 			env: *mut JNIEnv,
 			str: jstring,
@@ -1806,6 +2247,17 @@ pub struct JNINativeInterface_ {
 			buf: *mut jchar,
 		)),
 	
+	/// Translates `len` number of Unicode characters beginning at offset `start` into modified UTF-8 encoding and place the result in the given buffer `buf`.
+	/// 
+	/// Throws `StringIndexOutOfBoundsException` on index overflow.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 221 in the `JNIEnv` interface function table.
+	/// 
+	/// ## SINCE
+	/// 
+	/// JDK/JRE 1.2
 	pub GetStringUTFRegion: jni_system_fn!((
 			env: *mut JNIEnv,
 			str: jstring,
@@ -1830,22 +2282,181 @@ pub struct JNINativeInterface_ {
 	
 	pub ReleaseStringCritical: jni_system_fn!((env: *mut JNIEnv, string: jstring, cstring: *const jchar)),
 	
+	/// Creates a new weak global reference.
+	/// 
+	/// Returns `NULL` if `obj` refers to null, or if the VM runs out of memory.
+	/// 
+	/// If the VM runs out of memory, an `OutOfMemoryError` will be thrown.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 226 in the `JNIEnv` interface function table.
+	/// 
+	/// ## SINCE
+	/// 
+	/// JDK/JRE 1.2
 	pub NewWeakGlobalRef: jni_system_fn!((env: *mut JNIEnv, obj: jobject) -> jweak),
 	
+	/// Delete the VM resources needed for the given weak global reference.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 227 in the `JNIEnv` interface function table.
+	/// 
+	/// ## SINCE
+	/// 
+	/// JDK/JRE 1.2
 	pub DeleteWeakGlobalRef: jni_system_fn!((env: *mut JNIEnv, ref_: jweak)),
 	
+	/// Returns `JNI_TRUE` when there is a pending exception; otherwise, returns `JNI_FALSE`.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 228 in the `JNIEnv` interface function table.
+	/// 
+	/// ## SINCE
+	/// 
+	/// JDK/JRE 1.2
 	pub ExceptionCheck: jni_system_fn!((env: *mut JNIEnv) -> jboolean),
 	
+	/// Allocates and returns a direct `java.nio.ByteBuffer` referring to the block of memory starting at the memory address address and extending capacity bytes.
+	/// 
+	/// Native code that calls this function and returns the resulting byte-buffer object to Java-level code should ensure that the buffer refers to a valid region of memory that is accessible for reading and,
+	/// if appropriate, writing. An attempt to access an invalid memory location from Java code will either return an arbitrary value, have no visible effect, or cause an unspecified exception to be thrown.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 229 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNIEnv interface pointer
+	/// 
+	/// `address`: the starting address of the memory region (must not be `NULL`)
+	/// 
+	/// `capacity`: the size in bytes of the memory region (must be positive)
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns a local reference to the newly-instantiated `java.nio.ByteBuffer` object.
+	/// 
+	/// Returns `NULL` if an exception occurs, or if JNI access to direct buffers is not supported by this virtual machine.
+	/// 
+	/// ## EXCEPTIONS
+	/// 
+	/// `OutOfMemoryError`: if allocation of the ByteBuffer object fails
+	/// 
+	/// ## SINCE
+	/// 
+	/// JDK/JRE 1.4
 	pub NewDirectByteBuffer: jni_system_fn!((
 			env: *mut JNIEnv,
 			address: *mut c_void,
 			capacity: jlong,
 		) -> jobject),
 	
+	/// Fetches and returns the starting address of the memory region referenced by the given direct `java.nio.Buffer`.
+	/// 
+	/// This function allows native code to access the same memory region that is accessible to Java code via the buffer object.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 230 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNIEnv interface pointer
+	/// 
+	/// `buf`: a direct java.nio.Buffer object (must not be `NULL`)
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns the starting address of the memory region referenced by the buffer.
+	/// 
+	/// Returns `NULL` if the memory region is undefined, if the given object is not a direct `java.nio.Buffer`, or if JNI access to direct buffers is not supported by this virtual machine.
+	/// 
+	/// ## SINCE
+	/// 
+	/// JDK/JRE 1.4
 	pub GetDirectBufferAddress: jni_system_fn!((env: *mut JNIEnv, buf: jobject) -> *mut c_void),
 	
+	/// Fetches and returns the capacity of the memory region referenced by the given direct java.nio.Buffer. The capacity is the number of elements that the memory region contains.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 231 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNIEnv interface pointer
+	/// 
+	/// `buf`: a direct `java.nio.Buffer` object (must not be `NULL`)
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns the capacity of the memory region associated with the buffer.
+	/// 
+	/// Returns -1 if the given object is not a direct `java.nio.Buffer`, if the object is an unaligned view buffer and the processor architecture does not support unaligned access, or if JNI access to direct buffers is not supported by this virtual machine.
+	/// 
+	/// ## SINCE
+	/// 
+	/// JDK/JRE 1.4
 	pub GetDirectBufferCapacity: jni_system_fn!((env: *mut JNIEnv, buf: jobject) -> jlong),
 	
+	/// Returns the type of the object referred to by the `obj` argument.
+	/// 
+	/// The argument `obj` can either be a local, global or weak global reference.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 232 in the `JNIEnv` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `env`: the JNI interface pointer.
+	/// 
+	/// `obj`: a local, global or weak global reference.
+	/// 
+	/// `vm`: the virtual machine instance from which the interface will be retrieved.
+	/// 
+	/// `env`: pointer to the location where the JNI interface pointer for the current thread will be placed.
+	/// 
+	/// `version`: the requested JNI version.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// The function GetObjectRefType returns one of the following enumerated values defined as a `jobjectRefType`:
+	/// 
+	/// ```text
+	/// JNIInvalidRefType = 0,
+	/// JNILocalRefType = 1,
+	/// JNIGlobalRefType = 2,
+	/// JNIWeakGlobalRefType = 3
+	/// ```
+	/// 
+	/// If the argument `obj` is a weak global reference type, the return will be `JNIWeakGlobalRefType`.
+	/// 
+	/// If the argument `obj` is a global reference type, the return value will be `JNIGlobalRefType`.
+	/// 
+	/// If the argument `obj` is a local reference type, the return will be `JNILocalRefType`.
+	/// 
+	/// If the `obj` argument is not a valid reference, the return value for this function will be `JNIInvalidRefType`.
+	/// 
+	/// An invalid reference is a reference which is not a valid handle. That is, the `obj` pointer address does not point to a location in
+	/// memory which has been allocated from one of the Ref creation functions or returned from a JNI function.
+	/// 
+	/// As such, `NULL` would be an invalid reference and `GetObjectRefType(env,NULL)` would return `JNIInvalidRefType`.
+	/// 
+	/// On the other hand, a null reference, which is a reference that points to a null, would return the type of reference that the null reference was originally created as.
+	/// 
+	/// `GetObjectRefType` cannot be used on deleted references.
+	/// 
+	/// Since references are typically implemented as pointers to memory data structures that can potentially be reused by any of the reference allocation services in the VM,
+	/// once deleted, it is not specified what value the `GetObjectRefType` will return.
+	/// 
+	/// ## SINCE
+	/// 
+	/// JDK/JRE 1.6
 	pub GetObjectRefType: jni_system_fn!((env: *mut JNIEnv, obj: jobject) -> jobjectRefType),
 }
 
@@ -1928,14 +2539,138 @@ pub struct JNIInvokeInterface_ {
 	pub reserved1: *mut c_void,
 	pub reserved2: *mut c_void,
 	
+	/// Unloads a Java VM and reclaims its resources.
+	/// 
+	/// Any thread, whether attached or not, can invoke this function.
+	/// 
+	/// If the current thread is attached, the VM waits until the current thread is the only non-daemon user-level Java thread.
+	/// 
+	/// If the current thread is not attached, the VM attaches the current thread and then waits until the current thread is the only non-daemon user-level thread.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 3 in the `JavaVM` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `vm`: the Java VM that will be destroyed.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns `JNI_OK` on success; returns a suitable JNI error code (a negative number) on failure.
+	/// 
+	/// Unloading of the VM is not supported.
 	pub DestroyJavaVM: jni_system_fn!((vm: *mut JavaVM) -> jint),
+	
+	/// Attaches the current thread to a Java VM.
+	/// 
+	/// Returns a JNI interface pointer in the `JNIEnv` argument.
+	/// 
+	/// Trying to attach a thread that is already attached is a no-op.
+	/// 
+	/// A native thread cannot be attached simultaneously to two Java VMs.
+	/// 
+	/// When a thread is attached to the VM, the context class loader is the bootstrap loader.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 4 in the `JavaVM` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `vm`: the VM to which the current thread will be attached.
+	/// 
+	/// `p_env`: pointer to the location where the JNI interface pointer of the current thread will be placed.
+	/// 
+	/// `thr_args`: can be `NULL` or a pointer to a JavaVMAttachArgs structure to specify additional information:
+	/// 
+	/// The second argument to `AttachCurrentThread` is always a pointer to `JNIEnv`. The third argument to `AttachCurrentThread` was reserved, and should be set to `NULL`.
+	/// 
+	/// You pass a pointer to the following structure to specify additional information:
+	/// 
+	/// ```c
+	/// typedef struct JavaVMAttachArgs {
+	///     jint version;
+	///     char *name;    /* the name of the thread as a modified UTF-8 string, or NULL */
+	///     jobject group; /* global ref of a ThreadGroup object, or NULL */
+	/// } JavaVMAttachArgs
+	/// ```
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns `JNI_OK` on success; returns a suitable JNI error code (a negative number) on failure.
 	pub AttachCurrentThread: jni_system_fn!((
 			vm: *mut JavaVM,
 			penv: *mut *mut c_void,
 			args: *mut c_void,
 		) -> jint),
+	
+	/// Detaches the current thread from a Java VM.
+	/// 
+	/// All Java monitors held by this thread are released.
+	/// 
+	/// All Java threads waiting for this thread to die are notified.
+	/// 
+	/// The main thread can be detached from the VM.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 5 in the `JavaVM` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `vm`: the VM from which the current thread will be detached.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns `JNI_OK` on success; returns a suitable JNI error code (a negative number) on failure.
 	pub DetachCurrentThread: jni_system_fn!((vm: *mut JavaVM) -> jint),
+	
+	/// ## LINKAGE
+	/// 
+	/// Index 6 in the JavaVM interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `vm`: The virtual machine instance from which the interface will be retrieved.
+	/// `env`: pointer to the location where the JNI interface pointer for the current thread will be placed.
+	/// `version`: The requested JNI version.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// If the current thread is not attached to the VM, sets `*env` to `NULL`, and returns `JNI_EDETACHED`.
+	/// 
+	/// If the specified version is not supported, sets `*env` to `NULL`, and returns `JNI_EVERSION`.
+	/// 
+	/// Otherwise, sets `*env` to the appropriate interface, and returns `JNI_OK`.
 	pub GetEnv: jni_system_fn!((vm: *mut JavaVM, penv: *mut *mut c_void, version: jint) -> jint),
+	
+	/// Same semantics as AttachCurrentThread, but the newly-created `java.lang.Thread` instance is a daemon.
+	/// 
+	/// If the thread has already been attached via either `AttachCurrentThread` or `AttachCurrentThreadAsDaemon`,
+	/// this routine simply sets the value pointed to by `penv` to the JNIEnv of the current thread.
+	/// 
+	/// In this case neither `AttachCurrentThread` nor this routine have any effect on the daemon status of the thread.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Index 7 in the `JavaVM` interface function table.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `vm`: the virtual machine instance to which the current thread will be attached.
+	/// 
+	/// `penv`: a pointer to the location in which the JNIEnv interface pointer for the current thread will be placed.
+	/// 
+	/// `args`: a pointer to a `JavaVMAttachArgs` structure.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns `JNI_OK` on success; returns a suitable JNI error code (a negative number) on failure.
+	/// 
+	/// ## EXCEPTIONS
+	/// 
+	/// None.
 	pub AttachCurrentThreadAsDaemon: jni_system_fn!((
 			vm: *mut JavaVM,
 			penv: *mut *mut c_void,
@@ -1950,12 +2685,144 @@ impl Clone for JNIInvokeInterface_ {
 }
 
 extern "system" {
+	/// Returns a default configuration for the Java VM.
+	/// 
+	/// Before calling this function, native code must set the vm_args->version field to the JNI version it expects the VM to support.
+	/// 
+	/// After this function returns, vm_args->version will be set to the actual JNI version the VM supports.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Exported from the native library that implements the Java virtual machine.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `vm_args`: a pointer to a `JavaVMInitArgs` structure in to which the default arguments are filled.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns `JNI_OK` if the requested version is supported; returns a JNI error code (a negative number) if the requested version is not supported.
 	pub fn JNI_GetDefaultJavaVMInitArgs(args: *mut c_void) -> jint;
+	
+	/// Loads and initializes a Java VM.
+	/// 
+	/// The current thread becomes the main thread.
+	/// 
+	/// Sets the `env` argument to the JNI interface pointer of the main thread.
+	/// 
+	/// Creation of multiple VMs in a single process is not supported.
+	/// 
+	/// The second argument to `JNI_CreateJavaVM` is always a pointer to `JNIEnv *`, while the third argument is a pointer to a `JavaVMInitArgs` structure which
+	/// uses option strings to encode arbitrary VM start up options:
+	/// 
+	/// ```c
+	/// typedef struct JavaVMInitArgs {
+	///     jint version;
+	/// 
+	///     jint nOptions;
+	///     JavaVMOption *options;
+	///     jboolean ignoreUnrecognized;
+	/// } JavaVMInitArgs;
+	/// ```
+	/// 
+	/// The options field is an array of the following type:
+	/// 
+	/// ```c
+	/// typedef struct JavaVMOption {
+	///     char *optionString;  /* the option as a string in the default platform encoding */
+	///     void *extraInfo;
+	/// } JavaVMOption;
+	/// ```
+	/// 
+	/// The size of the array is denoted by the `nOptions` field in `JavaVMInitArgs`.
+	/// 
+	/// If `ignoreUnrecognized` is `JNI_TRUE`, `JNI_CreateJavaVM` ignore all unrecognized option strings that begin with "-X" or "_".
+	/// 
+	/// If `ignoreUnrecognized` is `JNI_FALSE`, `JNI_CreateJavaVM` returns `JNI_ERR` as soon as it encounters any unrecognized option strings.
+	/// 
+	/// All Java VMs must recognize the following set of standard options:
+	/// 
+	/// | optionString              | meaning                                                                                                                                                                                                                                                                                                                                                            |
+	/// | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+	/// | `-D<name>=<value>`        | Set a system property                                                                                                                                                                                                                                                                                                                                              |
+	/// | `-verbose[:class|gc|jni]` | Enable verbose output. The options can be followed by a comma-separated list of names indicating what kind of messages will be printed by the VM. For example, "`-verbose:gc,class`" instructs the VM to print GC and class loading related messages. Standard names include: `gc`, `class`, and `jni`. All nonstandard (VM-specific) names must begin with "`X`". |
+	/// | `vfprintf`                | `extraInfo` is a pointer to the `vfprintf` hook.                                                                                                                                                                                                                                                                                                                   |
+	/// | `exit`                    | `extraInfo` is a pointer to the `exit` hook.                                                                                                                                                                                                                                                                                                                       |
+	/// | `abort`                   | `extraInfo` is a pointer to the `abort` hook.                                                                                                                                                                                                                                                                                                                      |
+	/// 
+	/// In addition, each VM implementation may support its own set of non-standard option strings.
+	/// 
+	/// Non-standard option names must begin with "-X" or an underscore ("_").
+	/// 
+	/// For example, the JDK/JRE supports -Xms and -Xmx options to allow programmers specify the initial and maximum heap size. Options that begin with "-X" are accessible from the "java" command line.
+	/// 
+	/// Here is the example code that creates a Java VM in the JDK/JRE:
+	/// 
+	/// ```c
+	/// JavaVMInitArgs vm_args;
+	/// JavaVMOption options[4];
+	/// 
+	/// options[0].optionString = "-Djava.compiler=NONE";           /* disable JIT */
+	/// options[1].optionString = "-Djava.class.path=c:\myclasses"; /* user classes */
+	/// options[2].optionString = "-Djava.library.path=c:\mylibs";  /* set native library path */
+	/// options[3].optionString = "-verbose:jni";                   /* print JNI-related messages */
+	/// 
+	/// vm_args.version = JNI_VERSION_1_2;
+	/// vm_args.options = options;
+	/// vm_args.nOptions = 4;
+	/// vm_args.ignoreUnrecognized = TRUE;
+	/// 
+	/// /* Note that in the JDK/JRE, there is no longer any need to call
+	///  * JNI_GetDefaultJavaVMInitArgs.
+	///  */
+	/// res = JNI_CreateJavaVM(&vm, (void **)&env, &vm_args);
+	/// if (res < 0) ...
+	/// ```
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Exported from the native library that implements the Java virtual machine.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `p_vm`: pointer to the location where the resulting VM structure will be placed.
+	/// 
+	/// `p_env`: pointer to the location where the JNI interface pointer for the main thread will be placed.
+	/// 
+	/// `vm_args`: Java VM initialization arguments.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns `JNI_OK` on success; returns a suitable JNI error code (a negative number) on failure.
 	pub fn JNI_CreateJavaVM(
 		pvm: *mut *mut JavaVM,
 		penv: *mut *mut c_void,
 		args: *mut c_void,
 	) -> jint;
+	
+	/// Returns all Java VMs that have been created.
+	/// 
+	/// Pointers to VMs are written in the buffer `vmBuf` in the order they are created. At most `bufLen` number of entries will be written.
+	/// 
+	/// The total number of created VMs is returned in `*nVMs`.
+	/// 
+	/// Creation of multiple VMs in a single process is not supported.
+	/// 
+	/// ## LINKAGE
+	/// 
+	/// Exported from the native library that implements the Java virtual machine.
+	/// 
+	/// ## PARAMETERS
+	/// 
+	/// `vmBuf`: pointer to the buffer where the VM structures will be placed.
+	/// 
+	/// `bufLen`: the length of the buffer.
+	/// 
+	/// `nVMs`: a pointer to an integer.
+	/// 
+	/// ## RETURNS
+	/// 
+	/// Returns `JNI_OK` on success; returns a suitable JNI error code (a negative number) on failure.
 	pub fn JNI_GetCreatedJavaVMs(vmBuf: *mut *mut JavaVM, bufLen: jsize, nVMs: *mut jsize) -> jint;
 	
 	// Defined by native libraries
