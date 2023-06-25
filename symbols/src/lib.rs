@@ -139,6 +139,7 @@ vm_symbols::define_symbols! {
 	main_signature: "([Ljava/lang/String;)V",
 	void_method_signature: "()V",
 	bool_bool_int_signature: "(ZZ)I",
+	ClassLoader_string_long_signature: "(Ljava/lang/ClassLoader;Ljava/lang/String;)J",
 	// -- GENERATED METHOD SIGNATURE MARKER, DO NOT DELETE --
 
 	// Types
@@ -166,5 +167,6 @@ vm_symbols::define_symbols! {
 	initPhase3_name: "initPhase3",
 
 	printStackTrace_name: "printStackTrace",
+	findNative_name: "findNative",
 	// -- GENERATED METHOD NAME MARKER, DO NOT DELETE --
 }

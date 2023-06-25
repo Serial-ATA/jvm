@@ -1,0 +1,31 @@
+import java.lang.AssertionStatusDirectives;
+import java.lang.Class;
+import java.lang.String;
+import java.lang.Object;
+import java.security.ProtectionDomain;
+
+public abstract class ClassLoader {
+    private static native void registerNatives();
+
+    static native Class<?> defineClass1(ClassLoader loader, String name, byte[] b, int off, int len,
+                                        ProtectionDomain pd, String source);
+
+    static native Class<?> defineClass2(ClassLoader loader, String name, java.nio.ByteBuffer b,
+                                        int off, int len, ProtectionDomain pd,
+                                        String source);
+
+    static native Class<?> defineClass0(ClassLoader loader,
+                                        Class<?> lookup,
+                                        String name,
+                                        byte[] b, int off, int len,
+                                        ProtectionDomain pd,
+                                        boolean initialize,
+                                        int flags,
+                                        Object classData);
+
+    private static native Class<?> findBootstrapClass(String name);
+
+    private final native Class<?> findLoadedClass0(String name);
+
+    private static native AssertionStatusDirectives retrieveDirectives();
+}

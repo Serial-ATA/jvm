@@ -43,8 +43,8 @@ public class Class {
     private native Method[]      getDeclaredMethods0(boolean publicOnly);
     private native Constructor<T>[] getDeclaredConstructors0(boolean publicOnly);
     private native Class<?>[]    getDeclaredClasses0();
-    private native RecordComponent[] getRecordComponents0();
 
+    private native RecordComponent[] getRecordComponents0();
     private native boolean       isRecord0();
 
     private static native boolean desiredAssertionStatus0(Class<?> clazz);

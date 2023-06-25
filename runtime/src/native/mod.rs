@@ -56,8 +56,8 @@ pub(crate) mod jdk {
 	pub(crate) mod internal {
 		pub(crate) mod misc {
 			pub(crate) mod CDS;
-			pub(crate) mod Unsafe;
 			pub(crate) mod VM;
+			pub(crate) mod Unsafe;
 		}
 		pub(crate) mod util {
 		pub(crate) mod SystemProps;
@@ -75,6 +75,7 @@ pub(crate) mod java {
 		pub(crate) mod StringUTF16;
 		pub(crate) mod System;
 		pub(crate) mod Float;
+		pub(crate) mod ClassLoader;
 		pub(crate) mod Double;
 		pub(crate) mod Throwable;
 		pub(crate) mod Object;
