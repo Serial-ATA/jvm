@@ -3,6 +3,7 @@ use super::field::Field;
 use super::method::Method;
 use crate::class_instance::{ArrayInstancePtr, ClassInstancePtr, Instance};
 use crate::heap::mirror::MirrorInstancePtr;
+use crate::method::MethodPtr;
 
 use std::sync::Arc;
 
@@ -10,7 +11,7 @@ use common::traits::PtrType;
 use instructions::Operand;
 use symbols::{sym, Symbol};
 
-pub type MethodRef = Arc<Method>;
+pub type MethodRef = Arc<MethodPtr>;
 pub type FieldRef = Arc<Field>;
 pub type ClassRef = Arc<ClassPtr>;
 

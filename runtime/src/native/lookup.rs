@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use ::jni::sys::{jclass, JNIEnv, JNINativeMethod};
 use classfile::accessflags::MethodAccessFlags;
+use common::traits::PtrType;
 use instructions::Operand;
 use jni::string::JString;
 use symbols::sym;
@@ -436,8 +437,8 @@ pub fn lookup_native_method(mut method: MethodRef, thread: ThreadRef) -> *const 
 		return native_method;
 	}
 
-	let entry = lookup_base(method, thread);
-	method.set_native_method(entry);
+	let entry = lookup_base(Arc::clone(&method), thread);
+	method.get_mut().set_native_method(entry);
 
 	entry
 }

@@ -4,12 +4,14 @@ use crate::classpath::classloader::ClassLoader;
 use crate::reference::MethodRef;
 
 use std::ffi::c_void;
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
 use classfile::accessflags::MethodAccessFlags;
 use classfile::{Code, LineNumber, MethodDescriptor, MethodInfo};
 use common::int_types::{s4, u1};
+use common::traits::PtrType;
 use symbols::Symbol;
 
 #[derive(Clone, PartialEq)]
@@ -65,7 +67,7 @@ impl Method {
 			native_method: std::ptr::null(),
 		};
 
-		MethodRef::new(method)
+		MethodPtr::new(method)
 	}
 
 	pub fn get_line_number(&self, pc: isize) -> s4 {
@@ -151,12 +153,8 @@ impl Method {
 		self.native_invoker
 	}
 
-	pub fn native_method(&mut self) -> *const c_void {
-		if self.native_method.is_null() {
-			// TODO
-		}
-
-		unimplemented!("Native method setting");
+	pub fn native_method(&self) -> *const c_void {
+		assert!(!self.native_method.is_null());
 		self.native_method
 	}
 
@@ -175,5 +173,65 @@ impl Debug for Method {
 			.field("parameter_count", &self.parameter_count)
 			.field("code_len", &self.code.code.len())
 			.finish()
+	}
+}
+
+// A pointer to a Method instance
+//
+// This can *not* be constructed by hand, as dropping it will
+// deallocate the method.
+#[derive(PartialEq)]
+pub struct MethodPtr(usize);
+
+impl PtrType<Method, MethodRef> for MethodPtr {
+	fn new(val: Method) -> MethodRef {
+		let boxed = Box::new(val);
+		let ptr = Box::into_raw(boxed);
+		MethodRef::new(Self(ptr as usize))
+	}
+
+	#[inline(always)]
+	fn as_raw(&self) -> *const Method {
+		self.0 as *const Method
+	}
+
+	#[inline(always)]
+	fn as_mut_raw(&self) -> *mut Method {
+		self.0 as *mut Method
+	}
+
+	fn get(&self) -> &Method {
+		unsafe { &(*self.as_raw()) }
+	}
+
+	fn get_mut(&self) -> &mut Method {
+		unsafe { &mut (*self.as_mut_raw()) }
+	}
+}
+
+impl Drop for MethodPtr {
+	fn drop(&mut self) {
+		let _ = unsafe { Box::from_raw(self.0 as *mut Method) };
+	}
+}
+
+impl Deref for MethodPtr {
+	type Target = Method;
+
+	fn deref(&self) -> &Self::Target {
+		unsafe { &(*self.as_raw()) }
+	}
+}
+
+impl DerefMut for MethodPtr {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		unsafe { &mut (*self.as_mut_raw()) }
+	}
+}
+
+impl Debug for MethodPtr {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		let class = self.get();
+		f.write_str(class.name.as_str())
 	}
 }
