@@ -15,7 +15,7 @@ use instructions::Operand;
 use once_cell::sync::Lazy;
 use symbols::Symbol;
 
-#[derive(Copy, Clone, Eq, Hash, PartialEq)]
+#[derive(Copy, Clone, Eq, Hash, PartialEq, Debug)]
 pub struct NativeMethodDef {
 	pub class: Symbol,
 	pub name: Symbol,

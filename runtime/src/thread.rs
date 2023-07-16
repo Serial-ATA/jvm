@@ -124,7 +124,7 @@ impl Thread {
 					.current_frame()
 					.unwrap()
 					.get_operand_stack_mut()
-					.push_op(ret.0);
+					.push_op(ret);
 			}
 
 			return;

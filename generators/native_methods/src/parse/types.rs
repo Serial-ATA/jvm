@@ -78,7 +78,7 @@ impl Type {
 		match self {
 			Type::Boolean => String::from("bool"),
 			Type::Byte => String::from("::common::int_types::s1"),
-			Type::Char => String::from("::common::int_types::s4"),
+			Type::Char => String::from("::common::int_types::u2"),
 			Type::Double => String::from("f64"),
 			Type::Float => String::from("f32"),
 			Type::Int => String::from("::common::int_types::s4"),

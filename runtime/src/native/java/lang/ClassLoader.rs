@@ -1,7 +1,6 @@
 use crate::native::JNIEnv;
 use crate::reference::Reference;
 
-use common::int_types::s4;
 use jni::sys::jint;
 
 include_generated!("native/java/lang/def/ClassLoader.registerNatives.rs");
@@ -62,6 +61,7 @@ pub fn findBootstrapClass(
 
 pub fn findLoadedClass0(
 	_env: JNIEnv,
+	this: Reference, // java.lang.Class
 	name: Reference, // java.lang.String
 ) -> Reference // java.lang.Class
 {

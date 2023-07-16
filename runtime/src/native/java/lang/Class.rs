@@ -4,7 +4,6 @@ use crate::heap::mirror::MirrorInstance;
 use crate::include_generated;
 use crate::native::JNIEnv;
 use crate::reference::Reference;
-use crate::stack::local_stack::LocalStack;
 use crate::string_interner::StringInterner;
 
 use std::sync::Arc;
@@ -66,31 +65,40 @@ pub fn initClassName(_env: JNIEnv, this: Reference /* java.lang.Class */) -> Ref
 	Reference::Class(name_string)
 }
 
-pub fn getSuperclass(_env: JNIEnv, _: LocalStack) -> Reference /* Class<? super T> */ {
+pub fn getSuperclass(_env: JNIEnv, this: Reference /* java.lang.Class */) -> Reference /* Class<? super T> */
+{
 	unimplemented!("Class#getSuperclass");
 }
-pub fn getInterfaces0(_env: JNIEnv, _: LocalStack) -> Reference /* Class<?>[] */ {
+pub fn getInterfaces0(_env: JNIEnv, this: Reference /* java.lang.Class */) -> Reference /* Class<?>[] */
+{
 	unimplemented!("Class#getInterfaces0");
 }
-pub fn getModifiers(_env: JNIEnv, _: LocalStack) -> s4 {
+pub fn getModifiers(_env: JNIEnv, this: Reference /* java.lang.Class */) -> s4 {
 	unimplemented!("Class#getModifiers");
 }
-pub fn getSigners(_env: JNIEnv, _: LocalStack) -> Reference /* Object[] */ {
+pub fn getSigners(_env: JNIEnv, this: Reference /* java.lang.Class */) -> Reference /* Object[] */ {
 	unimplemented!("Class#getSigners");
 }
-pub fn setSigners(_env: JNIEnv, _: LocalStack) {
+pub fn setSigners(
+	_env: JNIEnv,
+	this: Reference,    // java.lang.Class
+	signers: Reference, // Object[]
+) {
 	unimplemented!("Class#setSigners");
 }
-pub fn getEnclosingMethod0(_env: JNIEnv, _: LocalStack) -> Reference /* Object[] */ {
+pub fn getEnclosingMethod0(_env: JNIEnv, this: Reference /* java.lang.Class */) -> Reference /* Object[] */
+{
 	unimplemented!("Class#getEnclosingMethod0");
 }
-pub fn getDeclaringClass0(_env: JNIEnv, _: LocalStack) -> Reference /* Class<?> */ {
+pub fn getDeclaringClass0(_env: JNIEnv, this: Reference /* java.lang.Class */) -> Reference /* Class<?> */
+{
 	unimplemented!("Class#getDeclaringClass0");
 }
-pub fn getSimpleBinaryName0(_env: JNIEnv, _: LocalStack) -> Reference /* String */ {
+pub fn getSimpleBinaryName0(_env: JNIEnv, this: Reference /* java.lang.Class */) -> Reference /* String */
+{
 	unimplemented!("Class#getSimpleBinaryName0");
 }
-pub fn getProtectionDomain0(_env: JNIEnv, _: LocalStack) -> Reference /* java.security.ProtectionDomain */
+pub fn getProtectionDomain0(_env: JNIEnv, this: Reference /* java.lang.Class */) -> Reference /* java.security.ProtectionDomain */
 {
 	unimplemented!("Class#getProtectionDomain0");
 }

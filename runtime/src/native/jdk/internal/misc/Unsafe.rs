@@ -7,7 +7,7 @@ use crate::string_interner::StringInterner;
 
 use std::sync::Arc;
 
-use ::jni::sys::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jobject, jshort};
+use ::jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 use common::traits::PtrType;
 use instructions::Operand;
 
@@ -18,7 +18,7 @@ pub fn getUncompressedObject(
 	_env: JNIEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 	address: jlong,
-) -> jobject {
+) -> Reference {
 	unimplemented!("jdk.internal.misc.Unsafe#getUncompressedObject")
 }
 
@@ -51,7 +51,7 @@ pub fn defineClass0(
 	length: jint,
 	loader: Reference,            // java.lang.ClassLoader
 	protection_domain: Reference, // java.security.ProtectionDomain
-) -> jclass {
+) -> Reference {
 	unimplemented!("jdk.internal.misc.Unsafe#defineClass0")
 }
 
@@ -60,7 +60,7 @@ pub fn allocateInstance(
 	_env: JNIEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 	class: Reference, // java.lang.Class
-) -> jobject {
+) -> Reference {
 	unimplemented!("jdk.internal.misc.Unsafe#allocateInstance")
 }
 
@@ -79,7 +79,7 @@ pub fn compareAndSetInt(
 	offset: jlong,
 	expected: jint,
 	value: jint,
-) {
+) -> jboolean {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndSetInt")
 }
 
@@ -90,7 +90,7 @@ pub fn compareAndExchangeInt(
 	offset: jlong,
 	expected: jint,
 	value: jint,
-) {
+) -> jboolean {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndExchangeInt")
 }
 
@@ -101,7 +101,7 @@ pub fn compareAndSetLong(
 	offset: jlong,
 	expected: jlong,
 	value: jlong,
-) {
+) -> jboolean {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndSetLong")
 }
 
@@ -112,7 +112,7 @@ pub fn compareAndExchangeLong(
 	offset: jlong,
 	expected: jlong,
 	value: jlong,
-) {
+) -> jboolean {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndExchangeLong")
 }
 
@@ -123,7 +123,7 @@ pub fn compareAndSetReference(
 	offset: jlong,
 	expected: Reference, // Object
 	value: Reference,    // Object
-) {
+) -> jboolean {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndSetReference")
 }
 
@@ -134,7 +134,7 @@ pub fn compareAndExchangeReference(
 	offset: jlong,
 	expected: Reference, // Object
 	value: Reference,    // Object
-) {
+) -> Reference {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndExchangeReference")
 }
 
@@ -380,11 +380,9 @@ pub fn ensureClassInitialized0(
 }
 pub fn arrayBaseOffset0(
 	_env: JNIEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
-	locals: LocalStack,
+	_this: Reference,       // jdk.internal.misc.Unsafe
+	array_class: Reference, // java.lang.Class
 ) -> jint {
-	let array_class = locals[1].expect_reference(); // java.lang.Class
-
 	let mirror = array_class.extract_mirror();
 	// TODO: InvalidClassException
 	let _array = mirror.get().expect_class().unwrap_array_instance();
@@ -394,11 +392,9 @@ pub fn arrayBaseOffset0(
 }
 pub fn arrayIndexScale0(
 	_env: JNIEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
-	locals: LocalStack,
+	_this: Reference,       // jdk.internal.misc.Unsafe
+	array_class: Reference, // java.lang.Class
 ) -> jint {
-	let array_class = locals[1].expect_reference(); // java.lang.Class
-
 	let mirror = array_class.extract_mirror();
 	// TODO: InvalidClassException
 	let _array = mirror.get().expect_class().unwrap_array_instance();

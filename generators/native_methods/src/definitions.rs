@@ -1,7 +1,7 @@
-use crate::parse::{AccessFlags, Class, Type};
+use crate::parse::{AccessFlags, Class, Member, Type};
 
 use std::fmt::Write as _;
-use std::fs::OpenOptions;
+use std::fs::{File, OpenOptions};
 use std::io::Write as _;
 use std::path::Path;
 
@@ -11,8 +11,11 @@ impl Type {
 	fn expect_method(&self) -> &str {
 		match self {
 			Type::Boolean => "expect_int() == 1",
+			Type::Byte => "expect_int() as ::jni::sys::jbyte",
+			Type::Char => "expect_int() as ::jni::sys::jchar",
+			Type::Int => "expect_int()",
+			Type::Short => "expect_int() as ::jni::sys::jshort",
 
-			Type::Byte | Type::Char | Type::Int | Type::Short => "expect_int()",
 			Type::Double => "expect_double()",
 			Type::Float => "expect_float()",
 			Type::Long => "expect_long()",
@@ -37,10 +40,20 @@ pub fn generate_definitions_for_class(def_path: &Path, class: &Class) {
 	)
 	.unwrap();
 
+	generate_methods_for_class(class, &mut definitions_file);
+
+	for member in &class.members {
+		if let Member::Class(c) = member {
+			generate_methods_for_class(c, &mut definitions_file);
+		}
+	}
+
+	writeln!(definitions_file, "}}").unwrap();
+}
+
+fn generate_methods_for_class(class: &Class, definitions_file: &mut File) {
 	for method in class.methods().filter(|method| {
-		method.name.is_some()
-			&& method.name.as_deref() != Some("registerNatives")
-			&& method.modifiers.contains(AccessFlags::ACC_NATIVE)
+		method.name.is_some() && method.modifiers.contains(AccessFlags::ACC_NATIVE)
 	}) {
 		writeln!(
 			definitions_file,
@@ -64,7 +77,11 @@ pub fn generate_definitions_for_class(def_path: &Path, class: &Class) {
 				definitions_file,
 				"\t\tlet {}_: {} = locals[{}].{};",
 				name,
-				ty.map_to_rust_ty(),
+				if let Type::Array(_) = ty {
+					String::from("crate::heap::reference::Reference")
+				} else {
+					ty.map_to_rust_ty()
+				},
 				if is_static { idx } else { idx + 1 },
 				ty.expect_method()
 			)
@@ -104,6 +121,4 @@ pub fn generate_definitions_for_class(def_path: &Path, class: &Class) {
 			},
 		}
 	}
-
-	writeln!(definitions_file, "}}").unwrap();
 }

@@ -1,6 +1,7 @@
 use crate::native::JNIEnv;
+use crate::reference::Reference;
 
-use ::jni::sys::{jclass, jlong, jobject, jstring};
+use ::jni::sys::jlong;
 
 include_generated!("native/jdk/internal/misc/def/CDS.definitions.rs");
 
@@ -16,14 +17,14 @@ pub fn isSharingEnabled0(_env: JNIEnv) -> bool {
 	false
 }
 
-pub fn logLambdaFormInvoker(_: JNIEnv, line: jstring) {
+pub fn logLambdaFormInvoker(_: JNIEnv, line: Reference) {
 	unimplemented!("jdk.internal.misc.CDS#logLambdaFormInvoker")
 }
 
-pub fn initializeFromArchive(_: JNIEnv, class: jclass) {
+pub fn initializeFromArchive(_: JNIEnv, class: Reference) {
 	// TODO
 }
-pub fn defineArchivedModules(_: JNIEnv, platform_loader: jobject, system_loader: jobject) {
+pub fn defineArchivedModules(_: JNIEnv, platform_loader: Reference, system_loader: Reference) {
 	unimplemented!("jdk.internal.misc.CDS#defineArchivedModules")
 }
 pub fn getRandomSeedForDumping(_: JNIEnv) -> jlong {
@@ -31,9 +32,9 @@ pub fn getRandomSeedForDumping(_: JNIEnv) -> jlong {
 	0
 }
 
-pub fn dumpClassList(_: JNIEnv, list_file_name: jstring) {
+pub fn dumpClassList(_: JNIEnv, list_file_name: Reference) {
 	unimplemented!("jdk.internal.misc.CDS#dumpClassList")
 }
-pub fn dumpDynamicArchive(_: JNIEnv, archive_file_name: jstring) {
+pub fn dumpDynamicArchive(_: JNIEnv, archive_file_name: Reference) {
 	unimplemented!("jdk.internal.misc.CDS#dumpDynamicArchive")
 }

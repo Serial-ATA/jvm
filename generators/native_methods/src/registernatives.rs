@@ -14,11 +14,11 @@ use std::sync::atomic::{{AtomicBool, Ordering}};
 static NATIVES_REGISTERED: AtomicBool = AtomicBool::new(false);
 
 #[allow(trivial_casts)]
-pub fn registerNatives(_: JNIEnv, _: crate::stack::local_stack::LocalStack) -> crate::native::NativeReturn {{
+pub fn registerNatives(_: JNIEnv) {{
 	use symbols::sym;
 	
 	if NATIVES_REGISTERED.compare_exchange(false, true, Ordering::SeqCst, Ordering::Acquire) != Ok(false) {{
-		return None;
+		return;
 	}}
 	
 	let natives: [(NativeMethodDef, NativeMethodPtr); {}] = [
@@ -81,8 +81,7 @@ pub(crate) fn generate_register_natives_table(
 
 	write!(
 		native_method_table_file,
-		"\t];\n\n\tfor method in natives \
-		 {{\n\t\tcrate::native::insert_method(method);\n\t}}\nNone\n}}"
+		"\t];\n\n\tfor method in natives {{\n\t\tcrate::native::insert_method(method);\n\t}}\n}}"
 	)
 	.unwrap();
 }

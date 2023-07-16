@@ -1,4 +1,5 @@
 use crate::native::JNIEnv;
+use crate::reference::Reference;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -8,13 +9,13 @@ use common::traits::PtrType;
 include_generated!("native/java/lang/def/System.registerNatives.rs");
 include_generated!("native/java/lang/def/System.definitions.rs");
 
-pub fn setIn0(_: JNIEnv, in_: jobject /* java.io.PrintStream */) {
+pub fn setIn0(_: JNIEnv, in_: Reference /* java.io.PrintStream */) {
 	unimplemented!("System#setIn0")
 }
-pub fn setOut0(_env: JNIEnv, out: jobject /* java.io.PrintStream */) {
+pub fn setOut0(_env: JNIEnv, out: Reference /* java.io.PrintStream */) {
 	unimplemented!("System#setOut0")
 }
-pub fn setErr0(_env: JNIEnv, err: jobject /* java.io.PrintStream */) {
+pub fn setErr0(_env: JNIEnv, err: Reference /* java.io.PrintStream */) {
 	unimplemented!("System#setErr0")
 }
 
@@ -33,9 +34,9 @@ pub fn nanoTime(_env: JNIEnv) -> jlong {
 
 pub fn arraycopy(
 	_env: JNIEnv,
-	src: jobject, // java.lang.Object
+	src: Reference, // java.lang.Object
 	src_pos: jint,
-	dest: jobject, // java.lang.Object
+	dest: Reference, // java.lang.Object
 	dest_pos: jint,
 	length: jint,
 ) {
@@ -69,10 +70,10 @@ pub fn arraycopy(
 	);
 }
 
-pub fn identityHashCode(_env: JNIEnv, x: jobject /* java.lang.Object */) -> jlong {
+pub fn identityHashCode(_env: JNIEnv, x: Reference /* java.lang.Object */) -> jlong {
 	unimplemented!("System#identityHashCode")
 }
 
-pub fn mapLibraryName(_env: JNIEnv, libname: jstring) -> jstring {
+pub fn mapLibraryName(_env: JNIEnv, libname: Reference) -> Reference {
 	unimplemented!("System#mapLibraryName")
 }
