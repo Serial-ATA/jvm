@@ -1,7 +1,9 @@
 use super::reference::ClassRef;
+use crate::calls::CallStub;
 use crate::classpath::classloader::ClassLoader;
 use crate::reference::MethodRef;
 
+use std::ffi::c_void;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -20,6 +22,8 @@ pub struct Method {
 	pub line_number_table: Vec<LineNumber>,
 	pub code: Code,
 	pub is_intrinsic: bool, // TODO: This can be done better
+	native_invoker: *const c_void,
+	native_method: *const c_void,
 }
 
 impl Method {
@@ -57,6 +61,8 @@ impl Method {
 			line_number_table,
 			code,
 			is_intrinsic,
+			native_invoker: std::ptr::null(),
+			native_method: std::ptr::null(),
 		};
 
 		MethodRef::new(method)
@@ -134,6 +140,24 @@ impl Method {
 
 	pub fn is_default(&self) -> bool {
 		self.class.is_interface() && (!self.is_abstract() && !self.is_public())
+	}
+
+	pub fn native_invoker(&mut self) -> *const c_void {
+		if self.native_invoker.is_null() {
+			self.native_invoker =
+				CallStub::for_descriptor(self.descriptor.as_str(), self.is_static());
+		}
+
+		self.native_invoker
+	}
+
+	pub fn native_method(&mut self) -> *const c_void {
+		if self.native_method.is_null() {
+			// TODO
+		}
+
+		unimplemented!("Native method setting");
+		self.native_method
 	}
 }
 
