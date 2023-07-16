@@ -159,6 +159,10 @@ impl Method {
 		unimplemented!("Native method setting");
 		self.native_method
 	}
+
+	pub fn set_native_method(&mut self, func: *const c_void) {
+		self.native_method = func;
+	}
 }
 
 impl Debug for Method {

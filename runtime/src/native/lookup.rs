@@ -4,13 +4,13 @@ use crate::string_interner::StringInterner;
 use crate::thread::{Thread, ThreadRef};
 
 use std::ffi::{c_void, CStr};
-use std::fmt::Write;
 use std::os::raw::c_int;
 use std::sync::Arc;
 
 use ::jni::sys::{jclass, JNIEnv, JNINativeMethod};
 use classfile::accessflags::MethodAccessFlags;
 use instructions::Operand;
+use jni::string::JString;
 use symbols::sym;
 
 // The JNI specification defines the mapping from a Java native method name to
@@ -96,14 +96,14 @@ impl NativeNameConverter {
 		// Start with the prefix
 		let mut name = String::from("Java_");
 
-		let class_name = self.0.class.name.as_str();
+		let class_name = self.method.class.name.as_str();
 		if !Self::map_escaped_name_on(&mut name, class_name) {
 			return None;
 		}
 
 		name.push('_');
 
-		let method_name = self.0.name.as_str();
+		let method_name = self.method.name.as_str();
 		if !Self::map_escaped_name_on(&mut name, method_name) {
 			return None;
 		}
@@ -184,7 +184,10 @@ impl NativeNameConverter {
 				},
 				';' => stream.push_str("_2"),
 				'[' => stream.push_str("_3"),
-				c => stream.write_fmt(format_args!("_0{c:05x}")),
+				c => {
+					let c = c as u32;
+					stream.push_str(&format!("_0{c:05x}"))
+				},
 			}
 		}
 
@@ -205,7 +208,10 @@ extern "C" {
 
 macro_rules! cstr {
 	( $s:literal ) => {{
-		unsafe { std::mem::transmute::<_, &std::ffi::CStr>(concat!($s, "\0")).as_mut_ptr() }
+		unsafe {
+			std::mem::transmute::<_, &std::ffi::CStr>(concat!($s, "\0")).as_ptr()
+				as *mut core::ffi::c_char
+		}
 	}};
 }
 
@@ -265,10 +271,10 @@ fn lookup_special_native(jni_name: &str) -> Option<*const c_void> {
 		// },
 	];
 
-	let jni_name_c = CStr::new(jni_name);
+	let jni_name_c = JString::from(jni_name);
 	for method in lookup_special_native_methods {
 		unsafe {
-			if jni_name_c == CStr::from_ptr(method.name) {
+			if jni_name_c.as_cstr() == CStr::from_ptr(method.name) {
 				return Some(method.fnPtr);
 			}
 		}
@@ -293,6 +299,7 @@ fn lookup_style(
 			return Some(entry);
 		}
 
+		// TODO
 		// if let Some(entry) = os::dll_lookup(os::native_java_library(), jni_name) {
 		// 	return Some(entry);
 		// }
@@ -353,7 +360,7 @@ fn lookup_entry(method: MethodRef, thread: ThreadRef) -> Option<*const c_void> {
 		Arc::clone(&method),
 		Arc::clone(&thread),
 		&name_converter,
-		num_args,
+		num_args as usize,
 		false,
 		true,
 	) {
@@ -370,7 +377,7 @@ fn lookup_entry(method: MethodRef, thread: ThreadRef) -> Option<*const c_void> {
 		Arc::clone(&method),
 		Arc::clone(&thread),
 		&name_converter,
-		num_args,
+		num_args as usize,
 		true,
 		true,
 	) {
@@ -382,7 +389,7 @@ fn lookup_entry(method: MethodRef, thread: ThreadRef) -> Option<*const c_void> {
 		Arc::clone(&method),
 		Arc::clone(&thread),
 		&name_converter,
-		num_args,
+		num_args as usize,
 		false,
 		false,
 	) {
@@ -390,7 +397,14 @@ fn lookup_entry(method: MethodRef, thread: ThreadRef) -> Option<*const c_void> {
 	}
 
 	// 4) Try JNI long style without os prefix/suffix
-	if let Some(entry) = lookup_style(method, thread, &name_converter, num_args, true, false) {
+	if let Some(entry) = lookup_style(
+		method,
+		thread,
+		&name_converter,
+		num_args as usize,
+		true,
+		false,
+	) {
 		return Some(entry);
 	}
 
@@ -416,8 +430,9 @@ fn lookup_base(method: MethodRef, thread: ThreadRef) -> *const c_void {
 	panic!("UnsatisfiedLinkError")
 }
 
-pub fn lookup_native_method(method: MethodRef, thread: ThreadRef) -> *const c_void {
-	if let Some(native_method) = method.native_method {
+pub fn lookup_native_method(mut method: MethodRef, thread: ThreadRef) -> *const c_void {
+	let native_method = method.native_method();
+	if !native_method.is_null() {
 		return native_method;
 	}
 
