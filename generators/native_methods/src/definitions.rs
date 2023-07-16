@@ -86,11 +86,22 @@ pub fn generate_definitions_for_class(def_path: &Path, class: &Class) {
 
 		write!(method_call, ")").unwrap();
 
-		if method.return_ty == Type::Void {
-			// Cannot implement From<()> for NativeReturn, need a special case for void returns
-			writeln!(definitions_file, "{};\n\t\tNone\n\t}}", method_call).unwrap();
-		} else {
-			writeln!(definitions_file, "Some({}.into())\n\t}}", method_call).unwrap();
+		match method.return_ty {
+			Type::Void => {
+				// Cannot implement From<()> for NativeReturn, need a special case for void returns
+				writeln!(definitions_file, "{};\n\t\tNone\n\t}}", method_call).unwrap();
+			},
+			Type::Class(_) | Type::Array(_) => {
+				writeln!(
+					definitions_file,
+					"Some(instructions::Operand::Reference({}))\n\t}}",
+					method_call
+				)
+				.unwrap();
+			},
+			_ => {
+				writeln!(definitions_file, "Some({}.into())\n\t}}", method_call).unwrap();
+			},
 		}
 	}
 
