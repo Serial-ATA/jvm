@@ -1,14 +1,12 @@
-use crate::native::{JNIEnv, NativeReturn};
-use crate::stack::local_stack::LocalStack;
-
+use ::jni::env::JNIEnv;
 use common::int_types::{s8, u8};
-use instructions::Operand;
 
-pub fn doubleToRawLongBits(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let double = locals[0].expect_double();
-	Some(Operand::Long(double.to_bits() as s8))
+include_generated!("native/java/lang/def/Double.definitions.rs");
+
+pub fn doubleToRawLongBits(_env: JNIEnv, value: f64) -> s8 {
+	value.to_bits() as s8
 }
-pub fn longBitsToDouble(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let long = locals[0].expect_long();
-	Some(Operand::Double(f64::from_bits(long as u8)))
+
+pub fn longBitsToDouble(_env: JNIEnv, bits: s8) -> f64 {
+	f64::from_bits(bits as u8)
 }

@@ -630,3 +630,39 @@ impl<Reference: Debug + PartialEq + Clone> PartialOrd for Operand<Reference> {
 		)
 	}
 }
+
+impl<Reference> From<s4> for Operand<Reference> {
+	fn from(value: s4) -> Self {
+		Operand::Int(value)
+	}
+}
+
+impl<Reference> From<s1> for Operand<Reference> {
+	fn from(value: s1) -> Self {
+		Operand::Int(value as s4)
+	}
+}
+
+impl<Reference> From<bool> for Operand<Reference> {
+	fn from(value: bool) -> Self {
+		Operand::Int(value as s4)
+	}
+}
+
+impl<Reference> From<f32> for Operand<Reference> {
+	fn from(value: f32) -> Self {
+		Operand::Float(value)
+	}
+}
+
+impl<Reference> From<f64> for Operand<Reference> {
+	fn from(value: f64) -> Self {
+		Operand::Double(value)
+	}
+}
+
+impl<Reference> From<s8> for Operand<Reference> {
+	fn from(value: s8) -> Self {
+		Operand::Long(value)
+	}
+}

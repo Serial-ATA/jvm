@@ -1,22 +1,23 @@
-use crate::native::{JNIEnv, NativeReturn};
-use crate::stack::local_stack::LocalStack;
+use crate::reference::Reference;
 
+use ::jni::env::JNIEnv;
 use common::int_types::{s4, s8};
-use instructions::Operand;
 
-pub fn availableProcessors(_: JNIEnv, _: LocalStack) -> NativeReturn {
-	Some(Operand::Int(num_cpus::get() as s4))
+include_generated!("native/java/lang/def/Runtime.definitions.rs");
+
+pub fn availableProcessors(_: JNIEnv, this: Reference /* java.lang.Runtime */) -> s4 {
+	num_cpus::get() as s4
 }
-pub fn freeMemory(_: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn freeMemory(_: JNIEnv, this: Reference /* java.lang.Runtime */) -> s8 {
 	unimplemented!("java.lang.Runtime#freeMemory")
 }
-pub fn totalMemory(_: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn totalMemory(_: JNIEnv, this: Reference /* java.lang.Runtime */) -> s8 {
 	unimplemented!("java.lang.Runtime#totalMemory")
 }
-pub fn maxMemory(_: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn maxMemory(_: JNIEnv, this: Reference /* java.lang.Runtime */) -> s8 {
 	// TODO: Xmx
-	Some(Operand::Long(s8::MAX))
+	s8::MAX
 }
-pub fn gc(_: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn gc(_: JNIEnv, this: Reference /* java.lang.Runtime */) {
 	unimplemented!("java.lang.Runtime#gc")
 }

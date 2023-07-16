@@ -14,7 +14,7 @@ use std::sync::atomic::{{AtomicBool, Ordering}};
 static NATIVES_REGISTERED: AtomicBool = AtomicBool::new(false);
 
 #[allow(trivial_casts)]
-pub fn registerNatives(_: JNIEnv, _: crate::stack::local_stack::LocalStack) -> NativeReturn {{
+pub fn registerNatives(_: JNIEnv, _: crate::stack::local_stack::LocalStack) -> crate::native::NativeReturn {{
 	use symbols::sym;
 	
 	if NATIVES_REGISTERED.compare_exchange(false, true, Ordering::SeqCst, Ordering::Acquire) != Ok(false) {{
@@ -61,7 +61,7 @@ pub(crate) fn generate_register_natives_table(
 	)
 	.unwrap();
 
-	for ref member in class.members.drain_filter(|member| {
+	for ref member in class.members.extract_if(|member| {
         matches!(member, Member::Method(method) if method.name() != "registerNatives" && method.modifiers.contains(AccessFlags::ACC_NATIVE) && !method.modifiers.contains(AccessFlags::ACC_STATIC))
     }).collect::<Vec<_>>() {
         match member {

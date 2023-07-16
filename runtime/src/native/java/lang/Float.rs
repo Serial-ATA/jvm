@@ -1,13 +1,12 @@
-use crate::native::{JNIEnv, NativeReturn};
-use crate::stack::local_stack::LocalStack;
+use ::jni::env::JNIEnv;
+use common::int_types::{s4, u4};
 
-use common::int_types::s4;
-use instructions::Operand;
+include_generated!("native/java/lang/def/Float.definitions.rs");
 
-pub fn floatToRawIntBits(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let float = locals[0].expect_float();
-	Some(Operand::Int(float.to_bits() as s4))
+pub fn floatToRawIntBits(_env: JNIEnv, value: f32) -> s4 {
+	value.to_bits() as s4
 }
-pub fn intBitsToFloat(_: JNIEnv, _: LocalStack) -> NativeReturn {
-	unimplemented!("java.lang.Float#intBitsToFloat")
+
+pub fn intBitsToFloat(_env: JNIEnv, bits: s4) -> f32 {
+	f32::from_bits(bits as u4)
 }

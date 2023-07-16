@@ -1,36 +1,38 @@
-use crate::native::{JNIEnv, NativeReturn};
-use crate::stack::local_stack::LocalStack;
+use ::jni::env::JNIEnv;
+use ::jni::sys::{jclass, jlong, jobject, jstring};
 
-use common::int_types::s4;
-use instructions::Operand;
+include_generated!("native/jdk/internal/misc/def/CDS.definitions.rs");
 
-pub fn isDumpingClassList0(_: JNIEnv, _: LocalStack) -> NativeReturn {
-	Some(Operand::Int(s4::from(false)))
+pub fn isDumpingClassList0(_env: JNIEnv) -> bool {
+	false
 }
-pub fn isDumpingArchive0(_: JNIEnv, _: LocalStack) -> NativeReturn {
-	Some(Operand::Int(s4::from(false)))
+
+pub fn isDumpingArchive0(_env: JNIEnv) -> bool {
+	false
 }
-pub fn isSharingEnabled0(_: JNIEnv, _: LocalStack) -> NativeReturn {
-	Some(Operand::Int(s4::from(false)))
+
+pub fn isSharingEnabled0(_env: JNIEnv) -> bool {
+	false
 }
-pub fn logLambdaFormInvoker(_: JNIEnv, _: LocalStack) -> NativeReturn {
+
+pub fn logLambdaFormInvoker(_: JNIEnv, line: jstring) {
 	unimplemented!("jdk.internal.misc.CDS#logLambdaFormInvoker")
 }
 
-pub fn initializeFromArchive(_: JNIEnv, _: LocalStack) -> NativeReturn {
-	None // TODO
+pub fn initializeFromArchive(_: JNIEnv, class: jclass) {
+	// TODO
 }
-pub fn defineArchivedModules(_: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn defineArchivedModules(_: JNIEnv, platform_loader: jobject, system_loader: jobject) {
 	unimplemented!("jdk.internal.misc.CDS#defineArchivedModules")
 }
-pub fn getRandomSeedForDumping(_: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn getRandomSeedForDumping(_: JNIEnv) -> jlong {
 	// TODO: https://github.com/openjdk/jdk/blob/af564e46b006fcd57ec7391cd1438b3b9311b1d6/src/hotspot/share/prims/jvm.cpp#L3696
-	Some(Operand::Long(0))
+	0
 }
 
-pub fn dumpClassList(_: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn dumpClassList(_: JNIEnv, list_file_name: jstring) {
 	unimplemented!("jdk.internal.misc.CDS#dumpClassList")
 }
-pub fn dumpDynamicArchive(_: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn dumpDynamicArchive(_: JNIEnv, archive_file_name: jstring) {
 	unimplemented!("jdk.internal.misc.CDS#dumpDynamicArchive")
 }

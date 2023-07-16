@@ -1,14 +1,14 @@
 use crate::class_instance::{ArrayContent, ArrayInstance, Instance};
 use crate::classpath::classloader::ClassLoader;
 use crate::frame::FrameRef;
-use crate::native::{JNIEnv, NativeReturn};
 use crate::reference::Reference;
-use crate::stack::local_stack::LocalStack;
 
 use std::sync::Arc;
 
+use ::jni::env::JNIEnv;
 use classfile::FieldType;
 use common::box_slice;
+use common::int_types::s4;
 use common::traits::PtrType;
 use instructions::Operand;
 use symbols::sym;
@@ -150,9 +150,14 @@ mod stacktrace_element {
 	}
 }
 
-pub fn fillInStackTrace(env: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let mut this = locals[0].expect_reference();
+include_generated!("native/java/lang/def/Throwable.definitions.rs");
 
+pub fn fillInStackTrace(
+	env: JNIEnv,
+	mut this: Reference, // java.lang.Throwable
+	_dummy: s4,
+) -> Reference /* java.lang.Throwable */
+{
 	let this_class_instance = this.extract_class();
 	let this_class = &this_class_instance.get().class;
 	let stacktrace_field = this_class.unwrap_class_instance().find_field(|field| field.name == b"stackTrace" && matches!(&field.descriptor, FieldType::Array(value) if value.is_class(b"java/lang/StackTraceElement"))).expect("Throwable should have a stackTrace field");
@@ -212,5 +217,5 @@ pub fn fillInStackTrace(env: JNIEnv, locals: LocalStack) -> NativeReturn {
 		Operand::Reference(Reference::Array(array)),
 	);
 
-	Some(Operand::Reference(this))
+	this
 }

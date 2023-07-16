@@ -13,7 +13,7 @@ pub struct Method {
 	pub is_intrinsic_candidate: bool,
 	pub name: Option<String>, // Either a method name or `None` if its a constructor
 	pub descriptor: String,
-	pub params: Vec<Type>,
+	pub params: Vec<(Type, String)>,
 	pub return_ty: Type,
 }
 
@@ -51,7 +51,7 @@ impl Method {
 		if append_params {
 			ret = format!("{ret}_");
 			for param in &self.params {
-				write!(ret, "{}", param.human_readable_name()).unwrap();
+				write!(ret, "{}", param.0.human_readable_name()).unwrap();
 			}
 		}
 
@@ -79,7 +79,7 @@ impl Method {
 		for param in &self.params {
 			signature_symbol.push_str(&format!(
 				"{}_",
-				param.human_readable_name().replace('.', "_")
+				param.0.human_readable_name().replace('.', "_")
 			));
 		}
 
@@ -163,7 +163,7 @@ where
 				modifiers,
 				is_intrinsic_candidate: is_intrinsic,
 				name: None,
-				descriptor: create_signature(params.clone(), return_ty.clone()),
+				descriptor: create_signature(&params, return_ty.clone()),
 				params,
 				return_ty,
 			}
@@ -185,13 +185,14 @@ where
 			modifiers,
 			is_intrinsic_candidate: is_intrinsic,
 			name: Some(name),
-			descriptor: create_signature(params.clone(), return_ty.clone()),
+			descriptor: create_signature(&params, return_ty.clone()),
 			params,
 			return_ty,
 		})
 }
 
-fn method_def<Input>() -> impl Parser<Input, Output = (AccessFlags, Type, String, Vec<Type>)>
+fn method_def<Input>(
+) -> impl Parser<Input, Output = (AccessFlags, Type, String, Vec<(Type, String)>)>
 where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -199,17 +200,14 @@ where
 	(access_flags(), lex(ty()), lex(word1()), method_parameters())
 }
 
-fn method_parameters<Input>() -> impl Parser<Input, Output = Vec<Type>>
+fn method_parameters<Input>() -> impl Parser<Input, Output = Vec<(Type, String)>>
 where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
 	(
 		lex(char('(')),
-		sep_by::<Vec<_>, _, _, _>(
-			(crate::parse::types::ty(), optional(lex(word1()))).map(|(ty, _)| ty),
-			lex(char(',')),
-		),
+		sep_by::<Vec<_>, _, _, _>((crate::parse::types::ty(), lex(word1())), lex(char(','))),
 		lex(char(')')),
 	)
 		.map(|(_, tys, _)| tys)
@@ -227,10 +225,10 @@ where
 		.map(|_| ())
 }
 
-fn create_signature(params: Vec<Type>, return_ty: Type) -> String {
+fn create_signature(params: &[(Type, String)], return_ty: Type) -> String {
 	let mut signature = String::from('(');
 
-	for param in params {
+	for (param, _) in params {
 		param.write_to(&mut signature, true);
 	}
 

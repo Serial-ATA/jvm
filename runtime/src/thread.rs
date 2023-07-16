@@ -32,6 +32,9 @@ pub struct Thread {
 	// the pc register contains the address of the Java Virtual Machine instruction currently being executed
 	pub pc: AtomicIsize,
 	pub frame_stack: Vec<FrameRef>,
+
+	// TODO: HACK!!!!
+	remaining_operand: Option<Operand<Reference>>,
 }
 
 impl Thread {
@@ -39,6 +42,7 @@ impl Thread {
 		let thread = Self {
 			pc: AtomicIsize::new(0),
 			frame_stack: Vec::new(),
+			remaining_operand: None,
 		};
 
 		ThreadPtr::new(thread)
@@ -67,6 +71,7 @@ impl Thread {
 
 	// This is just `invoke_method`, but it calls `run` since we aren't
 	// in the main method yet.
+	// TODO: HACK!!!
 	pub fn pre_main_invoke_method(
 		thread: ThreadRef,
 		method: MethodRef,
@@ -74,6 +79,11 @@ impl Thread {
 	) {
 		Self::invoke_method(Arc::clone(&thread), method, args);
 		Thread::run(&thread)
+	}
+
+	// TODO: HACK!!!
+	pub fn pull_remaining_operand(thread: ThreadRef) -> Option<Operand<Reference>> {
+		thread.get_mut().remaining_operand.take()
 	}
 
 	fn invoke_method(thread: ThreadRef, method: MethodRef, args: Option<Vec<Operand<Reference>>>) {
@@ -114,7 +124,7 @@ impl Thread {
 					.current_frame()
 					.unwrap()
 					.get_operand_stack_mut()
-					.push_op(ret);
+					.push_op(ret.0);
 			}
 
 			return;
@@ -164,7 +174,12 @@ impl Thread {
 			if let Some(return_value) = return_value {
 				current_frame.get_operand_stack_mut().push_op(return_value);
 			}
+
+			return;
 		}
+
+		// TODO: HACK!!!
+		self.remaining_operand = return_value;
 	}
 
 	pub fn run(thread: &ThreadRef) {

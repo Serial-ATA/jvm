@@ -1,12 +1,13 @@
-use crate::native::{JNIEnv, NativeReturn};
-use crate::reference::Reference;
-use crate::stack::local_stack::LocalStack;
+use crate::native::jni::jclass_from_classref;
 
+use ::jni::env::JNIEnv;
+use ::jni::sys::{jboolean, jclass, jint};
 use common::traits::PtrType;
-use instructions::Operand;
+
+include_generated!("native/jdk/internal/reflect/def/Reflection.definitions.rs");
 
 #[expect(clippy::match_same_arms)]
-pub fn getCallerClass(env: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn getCallerClass(env: JNIEnv) -> jclass {
 	for (n, frame) in env
 		.current_thread
 		.get()
@@ -27,19 +28,18 @@ pub fn getCallerClass(env: JNIEnv, _: LocalStack) -> NativeReturn {
 			1 => {},
 			_ => {
 				// TODO: https://github.com/openjdk/jdk/blob/6a44120a16d0f06b4ed9f0ebf6b0919da7070287/src/hotspot/share/oops/method.cpp#L1378
-				return Some(Operand::Reference(Reference::Mirror(
-					method.class.get_mirror(),
-				)));
+				return jclass_from_classref(method.class.get_mirror());
 			},
 		}
 	}
 
-	Some(Operand::Reference(Reference::Null))
+	return core::ptr::null() as jclass;
 }
-pub fn getClassAccessFlags(_: JNIEnv, _: LocalStack) -> NativeReturn {
+
+pub fn getClassAccessFlags(_env: JNIEnv, class: jclass) -> jint {
 	unimplemented!("jdk.internal.reflect.Reflection#getClassAccessFlags")
 }
 
-pub fn areNestMates(_: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn areNestMates(_env: JNIEnv, current_class: jclass, member_class: jclass) -> jboolean {
 	unimplemented!("jdk.internal.reflect.Reflection#areNestMates")
 }

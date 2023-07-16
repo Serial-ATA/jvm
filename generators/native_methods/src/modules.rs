@@ -1,5 +1,5 @@
 use crate::parse::{Class, Member};
-use crate::{field, parse, registernatives, util, SymbolCollector};
+use crate::{definitions, field, parse, registernatives, util, SymbolCollector};
 
 use std::path::{Path, PathBuf};
 
@@ -60,6 +60,7 @@ impl Module {
 				&name,
 			);
 
+			definitions::generate_definitions_for_class(Path::new(&generated_root), &class);
 			field::generate_native_constant_fields(&mut class, Path::new(&generated_root));
 			registernatives::generate_register_natives_table(
 				&name,

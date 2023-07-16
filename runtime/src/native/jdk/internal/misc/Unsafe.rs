@@ -1,378 +1,374 @@
 use crate::class::Class;
 use crate::heap::spec::class::ClassInitializationState;
-use crate::native::{JNIEnv, NativeReturn};
 use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::string_interner::StringInterner;
 
 use std::sync::Arc;
 
-use common::int_types::{s4, s8};
+use ::jni::env::JNIEnv;
+use ::jni::sys::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jobject, jshort};
 use common::traits::PtrType;
 use instructions::Operand;
 
-include!("../../../../../../generated/native/jdk/internal/misc/def/Unsafe.registerNatives.rs");
+include_generated!("native/jdk/internal/misc/def/Unsafe.definitions.rs");
+include_generated!("native/jdk/internal/misc/def/Unsafe.registerNatives.rs");
 
-pub fn getInt(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getInt")
-}
-pub fn putInt(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#putInt")
-}
-pub fn getReference(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getReference")
-}
-pub fn putReference(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#putReference")
-}
-pub fn getBoolean(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getBoolean")
-}
-pub fn putBoolean(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#putBoolean")
-}
-pub fn getByte(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getByte")
-}
-pub fn putByte(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#putByte")
-}
-pub fn getShort(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#  getShort")
-}
-pub fn putShort(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#putShort")
-}
-pub fn getChar(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getChar")
-}
-pub fn putChar(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#putChar")
-}
-pub fn getLong(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getLong")
-}
-pub fn putLong(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#putLong")
-}
-pub fn getFloat(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getFloat")
-}
-pub fn putFloat(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#putFloat")
-}
-pub fn getDouble(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getDouble")
-}
-pub fn putDouble(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#putDouble")
-}
-
-pub fn getUncompressedObject(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _address = locals[1].expect_long();
+pub fn getUncompressedObject(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	address: jlong,
+) -> jobject {
 	unimplemented!("jdk.internal.misc.Unsafe#getUncompressedObject")
 }
 
-pub fn writeback0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _address = locals[1].expect_long();
+pub fn writeback0(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	address: jlong,
+) {
 	unimplemented!("jdk.internal.misc.Unsafe#writeback0")
 }
-pub fn writebackPreSync0(_: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn writebackPreSync0(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+) {
 	unimplemented!("jdk.internal.misc.Unsafe#writebackPreSync0")
 }
-pub fn writebackPostSync0(_: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn writebackPostSync0(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+) {
 	unimplemented!("jdk.internal.misc.Unsafe#writebackPostSync0")
 }
 
-pub fn defineClass0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _name = locals[1].expect_reference(); // java.lang.String
-	let _bytes = locals[2].expect_reference(); // [B
-	let _offset = locals[3].expect_int();
-	let _length = locals[4].expect_int();
-	let _loader = locals[1].expect_reference(); // java.lang.ClassLoader
-	let _protection_domain = locals[1].expect_reference(); // java.security.ProtectionDomain
+pub fn defineClass0(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	name: Reference,  // java.lang.String
+	bytes: Reference, // [B
+	offset: jint,
+	length: jint,
+	loader: Reference,            // java.lang.ClassLoader
+	protection_domain: Reference, // java.security.ProtectionDomain
+) -> jclass {
 	unimplemented!("jdk.internal.misc.Unsafe#defineClass0")
 }
 
 // throws InstantiationException
-pub fn allocateInstance(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _class = locals[1].expect_reference().extract_mirror(); // java.lang.Class
+pub fn allocateInstance(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	class: Reference, // java.lang.Class
+) -> jobject {
 	unimplemented!("jdk.internal.misc.Unsafe#allocateInstance")
 }
 
-pub fn throwException(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _exception = locals[1].expect_reference(); // java.lang.Throwable
+pub fn throwException(
+	_env: JNIEnv,
+	_this: Reference,     // jdk.internal.misc.Unsafe
+	exception: Reference, // java.lang.Throwable
+) {
 	unimplemented!("jdk.internal.misc.Unsafe#throwException")
 }
 
-pub fn compareAndSetReference(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _expected = locals[3].expect_reference(); // java.lang.Object
-	let _value = locals[4].expect_reference(); // java.lang.Object
-	unimplemented!("jdk.internal.misc.Unsafe#compareAndSetReference")
-}
-pub fn compareAndExchangeReference(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _expected = locals[3].expect_reference(); // java.lang.Object
-	let _value = locals[4].expect_reference(); // java.lang.Object
-	unimplemented!("jdk.internal.misc.Unsafe#compareAndExchangeReference")
-}
-
-pub fn compareAndSetInt(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _expected = locals[3].expect_int();
-	let _value = locals[4].expect_int();
+pub fn compareAndSetInt(
+	_env: JNIEnv,
+	_this: Reference,  // jdk.internal.misc.Unsafe
+	object: Reference, // Object
+	offset: jlong,
+	expected: jint,
+	value: jint,
+) {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndSetInt")
 }
-pub fn compareAndExchangeInt(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _expected = locals[3].expect_int();
-	let _value = locals[4].expect_int();
+
+pub fn compareAndExchangeInt(
+	_env: JNIEnv,
+	_this: Reference,  // jdk.internal.misc.Unsafe
+	object: Reference, // Object
+	offset: jlong,
+	expected: jint,
+	value: jint,
+) {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndExchangeInt")
 }
 
-pub fn compareAndSetLong(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _expected = locals[3].expect_long();
-	let _value = locals[4].expect_long();
+pub fn compareAndSetLong(
+	_env: JNIEnv,
+	_this: Reference,  // jdk.internal.misc.Unsafe
+	object: Reference, // Object
+	offset: jlong,
+	expected: jlong,
+	value: jlong,
+) {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndSetLong")
 }
-pub fn compareAndExchangeLong(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _expected = locals[3].expect_long();
-	let _value = locals[4].expect_long();
+
+pub fn compareAndExchangeLong(
+	_env: JNIEnv,
+	_this: Reference,  // jdk.internal.misc.Unsafe
+	object: Reference, // Object
+	offset: jlong,
+	expected: jlong,
+	value: jlong,
+) {
 	unimplemented!("jdk.internal.misc.Unsafe#compareAndExchangeLong")
 }
 
-pub fn getReferenceVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getReferenceVolatile")
-}
-pub fn putReferenceVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _value = locals[2].expect_reference(); // java.lang.Object
-	unimplemented!("jdk.internal.misc.Unsafe#putReferenceVolatile")
-}
-pub fn getIntVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe# getIntVolatile")
-}
-pub fn putIntVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _value = locals[2].expect_int();
-	unimplemented!("jdk.internal.misc.Unsafe#putIntVolatile")
-}
-pub fn getBooleanVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getBooleanVolatile")
-}
-pub fn putBooleanVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _value = locals[2].expect_int();
-	unimplemented!("jdk.internal.misc.Unsafe#putBooleanVolatile")
-}
-pub fn getByteVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getByteVolatile")
-}
-pub fn putByteVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _value = locals[2].expect_int();
-	unimplemented!("jdk.internal.misc.Unsafe#putByteVolatile")
-}
-pub fn getShortVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getShortVolatile")
-}
-pub fn putShortVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _value = locals[2].expect_int();
-	unimplemented!("jdk.internal.misc.Unsafe#putShortVolatile")
-}
-pub fn getCharVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getCharVolatile")
-}
-pub fn putCharVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _value = locals[2].expect_int();
-	unimplemented!("jdk.internal.misc.Unsafe#putCharVolatile")
-}
-pub fn getLongVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getLongVolatile")
-}
-pub fn putLongVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _value = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#putLongVolatile")
-}
-pub fn getFloatVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getFloatVolatile")
-}
-pub fn putFloatVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _value = locals[2].expect_float();
-	unimplemented!("jdk.internal.misc.Unsafe#putFloatVolatile")
-}
-pub fn getDoubleVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#getDoubleVolatile")
-}
-pub fn putDoubleVolatile(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _value = locals[2].expect_double();
-	unimplemented!("jdk.internal.misc.Unsafe#putDoubleVolatile")
+pub fn compareAndSetReference(
+	_env: JNIEnv,
+	_this: Reference,  // jdk.internal.misc.Unsafe
+	object: Reference, // Object
+	offset: jlong,
+	expected: Reference, // Object
+	value: Reference,    // Object
+) {
+	unimplemented!("jdk.internal.misc.Unsafe#compareAndSetReference")
 }
 
-pub fn unpark(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _thread = locals[1].expect_reference(); // java.lang.Object
+pub fn compareAndExchangeReference(
+	_env: JNIEnv,
+	_this: Reference,  // jdk.internal.misc.Unsafe
+	object: Reference, // Object
+	offset: jlong,
+	expected: Reference, // Object
+	value: Reference,    // Object
+) {
+	unimplemented!("jdk.internal.misc.Unsafe#compareAndExchangeReference")
+}
+
+pub fn getReference(
+	_env: JNIEnv,
+	_this: Reference,  // jdk.internal.misc.Unsafe
+	object: Reference, // Object
+	offset: jlong,
+) -> Reference /* Object */ {
+	unimplemented!("jdk.internal.misc.Unsafe#getReference")
+}
+
+pub fn putReference(
+	_env: JNIEnv,
+	_this: Reference,  // jdk.internal.misc.Unsafe
+	object: Reference, // Object
+	offset: jlong,
+	value: Reference, // Object
+) -> Reference /* Object */ {
+	unimplemented!("jdk.internal.misc.Unsafe#putReference")
+}
+
+pub fn getReferenceVolatile(
+	_env: JNIEnv,
+	_this: Reference,  // jdk.internal.misc.Unsafe
+	object: Reference, // Object
+	offset: jlong,
+) -> Reference /* Object */ {
+	unimplemented!("jdk.internal.misc.Unsafe#getReferenceVolatile")
+}
+
+pub fn putReferenceVolatile(
+	_env: JNIEnv,
+	_this: Reference,  // jdk.internal.misc.Unsafe
+	object: Reference, // java.lang.Object
+	offset: jlong,
+	value: Reference, // java.lang.Object
+) -> Reference /* java.lang.Object */ {
+	unimplemented!("jdk.internal.misc.Unsafe#putReferenceVolatile")
+}
+
+/// Creates the many `{get, put}Ty` and `{get, put}TyVolatile` methods
+macro_rules! get_put_methods {
+	($($ty:ident),+) => {
+		$(
+			paste::paste! {
+				pub fn [<get $ty:camel>](
+					_env: JNIEnv,
+					_this: Reference,  // jdk.internal.misc.Unsafe
+					object: Reference, // Object
+					offset: jlong
+				) -> [<j $ty>] {
+					unimplemented!()
+				}
+
+				pub fn [<put $ty:camel>](
+					_env: JNIEnv,
+					_this: Reference,  // jdk.internal.misc.Unsafe
+					object: Reference, // Object
+					offset: jlong,
+					value: [<j $ty>]
+				) {
+					unimplemented!()
+				}
+
+				pub fn [<get $ty:camel Volatile>](
+					_env: JNIEnv,
+					_this: Reference,  // jdk.internal.misc.Unsafe
+					object: Reference, // Object
+					offset: jlong
+				) -> [<j $ty>] {
+					unimplemented!()
+				}
+
+				pub fn [<put $ty:camel Volatile>](
+					_env: JNIEnv,
+					_this: Reference,  // jdk.internal.misc.Unsafe
+					object: Reference, // Object
+					offset: jlong,
+					value: [<j $ty>]
+				) {
+					unimplemented!()
+				}
+
+			}
+		)+
+	};
+}
+
+get_put_methods! { boolean, byte, short, char, int, long, float, double }
+
+pub fn unpark(
+	_env: JNIEnv,
+	_this: Reference,  // jdk.internal.misc.Unsafe
+	thread: Reference, // Object
+) {
 	unimplemented!("jdk.internal.misc.Unsafe#unpark")
 }
-pub fn park(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _is_absolute = locals[1].expect_int() != 0;
-	let _time = locals[2].expect_long();
+
+pub fn park(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	is_absolute: bool,
+	time: jlong,
+) {
 	unimplemented!("jdk.internal.misc.Unsafe#park")
 }
 
-pub fn fullFence(_: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn fullFence(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+) {
 	platform::os_arch::ordering::fence();
-	None
 }
 
-pub fn allocateMemory0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _bytes = locals[1].expect_long();
+pub fn allocateMemory0(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	bytes: jlong,
+) -> jlong {
 	unimplemented!("jdk.internal.misc.Unsafe#allocateMemory0")
 }
-pub fn reallocateMemory0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _address = locals[1].expect_long();
-	let _bytes = locals[2].expect_long();
+
+pub fn reallocateMemory0(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	address: jlong,
+	bytes: jlong,
+) -> jlong {
 	unimplemented!("jdk.internal.misc.Unsafe#reallocateMemory0")
 }
-pub fn freeMemory0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _address = locals[1].expect_long();
+
+pub fn freeMemory0(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	address: jlong,
+) {
 	unimplemented!("jdk.internal.misc.Unsafe#freeMemory0")
 }
-pub fn setMemory0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _object = locals[1].expect_reference(); // java.lang.Object
-	let _offset = locals[2].expect_long();
-	let _bytes = locals[3].expect_long();
-	let _value = locals[4].expect_int();
+
+pub fn setMemory0(
+	_env: JNIEnv,
+	_this: Reference,  // jdk.internal.misc.Unsafe
+	object: Reference, // Object
+	offset: jlong,
+	bytes: jlong,
+	value: jbyte,
+) {
 	unimplemented!("jdk.internal.misc.Unsafe#setMemory0")
 }
-pub fn copyMemory0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _src_base = locals[1].expect_reference(); // java.lang.Object
-	let _src_offset = locals[2].expect_long();
-	let _dest_base = locals[3].expect_reference(); // java.lang.Object
-	let _dest_offset = locals[4].expect_long();
-	let _bytes = locals[5].expect_long();
+
+pub fn copyMemory0(
+	_env: JNIEnv,
+	_this: Reference,    // jdk.internal.misc.Unsafe
+	src_base: Reference, // Object
+	src_offset: jlong,
+	dest_base: Reference, // Object
+	dest_offset: jlong,
+	bytes: jlong,
+) {
 	unimplemented!("jdk.internal.misc.Unsafe#copyMemory0")
 }
-pub fn copySwapMemory0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _src_base = locals[1].expect_reference(); // java.lang.Object
-	let _src_offset = locals[2].expect_long();
-	let _dest_base = locals[3].expect_reference(); // java.lang.Object
-	let _dest_offset = locals[4].expect_long();
-	let _bytes = locals[5].expect_long();
-	let _elem_size = locals[6].expect_long();
-	unimplemented!("jdk.internal.misc.Unsafe#copySwapMemory0")
+
+pub fn copySwapMemory0(
+	_env: JNIEnv,
+	_this: Reference,    // jdk.internal.misc.Unsafe
+	src_base: Reference, // Object
+	src_offset: jlong,
+	dest_base: Reference, // Object,
+	dest_offset: jlong,
+	bytes: jlong,
+	elem_size: jlong,
+) {
+	unimplemented!("jdk.internal.misc.Unsafe#copyMemory0")
 }
-pub fn objectFieldOffset0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _field = locals[1].expect_reference(); // java.lang.reflect.Field
+
+pub fn objectFieldOffset0(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	field: Reference, // java.lang.reflect.Field
+) -> jlong {
 	unimplemented!("jdk.internal.misc.Unsafe#objectFieldOffset0")
 }
-pub fn objectFieldOffset1(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let class = locals[1].expect_reference().extract_mirror(); // java.lang.Class
-	let name = locals[2].expect_reference();
+
+pub fn objectFieldOffset1(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	class: Reference, // java.lang.Class
+	name: Reference,  // String
+) -> jlong {
+	let class = class.extract_mirror();
 
 	let name_str = StringInterner::rust_string_from_java_string(name.extract_class());
 	let classref = class.get().expect_class();
 	for (offset, field) in classref.unwrap_class_instance().fields.iter().enumerate() {
 		if field.name == name_str.as_bytes() {
-			return Some(Operand::Long(offset as s8));
+			return (offset as jlong).into();
 		}
 	}
 
 	// TODO
 	panic!("InternalError")
 }
-pub fn staticFieldOffset0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _field = locals[1].expect_reference(); // java.lang.reflect.Field
+
+pub fn staticFieldOffset0(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	field: Reference, // java.lang.reflect.Field
+) -> jlong {
 	unimplemented!("jdk.internal.misc.Unsafe#staticFieldOffset0")
 }
-pub fn staticFieldBase0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _field = locals[1].expect_reference(); // java.lang.reflect.Field
+
+pub fn staticFieldBase0(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	field: Reference, // java.lang.reflect.Field
+) -> Reference /* java.lang.Object */ {
 	unimplemented!("jdk.internal.misc.Unsafe#staticFieldBase0")
 }
-pub fn shouldBeInitialized0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _class = locals[1].expect_reference().extract_mirror(); // java.lang.Class
+pub fn shouldBeInitialized0(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	class: Reference, // java.lang.Class
+) -> bool {
 	unimplemented!("jdk.internal.misc.Unsafe#shouldBeInitialized0")
 }
-pub fn ensureClassInitialized0(env: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let class = locals[1].expect_reference().extract_mirror(); // java.lang.Class
+pub fn ensureClassInitialized0(
+	env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	class: Reference, // java.lang.Class
+) {
+	let mirror = class.extract_mirror();
 
-	let target_class = class.get().expect_class();
+	let target_class = mirror.get().expect_class();
 	match target_class.initialization_state() {
 		ClassInitializationState::Uninit => {
 			Class::initialize(&target_class, Arc::clone(&env.current_thread))
@@ -381,10 +377,12 @@ pub fn ensureClassInitialized0(env: JNIEnv, locals: LocalStack) -> NativeReturn 
 		// Is this the best we can do?
 		ClassInitializationState::Failed => unreachable!("Failed to ensure class initialization"),
 	}
-
-	None
 }
-pub fn arrayBaseOffset0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
+pub fn arrayBaseOffset0(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	locals: LocalStack,
+) -> jint {
 	let array_class = locals[1].expect_reference(); // java.lang.Class
 
 	let mirror = array_class.extract_mirror();
@@ -392,9 +390,13 @@ pub fn arrayBaseOffset0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
 	let _array = mirror.get().expect_class().unwrap_array_instance();
 
 	// TODO: We don't do byte packing like Hotspot
-	Some(Operand::Int(0))
+	0
 }
-pub fn arrayIndexScale0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
+pub fn arrayIndexScale0(
+	_env: JNIEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	locals: LocalStack,
+) -> jint {
 	let array_class = locals[1].expect_reference(); // java.lang.Class
 
 	let mirror = array_class.extract_mirror();
@@ -402,12 +404,13 @@ pub fn arrayIndexScale0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
 	let _array = mirror.get().expect_class().unwrap_array_instance();
 
 	// TODO: We don't do byte packing like Hotspot
-	Some(Operand::Int(
-		core::mem::size_of::<Operand<Reference>>() as s4
-	))
+	core::mem::size_of::<Operand<Reference>>() as jint
 }
-pub fn getLoadAverage0(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let _loadavg = locals[1].expect_reference(); // [D
-	let _nelems = locals[2].expect_int();
+pub fn getLoadAverage0(
+	_env: JNIEnv,
+	_this: Reference,   // jdk.internal.misc.Unsafe
+	loadavg: Reference, // [D
+	nelems: jint,
+) -> jint {
 	unimplemented!("jdk.internal.misc.Unsafe#getLoadAverage0")
 }

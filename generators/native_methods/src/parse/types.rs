@@ -85,6 +85,7 @@ impl Type {
 			Type::Long => String::from("::common::int_types::s8"),
 			Type::Short => String::from("::common::int_types::s2"),
 			Type::Array(arr_ty) => String::from("&[") + &*arr_ty.map_to_rust_ty() + "]",
+			Type::Class(_) => String::from("crate::heap::reference::Reference"),
 			ty => unimplemented!("{ty:?} as rust type"),
 		}
 	}

@@ -8,7 +8,6 @@ use crate::stack::local_stack::LocalStack;
 use crate::thread::ThreadRef;
 
 use std::collections::HashMap;
-use std::fmt::{Debug, Formatter};
 use std::sync::RwLock;
 
 use instructions::Operand;
@@ -22,14 +21,15 @@ pub struct NativeMethodDef {
 	pub descriptor: Symbol,
 }
 
-impl Debug for NativeMethodDef {
-	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		f.debug_struct("NativeMethodDef")
-			.field("class", &self.class.as_str())
-			.field("name", &self.name.as_str())
-			.field("descriptor", &self.descriptor.as_str())
-			.finish()
-	}
+#[macro_export]
+macro_rules! include_generated {
+	($path:literal) => {
+		include!(std::concat!(
+			env!("CARGO_MANIFEST_DIR"),
+			"/../generated/",
+			$path
+		));
+	};
 }
 
 pub struct JNIEnv {

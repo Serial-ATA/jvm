@@ -1,42 +1,40 @@
-use crate::native::{JNIEnv, NativeReturn};
+use crate::include_generated;
 use crate::reference::Reference;
-use crate::stack::local_stack::LocalStack;
 
-use common::int_types::s4;
+use ::jni::env::JNIEnv;
+use ::jni::sys::{jint, jlong};
 use common::traits::PtrType;
-use instructions::Operand;
 
-pub fn getClass(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let this = locals[0].expect_reference();
-	Some(Operand::Reference(Reference::Mirror(
-		this.extract_class_mirror(),
-	)))
+include_generated!("native/java/lang/def/Object.definitions.rs");
+
+pub fn getClass(_: JNIEnv, this: Reference /* Object */) -> Reference /* Class<?> */ {
+	Reference::Mirror(this.extract_class_mirror())
 }
 
-pub fn hashCode(_: JNIEnv, locals: LocalStack) -> NativeReturn {
-	let this = locals[0].expect_reference();
+pub fn hashCode(_: JNIEnv, this: Reference /* Object */) -> jint {
 	let hash_code = match this {
-		Reference::Class(class) => class.as_raw() as s4,
-		Reference::Array(array) => array.as_raw() as s4,
-		Reference::Mirror(mirror) => mirror.as_raw() as s4,
+		Reference::Class(class) => class.as_raw() as jint,
+		Reference::Array(array) => array.as_raw() as jint,
+		Reference::Mirror(mirror) => mirror.as_raw() as jint,
 		Reference::Null => 0,
 	};
 
-	Some(Operand::Int(hash_code))
+	hash_code
 }
 
-pub fn clone(_: JNIEnv, _: LocalStack) -> NativeReturn {
+// throws CloneNotSupportedException
+pub fn clone(_: JNIEnv, this: Reference /* Object */) -> Reference /* Object */ {
 	unimplemented!("Object#clone")
 }
 
-pub fn notify(_: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn notify(_: JNIEnv, this: Reference /* Object */) {
 	unimplemented!("Object#notify")
 }
 
-pub fn notifyAll(_: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn notifyAll(_: JNIEnv, this: Reference /* Object */) {
 	unimplemented!("Object#notifyAll")
 }
 
-pub fn wait0(_: JNIEnv, _: LocalStack) -> NativeReturn {
+pub fn wait0(_: JNIEnv, this: Reference /* Object */, timeout_millis: jlong) {
 	unimplemented!("Object#wait0")
 }
