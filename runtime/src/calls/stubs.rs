@@ -98,7 +98,7 @@ macro_rules! define_call_stubs {
 
 		paste::paste! {
 			$(
-				fn [<stub_static_ $($arg)_* $(_ $ret)?>](method: $crate::reference::MethodRef, env: JNIEnv, args: (jclass, $(type_mapping!($arg)),*)) $(-> $ret)? {
+				unsafe fn [<stub_static_ $($arg)_* $(_ $ret)?>](method: $crate::reference::MethodRef, env: JNIEnv, args: (jclass, $(type_mapping!($arg)),*)) $(-> $ret)? {
 					let code = core::mem::transmute::<*const core::ffi::c_void, create_function_type!(@STATIC $($arg),* $(-> $ret)?)>(method.native_method());
 					return code(env, args.0, $($arg),*);
 				}
@@ -119,7 +119,7 @@ macro_rules! define_call_stubs {
 
 		paste::paste! {
 			$(
-				fn [<stub_ $($arg)_* $(_ $ret)?>](method: $crate::reference::MethodRef, env: JNIEnv, args: ($(type_mapping!($arg)),*)) $(-> $ret)? {
+				unsafe fn [<stub_ $($arg)_* $(_ $ret)?>](method: $crate::reference::MethodRef, env: JNIEnv, args: ($(type_mapping!($arg)),*)) $(-> $ret)? {
 					let code = core::mem::transmute::<*const core::ffi::c_void, create_function_type!($($arg),* $(-> $ret)?)>(method.native_method());
 					return code(env, $($arg),*);
 				}
