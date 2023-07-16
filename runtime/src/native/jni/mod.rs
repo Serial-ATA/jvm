@@ -4,6 +4,7 @@
 
 #![allow(unused_variables, non_snake_case)]
 
+use crate::class::ClassPtr;
 use crate::heap::reference::ClassRef;
 
 use jni::env::JNIEnv;
@@ -37,7 +38,10 @@ pub unsafe fn classref_from_jclass(class: jclass) -> Option<ClassRef> {
 		return None;
 	}
 
-	Some(ClassRef::from_raw(class))
+	Some(ClassRef::from_raw(core::mem::transmute::<
+		jclass,
+		*const ClassPtr,
+	>(class)))
 }
 
 pub fn new_env() -> JNIEnv {
@@ -278,6 +282,6 @@ pub fn new_env() -> JNIEnv {
 		GetObjectRefType: Some(object::GetObjectRefType),
 	};
 
-	let leaked = Box::into_raw(Box::new(native_interface)) as *const JNINativeInterface_;
-	leaked.into()
+	let leaked = Box::into_raw(Box::new(native_interface));
+	JNIEnv::from(leaked as *mut ::jni::sys::JNIEnv)
 }
