@@ -4,6 +4,7 @@
 pub mod env;
 pub mod error;
 pub mod method;
+pub mod string;
 
 /// `jni_sys` reexports
 pub mod sys {
