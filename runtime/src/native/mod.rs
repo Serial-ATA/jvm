@@ -2,6 +2,7 @@
 
 pub mod intrinsics;
 pub mod jni;
+mod lookup;
 
 use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
