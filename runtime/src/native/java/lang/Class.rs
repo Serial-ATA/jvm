@@ -2,13 +2,13 @@ use crate::class_instance::Instance;
 use crate::classpath::classloader::ClassLoader;
 use crate::heap::mirror::MirrorInstance;
 use crate::include_generated;
+use crate::native::JNIEnv;
 use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::string_interner::StringInterner;
 
 use std::sync::Arc;
 
-use ::jni::env::JNIEnv;
 use common::int_types::s4;
 use common::traits::PtrType;
 use instructions::Operand;

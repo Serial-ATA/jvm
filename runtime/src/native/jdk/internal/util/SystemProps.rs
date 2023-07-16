@@ -2,9 +2,9 @@ pub mod Raw {
 	use crate::class_instance::ArrayInstance;
 	use crate::classpath::classloader::ClassLoader;
 	use crate::include_generated;
+	use crate::native::JNIEnv;
 	use crate::reference::Reference;
 
-	use ::jni::env::JNIEnv;
 	use common::traits::PtrType;
 	use symbols::sym;
 

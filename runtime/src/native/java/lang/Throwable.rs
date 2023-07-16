@@ -1,11 +1,11 @@
 use crate::class_instance::{ArrayContent, ArrayInstance, Instance};
 use crate::classpath::classloader::ClassLoader;
 use crate::frame::FrameRef;
+use crate::native::JNIEnv;
 use crate::reference::Reference;
 
 use std::sync::Arc;
 
-use ::jni::env::JNIEnv;
 use classfile::FieldType;
 use common::box_slice;
 use common::int_types::s4;

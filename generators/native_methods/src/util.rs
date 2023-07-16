@@ -8,7 +8,7 @@ use std::path::{Component, Path};
 pub(crate) fn method_table_entry(module: &str, class: &Class, method: &Method) -> String {
 	format!(
 		"NativeMethodDef {{ class: sym!({}), name: sym!({}), descriptor: sym!({}) }}, \
-		 crate::native::{}{}::{} as NativeMethodPtr",
+		 crate::native::{}{}::definitions::_{} as NativeMethodPtr",
 		format!("{}{}", module, class.class_name)
 			.replace('/', "_")
 			.replace('$', "_"),

@@ -1,6 +1,7 @@
+use crate::native::JNIEnv;
+
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ::jni::env::JNIEnv;
 use ::jni::sys::{jint, jlong, jobject, jstring};
 use common::traits::PtrType;
 

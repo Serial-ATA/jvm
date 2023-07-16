@@ -1,4 +1,5 @@
-use ::jni::env::JNIEnv;
+use crate::native::JNIEnv;
+
 use ::jni::sys::{jclass, jlong, jobject, jstring};
 
 include_generated!("native/jdk/internal/misc/def/CDS.definitions.rs");

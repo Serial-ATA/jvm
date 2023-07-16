@@ -44,8 +44,8 @@ pub fn generate_definitions_for_class(def_path: &Path, class: &Class) {
 	}) {
 		writeln!(
 			definitions_file,
-			"\tpub fn _{}(env: ::jni::env::JNIEnv, locals: crate::stack::local_stack::LocalStack) \
-			 -> crate::native::NativeReturn {{",
+			"\tpub fn _{}(env: crate::native::JNIEnv, locals: \
+			 crate::stack::local_stack::LocalStack) -> crate::native::NativeReturn {{",
 			method.name()
 		)
 		.unwrap();
@@ -88,14 +88,9 @@ pub fn generate_definitions_for_class(def_path: &Path, class: &Class) {
 
 		if method.return_ty == Type::Void {
 			// Cannot implement From<()> for NativeReturn, need a special case for void returns
-			writeln!(
-				definitions_file,
-				"{};\n\t\tcrate::native::NativeReturn::empty()\n\t}}",
-				method_call
-			)
-			.unwrap();
+			writeln!(definitions_file, "{};\n\t\tNone\n\t}}", method_call).unwrap();
 		} else {
-			writeln!(definitions_file, "{}.into()\n\t}}", method_call).unwrap();
+			writeln!(definitions_file, "Some({}.into())\n\t}}", method_call).unwrap();
 		}
 	}
 

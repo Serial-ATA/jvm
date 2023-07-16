@@ -1,7 +1,7 @@
 use crate::include_generated;
+use crate::native::JNIEnv;
 use crate::reference::Reference;
 
-use ::jni::env::JNIEnv;
 use common::int_types::s8;
 
 include_generated!("native/jdk/internal/misc/def/VM.definitions.rs");

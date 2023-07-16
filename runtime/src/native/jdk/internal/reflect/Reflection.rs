@@ -1,6 +1,6 @@
 use crate::native::jni::jclass_from_classref;
+use crate::native::JNIEnv;
 
-use ::jni::env::JNIEnv;
 use ::jni::sys::{jboolean, jclass, jint};
 use common::traits::PtrType;
 

@@ -1,4 +1,5 @@
-use ::jni::env::JNIEnv;
+use crate::native::JNIEnv;
+
 use common::int_types::{s4, u4};
 
 include_generated!("native/java/lang/def/Float.definitions.rs");

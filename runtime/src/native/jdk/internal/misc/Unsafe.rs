@@ -1,12 +1,12 @@
 use crate::class::Class;
 use crate::heap::spec::class::ClassInitializationState;
+use crate::native::JNIEnv;
 use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::string_interner::StringInterner;
 
 use std::sync::Arc;
 
-use ::jni::env::JNIEnv;
 use ::jni::sys::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jobject, jshort};
 use common::traits::PtrType;
 use instructions::Operand;

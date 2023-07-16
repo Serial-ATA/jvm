@@ -1,4 +1,5 @@
-use ::jni::env::JNIEnv;
+use crate::native::JNIEnv;
+
 use common::int_types::{s8, u8};
 
 include_generated!("native/java/lang/def/Double.definitions.rs");
