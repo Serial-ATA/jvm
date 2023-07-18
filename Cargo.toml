@@ -12,6 +12,7 @@ members = [
     "symbols",
     "jni",
     "jni/sys",
+    "assembler",
 
     "tests",
 ]
