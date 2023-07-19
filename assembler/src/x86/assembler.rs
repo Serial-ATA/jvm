@@ -12,19 +12,23 @@ impl Assembler {
 	/// REX.W prefix
 	const REX_W: u8 = 0x48;
 
+	fn write_byte(&mut self, _byte: u8) {}
+
 	/// Emits a one byte opcode
-	fn opcode(&mut self, _code: u8) {}
+	fn opcode(&mut self, code: u8) {
+		self.write_byte(code);
+	}
 
 	/// Emits a two byte opcode
 	fn opcode2(&mut self, code: u8, code2: u8) {
-		self.opcode(code);
-		self.opcode(code2);
+		self.write_byte(code);
+		self.write_byte(code2);
 	}
 
 	/// Emits a three byte opcode
 	fn opcode3(&mut self, code: u8, code2: u8, code3: u8) {
-		self.opcode(code);
-		self.opcode(code2);
-		self.opcode(code3);
+		self.write_byte(code);
+		self.write_byte(code2);
+		self.write_byte(code3);
 	}
 }
