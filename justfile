@@ -1,12 +1,21 @@
 #!/usr/bin/env just --justfile
 
 # -----------------------------------------------------------------------------
+# PROJECTS:
+# -----------------------------------------------------------------------------
+
+# TODO
+
+# -----------------------------------------------------------------------------
 # PYTHON VENV CONFIG:
 # -----------------------------------------------------------------------------
-PYTHON_VENV_DEPENDENCIES := "pip wheel pip-tools py-pdf-parser"
+
+PYTHON_VENV_DEPENDENCIES := "pip wheel pip-tools requests pymupdf"
 PYTHON_VENV_LOCATION := "./generators/asm_specs/.venv"
 PYTHON_VENV_BIN := PYTHON_VENV_LOCATION + if os_family() == "windows" { "/Scripts" } else { "/bin" }
 VENV_PYTHON_EXE := PYTHON_VENV_BIN + if os_family() == "windows" { "/python.exe" } else { "/python3" }
+# Used in `clean`
+VENV_UNINSTALL_LIST := PYTHON_VENV_LOCATION + "/to-uninstall.txt"
 
 SYSTEM_PYTHON_DEFAULT := if os() == "windows" { "python" } else { "python3" }
 SYSTEM_PYTHON_EXE := env_var_or_default("PYTHON", SYSTEM_PYTHON_DEFAULT)
@@ -16,6 +25,13 @@ SYSTEM_PYTHON_EXE := env_var_or_default("PYTHON", SYSTEM_PYTHON_DEFAULT)
 # -----------------------------------------------------------------------------
 
 default: debug
+
+# Cleans any previous builds and Python venvs
+clean:
+    {{ VENV_PYTHON_EXE }} -m pip freeze > {{ VENV_UNINSTALL_LIST }}
+    {{ VENV_PYTHON_EXE }} -m pip uninstall -y -r {{ VENV_UNINSTALL_LIST }}
+    rm {{ VENV_UNINSTALL_LIST }}
+    # TODO: clean other projects
 
 # Setup the python venv
 setup_python:
