@@ -10,13 +10,13 @@ arguments. The actual runtime implementation is housed in [the runtime crate](..
 **If lost, check `--help` for more indepth explanations**
 
 ```console
-cargo run -- --cp=<path/to/classpath> <ClassName>
+cargo run -- <ClassName>
 ```
 
 #### Example:
 
 ```console
-# Set the classpath to "jdk/modules/java.base" and set the main class to "Main.class"
+# Set the main class to "Main.class"
 # NOTE: The `class` extension MUST be omitted!
-cargo run -- --cp=jdk/modules/java.base Main
+cargo run -- Main
 ```
