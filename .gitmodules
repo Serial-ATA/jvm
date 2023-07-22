@@ -1,0 +1,6 @@
+[submodule "generators/asm_specs/x86/xed"]
+	path = generators/asm_specs/x86/xed
+	url = https://github.com/intelxed/xed.git
+[submodule "generators/asm_specs/x86/mbuild"]
+	path = generators/asm_specs/x86/mbuild
+	url = https://github.com/intelxed/mbuild.git
