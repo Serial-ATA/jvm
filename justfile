@@ -57,12 +57,12 @@ default: debug
 
 # Cleans any previous builds and Python venvs
 clean:
-    -{{ VENV_PYTHON_EXE }} -m pip freeze > {{ VENV_UNINSTALL_LIST }}
-    -{{ VENV_PYTHON_EXE }} -m pip uninstall -y -r {{ VENV_UNINSTALL_LIST }}
+    -'{{ VENV_PYTHON_EXE }}' -m pip freeze > {{ VENV_UNINSTALL_LIST }}
+    -'{{ VENV_PYTHON_EXE }}' -m pip uninstall -y -r {{ VENV_UNINSTALL_LIST }}
     -rm {{ VENV_UNINSTALL_LIST }}
 
     # Clean Intel XED
-    {{ VENV_PYTHON_EXE }} {{ INTEL_XED_MFILE_PATH }} -c {{ INTEL_XED_OPTIONS }}
+    '{{ VENV_PYTHON_EXE }}' {{ INTEL_XED_MFILE_PATH }} -c {{ INTEL_XED_OPTIONS }}
 
     # TODO: clean other projects
 
