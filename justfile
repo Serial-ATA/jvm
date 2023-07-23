@@ -75,8 +75,8 @@ build_xed: setup_python
     {{ VENV_PYTHON_EXE }} {{ INTEL_XED_MFILE_PATH }} --no-encoder --limit-strings  {{ INTEL_XED_OPTIONS }}
 
 
-# Download and parse the various asm instruction set PDFs, used by the assembler
-asm: setup_python
+# Parse the various instruction sources, used by the assembler
+asm: build_xed
 
 # Build the assembler project
 assembler: asm
