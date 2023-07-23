@@ -13,7 +13,6 @@ members = [
     "jni",
     "jni/sys",
     "assembler",
-    "assembler/intel_spec_reader",
 
     "tests",
 ]
