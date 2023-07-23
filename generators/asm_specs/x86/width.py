@@ -1,13 +1,14 @@
 from generators.asm_specs.util import fatal
 
+import re
+
+BITS_REGEX = re.compile("[0-9]+bits")
+
 
 class Width:
     name: str
     datatype: str
-    width8: str
-    width16: str
-    width32: str
-    width64: str
+    widths: dict[int, str] = {}
 
     def __init__(self, width_line: str):
         tokens = width_line.split()
@@ -16,10 +17,19 @@ class Width:
 
         self.name = tokens[0]
         self.datatype = tokens[1]
-        self.width8 = self.width16 = self.width32 = self.width64 = tokens[2]
+        width8 = width16 = width32 = width64 = tokens[2]
 
         if len(tokens) == 5:
-            self.width8 = "0"
-            self.width16 = tokens[2]
-            self.width32 = tokens[3]
-            self.width64 = tokens[4]
+            width8 = "0"
+            width16 = tokens[2]
+            width32 = tokens[3]
+            width64 = tokens[4]
+
+        # Widths are allowed to specify their size in bits or bytes
+        # We need to normalize to bits
+        for key, original_val in zip([8, 16, 32, 64], [width8, width16, width32, width64]):
+            bits_format = BITS_REGEX.match(original_val)
+            if bits_format:
+                self.widths[key] = bits_format.group(0)
+            else:
+                self.widths[key] = original_val
