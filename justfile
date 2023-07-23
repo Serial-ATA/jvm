@@ -62,7 +62,7 @@ clean:
     -rm {{ VENV_UNINSTALL_LIST }}
 
     # Clean Intel XED
-    '{{ VENV_PYTHON_EXE }}' {{ INTEL_XED_MFILE_PATH }} -c {{ INTEL_XED_OPTIONS }}
+    '{{ VENV_PYTHON_EXE }}' '{{ INTEL_XED_MFILE_PATH }}' -c {{ INTEL_XED_OPTIONS }}
 
     # TODO: clean other projects
 
@@ -75,7 +75,7 @@ setup_python:
 
 # Build Intel XED x86 decoder
 build_xed: setup_python
-    '{{ VENV_PYTHON_EXE }}' {{ INTEL_XED_MFILE_PATH }} --no-encoder --limit-strings  {{ INTEL_XED_OPTIONS }}
+    '{{ VENV_PYTHON_EXE }}' '{{ INTEL_XED_MFILE_PATH }}' --no-encoder --limit-strings  {{ INTEL_XED_OPTIONS }}
     cd '{{ X86_SPECS_DIR }}' && '{{ VENV_PYTHON_EXE }}' "x86/x86.py"
 
 
