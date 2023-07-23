@@ -36,6 +36,8 @@ SYSTEM_PYTHON_EXE := env_var_or_default("PYTHON", SYSTEM_PYTHON_DEFAULT)
 
 DEV_NULL := if os() == "windows" { "nul" } else { "/dev/null" }
 
+set windows-shell := ["pwsh.exe","-NoLogo", "-noprofile", "-c"]
+
 # -----------------------------------------------------------------------------
 # ASM:
 # -----------------------------------------------------------------------------
