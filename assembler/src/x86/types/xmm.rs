@@ -3,7 +3,7 @@
 #[rustfmt::skip]
 #[repr(u8)]
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum XMM {
+pub enum Xmm {
     XMM0 = 0,
     XMM1 = 1,
     XMM2 = 2,

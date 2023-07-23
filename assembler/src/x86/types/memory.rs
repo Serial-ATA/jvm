@@ -75,5 +75,17 @@ pub enum M {
 
 /// A byte operand in memory, usually expressed as a variable or array name, but pointed to by the
 /// DS:(E)SI or ES:(E)DI registers. In 64-bit mode, it is pointed to by the RSI or RDI registers.
-pub struct M8(Memory(Operand));
+pub struct M8(Memory);
+
+pub struct M16(Memory);
+
+pub struct M32(Memory);
+
+pub struct M64(Memory);
+
+pub struct M128(Memory);
+
+pub struct M256(Memory);
+
+pub struct M512(Memory);
 

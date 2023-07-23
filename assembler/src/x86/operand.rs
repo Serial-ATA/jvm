@@ -1,9 +1,10 @@
 use crate::x86::types::fpu::St;
 use crate::x86::types::gpr::{Rh, R16, R32, R64, R8};
 use crate::x86::types::immediate::{Imm16, Imm32, Imm64, Imm8};
-use crate::x86::types::memory::M8;
+use crate::x86::types::memory::{M128, M16, M256, M32, M512, M64, M8};
 use crate::x86::types::relative_address::{Rel16, Rel32, Rel8};
 use crate::x86::types::segment_register::SReg;
+use crate::x86::types::xmm::Xmm;
 use crate::x86::types::ymm::Ymm;
 
 #[rustfmt::skip]
