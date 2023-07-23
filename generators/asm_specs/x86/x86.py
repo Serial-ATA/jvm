@@ -23,7 +23,7 @@ def remove_comment_from_line(line: str) -> str:
 
 class Pattern:
     # the sequence of bits and nonterminals used to decode/encode an instruction.
-    pattern: str
+    pattern: dict[str, bool] = {}
     # the operands, typicall registers,  memory operands and pseudo-resources.
     operands: Optional[list[Operand]] = None
     """(optional) a name for the pattern that starts with the iclass and bakes in the operands. If omitted, 
@@ -31,7 +31,15 @@ class Pattern:
     iform: Optional[str] = None
 
     def __init__(self, pattern: str, operands_str: str, iform: Optional[str]):
-        self.pattern = pattern
+        # Expand state macros we pulled from `all-state.txt`
+        for pattern_field in pattern.split():
+            expanded = global_defs.states.get(pattern_field)
+            if expanded:
+                # This pattern field had a macro expansion
+                self.pattern[expanded] = True
+            else:
+                self.pattern[pattern_field] = True
+
         self.iform = iform
         if operands_str != "":
             operands = []
@@ -219,9 +227,9 @@ def parse_states_from(path: Path):
             if len(line) == 0:
                 continue
 
-            tokens = line.split()
+            tokens = line.split(" ", 1)
             name = tokens.pop(0)
-            global_defs.states[name] = tokens
+            global_defs.states[name] = tokens[0]
     print("INFO: Parsed " + str(len(global_defs.states)) + " state definitions")
 
 
