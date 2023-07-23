@@ -36,7 +36,7 @@ SYSTEM_PYTHON_EXE := env_var_or_default("PYTHON", SYSTEM_PYTHON_DEFAULT)
 
 DEV_NULL := if os() == "windows" { "nul" } else { "/dev/null" }
 
-set windows-shell := ["pwsh.exe","-NoLogo", "-noprofile", "-c"]
+set windows-shell := ["pwsh.exe", "-NoLogo", "-noprofile", "-c"]
 
 # -----------------------------------------------------------------------------
 # ASM:
@@ -56,9 +56,10 @@ INTEL_XED_OPTIONS := "--build-dir=" + X86_GENERATED_DIR + " --install-dir=" + DE
 
 default: debug
 
+
 # Cleans any previous builds and Python venvs
 clean:
-    {{ VENV_PYTHON_EXE }} -m pip freeze > {{ VENV_UNINSTALL_LIST }}
+    -{{ VENV_PYTHON_EXE }} -m pip freeze > {{ VENV_UNINSTALL_LIST }}
     -{{ VENV_PYTHON_EXE }} -m pip uninstall -y -r {{ VENV_UNINSTALL_LIST }}
     -rm {{ VENV_UNINSTALL_LIST }}
 
@@ -67,10 +68,12 @@ clean:
 
     # TODO: clean other projects
 
+
 # Setup the python venv
 setup_python:
-    if test ! -e {{ PYTHON_VENV_LOCATION }}; then {{ SYSTEM_PYTHON_EXE }} -m venv {{ PYTHON_VENV_LOCATION }}; fi
+    @if [[ -e {{ PYTHON_VENV_LOCATION }} ]]; then {{ SYSTEM_PYTHON_EXE }} -m venv {{ PYTHON_VENV_LOCATION }}; fi
     {{ VENV_PYTHON_EXE }} -m pip install --upgrade {{ PYTHON_VENV_DEPENDENCIES }}
+
 
 # Build Intel XED x86 decoder
 build_xed: setup_python
@@ -80,17 +83,21 @@ build_xed: setup_python
 # Parse the various instruction sources, used by the assembler
 asm: build_xed
 
+
 # Build the assembler project
 assembler: asm
     cargo build
+
 
 # Build the entire project in debug
 debug: asm
     cargo build
 
+
 # Build the entire project in release
 release: asm
     cargo build --release
+
 
 # Build and run the java binary with the provided arguments
 java +ARGS: debug
