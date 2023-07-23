@@ -45,6 +45,7 @@ ASM_GENERATED_DIR := GENERATED_DIR + "/asm_specs"
 # x86/XED
 X86_GENERATED_DIR := ASM_GENERATED_DIR + "/x86"
 X86_SPECS_DIR := ASM_SPECS_DIR + "/x86"
+X86_GENERATOR_PATH := X86_SPECS_DIR + "/x86.py"
 INTEL_XED_MFILE_PATH := INTEL_XED_PATH + "/mfile.py"
 INTEL_XED_OPTIONS := "--build-dir=" + X86_GENERATED_DIR + " --install-dir=" + DEV_NULL + " just-prep"
 
@@ -76,7 +77,7 @@ setup_python:
 # Build Intel XED x86 decoder
 build_xed: setup_python
     '{{ VENV_PYTHON_EXE }}' '{{ INTEL_XED_MFILE_PATH }}' --no-encoder --limit-strings  {{ INTEL_XED_OPTIONS }}
-    cd '{{ X86_SPECS_DIR }}' && '{{ VENV_PYTHON_EXE }}' "x86/x86.py"
+    cd '{{ ASM_SPECS_DIR }}' && export 'PYTHONPATH="./x86"' && '{{ VENV_PYTHON_EXE }}' '{{ X86_GENERATOR_PATH }}'
 
 
 # Parse the various instruction sources, used by the assembler
