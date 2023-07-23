@@ -184,6 +184,8 @@ class InstructionParser:
 
 
 def parse_instructions_from(path: Path) -> list[Instruction]:
+    print("INFO: Parsing Intel XED instruction definitions from: " + str(path.resolve()))
+
     instructions = []
     with open(path, "r") as file:
         parser = InstructionParser(iter(file.readlines()))
@@ -192,10 +194,12 @@ def parse_instructions_from(path: Path) -> list[Instruction]:
             if not instruction:
                 break
             instructions.append(instruction)
+    print("INFO: Parsed " + str(len(instructions)) + " instruction definitions")
     return instructions
 
 
 def parse_widths_from(path: Path):
+    print("INFO: Parsing Intel XED width definitions from: " + str(path.resolve()))
     with open(path, "r") as file:
         lines: Iterable[str] = iter(file.readlines())
         for line in map(remove_comment_from_line, lines):
@@ -204,9 +208,11 @@ def parse_widths_from(path: Path):
 
             width = Width(line)
             global_defs.widths[width.name] = width
+    print("INFO: Parsed " + str(len(global_defs.widths)) + " width definitions")
 
 
 def parse_states_from(path: Path):
+    print("INFO: Parsing Intel XED state definitions from: " + str(path.resolve()))
     with open(path, "r") as file:
         lines: Iterable[str] = iter(file.readlines())
         for line in map(remove_comment_from_line, lines):
@@ -216,9 +222,11 @@ def parse_states_from(path: Path):
             tokens = line.split()
             name = tokens.pop(0)
             global_defs.states[name] = tokens
+    print("INFO: Parsed " + str(len(global_defs.states)) + " state definitions")
 
 
 def parse_xtypes_from(path: Path):
+    print("INFO: Parsing Intel XED XType definitions from: " + str(path.resolve()))
     with open(path, "r") as file:
         lines: Iterable[str] = iter(file.readlines())
         for line in map(remove_comment_from_line, lines):
@@ -227,6 +235,7 @@ def parse_xtypes_from(path: Path):
 
             xtype = XType(line)
             global_defs.xtypes[xtype.name] = xtype
+    print("INFO: Parsed " + str(len(global_defs.xtypes)) + " XType definitions")
 
 
 def main():

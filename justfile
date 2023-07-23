@@ -20,7 +20,7 @@ INTEL_XED_PATH := ASM_SPECS_DIR + "/x86/xed"
 # PYTHON VENV CONFIG:
 # -----------------------------------------------------------------------------
 
-PYTHON_VENV_DEPENDENCIES := "pip wheel pip-tools"
+PYTHON_VENV_DEPENDENCIES := "pip wheel requests pip-tools"
 PYTHON_VENV_LOCATION := "./generators/asm_specs/.venv"
 PYTHON_VENV_BIN := PYTHON_VENV_LOCATION + if os_family() == "windows" { "/Scripts" } else { "/bin" }
 VENV_PYTHON_EXE := PYTHON_VENV_BIN + if os_family() == "windows" { "/python.exe" } else { "/python3" }
