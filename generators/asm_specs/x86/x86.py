@@ -96,7 +96,7 @@ class Instruction:
     """(optional) name for the group of instructions that introduced this feature. On the older stuff, we used the 
     EXTENSION field but that got too complicated."""
     isa_set: Optional[str] = None
-    real_opcode: bool
+    real_opcode: bool = True
     # (optional) read/written flag bit values.
     flags: Optional[list[Flags]] = None
     # (optional) a hopefully useful comment
@@ -195,14 +195,18 @@ def parse_instructions_from(path: Path) -> list[Instruction]:
     print("INFO: Parsing Intel XED instruction definitions from: " + str(path.resolve()))
 
     instructions = []
+    unstable_instructions = 0
     with open(path, "r") as file:
         parser = InstructionParser(iter(file.readlines()))
         while True:
             instruction = parser.parse()
             if not instruction:
                 break
+            if not instruction.real_opcode:
+                unstable_instructions += 1
+                continue
             instructions.append(instruction)
-    print("INFO: Parsed " + str(len(instructions)) + " instruction definitions")
+    print("INFO: Parsed {} instruction definitions ({} unstable)".format(len(instructions), unstable_instructions))
     return instructions
 
 
