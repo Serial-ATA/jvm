@@ -69,7 +69,7 @@ clean:
 
 # Setup the python venv
 setup_python:
-    @if [[ -e {{ PYTHON_VENV_LOCATION }} ]]; then {{ SYSTEM_PYTHON_EXE }} -m venv {{ PYTHON_VENV_LOCATION }}; fi
+    if test ! -e {{ PYTHON_VENV_LOCATION }}; then {{ SYSTEM_PYTHON_EXE }} -m venv {{ PYTHON_VENV_LOCATION }}; fi
     {{ VENV_PYTHON_EXE }} -m pip install --upgrade {{ PYTHON_VENV_DEPENDENCIES }}
 
 
