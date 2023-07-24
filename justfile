@@ -95,6 +95,7 @@ asm: run_x86
 
 # Build the assembler project
 assembler: asm
+    cd assembler &&\
     cargo build
 
 
