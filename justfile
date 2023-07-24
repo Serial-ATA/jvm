@@ -55,6 +55,9 @@ INTEL_XED_OPTIONS := "--build-dir=" + X86_GENERATED_DIR + " --install-dir=" + DE
 
 default: debug
 
+# Initialize Git submodules
+submodules:
+    git submodule update --init
 
 # Cleans any previous builds and Python venvs
 clean:
@@ -75,7 +78,7 @@ setup_python:
 
 
 # Build Intel XED x86 decoder
-build_xed: setup_python
+build_xed: submodules setup_python
     '{{ VENV_PYTHON_EXE }}' '{{ INTEL_XED_MFILE_PATH }}' --no-encoder --limit-strings  {{ INTEL_XED_OPTIONS }}
 
 
