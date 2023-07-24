@@ -18,17 +18,19 @@ def parse_instructions_from(path: Path) -> list[Instruction]:
 
     instructions = []
     unstable_instructions = 0
+    definitions_count = 0
     with open(path, "r") as file:
         parser = InstructionParser(iter(file.readlines()))
         while True:
-            instruction = parser.parse()
-            if not instruction:
+            parsed_instructions = parser.parse()
+            if not parsed_instructions:
                 break
-            if not instruction.real_opcode:
+            if not parsed_instructions[0].real_opcode:
                 unstable_instructions += 1
                 continue
-            instructions.append(instruction)
-    print("INFO: Parsed {} instruction definitions ({} unstable)".format(len(instructions), unstable_instructions))
+            definitions_count += 1
+            instructions.extend(parsed_instructions)
+    print("INFO: Parsed {} instructions ({} definitions, {} unstable)".format(len(instructions), definitions_count, unstable_instructions))
     return instructions
 
 

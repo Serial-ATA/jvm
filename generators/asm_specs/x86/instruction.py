@@ -1,9 +1,28 @@
+from copy import deepcopy
+from enum import Enum
 from typing import Optional, Tuple, Iterable
 
 from generators.asm_specs.util import fatal
 from generators.asm_specs.x86.flag import Flags
 from generators.asm_specs.x86.pattern import Pattern
 from generators.asm_specs.x86.text_utils import handle_continuations, key_value_pair
+
+
+class Space(Enum):
+    LEGACY = 0
+    VEX = 1
+    EVEX = 2
+    XOP = 3
+
+
+def get_space(pat: dict[str, bool]) -> Space:
+    if "VEXVALID=1" in pat:
+        return Space.VEX
+    if "VEXVALID=2" in pat:
+        return Space.EVEX
+    if "VEXVALID=3" in pat:
+        return Space.XOP
+    return Space.LEGACY
 
 
 class Instruction:
@@ -33,7 +52,10 @@ class Instruction:
     flags: Optional[list[Flags]] = None
     # (optional) a hopefully useful comment
     comment: Optional[str] = None
-    patterns: list[Pattern] = []
+    pattern: Pattern
+
+    space: Space
+    vl: Optional[str] = None
 
 
 class InstructionParser:
@@ -46,7 +68,11 @@ class InstructionParser:
 
         self.lines = iter([x for x in expanded_continuations if x not in self._filters and not x.startswith("UDELETE")])
 
-    def parse(self) -> Optional[Instruction]:
+    def parse(self) -> Optional[list[Instruction]]:
+        """Parse an instruction definition, returning multiple if there
+        is more than one PATTERN encountered, or None if there is nothing
+        left in the reader."""
+
         open_curly = next(self.lines, None)
         if not open_curly:
             return None
@@ -54,6 +80,11 @@ class InstructionParser:
             fatal("ERROR: Expected instruction start, found: " + open_curly)
 
         instruction = Instruction()
+
+        # Patterns, operands, and iforms are repeatable
+        # They are all combined into the `Pattern` class and stored here.
+        # A new `Instruction` will be created for each `Pattern` at the end of parsing.
+        patterns = []
 
         current_pattern: Optional[Tuple[str, str, Optional[str]]] = None
         for line in self.lines:
@@ -101,7 +132,7 @@ class InstructionParser:
                     instruction.comment = val
                 case "PATTERN":
                     if current_pattern:
-                        instruction.patterns.append(Pattern(current_pattern[0], current_pattern[1], current_pattern[2]))
+                        patterns.append(Pattern(current_pattern[0], current_pattern[1], current_pattern[2]))
                     current_pattern = val, "", None
                 case "OPERANDS":
                     if not current_pattern:
@@ -115,9 +146,16 @@ class InstructionParser:
                     fatal("ERROR: Unknown key in instruction definition: \"" + key + "\"")
 
         if current_pattern:
-            instruction.patterns.append(Pattern(current_pattern[0], current_pattern[1], current_pattern[2]))
+            patterns.append(Pattern(current_pattern[0], current_pattern[1], current_pattern[2]))
 
         if instruction.current_privilege_level not in [0, 3]:
             fatal("ERROR: Invalid CPL value: " + str(instruction.current_privilege_level))
 
-        return instruction
+        instructions = []
+        for pat in patterns:
+            copied = deepcopy(instruction)
+            copied.pattern = pat
+            copied.space = get_space(pat.pattern)
+            instructions.append(copied)
+
+        return instructions
