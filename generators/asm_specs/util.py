@@ -5,7 +5,7 @@ import requests
 
 
 def generated_directory_for(arch: str) -> str:
-    return "../../generated/asm_specs/" + arch
+    return "generated/asm_specs/" + arch
 
 
 def fatal(message: str):

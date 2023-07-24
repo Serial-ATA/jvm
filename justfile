@@ -70,18 +70,24 @@ clean:
 
 # Setup the python venv
 setup_python:
-    if test ! -e {{ PYTHON_VENV_LOCATION }}; then {{ SYSTEM_PYTHON_EXE }} -m venv {{ PYTHON_VENV_LOCATION }}; fi
+    if test ! -e '{{ PYTHON_VENV_LOCATION }}'; then '{{ SYSTEM_PYTHON_EXE }}' -m venv {{ PYTHON_VENV_LOCATION }}; fi
     '{{ VENV_PYTHON_EXE }}' -m pip install --upgrade {{ PYTHON_VENV_DEPENDENCIES }}
 
 
 # Build Intel XED x86 decoder
 build_xed: setup_python
     '{{ VENV_PYTHON_EXE }}' '{{ INTEL_XED_MFILE_PATH }}' --no-encoder --limit-strings  {{ INTEL_XED_OPTIONS }}
-    cd '{{ ASM_SPECS_DIR }}' && export 'PYTHONPATH="./x86"' && '{{ VENV_PYTHON_EXE }}' '{{ X86_GENERATOR_PATH }}'
+
+
+# Run x86.py to generate instruction tables
+run_x86: build_xed
+    #!/usr/bin/env bash
+    export PYTHONPATH="$PYTHONPATH:{{ ASM_SPECS_DIR }}"
+    '{{ VENV_PYTHON_EXE }}' '{{ X86_GENERATOR_PATH }}'
 
 
 # Parse the various instruction sources, used by the assembler
-asm: build_xed
+asm: run_x86
 
 
 # Build the assembler project
