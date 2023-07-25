@@ -19,6 +19,7 @@ def parse_instructions_from(path: Path) -> list[Instruction]:
 
     instructions = []
     unstable_instructions = 0
+    skipped_instructions = 0
     definitions_count = 0
     with open(path, "r") as file:
         parser = InstructionParser(iter(file.readlines()))
@@ -29,9 +30,13 @@ def parse_instructions_from(path: Path) -> list[Instruction]:
             if not parsed_instructions[0].real_opcode:
                 unstable_instructions += 1
                 continue
+            if parsed_instructions[0].extension == "3DNOW" or parsed_instructions[0].category == "3DNOW":
+                skipped_instructions += 1
+                continue
             definitions_count += 1
             instructions.extend(parsed_instructions)
-    print("INFO: Parsed {} instructions ({} definitions, {} unstable)".format(len(instructions), definitions_count, unstable_instructions))
+    print("INFO: Parsed {} instructions ({} definitions, {} unstable, {} skipped)".format(len(instructions), definitions_count,
+                                                                              unstable_instructions, skipped_instructions))
     return instructions
 
 
@@ -57,8 +62,8 @@ def parse_states_from(path: Path):
                 continue
 
             tokens = line.split(" ", 1)
-            name = tokens.pop(0)
-            global_defs.states[name] = tokens[0]
+            name = tokens.pop(0).strip()
+            global_defs.states[name] = tokens[0].strip()
     print("INFO: Parsed " + str(len(global_defs.states)) + " state definitions")
 
 
