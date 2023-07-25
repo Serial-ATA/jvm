@@ -83,6 +83,8 @@ class Pattern:
 
     default_64bit: bool = False
 
+    vl: Optional[str] = None
+
     def _find_legacy_map_opcode(self):
         opcode, map_num = self.pattern[0], 0
 
@@ -106,6 +108,26 @@ class Pattern:
 
         self.opcode = opcode
         self.map_num = map_num
+
+    def _get_vl(self):
+        if self.space != Space.VEX and self.space != Space.EVEX:
+            return
+
+        if "VL=0" in self.pattern or "VLX=1" in self.pattern:
+            self.vl = "128"
+            return
+        if "VL=1" in self.pattern or "VLX=2" in self.pattern:
+            self.vl = "256"
+            return
+        if "VL=2" in self.pattern or "VLX=3" in self.pattern or "FIX_ROUND_LEN512" in self.pattern:
+            self.vl = "512"
+            return
+
+        match self.space:
+            case Space.VEX:
+                self.vl = "LIG"
+            case Space.EVEX:
+                self.vl = "LLIG"
 
     def __init__(self, pattern: str, operands_str: str, iform: Optional[str]):
         # Expand state macros we pulled from `all-state.txt`
@@ -211,3 +233,5 @@ class Pattern:
 
         if 'DF64()' in self.pattern or 'CR_WIDTH()' in self.pattern:
             self.default_64bit = True
+
+        self._get_vl()
