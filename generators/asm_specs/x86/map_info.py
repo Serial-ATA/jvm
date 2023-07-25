@@ -34,7 +34,7 @@ class MapInfoParser:
     lines: Iterable[str]
 
     def __init__(self, lines: Iterable[str]):
-        self.lines = lines
+        self.lines = iter([x for x in lines if x != ""])
 
     def parse(self) -> Optional[MapInfo]:
         """Parses a map description definition"""
@@ -49,6 +49,7 @@ class MapInfoParser:
 
         map_info = MapInfo()
 
+        columns = iter(columns)
         map_info.name = next(columns)
         map_info.space = get_space(next(columns))
 
