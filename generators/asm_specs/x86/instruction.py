@@ -1,28 +1,10 @@
 from copy import deepcopy
-from enum import Enum
 from typing import Optional, Tuple, Iterable
 
 from generators.asm_specs.util import fatal
 from generators.asm_specs.x86.flag import Flags
 from generators.asm_specs.x86.pattern import Pattern
 from generators.asm_specs.x86.text_utils import handle_continuations, key_value_pair
-
-
-class Space(Enum):
-    LEGACY = 0
-    VEX = 1
-    EVEX = 2
-    XOP = 3
-
-
-def get_space(pat: dict[str, bool]) -> Space:
-    if "VEXVALID=1" in pat:
-        return Space.VEX
-    if "VEXVALID=2" in pat:
-        return Space.EVEX
-    if "VEXVALID=3" in pat:
-        return Space.XOP
-    return Space.LEGACY
 
 
 class Instruction:
@@ -54,8 +36,7 @@ class Instruction:
     comment: Optional[str] = None
     pattern: Pattern
 
-    space: Space
-    vl: Optional[str] = None
+    scalar: bool = False
 
 
 class InstructionParser:
@@ -151,11 +132,13 @@ class InstructionParser:
         if instruction.current_privilege_level not in [0, 3]:
             fatal("ERROR: Invalid CPL value: " + str(instruction.current_privilege_level))
 
+        if instruction.attributes and "scalar" in instruction.attributes:
+            instruction.scalar = True
+
         instructions = []
         for pat in patterns:
             copied = deepcopy(instruction)
             copied.pattern = pat
-            copied.space = get_space(pat.pattern)
             instructions.append(copied)
 
         return instructions

@@ -30,3 +30,18 @@ def handle_continuations(lines: Iterable[str]) -> list[str]:
         current_line = ""
     del lines
     return new_lines
+
+
+HEX_PATTERN = re.compile(r'^0[xX][0-9A-Fa-f]+$')
+BINARY_PATTERN = re.compile(r'^0b[01_]+$')
+
+
+def multiform_numeric(content: str) -> int:
+    """Takes a numeric string in decimal, hex, and binary forms
+    and converts it to an int"""
+
+    if HEX_PATTERN.match(content):
+        return int(content, 16)
+    if BINARY_PATTERN.match(content):
+        return int(content, 2)
+    return int(content)
