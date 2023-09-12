@@ -1,11 +1,11 @@
 import re
-from enum import Enum, auto
+from enum import auto, StrEnum
 from typing import Iterable, Optional
 
 from generators.asm_specs.util import fatal
 
 
-class RegisterClass(Enum):
+class RegisterClass(StrEnum):
     """
     The classification of a `Register`.
 
@@ -43,7 +43,7 @@ class RegisterClass(Enum):
     X87 = auto()
 
     PSEUDO = auto()
-    PSEUDO_X87 = auto()
+    PSEUDO_X87 = "pseudox87"
 
     MMX = auto()
     XMM = auto()
@@ -57,65 +57,11 @@ class RegisterClass(Enum):
     BNDCFG = auto()
     BNDSTAT = auto()
 
-    MSR = auto()
+    MSR = "MSR"
     TREG = auto()
     TMP = auto()
-    INVALID = auto()
-    UIF = auto()
-
-
-def register_class(klass: str) -> RegisterClass:
-    match klass.upper():
-        case "GPR":
-            return RegisterClass.GPR
-        case "IP":
-            return RegisterClass.IP
-        case "FLAGS":
-            return RegisterClass.FLAGS
-        case "SR":
-            return RegisterClass.SR
-        case "CR":
-            return RegisterClass.CR
-        case "DR":
-            return RegisterClass.DR
-        case "X87":
-            return RegisterClass.X87
-        case "PSEUDO":
-            return RegisterClass.PSEUDO
-        case "PSEUDOX87":
-            return RegisterClass.PSEUDO_X87
-        case "MMX":
-            return RegisterClass.MMX
-        case "XMM":
-            return RegisterClass.XMM
-        case "YMM":
-            return RegisterClass.YMM
-        case "ZMM":
-            return RegisterClass.ZMM
-        case "MASK":
-            return RegisterClass.MASK
-        case "XCR":
-            return RegisterClass.XCR
-        case "MXCSR":
-            return RegisterClass.MXCSR
-        case "BOUND":
-            return RegisterClass.BOUND
-        case "BNDCFG":
-            return RegisterClass.BNDCFG
-        case "BNDSTAT":
-            return RegisterClass.BNDSTAT
-        case "MSR":
-            return RegisterClass.MSR
-        case "TREG":
-            return RegisterClass.TREG
-        case "TMP":
-            return RegisterClass.TMP
-        case "INVALID":
-            return RegisterClass.INVALID
-        case "UIF":
-            return RegisterClass.UIF
-        case _:
-            fatal("Unknown register class encountered: {}".format(klass))
+    INVALID = "INVALID"
+    UIF = "UIF"
 
 
 REGISTER_REGEX = re.compile(
@@ -193,7 +139,7 @@ def parse_register(line: str) -> Register:
 
     return Register(
         name=matches["name"],
-        klass=register_class(matches["class"]),
+        klass=RegisterClass(matches["class"]),
         width32=int(matches["width32"]) if matches["width32"] else None,
         width64=int(matches["width64"]) if matches["width64"] else None,
         max_enclosing_64bit_reg_str=matches["parent64"],
