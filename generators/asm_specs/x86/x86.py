@@ -6,6 +6,7 @@ from generators.asm_specs.util import generated_directory_for
 from generators.asm_specs.x86 import global_defs
 from generators.asm_specs.x86.instruction import InstructionParser, Instruction
 from generators.asm_specs.x86.map_info import MapInfoParser
+from generators.asm_specs.x86.register import parse_registers
 from generators.asm_specs.x86.text_utils import remove_comment_from_line
 from generators.asm_specs.x86.width import Width
 from generators.asm_specs.x86.xtype import XType
@@ -93,6 +94,13 @@ def parse_map_descriptions_from(path: Path):
     print("INFO: Parsed " + str(len(global_defs.map_info)) + " map descriptions")
 
 
+def parse_registers_from(path: Path):
+    print("INFO: Parsing Intel XED register definitions from: " + str(path.resolve()))
+    with open(path, "r") as file:
+        lines: Iterable[str] = map(remove_comment_from_line, iter(file.readlines()))
+        global_defs.registers = parse_registers(lines)
+    print("INFO: Parsed " + str(len(global_defs.registers.by_name)) + " register definitions")
+
 def main():
     all_widths_path: Path = DGEN_DIR.joinpath("all-widths.txt")
     parse_widths_from(all_widths_path)
@@ -105,6 +113,9 @@ def main():
 
     all_map_descriptions: Path = DGEN_DIR.joinpath("all-map-descriptions.txt")
     parse_map_descriptions_from(all_map_descriptions)
+
+    all_registers_path: Path = DGEN_DIR.joinpath("all-registers.txt")
+    parse_registers_from(all_registers_path)
 
     all_dec_intructions_path: Path = DGEN_DIR.joinpath("all-dec-instructions.txt")
     instructions = parse_instructions_from(all_dec_intructions_path)
