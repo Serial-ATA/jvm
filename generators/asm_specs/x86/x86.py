@@ -44,15 +44,20 @@ def parse_instructions_from(path: Path) -> list[Instruction]:
 
             # Skip AMD 3DNOW instructions
             if (
-                    first_instruction.extension == "3DNOW"
-                    or parsed_instructions[0].category == "3DNOW"
+                first_instruction.extension == "3DNOW"
+                or parsed_instructions[0].category == "3DNOW"
             ):
-                skipped_instructions += 1
+                skipped_instructions += len(parsed_instructions)
                 continue
 
             # Skip undocumented instructions
             if first_instruction.comment and "UNDOC" in first_instruction.comment:
-                skipped_instructions += 1
+                skipped_instructions += len(parsed_instructions)
+                continue
+
+            # XOP instructions are deprecated
+            if first_instruction.pattern.space.is_xop():
+                skipped_instructions += len(parsed_instructions)
                 continue
 
             # No information available about these instructions
@@ -80,13 +85,17 @@ def parse_instructions_from(path: Path) -> list[Instruction]:
                 "TEST_GPRv_IMMz_F7r1",
                 "PREFETCHW_0F0Dr3",
             ]:
-                skipped_instructions += 1
+                skipped_instructions += len(parsed_instructions)
                 continue
 
             # No information available about these variants
-            if first_instruction.name == "NOP" and any(
-                    p
-                    for p in [
+            if first_instruction.name == "NOP":
+                old_len = len(parsed_instructions)
+                parsed_instructions = [
+                    instruction
+                    for instruction in parsed_instructions
+                    if instruction.pattern.iform
+                    in [
                         "0F0D",
                         "0F18",
                         "0F19",
@@ -96,10 +105,20 @@ def parse_instructions_from(path: Path) -> list[Instruction]:
                         "0F1D",
                         "0F1E",
                     ]
-                    if p in first_instruction.pattern.iform
-            ):
-                skipped_instructions += 1
+                ]
+                skipped_instructions += old_len - len(parsed_instructions)
                 continue
+
+            # Skip instructions that are not available in 64-bit mode
+            old_len = len(parsed_instructions)
+            parsed_instructions = [
+                instruction
+                for instruction in parsed_instructions
+                if instruction.pattern.mode_restriction not in [0, 1, "not64"]
+                or instruction.pattern.easz
+                != "a16"  # 16-bit addressing mode is not accessible
+            ]
+            skipped_instructions += old_len - len(parsed_instructions)
 
             definitions_count += 1
             instructions.extend(parsed_instructions)
