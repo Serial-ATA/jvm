@@ -1,10 +1,11 @@
 from copy import deepcopy
-from typing import Optional, Tuple, Iterable
+from typing import Tuple, Iterable, Optional
 
-from generators.asm_specs.util import fatal
-from generators.asm_specs.x86.flag import Flags
-from generators.asm_specs.x86.pattern import Pattern
+from generators.asm_specs.x86.parsers.instruction_flags import FlagCollection, Flags
+from generators.asm_specs.x86.parsers.instruction_operand import Operand
+from generators.asm_specs.x86.parsers.instruction_pattern import Pattern, REG_PATTERN
 from generators.asm_specs.x86.text_utils import handle_continuations, key_value_pair
+from generators.asm_specs.util import fatal
 
 
 class Instruction:
@@ -31,23 +32,110 @@ class Instruction:
     isa_set: Optional[str] = None
     real_opcode: bool = True
     # (optional) read/written flag bit values.
-    flags: Optional[list[Flags]] = None
+    flags: Optional[FlagCollection] = None
     # (optional) a hopefully useful comment
     comment: Optional[str] = None
     pattern: Pattern
 
     scalar: bool = False
 
+    def add_flags_register_operand(self):
+        if not self.pattern.operands:
+            return
+
+        """If the instruction has flags, then add a flag register operand."""
+
+        # TODO rewriting the stackpush and stackpop registers and adding these flag registers
+        if self.flags and self.flags.x86_flags():
+            rw = self.flags.rw_action()
+            (memidx_dummy, regidx) = self.find_max_memidx_and_regidx()
+            s = "REG%d=rFLAGS():%s:SUPP" % (regidx, rw)
+            self.pattern.operands.append(Operand(s))
+
+    def rewrite_stack_push(self, memidx: int, operand: Operand) -> list[Operand]:
+        s = [
+            Operand("MEM%d:w:%s:SUPP" % (memidx, operand.width)),
+            Operand("BASE%d=SrSP():rw:SUPP" % memidx),
+        ]
+        if memidx == 0:
+            s.append(Operand("SEG0=FINAL_SSEG0():r:SUPP"))  # note FINAL_SSEG0()
+        else:
+            s.append(Operand("SEG1=FINAL_SSEG1():r:SUPP"))  # note FINAL_SSEG1() ***
+        return s
+
+    def rewrite_stack_pop(self, memidx: int, operand: Operand) -> list[Operand]:
+        s = [
+            Operand("MEM%d:r:%s:SUPP" % (memidx, operand.width)),
+            Operand("BASE%d=SrSP():rw:SUPP" % memidx),
+        ]
+        if memidx == 0:
+            s.append(Operand("SEG0=FINAL_SSEG0():r:SUPP"))  # note FINAL_SSEG()
+        else:
+            s.append(Operand("SEG1=FINAL_SSEG1():r:SUPP"))  # note FINAL_SSEG1() ***
+        return s
+
+    def find_max_memidx_and_regidx(self) -> Tuple[int, int]:
+        """find the maximum memidx and regidx"""
+
+        memidx = 0
+        regidx = 0
+        verbose = False
+        for operand in self.pattern.operands:
+            if operand.name == "MEM0":
+                memidx = 1
+            elif operand.name == "MEM1":
+                memidx = 2  # this should cause an error if it is ever used
+            rnm = REG_PATTERN.match(operand.name)
+            if rnm:
+                current_regidx = int(rnm.group("regno"))
+                if verbose:
+                    if current_regidx >= regidx:
+                        regidx = current_regidx + 1
+            return memidx, regidx
+
+    def expand_stack_operand(self):
+        if not self.pattern.operands:
+            return
+
+        (memidx, regidx) = self.find_max_memidx_and_regidx()
+
+        for idx, operand in enumerate(self.pattern.operands):
+            if "XED_REG_STACKPUSH" in operand.name:
+                self.pattern.operands.pop(idx)
+                self.pattern.operands[idx:idx] = self.rewrite_stack_push(
+                    memidx, operand
+                )
+            elif "XED_REG_STACKPOP" in operand.name:
+                self.pattern.operands.pop(idx)
+                self.pattern.operands[idx:idx] = self.rewrite_stack_pop(memidx, operand)
+
+    def modrm(self) -> Optional[int]:
+        if not self.pattern.has_modrm:
+            return None
+
+        return self.pattern.mod_required
+
 
 class InstructionParser:
     lines: Iterable[str]
 
-    _filters = ["INSTRUCTIONS()::", "XOP_INSTRUCTIONS()::", "AVX_INSTRUCTIONS()::", "EVEX_INSTRUCTIONS()::"]
+    _filters = [
+        "INSTRUCTIONS()::",
+        "XOP_INSTRUCTIONS()::",
+        "AVX_INSTRUCTIONS()::",
+        "EVEX_INSTRUCTIONS()::",
+    ]
 
     def __init__(self, instruction_lines: Iterable[str]):
         expanded_continuations = handle_continuations(instruction_lines)
 
-        self.lines = iter([x for x in expanded_continuations if x not in self._filters and not x.startswith("UDELETE")])
+        self.lines = iter(
+            [
+                x
+                for x in expanded_continuations
+                if x not in self._filters and not x.startswith("UDELETE")
+            ]
+        )
 
     def parse(self) -> Optional[list[Instruction]]:
         """Parse an instruction definition, returning multiple if there
@@ -108,12 +196,20 @@ class InstructionParser:
                 case "REAL_OPCODE":
                     instruction.real_opcode = val == "Y"
                 case "FLAGS":
-                    instruction.flags = [Flags(x.strip()) for x in val.split(",")]
+                    instruction.flags = FlagCollection(
+                        [Flags(x.strip()) for x in val.split(",")]
+                    )
                 case "COMMENT":
                     instruction.comment = val
                 case "PATTERN":
                     if current_pattern:
-                        patterns.append(Pattern(current_pattern[0], current_pattern[1], current_pattern[2]))
+                        patterns.append(
+                            Pattern(
+                                current_pattern[0],
+                                current_pattern[1],
+                                current_pattern[2],
+                            )
+                        )
                     current_pattern = val, "", None
                 case "OPERANDS":
                     if not current_pattern:
@@ -124,13 +220,17 @@ class InstructionParser:
                         fatal("ERROR: Found key 'IFORM' outside of pattern")
                     current_pattern = current_pattern[0], current_pattern[1], val
                 case _:
-                    fatal("ERROR: Unknown key in instruction definition: \"" + key + "\"")
+                    fatal('ERROR: Unknown key in instruction definition: "' + key + '"')
 
         if current_pattern:
-            patterns.append(Pattern(current_pattern[0], current_pattern[1], current_pattern[2]))
+            patterns.append(
+                Pattern(current_pattern[0], current_pattern[1], current_pattern[2])
+            )
 
         if instruction.current_privilege_level not in [0, 3]:
-            fatal("ERROR: Invalid CPL value: " + str(instruction.current_privilege_level))
+            fatal(
+                "ERROR: Invalid CPL value: " + str(instruction.current_privilege_level)
+            )
 
         if instruction.attributes and "scalar" in instruction.attributes:
             instruction.scalar = True
@@ -140,5 +240,9 @@ class InstructionParser:
             copied = deepcopy(instruction)
             copied.pattern = pat
             instructions.append(copied)
+
+        for instruction in instructions:
+            instruction.expand_stack_operand()
+            instruction.add_flags_register_operand()
 
         return instructions

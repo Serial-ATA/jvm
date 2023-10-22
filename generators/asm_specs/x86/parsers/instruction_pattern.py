@@ -1,10 +1,35 @@
 import re
-from enum import Enum
+from enum import IntEnum, Enum
 from typing import Optional
 
 from generators.asm_specs.x86 import global_defs
-from generators.asm_specs.x86.operand import Operand
+from generators.asm_specs.x86.parsers.instruction_operand import Operand
 from generators.asm_specs.x86.text_utils import multiform_numeric
+
+
+class LegacyPrefix(IntEnum):
+    NONE = 0x00
+
+    # Group 1
+    LOCK = 0xF0
+    REPNE = 0xF2
+    REP = 0xF3
+
+    # Group 2
+    CS = 0x2E
+    SS = 0x36
+    DS = 0x3E
+    ES = 0x26
+    FS = 0x64
+    GS = 0x65
+    BRANCH_NOT_TAKEN = 0x2E
+    BRANCH_TAKEN = 0x3E
+
+    # Group 3
+    OPERAND_SIZE_OVERRIDE = 0x66
+
+    # Group 4
+    ADDRESS_SIZE_OVERRIDE = 0x67
 
 
 class Space(Enum):
@@ -38,20 +63,20 @@ def get_space(pat: str) -> Space:
             return Space.LEGACY
 
 
-MAP_PATTERN = re.compile(r'MAP=(?P<map>[0-9]+)')
-OSZ_PATTERN = re.compile(r'OSZ=(?P<prefix>[01])')
-REP_PATTERN = re.compile(r'REP=(?P<prefix>[0-3])')
-VEX_PREFIX_PATTERN = re.compile(r'VEX_PREFIX=(?P<prefix>[0-9])')
-REXW_PATTERN = re.compile(r'REXW=(?P<rexw>[01])')
-REG_PATTERN = re.compile(r'REG[\[](?P<reg>[b01]+)]')
-RM_PATTERN = re.compile(r'RM[\[](?P<rm>[b01]+)]')
-RM_VALUE_SPECIFIED_PATTERN = re.compile(r'RM=(?P<rm>[0-9]+)')
-MOD_PATTERN = re.compile(r'MOD[\[](?P<mod>[b01]+)]')
-MOD_MEM_REQUIRED_PATTERN = re.compile(r'MOD!=3')
-MOD_REG_REQUIRED_PATTERN = re.compile(r'MOD=3')
+MAP_PATTERN = re.compile(r"MAP=(?P<map>[0-9]+)")
+OSZ_PATTERN = re.compile(r"OSZ=(?P<prefix>[01])")
+REP_PATTERN = re.compile(r"REP=(?P<prefix>[0-3])")
+VEX_PREFIX_PATTERN = re.compile(r"VEX_PREFIX=(?P<prefix>[0-9])")
+REXW_PATTERN = re.compile(r"REXW=(?P<rexw>[01])")
+REG_PATTERN = re.compile(r"REG[\[](?P<reg>[b01]+)]")
+RM_PATTERN = re.compile(r"RM[\[](?P<rm>[b01]+)]")
+RM_VALUE_SPECIFIED_PATTERN = re.compile(r"RM=(?P<rm>[0-9]+)")
+MOD_PATTERN = re.compile(r"MOD[\[](?P<mod>[b01]+)]")
+MOD_MEM_REQUIRED_PATTERN = re.compile(r"MOD!=3")
+MOD_REG_REQUIRED_PATTERN = re.compile(r"MOD=3")
 
-NOT64_PATTERN = re.compile(r'MODE!=2')
-MODE_PATTERN = re.compile(r' MODE=(?P<mode>[012]+)')
+NOT64_PATTERN = re.compile(r"MODE!=2")
+MODE_PATTERN = re.compile(r" MODE=(?P<mode>[012]+)")
 
 
 class Pattern:
@@ -68,9 +93,13 @@ class Pattern:
     map_num: str | int = 0
 
     no_prefixes_allowed: bool = False
-    ozs_required: bool = False
-    f2_required: bool = False
-    f3_required: bool = False
+    # An instruction can have up to four prefixes, but only one of each group.
+    prefixes: list[LegacyPrefix] = [
+        LegacyPrefix.NONE,
+        LegacyPrefix.NONE,
+        LegacyPrefix.NONE,
+        LegacyPrefix.NONE,
+    ]
 
     rexw_prefix: Optional[int] = None
     reg_required: Optional[int] = None
@@ -99,8 +128,8 @@ class Pattern:
                     break
 
                 if not info.opcode:
-                    if info.name == 'amd-3dnow':
-                        map_num = 'AMD3DNOW'
+                    if info.name == "amd-3dnow":
+                        map_num = "AMD3DNOW"
                     else:
                         map_num = multiform_numeric(info.map_id)
                     opcode = self.pattern[info.opcode_pos]
@@ -119,7 +148,11 @@ class Pattern:
         if "VL=1" in self.pattern or "VLX=2" in self.pattern:
             self.vl = "256"
             return
-        if "VL=2" in self.pattern or "VLX=3" in self.pattern or "FIX_ROUND_LEN512" in self.pattern:
+        if (
+            "VL=2" in self.pattern
+            or "VLX=3" in self.pattern
+            or "FIX_ROUND_LEN512" in self.pattern
+        ):
             self.vl = "512"
             return
 
@@ -160,29 +193,38 @@ class Pattern:
 
         osz = OSZ_PATTERN.search(pattern)
         if osz and osz.group("prefix") == "1":
-            self.ozs_required = True
+            # Group 3 prefix
+            self.prefixes[2] = LegacyPrefix.OPERAND_SIZE_OVERRIDE
 
         rep = REP_PATTERN.search(pattern)
         if rep:
             prefix = rep.group("prefix")
-            if prefix == "0" and not self.ozs_required:
+            if (
+                prefix == "0"
+                and not self.prefixes[2] == LegacyPrefix.OPERAND_SIZE_OVERRIDE
+            ):
                 self.no_prefixes_allowed = True
             elif prefix == "2":
-                self.f2_required = True
+                # Group 1 prefix
+                self.prefixes[0] = LegacyPrefix.REPNE
             elif prefix == "3":
-                self.f3_required = True
+                # Group 1 prefix
+                self.prefixes[0] = LegacyPrefix.REP
 
         if self.space != Space.LEGACY:
             vexp = VEX_PREFIX_PATTERN.search(pattern)
             if vexp:
-                if vexp.group("prefix") == '0':
+                if vexp.group("prefix") == "0":
                     self.no_prefixes_allowed = True
-                elif vexp.group("prefix") == '1':
-                    self.osz_required = True
-                elif vexp.group("prefix") == '2':
-                    self.f2_required = True
-                elif vexp.group("prefix") == '3':
-                    self.f3_required = True
+                elif vexp.group("prefix") == "1":
+                    # Group 3 prefix
+                    self.prefixes[2] = LegacyPrefix.OPERAND_SIZE_OVERRIDE
+                elif vexp.group("prefix") == "2":
+                    # Group 1 prefix
+                    self.prefixes[0] = LegacyPrefix.REPNE
+                elif vexp.group("prefix") == "3":
+                    # Group 1 prefix
+                    self.prefixes[0] = LegacyPrefix.REP
 
         rexw = REXW_PATTERN.search(pattern)
         if rexw:
@@ -231,7 +273,7 @@ class Pattern:
         elif "EASZ!=1" in self.pattern:
             self.easz = "asznot16"
 
-        if 'DF64()' in self.pattern or 'CR_WIDTH()' in self.pattern:
+        if "DF64()" in self.pattern or "CR_WIDTH()" in self.pattern:
             self.default_64bit = True
 
         self._get_vl()

@@ -109,15 +109,15 @@ class Register:
     is_high_byte: bool
 
     def __init__(
-            self,
-            name: str,
-            klass: RegisterClass,
-            width32: Optional[int],
-            width64: Optional[int],
-            max_enclosing_64bit_reg_str: str,
-            max_enclosing_32bit_reg_str: Optional[str],
-            reg_id: Optional[int],
-            is_high_byte: bool,
+        self,
+        name: str,
+        klass: RegisterClass,
+        width32: Optional[int],
+        width64: Optional[int],
+        max_enclosing_64bit_reg_str: str,
+        max_enclosing_32bit_reg_str: Optional[str],
+        reg_id: Optional[int],
+        is_high_byte: bool,
     ):
         self.name = name
         self.klass = klass

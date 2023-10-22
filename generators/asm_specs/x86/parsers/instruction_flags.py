@@ -84,11 +84,12 @@ class FlagSet(object):
 
 class FlagAction(object):
     """Simple flag/actions pairs. If the input is 'nothing' we do not have any flag action"""
+
     valid_flag_actions = ['mod', 'tst', 'u', '0', '1', 'ah', 'pop']  # FIXME: x86 specific
 
     def __init__(self, s):
         self.flag = None
-        self.action = None  # Could be mod,tst,u,0,1, ah, pop
+        self.action = None  # Could be mod, tst, u, 0, 1, ah, pop
         if s != 'nothing':
             (self.flag, self.action) = s.lower().split('-')
             if self.action not in FlagAction.valid_flag_actions:
@@ -163,3 +164,107 @@ class Flags:
                     self.undefined_set.set(fa.flag)
             else:
                 sys.stderr.write("WARN: Unknown flag: {}\n".format(flag_action_str))
+
+    def is_nothing(self) -> bool:
+        return len(self.flag_actions) == 1 and self.flag_actions[0].is_nothing()
+
+    def reads_flags(self) -> bool:
+        for action in self.flag_actions:
+            if action.reads_flag():
+                return True
+        return False
+
+    def writes_flags(self) -> bool:
+        for action in self.flag_actions:
+            if action.writes_flag():
+                return True
+        return False
+
+    def conditional_writes_flags(self) -> bool:
+        return self.writes_flags() and self.semantics == FlagSemantics.MAY
+
+    def is_x86(self) -> bool:
+        """Return True if any of the flags are x86 flags. False otherwise"""
+
+        for action in self.flag_actions:
+            s = action.flag
+            if s != 'fc0' and s != 'fc1' and s != 'fc2' and s != 'fc3':
+                return True
+        return False
+
+    def rw_action(self) -> str:
+        """Return one of: r, w, cw, rcw or rw. This is the r/w action
+        for a rFLAGS() NTLUF."""
+
+        r = ''
+        w = ''
+        c = ''
+        has_nothing_record = False
+        for action in self.flag_actions:
+            if action.is_nothing():
+                has_nothing_record = True
+            if action.reads_flag():
+                r = 'r'
+            if action.writes_flag():
+                w = 'w'
+                if self.conditional_writes_flags():
+                    # things that are conditional writes are also writes
+                    c = 'c'
+
+        if has_nothing_record:
+            c = 'c'
+        retval = "%s%s%s" % (r, c, w)
+        return retval
+
+
+class FlagCollection:
+    """A container to act on sets of Flags"""
+
+    flags: list[Flags]
+
+    def __init__(self, flags: list[Flags]):
+        self.flags = flags
+
+    def reads_flags(self):
+        for flags in self.flags:
+            if flags.reads_flags():
+                return True
+        return False
+
+    def writes_flags(self):
+        for flags in self.flags:
+            if flags.writes_flags():
+                return True
+        return False
+
+    def x86_flags(self):
+        """Return True if any flags are x86 flags"""
+
+        for flags in self.flags:
+            if flags.is_x86():
+                return True
+        return False
+
+    def rw_action(self):
+        """Return one of: r, w, cw, rcw or rw. This is the r/w action
+        for a rFLAGS() NTLUF."""
+
+        r = ''
+        w = ''
+        c = ''
+        has_nothing_record = False
+        for flags in self.flags:
+            if flags.is_nothing():
+                has_nothing_record = True
+            if flags.reads_flags():
+                r = 'r'
+            if flags.writes_flags():
+                w = 'w'
+                if flags.conditional_writes_flags():
+                    # things that are conditional writes are also writes
+                    c = 'c'
+
+        if has_nothing_record:
+            c = 'c'
+        retval = "%s%s%s" % (r, c, w)
+        return retval

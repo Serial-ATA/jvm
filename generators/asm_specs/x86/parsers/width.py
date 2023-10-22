@@ -2,13 +2,13 @@ from generators.asm_specs.util import fatal
 
 import re
 
-BITS_REGEX = re.compile("[0-9]+bits")
+BITS_REGEX = re.compile("([0-9]+)bits")
 
 
 class Width:
     name: str
     datatype: str
-    widths: dict[int, str] = {}
+    widths: dict[int, int] = {}
 
     def __init__(self, width_line: str):
         tokens = width_line.split()
@@ -30,6 +30,6 @@ class Width:
         for key, original_val in zip([8, 16, 32, 64], [width8, width16, width32, width64]):
             bits_format = BITS_REGEX.match(original_val)
             if bits_format:
-                self.widths[key] = bits_format.group(0)
+                self.widths[key] = int(bits_format.group(1))
             else:
-                self.widths[key] = original_val
+                self.widths[key] = int(original_val)

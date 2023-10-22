@@ -3,10 +3,13 @@ from enum import StrEnum
 from typing import Optional, Iterable
 
 from generators.asm_specs.util import fatal
-from generators.asm_specs.x86.pattern import Space, get_space
+from generators.asm_specs.x86.parsers.instruction_pattern import Space, get_space
 
 
 class VariableBool(StrEnum):
+    """Represents a boolean value that can either be true, false, or
+    both (variable) depending on the situation"""
+
     YES = "yes"
     NO = "no"
     VARIABLE = "var"
@@ -16,6 +19,8 @@ MAP_INFO_FIELD_COUNT: int = 10
 
 
 class MapInfo:
+    """Information taken from the table in `all-map-descriptions.txt`"""
+
     name: str
     space: Space
     escape: Optional[int] = None

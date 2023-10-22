@@ -4,12 +4,14 @@ from typing import Iterable
 from generators.asm_specs.util import generated_directory_for
 
 from generators.asm_specs.x86 import global_defs
-from generators.asm_specs.x86.instruction import InstructionParser, Instruction
-from generators.asm_specs.x86.map_info import MapInfoParser
-from generators.asm_specs.x86.register import parse_registers
+from generators.asm_specs.x86.function_generator import FunctionGenerator
+from generators.asm_specs.x86.parsers.instruction import Instruction, InstructionParser
+from generators.asm_specs.x86.parsers.map_info import MapInfoParser
+from generators.asm_specs.x86.parsers.register import parse_registers
+from generators.asm_specs.x86.parsers.states import StateParser
+from generators.asm_specs.x86.parsers.width import Width
+from generators.asm_specs.x86.parsers.xtype import XType
 from generators.asm_specs.x86.text_utils import remove_comment_from_line
-from generators.asm_specs.x86.width import Width
-from generators.asm_specs.x86.xtype import XType
 
 GENERATED_DIR = generated_directory_for("x86")
 RUST_GENERATED_DIR = Path(GENERATED_DIR).joinpath("rust")
@@ -19,12 +21,14 @@ DGEN_DIR = Path(GENERATED_DIR).joinpath("dgen")
 # are handled by XED
 RUST_GENERATED_DIR.mkdir(parents=True, exist_ok=True)
 
-def parse_instructions_from(path: Path) -> list[Instruction]:
+
+def parse_instructions_from(path: Path) -> list[list[Instruction]]:
     print(
         "INFO: Parsing Intel XED instruction definitions from: " + str(path.resolve())
     )
 
     instructions = []
+    instruction_count = 0
     unstable_instructions = 0
     skipped_instructions = 0
     definitions_count = 0
@@ -121,10 +125,11 @@ def parse_instructions_from(path: Path) -> list[Instruction]:
             skipped_instructions += old_len - len(parsed_instructions)
 
             definitions_count += 1
-            instructions.extend(parsed_instructions)
+            instruction_count += len(parsed_instructions)
+            instructions.append(parsed_instructions)
     print(
-        "INFO: Parsed {} instructions ({} definitions, {} unstable, {} skipped)".format(
-            len(instructions),
+        "INFO: Parsed {} individual instructions ({} definitions, {} unstable, {} skipped)".format(
+            instruction_count,
             definitions_count,
             unstable_instructions,
             skipped_instructions,
@@ -149,14 +154,15 @@ def parse_widths_from(path: Path):
 def parse_states_from(path: Path):
     print("INFO: Parsing Intel XED state definitions from: " + str(path.resolve()))
     with open(path, "r") as file:
-        lines: Iterable[str] = iter(file.readlines())
-        for line in map(remove_comment_from_line, lines):
-            if len(line) == 0:
-                continue
+        lines: Iterable[str] = map(remove_comment_from_line, iter(file.readlines()))
+        parser = StateParser(lines)
+        while True:
+            state = parser.next()
+            if not state:
+                break  # Input exhausted
 
-            tokens = line.split(" ", 1)
-            name = tokens.pop(0).strip()
-            global_defs.states[name] = tokens[0].strip()
+            macro, replacement = state
+            global_defs.states[macro] = replacement
     print("INFO: Parsed " + str(len(global_defs.states)) + " state definitions")
 
 
@@ -191,7 +197,12 @@ def parse_registers_from(path: Path):
     with open(path, "r") as file:
         lines: Iterable[str] = map(remove_comment_from_line, iter(file.readlines()))
         global_defs.registers = parse_registers(lines)
-    print("INFO: Parsed " + str(len(global_defs.registers.by_name)) + " register definitions")
+    print(
+        "INFO: Parsed "
+        + str(len(global_defs.registers.by_name))
+        + " register definitions"
+    )
+
 
 def main():
     all_widths_path: Path = DGEN_DIR.joinpath("all-widths.txt")
