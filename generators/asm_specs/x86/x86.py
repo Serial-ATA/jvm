@@ -12,8 +12,12 @@ from generators.asm_specs.x86.width import Width
 from generators.asm_specs.x86.xtype import XType
 
 GENERATED_DIR = generated_directory_for("x86")
+RUST_GENERATED_DIR = Path(GENERATED_DIR).joinpath("rust")
 DGEN_DIR = Path(GENERATED_DIR).joinpath("dgen")
 
+# We need to create this if it doesn't exist, any other generated files
+# are handled by XED
+RUST_GENERATED_DIR.mkdir(parents=True, exist_ok=True)
 
 def parse_instructions_from(path: Path) -> list[Instruction]:
     print(
