@@ -142,8 +142,7 @@ impl JmodFile {
 		let mut file = File::open(path)?;
 
 		let mut magic_buf = [0; 4];
-		file.read_exact(&mut magic_buf)
-			.expect("Not enough bytes to read file magic");
+		file.read_exact(&mut magic_buf)?;
 
 		if JMOD_MAGIC[..2] != magic_buf[..2] {
 			return Err(JmodError::MissingMagic);

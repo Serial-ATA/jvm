@@ -5,15 +5,14 @@ pub mod jimage;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, RwLock};
+use std::sync::{LazyLock, Mutex, RwLock};
 
 use common::int_types::u1;
-use once_cell::sync::Lazy;
 use zip::ZipArchive;
 
 use symbols::Symbol;
 
-static CLASSPATH: Lazy<RwLock<ClassPath>> = Lazy::new(|| RwLock::new(ClassPath::default()));
+static CLASSPATH: LazyLock<RwLock<ClassPath>> = LazyLock::new(|| RwLock::new(ClassPath::default()));
 
 pub fn add_classpath_entry(entry: ClassPathEntry) {
 	CLASSPATH.write().unwrap().entries.push(entry);

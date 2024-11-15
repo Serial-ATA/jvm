@@ -6,7 +6,6 @@ mod types;
 
 pub use access_flags::AccessFlags;
 pub use class::{Class, Member};
-pub use field::Field;
 pub use method::Method;
 pub use types::Type;
 

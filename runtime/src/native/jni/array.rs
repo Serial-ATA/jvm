@@ -5,10 +5,12 @@ use jni::sys::{
 	jshort, jshortArray, jsize, JNIEnv,
 };
 
+#[no_mangle]
 pub extern "system" fn GetArrayLength(env: *mut JNIEnv, array: jarray) -> jsize {
 	unimplemented!("jni::GetArrayLength");
 }
 
+#[no_mangle]
 pub extern "system" fn NewObjectArray(
 	env: *mut JNIEnv,
 	len: jsize,
@@ -18,6 +20,7 @@ pub extern "system" fn NewObjectArray(
 	unimplemented!("jni::NewObjectArray")
 }
 
+#[no_mangle]
 pub extern "system" fn GetObjectArrayElement(
 	env: *mut JNIEnv,
 	array: jobjectArray,
@@ -26,6 +29,7 @@ pub extern "system" fn GetObjectArrayElement(
 	unimplemented!("jni::GetObjectArrayElement");
 }
 
+#[no_mangle]
 pub extern "system" fn SetObjectArrayElement(
 	env: *mut JNIEnv,
 	array: jobjectArray,
@@ -35,38 +39,47 @@ pub extern "system" fn SetObjectArrayElement(
 	unimplemented!("jni::SetObjectArrayElement")
 }
 
+#[no_mangle]
 pub extern "system" fn NewBooleanArray(env: *mut JNIEnv, len: jsize) -> jbooleanArray {
 	unimplemented!("jni::NewBooleanArray");
 }
 
+#[no_mangle]
 pub extern "system" fn NewByteArray(env: *mut JNIEnv, len: jsize) -> jbyteArray {
 	unimplemented!("jni::NewByteArray");
 }
 
+#[no_mangle]
 pub extern "system" fn NewCharArray(env: *mut JNIEnv, len: jsize) -> jcharArray {
 	unimplemented!("jni::NewCharArray");
 }
 
+#[no_mangle]
 pub extern "system" fn NewShortArray(env: *mut JNIEnv, len: jsize) -> jshortArray {
 	unimplemented!("jni::NewShortArray");
 }
 
+#[no_mangle]
 pub extern "system" fn NewIntArray(env: *mut JNIEnv, len: jsize) -> jintArray {
 	unimplemented!("jni::NewIntArray");
 }
 
+#[no_mangle]
 pub extern "system" fn NewLongArray(env: *mut JNIEnv, len: jsize) -> jlongArray {
 	unimplemented!("jni::NewLongArray");
 }
 
+#[no_mangle]
 pub extern "system" fn NewFloatArray(env: *mut JNIEnv, len: jsize) -> jfloatArray {
 	unimplemented!("jni::NewFloatArray");
 }
 
+#[no_mangle]
 pub extern "system" fn NewDoubleArray(env: *mut JNIEnv, len: jsize) -> jdoubleArray {
 	unimplemented!("jni::NewDoubleArray");
 }
 
+#[no_mangle]
 pub extern "system" fn GetBooleanArrayElements(
 	env: *mut JNIEnv,
 	array: jbooleanArray,
@@ -75,6 +88,7 @@ pub extern "system" fn GetBooleanArrayElements(
 	unimplemented!("jni::GetBooleanArrayElements")
 }
 
+#[no_mangle]
 pub extern "system" fn GetByteArrayElements(
 	env: *mut JNIEnv,
 	array: jbyteArray,
@@ -83,6 +97,7 @@ pub extern "system" fn GetByteArrayElements(
 	unimplemented!("jni::GetByteArrayElements")
 }
 
+#[no_mangle]
 pub extern "system" fn GetCharArrayElements(
 	env: *mut JNIEnv,
 	array: jcharArray,
@@ -91,6 +106,7 @@ pub extern "system" fn GetCharArrayElements(
 	unimplemented!("jni::GetCharArrayElements")
 }
 
+#[no_mangle]
 pub extern "system" fn GetShortArrayElements(
 	env: *mut JNIEnv,
 	array: jshortArray,
@@ -99,6 +115,7 @@ pub extern "system" fn GetShortArrayElements(
 	unimplemented!("jni::GetShortArrayElements")
 }
 
+#[no_mangle]
 pub extern "system" fn GetIntArrayElements(
 	env: *mut JNIEnv,
 	array: jintArray,
@@ -107,6 +124,7 @@ pub extern "system" fn GetIntArrayElements(
 	unimplemented!("jni::GetIntArrayElements")
 }
 
+#[no_mangle]
 pub extern "system" fn GetLongArrayElements(
 	env: *mut JNIEnv,
 	array: jlongArray,
@@ -115,6 +133,7 @@ pub extern "system" fn GetLongArrayElements(
 	unimplemented!("jni::GetLongArrayElements")
 }
 
+#[no_mangle]
 pub extern "system" fn GetFloatArrayElements(
 	env: *mut JNIEnv,
 	array: jfloatArray,
@@ -123,6 +142,7 @@ pub extern "system" fn GetFloatArrayElements(
 	unimplemented!("jni::GetFloatArrayElements")
 }
 
+#[no_mangle]
 pub extern "system" fn GetDoubleArrayElements(
 	env: *mut JNIEnv,
 	array: jdoubleArray,
@@ -131,6 +151,7 @@ pub extern "system" fn GetDoubleArrayElements(
 	unimplemented!("jni::GetDoubleArrayElements")
 }
 
+#[no_mangle]
 pub extern "system" fn ReleaseBooleanArrayElements(
 	env: *mut JNIEnv,
 	array: jbooleanArray,
@@ -140,6 +161,7 @@ pub extern "system" fn ReleaseBooleanArrayElements(
 	unimplemented!("jni::ReleaseBooleanArrayElements")
 }
 
+#[no_mangle]
 pub extern "system" fn ReleaseByteArrayElements(
 	env: *mut JNIEnv,
 	array: jbyteArray,
@@ -149,6 +171,7 @@ pub extern "system" fn ReleaseByteArrayElements(
 	unimplemented!("jni::ReleaseByteArrayElements")
 }
 
+#[no_mangle]
 pub extern "system" fn ReleaseCharArrayElements(
 	env: *mut JNIEnv,
 	array: jcharArray,
@@ -158,6 +181,7 @@ pub extern "system" fn ReleaseCharArrayElements(
 	unimplemented!("jni::ReleaseCharArrayElements")
 }
 
+#[no_mangle]
 pub extern "system" fn ReleaseShortArrayElements(
 	env: *mut JNIEnv,
 	array: jshortArray,
@@ -167,6 +191,7 @@ pub extern "system" fn ReleaseShortArrayElements(
 	unimplemented!("jni::ReleaseShortArrayElements")
 }
 
+#[no_mangle]
 pub extern "system" fn ReleaseIntArrayElements(
 	env: *mut JNIEnv,
 	array: jintArray,
@@ -176,6 +201,7 @@ pub extern "system" fn ReleaseIntArrayElements(
 	unimplemented!("jni::ReleaseIntArrayElements");
 }
 
+#[no_mangle]
 pub extern "system" fn ReleaseLongArrayElements(
 	env: *mut JNIEnv,
 	array: jlongArray,
@@ -185,6 +211,7 @@ pub extern "system" fn ReleaseLongArrayElements(
 	unimplemented!("jni::ReleaseLongArrayElements")
 }
 
+#[no_mangle]
 pub extern "system" fn ReleaseFloatArrayElements(
 	env: *mut JNIEnv,
 	array: jfloatArray,
@@ -194,6 +221,7 @@ pub extern "system" fn ReleaseFloatArrayElements(
 	unimplemented!("jni::ReleaseFloatArrayElements")
 }
 
+#[no_mangle]
 pub extern "system" fn ReleaseDoubleArrayElements(
 	env: *mut JNIEnv,
 	array: jdoubleArray,
@@ -203,6 +231,7 @@ pub extern "system" fn ReleaseDoubleArrayElements(
 	unimplemented!("jni::ReleaseDoubleArrayElements")
 }
 
+#[no_mangle]
 pub extern "system" fn GetBooleanArrayRegion(
 	env: *mut JNIEnv,
 	array: jbooleanArray,
@@ -213,6 +242,7 @@ pub extern "system" fn GetBooleanArrayRegion(
 	unimplemented!("jni::GetBooleanArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn GetByteArrayRegion(
 	env: *mut JNIEnv,
 	array: jbyteArray,
@@ -223,6 +253,7 @@ pub extern "system" fn GetByteArrayRegion(
 	unimplemented!("jni::GetByteArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn GetCharArrayRegion(
 	env: *mut JNIEnv,
 	array: jcharArray,
@@ -233,6 +264,7 @@ pub extern "system" fn GetCharArrayRegion(
 	unimplemented!("jni::GetCharArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn GetShortArrayRegion(
 	env: *mut JNIEnv,
 	array: jshortArray,
@@ -243,6 +275,7 @@ pub extern "system" fn GetShortArrayRegion(
 	unimplemented!("jni::GetShortArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn GetIntArrayRegion(
 	env: *mut JNIEnv,
 	array: jintArray,
@@ -253,6 +286,7 @@ pub extern "system" fn GetIntArrayRegion(
 	unimplemented!("jni::GetIntArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn GetLongArrayRegion(
 	env: *mut JNIEnv,
 	array: jlongArray,
@@ -263,6 +297,7 @@ pub extern "system" fn GetLongArrayRegion(
 	unimplemented!("jni::GetLongArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn GetFloatArrayRegion(
 	env: *mut JNIEnv,
 	array: jfloatArray,
@@ -273,6 +308,7 @@ pub extern "system" fn GetFloatArrayRegion(
 	unimplemented!("jni::GetFloatArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn GetDoubleArrayRegion(
 	env: *mut JNIEnv,
 	array: jdoubleArray,
@@ -283,6 +319,7 @@ pub extern "system" fn GetDoubleArrayRegion(
 	unimplemented!("jni::GetDoubleArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn SetBooleanArrayRegion(
 	env: *mut JNIEnv,
 	array: jbooleanArray,
@@ -293,6 +330,7 @@ pub extern "system" fn SetBooleanArrayRegion(
 	unimplemented!("jni::SetBooleanArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn SetByteArrayRegion(
 	env: *mut JNIEnv,
 	array: jbyteArray,
@@ -303,6 +341,7 @@ pub extern "system" fn SetByteArrayRegion(
 	unimplemented!("jni::SetByteArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn SetCharArrayRegion(
 	env: *mut JNIEnv,
 	array: jcharArray,
@@ -313,6 +352,7 @@ pub extern "system" fn SetCharArrayRegion(
 	unimplemented!("jni::SetCharArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn SetShortArrayRegion(
 	env: *mut JNIEnv,
 	array: jshortArray,
@@ -323,6 +363,7 @@ pub extern "system" fn SetShortArrayRegion(
 	unimplemented!("jni::SetShortArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn SetIntArrayRegion(
 	env: *mut JNIEnv,
 	array: jintArray,
@@ -333,6 +374,7 @@ pub extern "system" fn SetIntArrayRegion(
 	unimplemented!("jni::SetIntArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn SetLongArrayRegion(
 	env: *mut JNIEnv,
 	array: jlongArray,
@@ -343,6 +385,7 @@ pub extern "system" fn SetLongArrayRegion(
 	unimplemented!("jni::SetLongArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn SetFloatArrayRegion(
 	env: *mut JNIEnv,
 	array: jfloatArray,
@@ -353,6 +396,7 @@ pub extern "system" fn SetFloatArrayRegion(
 	unimplemented!("jni::SetFloatArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn SetDoubleArrayRegion(
 	env: *mut JNIEnv,
 	array: jdoubleArray,
@@ -363,6 +407,7 @@ pub extern "system" fn SetDoubleArrayRegion(
 	unimplemented!("jni::SetDoubleArrayRegion")
 }
 
+#[no_mangle]
 pub extern "system" fn GetPrimitiveArrayCritical(
 	env: *mut JNIEnv,
 	array: jarray,
@@ -371,6 +416,7 @@ pub extern "system" fn GetPrimitiveArrayCritical(
 	unimplemented!("jni::GetPrimitiveArrayCritical")
 }
 
+#[no_mangle]
 pub extern "system" fn ReleasePrimitiveArrayCritical(
 	env: *mut JNIEnv,
 	array: jarray,

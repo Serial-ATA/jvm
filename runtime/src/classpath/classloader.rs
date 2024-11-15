@@ -1,24 +1,24 @@
 use crate::error::{Result, RuntimeError};
 use crate::field::Field;
-use crate::heap::class::Class;
-use crate::heap::reference::ClassRef;
+use crate::objects::class::Class;
+use crate::objects::reference::ClassRef;
 
 use std::collections::HashMap;
 use std::ops::RangeInclusive;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 
 use classfile::{ClassFile, FieldType};
 use common::int_types::u1;
-use once_cell::sync::Lazy;
+use common::traits::PtrType;
 use symbols::{sym, Symbol};
 
 const SUPPORTED_MAJOR_LOWER_BOUND: u1 = 45;
-const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 64;
+const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 67;
 const SUPPORTED_MAJOR_VERSION_RANGE: RangeInclusive<u1> =
 	SUPPORTED_MAJOR_LOWER_BOUND..=SUPPORTED_MAJOR_UPPER_BOUND;
 
-static BOOTSTRAP_LOADED_CLASSES: Lazy<Mutex<HashMap<Symbol, ClassRef>>> =
-	Lazy::new(|| Mutex::new(HashMap::new()));
+static BOOTSTRAP_LOADED_CLASSES: LazyLock<Mutex<HashMap<Symbol, ClassRef>>> =
+	LazyLock::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ClassLoader {
@@ -131,7 +131,7 @@ impl ClassLoader {
 		// The Java Virtual Machine marks C to have L as its defining loader, records that L is an initiating
 		// loader of C (§5.3.4), and creates C in the method area (§2.5.4).
 
-		let class = Class::new(classfile, super_class, self);
+		let class = unsafe { Class::new(classfile, super_class, self) };
 
 		// Finally, prepare the class (§5.4.2)
 		// "Preparation may occur at any time following creation but must be completed prior to initialization."
@@ -200,7 +200,7 @@ impl ClassLoader {
 		}
 
 		//     The Java Virtual Machine creates a new array class with the indicated component type and number of dimensions.
-		let array_class = Class::new_array(descriptor, component, self);
+		let array_class = unsafe { Class::new_array(descriptor, component, self) };
 
 		//     If the component type is a reference type, the Java Virtual Machine marks C to have the defining loader of the component type as its defining loader.
 		//     Otherwise, the Java Virtual Machine marks C to have the bootstrap class loader as its defining loader.
@@ -229,14 +229,14 @@ impl ClassLoader {
 		// Preparation involves creating the static fields for a class or interface and initializing such fields
 		// to their default values (§2.3, §2.4). This does not require the execution of any Java Virtual Machine code;
 		// explicit initializers for static fields are executed as part of initialization (§5.5), not preparation.
-		let class_instance = class.unwrap_class_instance_mut();
-		for (idx, field) in class_instance
-			.fields
-			.iter()
-			.filter(|field| field.is_static())
-			.enumerate()
-		{
-			class_instance.static_field_slots[idx] = Field::default_value_for_ty(&field.descriptor);
+		let mut prepared_fields = Vec::new();
+		for (idx, field) in class.static_fields().enumerate() {
+			prepared_fields.push((field, idx));
+		}
+
+		let class = class.get_mut();
+		for (field, idx) in prepared_fields {
+			class.set_static_field(idx, Field::default_value_for_ty(&field.descriptor));
 		}
 
 		// TODO:
@@ -245,8 +245,7 @@ impl ClassLoader {
 
 	/// Recreate mirrors for all loaded classes
 	pub fn fixup_mirrors() {
-		let java_lang_class =
-			Self::lookup_class(sym!(java_lang_Class)).expect("java.lang.Class should be loaded");
+		let java_lang_class = crate::globals::classes::java_lang_Class();
 		for (_, class) in BOOTSTRAP_LOADED_CLASSES.lock().unwrap().iter() {
 			Class::set_mirror(Arc::clone(&java_lang_class), Arc::clone(class));
 		}

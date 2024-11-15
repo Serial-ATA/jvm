@@ -1,11 +1,13 @@
 use crate::class_instance::{ArrayContent, ArrayInstance, Instance};
 use crate::classpath::classloader::ClassLoader;
 use crate::frame::FrameRef;
-use crate::native::JNIEnv;
 use crate::reference::Reference;
+use crate::JavaThread;
 
+use std::ptr::NonNull;
 use std::sync::Arc;
 
+use ::jni::env::JniEnv;
 use classfile::FieldType;
 use common::box_slice;
 use common::int_types::s4;
@@ -42,52 +44,57 @@ mod stacktrace_element {
 			return;
 		}
 
-		let class_descriptor = class.unwrap_class_instance();
-
-		StackTraceElement_classLoaderName_FIELD_OFFSET = class_descriptor
-			.find_field(|field| {
+		StackTraceElement_classLoaderName_FIELD_OFFSET = class
+			.fields()
+			.find(|field| {
 				field.descriptor.is_class(b"java/lang/String") && field.name == b"classLoaderName"
 			})
 			.expect("classLoaderName field should exist")
 			.idx;
 
-		StackTraceElement_moduleName_FIELD_OFFSET = class_descriptor
-			.find_field(|field| {
+		StackTraceElement_moduleName_FIELD_OFFSET = class
+			.fields()
+			.find(|field| {
 				field.descriptor.is_class(b"java/lang/String") && field.name == b"moduleName"
 			})
 			.expect("moduleName field should exist")
 			.idx;
 
-		StackTraceElement_moduleVersion_FIELD_OFFSET = class_descriptor
-			.find_field(|field| {
+		StackTraceElement_moduleVersion_FIELD_OFFSET = class
+			.fields()
+			.find(|field| {
 				field.descriptor.is_class(b"java/lang/String") && field.name == b"moduleVersion"
 			})
 			.expect("moduleVersion field should exist")
 			.idx;
 
-		StackTraceElement_declaringClass_FIELD_OFFSET = class_descriptor
-			.find_field(|field| {
+		StackTraceElement_declaringClass_FIELD_OFFSET = class
+			.fields()
+			.find(|field| {
 				field.descriptor.is_class(b"java/lang/String") && field.name == b"declaringClass"
 			})
 			.expect("declaringClass field should exist")
 			.idx;
 
-		StackTraceElement_methodName_FIELD_OFFSET = class_descriptor
-			.find_field(|field| {
+		StackTraceElement_methodName_FIELD_OFFSET = class
+			.fields()
+			.find(|field| {
 				field.descriptor.is_class(b"java/lang/String") && field.name == b"methodName"
 			})
 			.expect("methodName field should exist")
 			.idx;
 
-		StackTraceElement_fileName_FIELD_OFFSET = class_descriptor
-			.find_field(|field| {
+		StackTraceElement_fileName_FIELD_OFFSET = class
+			.fields()
+			.find(|field| {
 				field.descriptor.is_class(b"java/lang/String") && field.name == b"fileName"
 			})
 			.expect("fileName field should exist")
 			.idx;
 
-		StackTraceElement_lineNumber_FIELD_OFFSET = class_descriptor
-			.find_field(|field| field.descriptor.is_int() && field.name == b"lineNumber")
+		StackTraceElement_lineNumber_FIELD_OFFSET = class
+			.fields()
+			.find(|field| field.descriptor.is_int() && field.name == b"lineNumber")
 			.expect("lineNumber field should exist")
 			.idx;
 
@@ -111,13 +118,13 @@ mod stacktrace_element {
 			let declaring_class = StringInterner::intern_symbol(method.class.get().name);
 			stacktrace_element.get_mut().put_field_value0(
 				StackTraceElement_declaringClass_FIELD_OFFSET,
-				Operand::Reference(Reference::Class(declaring_class)),
+				Operand::Reference(Reference::class(declaring_class)),
 			);
 
 			let method_name = StringInterner::intern_symbol(method.name);
 			stacktrace_element.get_mut().put_field_value0(
 				StackTraceElement_methodName_FIELD_OFFSET,
-				Operand::Reference(Reference::Class(method_name)),
+				Operand::Reference(Reference::class(method_name)),
 			);
 
 			match method_class.source_file_index {
@@ -127,13 +134,13 @@ mod stacktrace_element {
 					);
 					stacktrace_element.get_mut().put_field_value0(
 						StackTraceElement_fileName_FIELD_OFFSET,
-						Operand::Reference(Reference::Class(file_name)),
+						Operand::Reference(Reference::class(file_name)),
 					);
 				},
 				None => {
 					stacktrace_element.get_mut().put_field_value0(
 						StackTraceElement_fileName_FIELD_OFFSET,
-						Operand::Reference(Reference::Null),
+						Operand::Reference(Reference::null()),
 					);
 				},
 			}
@@ -145,7 +152,7 @@ mod stacktrace_element {
 				Operand::Int(line_number),
 			);
 
-			Reference::Class(stacktrace_element)
+			Reference::class(stacktrace_element)
 		}
 	}
 }
@@ -153,17 +160,18 @@ mod stacktrace_element {
 include_generated!("native/java/lang/def/Throwable.definitions.rs");
 
 pub fn fillInStackTrace(
-	env: JNIEnv,
+	env: NonNull<JniEnv>,
 	mut this: Reference, // java.lang.Throwable
 	_dummy: s4,
 ) -> Reference /* java.lang.Throwable */
 {
+	let current_thread = unsafe { &*JavaThread::for_env(env.as_ptr() as _) };
+
 	let this_class_instance = this.extract_class();
 	let this_class = &this_class_instance.get().class;
-	let stacktrace_field = this_class.unwrap_class_instance().find_field(|field| field.name == b"stackTrace" && matches!(&field.descriptor, FieldType::Array(value) if value.is_class(b"java/lang/StackTraceElement"))).expect("Throwable should have a stackTrace field");
+	let stacktrace_field = this_class.fields().find(|field| field.name == b"stackTrace" && matches!(&field.descriptor, FieldType::Array(value) if value.is_class(b"java/lang/StackTraceElement"))).expect("Throwable should have a stackTrace field");
 
-	let current_thread = env.current_thread.get();
-	let stack_depth = current_thread.frame_stack.len();
+	let stack_depth = current_thread.stack_depth();
 
 	// We need to skip the current frame at the very least
 	let mut frames_to_skip = 1;
@@ -182,7 +190,10 @@ pub fn fillInStackTrace(
 	}
 
 	// We need to skip the <athrow> method
-	if current_thread.frame_stack[frames_to_skip].method().name == sym!(athrow_name) {
+	let athrow_frame = current_thread
+		.frame_at(frames_to_skip)
+		.expect("Frame should exist");
+	if athrow_frame.method().name == sym!(athrow_name) {
 		frames_to_skip += 1;
 	}
 
@@ -197,9 +208,10 @@ pub fn fillInStackTrace(
 		.expect("[Ljava/lang/StackTraceElement; should be available");
 
 	// Create the StackTraceElement array
-	let mut stacktrace_elements = box_slice![Reference::Null; stack_depth - frames_to_skip];
-	for (idx, frame) in current_thread.frame_stack[..stack_depth - frames_to_skip]
-		.iter()
+	let mut stacktrace_elements = box_slice![Reference::null(); stack_depth - frames_to_skip];
+	for (idx, frame) in current_thread
+		.frames()
+		.take(stack_depth - frames_to_skip)
 		.enumerate()
 	{
 		stacktrace_elements[idx] = stacktrace_element::from_stack_frame(
@@ -214,7 +226,7 @@ pub fn fillInStackTrace(
 	);
 	this.put_field_value0(
 		stacktrace_field.idx,
-		Operand::Reference(Reference::Array(array)),
+		Operand::Reference(Reference::array(array)),
 	);
 
 	this

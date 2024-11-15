@@ -5,7 +5,7 @@ use crate::parse::{lex, word1, Class};
 use std::fmt::Write;
 
 use combine::parser::char::{char, string};
-use combine::{optional, sep_by, ParseError, Parser, Stream};
+use combine::{attempt, optional, sep_by, ParseError, Parser, Stream};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Method {
@@ -207,10 +207,17 @@ where
 {
 	(
 		lex(char('(')),
-		sep_by::<Vec<_>, _, _, _>((crate::parse::types::ty(), lex(word1())), lex(char(','))),
+		sep_by::<Vec<_>, _, _, _>(
+			(
+				optional(attempt(lex(string("final")))),
+				crate::parse::types::ty(),
+				lex(word1()),
+			),
+			lex(char(',')),
+		),
 		lex(char(')')),
 	)
-		.map(|(_, tys, _)| tys)
+		.map(|(_, tys, _)| tys.into_iter().map(|(_, ty, name)| (ty, name)).collect())
 }
 
 fn throws<Input>() -> impl Parser<Input, Output = ()>

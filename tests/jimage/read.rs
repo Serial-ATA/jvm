@@ -25,9 +25,9 @@ fn read_classes() {
 	const CLASS_MAGIC: u32 = 0xCAFE_BABE;
 
 	let Some(mut image_file) = image_file() else {
-        println!("Test skipped; no jimage file");
-        return;
-    };
+		println!("Test skipped; no jimage file");
+		return;
+	};
 
 	let file = JImage::read_from(&mut image_file);
 

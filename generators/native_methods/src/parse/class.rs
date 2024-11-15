@@ -4,19 +4,18 @@ use crate::parse::method::Method;
 use crate::parse::{lex, path1, word1};
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 
 use combine::parser::char::{char, string};
-use combine::parser::combinator::no_partial;
+use combine::parser::combinator::{no_partial, opaque};
 use combine::stream::position::Stream as PositionStream;
 use combine::{
-	attempt, choice, dispatch, many, many1, opaque, optional, token, EasyParser, ParseError,
-	Parser, Stream,
+	attempt, choice, dispatch, many, many1, optional, token, value, EasyParser, ParseError, Parser,
+	Stream,
 };
-use once_cell::sync::Lazy;
 
-pub(super) static IMPORTS: Lazy<Mutex<HashMap<String, String>>> =
-	Lazy::new(|| Mutex::new(HashMap::new()));
+pub(super) static IMPORTS: LazyLock<Mutex<HashMap<String, String>>> =
+	LazyLock::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Member {
@@ -48,13 +47,15 @@ impl Class {
 			.insert(name.to_string(), format!("{}{}", module, name));
 
 		let mut class;
-		match class_file().easy_parse(PositionStream::new(&*text)) {
+		match class_file(module.to_string()).easy_parse(PositionStream::new(&*text)) {
 			Ok((c, _)) => class = c,
 			Err(e) => {
 				eprintln!("Failed to parse class definition `{}`:\n{}", name, e);
 				std::process::exit(1);
 			},
 		}
+
+		let mut imports = IMPORTS.lock().unwrap();
 
 		for member in &mut class.members {
 			if let Member::Method(method) = member {
@@ -68,46 +69,61 @@ impl Class {
 			}
 
 			if let Member::Class(subclass) = member {
-				subclass.class_name = format!("{}${}", class.class_name, subclass.class_name)
+				let original_subclass_name = subclass.class_name.clone();
+				subclass.class_name = format!("{}${}", class.class_name, subclass.class_name);
+				imports.insert(
+					original_subclass_name,
+					format!("{}{}", module, subclass.class_name),
+				);
 			}
 		}
 
-		IMPORTS.lock().unwrap().clear();
+		imports.clear();
 		class
 	}
 }
 
-fn class_file<Input>() -> impl Parser<Input, Output = Class>
+fn class_file<Input>(module: String) -> impl Parser<Input, Output = Class>
 where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-	(lex(imports()), lex(class())).map(|(_, class)| class)
+	(lex(imports()), lex(class(module))).map(|(_, class)| class)
 }
 
-fn class<Input>() -> impl Parser<Input, Output = Class>
+fn class<Input>(module: String) -> impl Parser<Input, Output = Class>
 where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
 	(
-		lex(class_def()).message("While parsing class definition"),
-		lex(many::<Vec<_>, _, _>(member())).message("While parsing fields/methods"),
+		lex(class_def())
+			.message("While parsing class definition")
+			.then(move |class_name| {
+				(
+					value(class_name.clone()),
+					lex(many::<Vec<_>, _, _>(member(
+						class_name.clone(),
+						module.clone(),
+					)))
+					.message("While parsing fields/methods"),
+				)
+			}),
 		lex(char('}')),
 	)
 		.message("While parsing class")
-		.map(|(class_name, members, _)| Class {
+		.map(|((class_name, members), _)| Class {
 			class_name,
 			members,
 		})
 }
 
-fn member<Input>() -> impl Parser<Input, Output = Member>
+fn member<Input>(class_name: String, module: String) -> impl Parser<Input, Output = Member>
 where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-	optional(annotation()).then(|annotation| {
+	optional(annotation()).then(move |annotation| {
 		dispatch!(
 			annotation;
 			Some("@IntrinsicCandidate") => choice((
@@ -119,7 +135,7 @@ where
 				attempt(super::method::constructor(annotation).map(Member::Method)),
 				attempt(super::method::method(annotation).map(Member::Method)),
 				attempt(super::field::field(annotation).map(Member::Field)),
-				subclass().map(Member::Class),
+				subclass(class_name.clone(), module.clone()).map(Member::Class),
 			))
 		)
 	})
@@ -133,12 +149,26 @@ where
 	attempt(lex(string("@Native"))).or(attempt(lex(string("@IntrinsicCandidate"))))
 }
 
-fn subclass<Input>() -> impl Parser<Input, Output = Class>
+fn subclass<Input>(parent: String, module: String) -> impl Parser<Input, Output = Class>
 where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-	opaque!(no_partial(class())).message("While parsing subclasses")
+	let module1 = module.clone();
+	opaque(
+		move |f: &mut dyn FnMut(&mut dyn Parser<_, Output = _, PartialState = _>)| {
+			let module1 = module.clone();
+			f(&mut no_partial(class(module1)))
+		},
+	)
+	.message("While parsing subclasses")
+	.map(move |class| {
+		IMPORTS.lock().unwrap().insert(
+			class.class_name.clone(),
+			format!("{}{}${}", module1, parent, class.class_name),
+		);
+		class
+	})
 }
 
 fn imports<Input>() -> impl Parser<Input, Output = ()>
@@ -170,6 +200,7 @@ where
 	(
 		many1::<Vec<&str>, _, _>(choice((
 			lex(string("public")),
+			lex(string("static")),
 			lex(string("final")),
 			lex(string("abstract")),
 			lex(string("sealed")),
@@ -180,6 +211,7 @@ where
 			lex(string("enum")),
 		)),
 		lex(word1()),
+		optional((lex(string("extends")), lex(word1()))),
 		char('{'),
 	)
 		.map(|(_, _, name, ..)| name)

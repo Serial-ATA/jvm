@@ -544,10 +544,12 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 		matches!(
 			self,
 			Self::Int(_)
-				| Self::Constm1 | Self::Const0(ConstOperandType::Int)
+				| Self::Constm1
+				| Self::Const0(ConstOperandType::Int)
 				| Self::Const1(ConstOperandType::Int)
 				| Self::Const2(ConstOperandType::Int)
-				| Self::Const3 | Self::Const4
+				| Self::Const3
+				| Self::Const4
 				| Self::Const5
 		)
 	}

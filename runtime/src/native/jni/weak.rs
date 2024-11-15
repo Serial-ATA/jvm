@@ -25,10 +25,12 @@
 
 use jni::sys::{jobject, jweak, JNIEnv};
 
+#[no_mangle]
 pub extern "system" fn NewWeakGlobalRef(env: *mut JNIEnv, obj: jobject) -> jweak {
 	unimplemented!("jni::NewWeakGlobalRef");
 }
 
+#[no_mangle]
 pub extern "system" fn DeleteWeakGlobalRef(env: *mut JNIEnv, ref_: jweak) {
 	unimplemented!("jni::DeleteWeakGlobalRef");
 }

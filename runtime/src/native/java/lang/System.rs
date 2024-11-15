@@ -1,29 +1,30 @@
-use crate::native::JNIEnv;
 use crate::reference::Reference;
 
+use std::ptr::NonNull;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ::jni::sys::{jint, jlong, jobject, jstring};
+use ::jni::env::JniEnv;
+use ::jni::sys::{jint, jlong};
 use common::traits::PtrType;
 
 include_generated!("native/java/lang/def/System.registerNatives.rs");
 include_generated!("native/java/lang/def/System.definitions.rs");
 
-pub fn setIn0(_: JNIEnv, in_: Reference /* java.io.PrintStream */) {
+pub fn setIn0(_: NonNull<JniEnv>, _in_: Reference /* java.io.PrintStream */) {
 	unimplemented!("System#setIn0")
 }
-pub fn setOut0(_env: JNIEnv, out: Reference /* java.io.PrintStream */) {
+pub fn setOut0(_env: NonNull<JniEnv>, _out: Reference /* java.io.PrintStream */) {
 	unimplemented!("System#setOut0")
 }
-pub fn setErr0(_env: JNIEnv, err: Reference /* java.io.PrintStream */) {
+pub fn setErr0(_env: NonNull<JniEnv>, _err: Reference /* java.io.PrintStream */) {
 	unimplemented!("System#setErr0")
 }
 
-pub fn currentTimeMillis(_env: JNIEnv) -> jlong {
+pub fn currentTimeMillis(_env: NonNull<JniEnv>) -> jlong {
 	unimplemented!("System#currentTimeMillis")
 }
 
-pub fn nanoTime(_env: JNIEnv) -> jlong {
+pub fn nanoTime(_env: NonNull<JniEnv>) -> jlong {
 	let time_nanos = SystemTime::now()
 		.duration_since(UNIX_EPOCH)
 		.expect("current system time should not be before the UNIX epoch")
@@ -33,7 +34,7 @@ pub fn nanoTime(_env: JNIEnv) -> jlong {
 }
 
 pub fn arraycopy(
-	_env: JNIEnv,
+	_env: NonNull<JniEnv>,
 	src: Reference, // java.lang.Object
 	src_pos: jint,
 	dest: Reference, // java.lang.Object
@@ -70,10 +71,10 @@ pub fn arraycopy(
 	);
 }
 
-pub fn identityHashCode(_env: JNIEnv, x: Reference /* java.lang.Object */) -> jlong {
+pub fn identityHashCode(_env: NonNull<JniEnv>, _x: Reference /* java.lang.Object */) -> jlong {
 	unimplemented!("System#identityHashCode")
 }
 
-pub fn mapLibraryName(_env: JNIEnv, libname: Reference) -> Reference {
+pub fn mapLibraryName(_env: NonNull<JniEnv>, _libname: Reference) -> Reference {
 	unimplemented!("System#mapLibraryName")
 }

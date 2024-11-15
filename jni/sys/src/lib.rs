@@ -16,12 +16,13 @@
 
 #![feature(extern_types)]
 #![feature(c_variadic)]
+#![feature(extended_varargs_abi_support)]
 #![no_std]
 #![allow(non_snake_case, non_camel_case_types)]
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
-use core::ffi::VaList;
 use core::ffi::{c_void, c_char};
+pub type va_list = *mut c_void;
 
 pub type jint = i32;
 pub type jlong = i64;
@@ -135,17 +136,17 @@ impl Clone for JNINativeMethod {
 pub type JNIEnv = *const JNINativeInterface_;
 pub type JavaVM = *const JNIInvokeInterface_;
 
-// Option<unsafe extern "system" fn(...) -> ...>
+// unsafe extern "system" fn(...) -> ...
 macro_rules! jni_system_fn {
 	(($($param:tt)*) $(-> $ret:ty)?) => {
-		Option<unsafe extern "system" fn($($param)*) $(-> $ret)?>
+		unsafe extern "system" fn($($param)*) $(-> $ret)?
 	}
 }
 
-// Option<unsafe extern "C" fn(...) -> ...>
+// unsafe extern "C" fn(...) -> ...
 macro_rules! jni_c_fn {
 	(($($param:tt)*) $(-> $ret:ty)?) => {
-		Option<unsafe extern "C" fn($($param)*) $(-> $ret)?>
+		unsafe extern "C" fn($($param)*) $(-> $ret)?
 	}
 }
 
@@ -731,7 +732,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jobject),
 
 	/// Constructs a new Java object.
@@ -861,7 +862,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			obj: jobject,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jobject),
 	
 	pub CallObjectMethodA: jni_system_fn!((
@@ -877,7 +878,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			obj: jobject,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jboolean),
 	
 	pub CallBooleanMethodA: jni_system_fn!((
@@ -893,7 +894,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			obj: jobject,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jbyte),
 	
 	pub CallByteMethodA: jni_system_fn!((
@@ -909,7 +910,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			obj: jobject,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jchar),
 	
 	pub CallCharMethodA: jni_system_fn!((
@@ -925,7 +926,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			obj: jobject,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jshort),
 	
 	pub CallShortMethodA: jni_system_fn!((
@@ -941,7 +942,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			obj: jobject,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jint),
 	
 	pub CallIntMethodA: jni_system_fn!((
@@ -957,7 +958,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			obj: jobject,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jlong),
 	
 	pub CallLongMethodA: jni_system_fn!((
@@ -973,7 +974,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			obj: jobject,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jfloat),
 	
 	pub CallFloatMethodA: jni_system_fn!((
@@ -989,7 +990,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			obj: jobject,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jdouble),
 	
 	pub CallDoubleMethodA: jni_system_fn!((
@@ -1005,7 +1006,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			obj: jobject,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		)),
 	
 	pub CallVoidMethodA: jni_system_fn!((
@@ -1028,7 +1029,7 @@ pub struct JNINativeInterface_ {
 			obj: jobject,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jobject),
 	
 	pub CallNonvirtualObjectMethodA: jni_system_fn!((
@@ -1052,7 +1053,7 @@ pub struct JNINativeInterface_ {
 			obj: jobject,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jboolean),
 	
 	pub CallNonvirtualBooleanMethodA: jni_system_fn!((
@@ -1076,7 +1077,7 @@ pub struct JNINativeInterface_ {
 			obj: jobject,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jbyte),
 	
 	pub CallNonvirtualByteMethodA: jni_system_fn!((
@@ -1100,7 +1101,7 @@ pub struct JNINativeInterface_ {
 			obj: jobject,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jchar),
 	
 	pub CallNonvirtualCharMethodA: jni_system_fn!((
@@ -1124,7 +1125,7 @@ pub struct JNINativeInterface_ {
 			obj: jobject,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jshort),
 	
 	pub CallNonvirtualShortMethodA: jni_system_fn!((
@@ -1148,7 +1149,7 @@ pub struct JNINativeInterface_ {
 			obj: jobject,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jint),
 	
 	pub CallNonvirtualIntMethodA: jni_system_fn!((
@@ -1172,7 +1173,7 @@ pub struct JNINativeInterface_ {
 			obj: jobject,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jlong),
 	
 	pub CallNonvirtualLongMethodA: jni_system_fn!((
@@ -1196,7 +1197,7 @@ pub struct JNINativeInterface_ {
 			obj: jobject,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jfloat),
 	
 	pub CallNonvirtualFloatMethodA: jni_system_fn!((
@@ -1220,7 +1221,7 @@ pub struct JNINativeInterface_ {
 			obj: jobject,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jdouble),
 	
 	pub CallNonvirtualDoubleMethodA: jni_system_fn!((
@@ -1244,7 +1245,7 @@ pub struct JNINativeInterface_ {
 			obj: jobject,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		)),
 	
 	pub CallNonvirtualVoidMethodA: jni_system_fn!((
@@ -1344,7 +1345,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jobject),
 	
 	pub CallStaticObjectMethodA: jni_system_fn!((
@@ -1360,7 +1361,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jboolean),
 	
 	pub CallStaticBooleanMethodA: jni_system_fn!((
@@ -1376,7 +1377,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jbyte),
 	
 	pub CallStaticByteMethodA: jni_system_fn!((
@@ -1392,7 +1393,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jchar),
 	
 	pub CallStaticCharMethodA: jni_system_fn!((
@@ -1408,7 +1409,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jshort),
 	
 	pub CallStaticShortMethodA: jni_system_fn!((
@@ -1424,7 +1425,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jint),
 	
 	pub CallStaticIntMethodA: jni_system_fn!((
@@ -1440,7 +1441,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jlong),
 	
 	pub CallStaticLongMethodA: jni_system_fn!((
@@ -1456,7 +1457,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jfloat),
 	
 	pub CallStaticFloatMethodA: jni_system_fn!((
@@ -1472,7 +1473,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		) -> jdouble),
 	
 	pub CallStaticDoubleMethodA: jni_system_fn!((
@@ -1488,7 +1489,7 @@ pub struct JNINativeInterface_ {
 			env: *mut JNIEnv,
 			cls: jclass,
 			methodID: jmethodID,
-			args: VaList<'_, '_>,
+			args: va_list,
 		)),
 	
 	pub CallStaticVoidMethodA: jni_system_fn!((
@@ -2797,7 +2798,7 @@ extern "system" {
 	pub fn JNI_CreateJavaVM(
 		pvm: *mut *mut JavaVM,
 		penv: *mut *mut c_void,
-		args: *mut c_void,
+		args: *mut JavaVMInitArgs,
 	) -> jint;
 	
 	/// Returns all Java VMs that have been created.
@@ -2840,3 +2841,5 @@ pub const JNI_VERSION_9  : jint = 0x00090000;
 pub const JNI_VERSION_10 : jint = 0x000A0000;
 pub const JNI_VERSION_19 : jint = 0x00130000;
 pub const JNI_VERSION_20 : jint = 0x00140000;
+pub const JNI_VERSION_21 : jint = 0x00150000;
+pub const JNI_VERSION_24 : jint = 0x00180000;

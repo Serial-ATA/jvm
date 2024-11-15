@@ -1,0 +1,12 @@
+import java.lang.String;
+
+public class NativeLibraries {
+    static class NativeLibraryImpl extends NativeLibrary {}
+
+    private static native boolean load(NativeLibraryImpl impl, String name,
+                                       boolean isBuiltin,
+                                       boolean throwExceptionIfFail);
+
+    private static native void unload(String name, boolean isBuiltin, long handle);
+    private static native String findBuiltinLib(String name);
+}

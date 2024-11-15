@@ -125,7 +125,8 @@ impl SymbolCollector {
 		check_for: &str,
 	) -> bool {
 		contents[section_header_position..marker_comment_position]
-			.contains(&format!("\t{}", check_for))
+			.lines()
+			.any(|line| line.starts_with(&format!("\t{check_for}:")))
 	}
 
 	fn generate_symbols_inner<'a>(

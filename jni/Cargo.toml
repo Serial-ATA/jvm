@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 jni_sys = { path = "sys" }
+libloading.workspace = true
 cesu8 = "1.1.0"

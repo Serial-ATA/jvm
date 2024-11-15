@@ -1,0 +1,23 @@
+import java.lang.Class;
+import java.lang.Object;
+import java.security.AccessControlContext;
+import java.security.ProtectionDomain;
+
+public class AccessController {
+    private static native ProtectionDomain getProtectionDomain(final Class<?> caller);
+
+    // The value needs to be physically located in the frame, so that it can be found by a stack walk.
+    private static native void ensureMaterializedForStackWalk(Object o);
+
+    // Returns the {@code AccessControlContext}. i.e., it gets the protection domains of all the
+    // callers on the stack, starting at the first class with a non-null {@code ProtectionDomain}.
+    //
+    // @return the access control context based on the current stack or {@code null} if there was
+    // only privileged system code.
+    private static native AccessControlContext getStackAccessControlContext();
+
+    // Returns the "inherited" {@code AccessControlContext}. This is the context
+    // that existed when the thread was created. Package private so
+    // {@code AccessControlContext} can use it.
+    static native AccessControlContext getInheritedAccessControlContext();
+}

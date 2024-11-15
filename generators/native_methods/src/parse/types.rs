@@ -23,6 +23,10 @@ pub enum Type {
 }
 
 impl Type {
+	pub fn occupies_two_stack_slots(&self) -> bool {
+		matches!(self, Type::Long | Type::Double)
+	}
+
 	pub(crate) fn human_readable_name(&self) -> String {
 		match self {
 			Type::Boolean => String::from("bool"),
@@ -85,7 +89,7 @@ impl Type {
 			Type::Long => String::from("::common::int_types::s8"),
 			Type::Short => String::from("::common::int_types::s2"),
 			Type::Array(arr_ty) => String::from("&[") + &*arr_ty.map_to_rust_ty() + "]",
-			Type::Class(_) => String::from("crate::heap::reference::Reference"),
+			Type::Class(_) => String::from("crate::objects::reference::Reference"),
 			ty => unimplemented!("{ty:?} as rust type"),
 		}
 	}

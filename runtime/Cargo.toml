@@ -14,13 +14,17 @@ jimage = { path = "../jimage" }
 bytemuck = "1.13.0"
 byte-slice-cast = { workspace = true }
 jni = { path = "../jni" }
-log = { workspace = true }
+tracing = { workspace = true }
 num_cpus = "1.15.0"
 paste = { workspace = true }
 platform = { path = "../platform" }
-once_cell = { workspace = true }
+seq-macro = "0.3.5"
 symbols = { path = "../symbols" }
 zip = { workspace = true }
 
 [build-dependencies]
 native_methods = { path = "../generators/native_methods" }
+
+[lib]
+name = "jvm_runtime"
+crate-type = ["dylib"]

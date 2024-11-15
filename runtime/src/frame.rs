@@ -1,9 +1,9 @@
-use crate::heap::reference::MethodRef;
+use crate::method::Method;
 use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::OperandStack;
 use crate::thread::ThreadRef;
-use std::fmt::{Debug, Formatter};
 
+use std::fmt::{Debug, Formatter};
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
 
@@ -22,7 +22,7 @@ pub struct Frame {
 	pub stack: OperandStack,
     // and a reference to the run-time constant pool (§2.5.5)
 	pub constant_pool: ConstantPoolRef,
-	pub method: MethodRef,
+	pub method: &'static Method,
 	pub thread: ThreadRef,
 	
 	// Used to remember the last pc when we return to a frame after a method invocation
@@ -41,7 +41,7 @@ impl Debug for Frame {
 }
 
 #[repr(transparent)]
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct FrameRef(Arc<FramePtr>);
 
 impl FrameRef {
@@ -53,8 +53,8 @@ impl FrameRef {
 		Arc::clone(&self.0.get().thread)
 	}
 
-	pub fn method(&self) -> MethodRef {
-		Arc::clone(&self.0.get().method)
+	pub fn method(&self) -> &Method {
+		self.0.get().method
 	}
 
 	pub fn get_operand_stack_mut(&self) -> &mut OperandStack {

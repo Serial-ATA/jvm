@@ -1,18 +1,19 @@
 use crate::frame::FrameRef;
-use crate::heap::class::Class;
-use crate::reference::{MethodRef, Reference};
+use crate::method::Method;
+use crate::objects::class::Class;
+use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
-use crate::thread::ThreadRef;
-use crate::Thread;
+use crate::JavaThread;
 
 use common::int_types::{u1, u2};
+use common::traits::PtrType;
 use instructions::{Operand, StackLike};
 
 macro_rules! trace_method {
 	($method:ident) => {{
 		#[cfg(debug_assertions)]
 		{
-			log::trace!("[METHOD CALL] {:?}", $method);
+			tracing::trace!(target: "method", "{:?}", $method);
 		}
 	}};
 }
@@ -23,7 +24,11 @@ impl MethodInvoker {
 	/// Invoke a method with the provided args
 	///
 	/// This will not pop anything off of the stack of the current Frame
-	pub fn invoke_with_args(thread: ThreadRef, method: MethodRef, args: Vec<Operand<Reference>>) {
+	pub fn invoke_with_args(
+		thread: &mut JavaThread,
+		method: &'static Method,
+		args: Vec<Operand<Reference>>,
+	) {
 		let max_locals = method.code.max_locals;
 		let parameter_count = method.parameter_count;
 
@@ -35,7 +40,7 @@ impl MethodInvoker {
 	/// Invoke a method
 	///
 	/// This will pop the necessary number of arguments off of the current Frame's stack
-	pub fn invoke(frame: FrameRef, method: MethodRef) {
+	pub fn invoke(frame: FrameRef, method: &'static Method) {
 		Self::invoke_(frame, method, false)
 	}
 
@@ -43,7 +48,7 @@ impl MethodInvoker {
 	///
 	/// This is identical to `MethodInvoker::invoke`, except it will attempt to find
 	/// the implementation of the interface method on the `objectref` class.
-	pub fn invoke_interface(frame: FrameRef, method: MethodRef) {
+	pub fn invoke_interface(frame: FrameRef, method: &'static Method) {
 		Self::invoke_(frame, method, true)
 	}
 
@@ -51,7 +56,7 @@ impl MethodInvoker {
 	///
 	/// This is identical to `MethodInvoker::invoke`, except it will attempt to find
 	/// the implementation of the method on the `objectref` class.
-	pub fn invoke_virtual(frame: FrameRef, method: MethodRef) {
+	pub fn invoke_virtual(frame: FrameRef, method: &'static Method) {
 		if method.is_polymorphic() {
 			unimplemented!("polymorphic virtual method invocation");
 		}
@@ -59,7 +64,7 @@ impl MethodInvoker {
 		Self::invoke_(frame, method, true)
 	}
 
-	fn invoke_(frame: FrameRef, mut method: MethodRef, reresolve_method: bool) {
+	fn invoke_(frame: FrameRef, mut method: &'static Method, reresolve_method: bool) {
 		let mut max_locals = method.code.max_locals;
 		let parameter_count = method.parameter_count;
 		let is_static_method = method.is_static();
@@ -75,8 +80,12 @@ impl MethodInvoker {
 		let mut this_argument = None;
 		if !is_static_method {
 			let this = frame.get_operand_stack_mut().pop_reference();
-			if this == Reference::Null {
-				panic!("NullPointerException")
+			if this.is_null() {
+				panic!(
+					"NullPointerException - {}#{}",
+					method.class.name.as_str(),
+					method.name.as_str()
+				);
 			}
 
 			if reresolve_method {
@@ -98,12 +107,12 @@ impl MethodInvoker {
 			local_stack[0] = this;
 		}
 
-		Self::invoke0_(frame.thread(), method, local_stack);
+		Self::invoke0_(frame.thread().get_mut(), method, local_stack);
 	}
 
-	fn invoke0_(thread: ThreadRef, method: MethodRef, local_stack: LocalStack) {
+	fn invoke0_(thread: &mut JavaThread, method: &'static Method, local_stack: LocalStack) {
 		trace_method!(method);
-		Thread::invoke_method_with_local_stack(thread, method, local_stack);
+		JavaThread::invoke_method_with_local_stack(thread, method, local_stack);
 	}
 
 	fn construct_local_stack(

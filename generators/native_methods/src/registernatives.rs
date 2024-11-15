@@ -13,8 +13,8 @@ use std::sync::atomic::{{AtomicBool, Ordering}};
 
 static NATIVES_REGISTERED: AtomicBool = AtomicBool::new(false);
 
-#[allow(trivial_casts)]
-pub fn registerNatives(_: JNIEnv) {{
+#[allow(trivial_casts, unused_imports)]
+pub fn registerNatives(_: std::ptr::NonNull<JniEnv>) {{
 	use symbols::sym;
 	
 	if NATIVES_REGISTERED.compare_exchange(false, true, Ordering::SeqCst, Ordering::Acquire) != Ok(false) {{

@@ -8,17 +8,18 @@ macro_rules! trace_stack {
 	($operation:ident, $value:ident) => {{
 		#[cfg(debug_assertions)]
 		{
-			log::trace!(
-				"[STACK      ] {} - received value: {:?}",
+			tracing::trace!(
+				target: "stack",
+				value = ?$value,
+				"{}",
 				stringify!($operation),
-				$value
 			);
 		}
 	}};
 	($operation:ident) => {{
 		#[cfg(debug_assertions)]
 		{
-			log::trace!("[STACK      ] {}", stringify!($operation));
+			tracing::trace!(target: "stack", "{}", stringify!($operation));
 		}
 	}};
 }
@@ -229,7 +230,35 @@ impl StackLike<Reference> for OperandStack {
 	}
 
 	fn dup2(&mut self) {
-		todo!()
+		let value1 = self.pop();
+
+		// Form 2:
+		//
+		// ..., value →
+		//
+		// ..., value, value
+		//
+		// where value is a value of a category 2 computational type (§2.11.1).
+		if matches!(value1, Operand::Long(_) | Operand::Double(_)) {
+			self.inner.push(value1.clone());
+			self.inner.push(value1);
+			return;
+		}
+
+		let value2 = self.pop();
+		assert!(!matches!(value2, Operand::Long(_) | Operand::Double(_)));
+
+		// Form 1:
+		//
+		// ..., value2, value1 →
+		//
+		// ..., value2, value1, value2, value1
+		//
+		// where both value1 and value2 are values of a category 1 computational type (§2.11.1).
+		self.inner.push(value2.clone());
+		self.inner.push(value1.clone());
+		self.inner.push(value2);
+		self.inner.push(value1);
 	}
 
 	fn dup2_x1(&mut self) {

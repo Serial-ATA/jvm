@@ -7,8 +7,9 @@ use std::fmt::{Display, Formatter, Write};
 use std::str::FromStr;
 
 mod patterns {
+	use std::sync::LazyLock;
+
 	use const_format::concatcp;
-	use once_cell::sync::Lazy;
 	use regex::Regex;
 
 	const VNUM_PATTERN_STRING: &str = "(?<VNUM>[1-9][0-9]*(?:(?:\\.0)*\\.[1-9][0-9]*)*)";
@@ -22,7 +23,7 @@ mod patterns {
 		OPT_PATTERN_STRING
 	);
 
-	pub static VSTR_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(VSTR_FORMAT).unwrap());
+	pub static VSTR_PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(VSTR_FORMAT).unwrap());
 }
 
 /// A representation of a version string for an implementation of the Java SE Platform.

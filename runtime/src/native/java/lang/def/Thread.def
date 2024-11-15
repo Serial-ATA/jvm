@@ -1,0 +1,49 @@
+import java.lang.Object;
+import java.lang.StackTraceElement;
+import java.lang.String;
+
+public class Thread {
+    private static native void registerNatives();
+
+    @IntrinsicCandidate
+    static native Object findScopedValueBindings();
+
+    @IntrinsicCandidate
+    static native Thread currentCarrierThread();
+
+    @IntrinsicCandidate
+    public static native Thread currentThread();
+
+    @IntrinsicCandidate
+    native void setCurrentThread(Thread thread);
+
+    @IntrinsicCandidate
+    static native Object[] scopedValueCache();
+
+    @IntrinsicCandidate
+    static native void setScopedValueCache(Object[] cache);
+
+    @IntrinsicCandidate
+    static native void ensureMaterializedForStackWalk(Object o);
+
+    private static native void yield0();
+
+    private static native void sleepNanos0(long nanos) throws InterruptedException;
+
+    private native void start0();
+
+    public static native boolean holdsLock(Object obj);
+
+    private native Object getStackTrace0();
+
+    private static native StackTraceElement[][] dumpThreads(Thread[] threads);
+    private static native Thread[] getThreads();
+
+    private native void setPriority0(int newPriority);
+    private native void interrupt0();
+    private static native void clearInterruptEvent();
+    private native void setNativeName(String name);
+
+    // The address of the next thread identifier, see ThreadIdentifiers.
+    private static native long getNextThreadIdOffset();
+}

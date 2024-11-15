@@ -26,10 +26,12 @@ pub extern "system" fn NewDirectByteBuffer(
 	unimplemented!("jni::NewDirectByteBuffer")
 }
 
+#[no_mangle]
 pub extern "system" fn GetDirectBufferAddress(env: *mut JNIEnv, buf: jobject) -> *mut c_void {
 	unimplemented!("jni::GetDirectBufferAddress");
 }
 
+#[no_mangle]
 pub extern "system" fn GetDirectBufferCapacity(env: *mut JNIEnv, buf: jobject) -> jlong {
 	unimplemented!("jni::GetDirectBufferCapacity");
 }

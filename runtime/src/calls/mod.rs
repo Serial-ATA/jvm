@@ -1,3 +1,4 @@
+pub mod jcall;
 mod stubs;
 
-pub use stubs::CallStub;
+pub use stubs::{CallStub, NativeInvokerPtr};

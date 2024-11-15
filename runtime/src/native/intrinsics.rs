@@ -1,18 +1,14 @@
-use crate::reference::MethodRef;
-
-use std::sync::Mutex;
+use crate::method::Method;
 
 use classfile::accessflags::MethodAccessFlags;
-use once_cell::sync::Lazy;
+// static REGISTERED_INTRINSICS: Lazy<Mutex<Vec<IntrinsicEntry>>> =
+// 	Lazy::new(|| Mutex::new(Vec::new()));
 
-static REGISTERED_INTRINSICS: Lazy<Mutex<Vec<IntrinsicEntry>>> =
-	Lazy::new(|| Mutex::new(Vec::new()));
-
-pub fn find_intrinsic(_method: MethodRef, _is_virtual: bool) -> Option<IntrinsicEntry> {
+pub fn find_intrinsic(_method: &Method, _is_virtual: bool) -> Option<IntrinsicEntry> {
 	todo!()
 }
 
-fn register_intrinsic(_method: MethodRef, _is_virtual: bool) {
+fn register_intrinsic(_method: &Method, _is_virtual: bool) {
 	todo!()
 }
 
@@ -35,13 +31,13 @@ pub struct IntrinsicEntry {
 	is_virtual: bool,
 	does_virtual_dispatch: bool,
 	intrinsic_id: IntrinsicId,
-	method: MethodRef,
+	method: &'static Method,
 	flags: IntrinsicFlags,
 }
 
 impl IntrinsicEntry {
 	pub fn new(
-		method: MethodRef,
+		method: &'static Method,
 		is_virtual: bool,
 		does_virtual_dispatch: bool,
 		intrinsic_id: IntrinsicId,

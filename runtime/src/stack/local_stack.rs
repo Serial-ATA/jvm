@@ -18,6 +18,23 @@ impl LocalStack {
 			inner: box_slice![Operand::Empty; stack_size],
 		}
 	}
+
+	/// Create a new `LocalStack` with existing arguments
+	///
+	/// # Panics
+	///
+	/// This will panic if the stack size doesn't fit the existing arguments.
+	pub fn new_with_args(mut args: Vec<Operand<Reference>>, stack_size: usize) -> Self {
+		assert!(stack_size >= args.len());
+		args.extend(std::iter::repeat_n(Operand::Empty, stack_size - args.len()));
+		Self {
+			inner: args.into_boxed_slice(),
+		}
+	}
+
+	pub fn into_inner(self) -> Box<[Operand<Reference>]> {
+		self.inner
+	}
 }
 
 // Local variables are addressed by indexing. The index of the first local variable is zero.

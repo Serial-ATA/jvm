@@ -1,9 +1,11 @@
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 
 use common::int_types::u1;
 use fxhash::FxBuildHasher;
 use indexmap::IndexSet;
-use once_cell::sync::Lazy;
+
+static INTERNER: LazyLock<Mutex<SymbolInterner>> =
+	LazyLock::new(|| Mutex::new(SymbolInterner::initialize()));
 
 type FxIndexSet<T> = IndexSet<T, FxBuildHasher>;
 
@@ -50,9 +52,6 @@ impl SymbolInterner {
 		self.set[symbol.as_u32() as usize]
 	}
 }
-
-static INTERNER: Lazy<Mutex<SymbolInterner>> =
-	Lazy::new(|| Mutex::new(SymbolInterner::initialize()));
 
 /// An index representation of an interned string
 ///
@@ -124,6 +123,8 @@ vm_symbols::define_symbols! {
 	java_lang_StackTraceElement: "java/lang/StackTraceElement",
 	java_lang_invoke_MethodHandle: "java/lang/invoke/MethodHandle",
 	java_lang_invoke_VarHandle: "java/lang/invoke/VarHandle",
+	java_lang_ThreadGroup: "java/lang/ThreadGroup",
+	java_lang_Thread_FieldHolder: "java/lang/Thread$FieldHolder",
 
 	java_lang_Byte: "java/lang/Byte",
 	java_lang_Bool: "java/lang/Bool",
@@ -140,6 +141,8 @@ vm_symbols::define_symbols! {
 	void_method_signature: "()V",
 	bool_bool_int_signature: "(ZZ)I",
 	ClassLoader_string_long_signature: "(Ljava/lang/ClassLoader;Ljava/lang/String;)J",
+	ThreadGroup_String_void_signature: "(Ljava/lang/ThreadGroup;Ljava/lang/String;)V",
+	ThreadGroup_Runnable_void_signature: "(Ljava/lang/ThreadGroup;Ljava/lang/Runnable;)V",
 	// -- GENERATED METHOD SIGNATURE MARKER, DO NOT DELETE --
 
 	// Types

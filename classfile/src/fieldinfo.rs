@@ -90,6 +90,14 @@ impl FieldType {
 		}
 	}
 
+	pub fn is_primitive(&self) -> bool {
+		match self {
+			Self::Object(_) | Self::Array(_) => false,
+			Self::Void => unreachable!(),
+			_ => true,
+		}
+	}
+
 	pub fn is_byte(&self) -> bool {
 		matches!(self, Self::Byte)
 	}

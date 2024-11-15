@@ -4,13 +4,12 @@ use crate::reference::{ClassInstanceRef, Reference};
 
 use std::collections::HashMap;
 use std::ptr::slice_from_raw_parts;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
 use byte_slice_cast::AsSliceOf;
 use common::int_types::{s1, s4, u1, u2};
 use common::traits::PtrType;
 use instructions::Operand;
-use once_cell::sync::Lazy;
 use symbols::{sym, Symbol};
 
 // Possible coders for Strings
@@ -20,8 +19,8 @@ const CODER_UTF16: s4 = 1;
 // Compact strings are enabled by default
 const COMPACT_STRINGS: bool = true;
 
-static STRING_POOL: Lazy<RwLock<HashMap<String, ClassInstanceRef>>> =
-	Lazy::new(|| RwLock::new(HashMap::new()));
+static STRING_POOL: LazyLock<RwLock<HashMap<String, ClassInstanceRef>>> =
+	LazyLock::new(|| RwLock::new(HashMap::new()));
 
 pub struct StringInterner;
 
@@ -51,8 +50,7 @@ impl StringInterner {
 
 	pub fn intern_string(string: &str) -> ClassInstanceRef {
 		// TODO: Error handling
-		let java_string_class = ClassLoader::lookup_class(sym!(java_lang_String))
-			.expect("java.lang.String should be loaded at this point");
+		let java_string_class = crate::globals::classes::java_lang_String();
 		let byte_array_class = ClassLoader::Bootstrap.load(sym!(byte_array)).unwrap();
 
 		let mut is_latin1 = false;
@@ -67,7 +65,7 @@ impl StringInterner {
 			encoded_str = utf_16_encode(string);
 		}
 
-		let reference_to_byte_array = Operand::Reference(Reference::Array(ArrayInstance::new(
+		let reference_to_byte_array = Operand::Reference(Reference::array(ArrayInstance::new(
 			byte_array_class,
 			ArrayContent::Byte(encoded_str),
 		)));

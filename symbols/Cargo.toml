@@ -8,5 +8,4 @@ bumpalo = "3.13.0"
 common = { path = "../common" }
 fxhash = "0.2.1"
 indexmap = "1.9.3"
-once_cell = { workspace = true }
 vm_symbols = { path = "../generators/vm_symbols" }

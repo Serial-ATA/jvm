@@ -1,17 +1,15 @@
 use crate::classpath::classloader::ClassLoader;
-use crate::reference::{MethodRef, Reference};
+use crate::java_call;
+use crate::method::Method;
+use crate::reference::Reference;
 use crate::string_interner::StringInterner;
-use crate::thread::{Thread, ThreadRef};
+use crate::thread::JavaThread;
 
-use std::ffi::{c_void, CStr};
+use std::ffi::c_void;
 use std::os::raw::c_int;
-use std::sync::Arc;
 
-use ::jni::sys::{jclass, JNIEnv, JNINativeMethod};
 use classfile::accessflags::MethodAccessFlags;
-use common::traits::PtrType;
 use instructions::Operand;
-use jni::string::JString;
 use symbols::sym;
 
 // The JNI specification defines the mapping from a Java native method name to
@@ -78,14 +76,14 @@ use symbols::sym;
 // is a digit 0..3. If we encounter an invalid identifier we return false. Otherwise the stream
 // contains the mapped name and we return true.
 
-struct NativeNameConverter {
-	method: MethodRef,
+struct NativeNameConverter<'a> {
+	method: &'a Method,
 	pure_name: Option<String>,
 	long_name: Option<String>,
 }
 
-impl NativeNameConverter {
-	fn new(method: MethodRef) -> Self {
+impl<'a> NativeNameConverter<'a> {
+	fn new(method: &'a Method) -> Self {
 		Self {
 			method,
 			pure_name: None,
@@ -196,98 +194,10 @@ impl NativeNameConverter {
 	}
 }
 
-extern "C" {
-	pub fn JVM_RegisterMethodHandleMethods(env: *mut JNIEnv, unsafecls: jclass);
-	pub fn JVM_RegisterReferencesMethods(env: *mut JNIEnv, unsafecls: jclass);
-	pub fn JVM_RegisterUpcallHandlerMethods(env: *mut JNIEnv, unsafecls: jclass);
-	pub fn JVM_RegisterUpcallLinkerMethods(env: *mut JNIEnv, unsafecls: jclass);
-	pub fn JVM_RegisterNativeEntryPointMethods(env: *mut JNIEnv, unsafecls: jclass);
-	pub fn JVM_RegisterPerfMethods(env: *mut JNIEnv, perfclass: jclass);
-	pub fn JVM_RegisterWhiteBoxMethods(env: *mut JNIEnv, wbclass: jclass);
-	pub fn JVM_RegisterVectorSupportMethods(env: *mut JNIEnv, vsclass: jclass);
-}
-
-macro_rules! cstr {
-	( $s:literal ) => {{
-		unsafe {
-			std::mem::transmute::<_, &std::ffi::CStr>(concat!($s, "\0")).as_ptr()
-				as *mut core::ffi::c_char
-		}
-	}};
-}
-
-fn lookup_special_native(jni_name: &str) -> Option<*const c_void> {
-	let lookup_special_native_methods: &[JNINativeMethod] = &[
-		// TODO
-		// JNINativeMethod {
-		// 	name: cstr!("Java_jdk_internal_misc_Unsafe_registerNatives"),
-		// 	signature: std::ptr::null_mut(),
-		// 	fnPtr: JVM_RegisterJDKInternalMiscUnsafeMethods as *mut c_void,
-		// },
-		JNINativeMethod {
-			name: cstr!("Java_java_lang_invoke_MethodHandleNatives_registerNatives"),
-			signature: std::ptr::null_mut(),
-			fnPtr: JVM_RegisterMethodHandleMethods as *mut c_void,
-		},
-		JNINativeMethod {
-			name: cstr!("Java_jdk_internal_foreign_abi_UpcallStubs_registerNatives"),
-			signature: std::ptr::null_mut(),
-			fnPtr: JVM_RegisterUpcallHandlerMethods as *mut c_void,
-		},
-		JNINativeMethod {
-			name: cstr!("Java_jdk_internal_foreign_abi_UpcallLinker_registerNatives"),
-			signature: std::ptr::null_mut(),
-			fnPtr: JVM_RegisterUpcallLinkerMethods as *mut c_void,
-		},
-		JNINativeMethod {
-			name: cstr!("Java_jdk_internal_foreign_abi_NativeEntryPoint_registerNatives"),
-			signature: std::ptr::null_mut(),
-			fnPtr: JVM_RegisterNativeEntryPointMethods as *mut c_void,
-		},
-		JNINativeMethod {
-			name: cstr!("Java_jdk_internal_perf_Perf_registerNatives"),
-			signature: std::ptr::null_mut(),
-			fnPtr: JVM_RegisterPerfMethods as *mut c_void,
-		},
-		JNINativeMethod {
-			name: cstr!("Java_sun_hotspot_WhiteBox_registerNatives"),
-			signature: std::ptr::null_mut(),
-			fnPtr: JVM_RegisterWhiteBoxMethods as *mut c_void,
-		},
-		JNINativeMethod {
-			name: cstr!("Java_jdk_test_whitebox_WhiteBox_registerNatives"),
-			signature: std::ptr::null_mut(),
-			fnPtr: JVM_RegisterWhiteBoxMethods as *mut c_void,
-		},
-		JNINativeMethod {
-			name: cstr!("Java_jdk_internal_vm_vector_VectorSupport_registerNatives"),
-			signature: std::ptr::null_mut(),
-			fnPtr: JVM_RegisterVectorSupportMethods as *mut c_void,
-		},
-		// TODO
-		// JNINativeMethod {
-		// 	name: cstr!("Java_jdk_internal_misc_ScopedMemoryAccess_registerNatives"),
-		// 	signature: std::ptr::null_mut(),
-		// 	fnPtr: JVM_RegisterJDKInternalMiscScopedMemoryAccessMethods as *mut c_void,
-		// },
-	];
-
-	let jni_name_c = JString::from(jni_name);
-	for method in lookup_special_native_methods {
-		unsafe {
-			if jni_name_c.as_cstr() == CStr::from_ptr(method.name) {
-				return Some(method.fnPtr);
-			}
-		}
-	}
-
-	None
-}
-
 fn lookup_style(
-	method: MethodRef,
-	thread: ThreadRef,
-	name_converter: &NativeNameConverter,
+	method: &Method,
+	thread: &mut JavaThread,
+	name_converter: &NativeNameConverter<'_>,
 	num_args: usize,
 	include_long: bool,
 	os_style: bool,
@@ -296,14 +206,9 @@ fn lookup_style(
 
 	let class_loader = method.class.loader;
 	if class_loader == ClassLoader::Bootstrap {
-		if let Some(entry) = lookup_special_native(&jni_name) {
-			return Some(entry);
+		if let Some(entry) = crate::native::lookup_method_opt(method) {
+			return Some(entry as _);
 		}
-
-		// TODO
-		// if let Some(entry) = os::dll_lookup(os::native_java_library(), jni_name) {
-		// 	return Some(entry);
-		// }
 	}
 
 	assert_eq!(
@@ -312,27 +217,26 @@ fn lookup_style(
 		"Custom classloaders are not implemented yet"
 	);
 
-	let classloader_class = ClassLoader::lookup_class(sym!(java_lang_ClassLoader)).unwrap();
-	let name_arg = StringInterner::intern_string(&jni_name);
+	let classloader_class = crate::globals::classes::java_lang_ClassLoader();
+	let name_arg = StringInterner::get_java_string(&jni_name);
 
 	let findNative_method = classloader_class
-		.get_method(
+		.vtable()
+		.find(
 			sym!(findNative_name),
 			sym!(ClassLoader_string_long_signature),
 			MethodAccessFlags::NONE,
 		)
 		.unwrap();
 
-	Thread::pre_main_invoke_method(
-		Arc::clone(&thread),
+	java_call!(
+		thread,
 		findNative_method,
-		Some(vec![
-			Operand::Reference(Reference::Null),
-			Operand::Reference(Reference::Class(name_arg)),
-		]),
+		Operand::Reference(Reference::null()),
+		Operand::Reference(Reference::class(name_arg))
 	);
 
-	let address = Thread::pull_remaining_operand(thread)
+	let address = JavaThread::pull_remaining_operand(thread)
 		.unwrap()
 		.expect_long();
 
@@ -344,8 +248,8 @@ fn lookup_style(
 	Some(entry)
 }
 
-fn lookup_entry(method: MethodRef, thread: ThreadRef) -> Option<*const c_void> {
-	let mut name_converter = NativeNameConverter::new(Arc::clone(&method));
+fn lookup_entry(method: &Method, thread: &mut JavaThread) -> Option<*const c_void> {
+	let mut name_converter = NativeNameConverter::new(method);
 
 	// Compute pure name
 	let Some(_) = name_converter.pure_name() else {
@@ -358,8 +262,8 @@ fn lookup_entry(method: MethodRef, thread: ThreadRef) -> Option<*const c_void> {
 
 	// 1) Try JNI short style
 	if let Some(entry) = lookup_style(
-		Arc::clone(&method),
-		Arc::clone(&thread),
+		method,
+		thread,
 		&name_converter,
 		num_args as usize,
 		false,
@@ -375,8 +279,8 @@ fn lookup_entry(method: MethodRef, thread: ThreadRef) -> Option<*const c_void> {
 
 	// 2) Try JNI long style
 	if let Some(entry) = lookup_style(
-		Arc::clone(&method),
-		Arc::clone(&thread),
+		method,
+		thread,
 		&name_converter,
 		num_args as usize,
 		true,
@@ -387,8 +291,8 @@ fn lookup_entry(method: MethodRef, thread: ThreadRef) -> Option<*const c_void> {
 
 	// 3) Try JNI short style without os prefix/suffix
 	if let Some(entry) = lookup_style(
-		Arc::clone(&method),
-		Arc::clone(&thread),
+		method,
+		thread,
 		&name_converter,
 		num_args as usize,
 		false,
@@ -414,12 +318,12 @@ fn lookup_entry(method: MethodRef, thread: ThreadRef) -> Option<*const c_void> {
 }
 
 /// Check if there are any JVM TI prefixes which have been applied to the native method name.
-fn lookup_entry_prefixed(_method: MethodRef, _thread: ThreadRef) -> Option<*const c_void> {
+fn lookup_entry_prefixed(_method: &Method, _thread: &mut JavaThread) -> Option<*const c_void> {
 	todo!()
 }
 
-fn lookup_base(method: MethodRef, thread: ThreadRef) -> *const c_void {
-	if let Some(entry) = lookup_entry(Arc::clone(&method), Arc::clone(&thread)) {
+fn lookup_base(method: &Method, thread: &mut JavaThread) -> *const c_void {
+	if let Some(entry) = lookup_entry(method, thread) {
 		return entry;
 	}
 
@@ -431,14 +335,13 @@ fn lookup_base(method: MethodRef, thread: ThreadRef) -> *const c_void {
 	panic!("UnsatisfiedLinkError")
 }
 
-pub fn lookup_native_method(mut method: MethodRef, thread: ThreadRef) -> *const c_void {
+pub fn lookup_native_method(method: &Method, thread: &mut JavaThread) {
 	let native_method = method.native_method();
-	if !native_method.is_null() {
-		return native_method;
+	if !native_method.is_some() {
+		return;
 	}
 
-	let entry = lookup_base(Arc::clone(&method), thread);
-	method.get_mut().set_native_method(entry);
-
-	entry
+	tracing::debug!(target: "lookup", "Looking up native invoker for method `{:?}`", method);
+	let entry = lookup_base(method, thread);
+	method.set_native_method(entry);
 }

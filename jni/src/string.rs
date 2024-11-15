@@ -3,11 +3,11 @@
 use std::borrow::Cow;
 use std::ffi::{c_char, CStr, CString};
 
-pub struct JString {
+pub struct JCesu8String {
 	inner: CString,
 }
 
-impl JString {
+impl JCesu8String {
 	pub unsafe fn from_raw(raw: *mut c_char) -> Self {
 		Self {
 			inner: unsafe { CString::from_raw(raw) },
@@ -23,13 +23,13 @@ impl JString {
 	}
 }
 
-impl<T> From<T> for JString
+impl<T> From<T> for JCesu8String
 where
 	T: AsRef<str>,
 {
 	fn from(value: T) -> Self {
 		let encoded = cesu8::to_java_cesu8(value.as_ref()).into_owned();
-		JString {
+		JCesu8String {
 			inner: unsafe { CString::from_vec_with_nul_unchecked(encoded) },
 		}
 	}

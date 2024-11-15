@@ -1,9 +1,11 @@
 # Serial's JVM
+
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Serial-ATA/jvm/ci.yml?branch=master&style=for-the-badge&logo=github)](https://github.com/Serial-ATA/jvm/actions/workflows/ci.yml)
 
-An implementation of [The Java Virtual Machine, Java SE 19 Edition](https://docs.oracle.com/javase/specs/jvms/se19/html/index.html).
+An implementation
+of [The Java Virtual Machine, Java SE 23 Edition](https://docs.oracle.com/javase/specs/jvms/se23/html/index.html).
 
-For instructions on how to run the JVM, see [tools/java/README.md](tools/java/README.md).
+For instructions on how to run the JVM, see [tools/sj/README.md](tools/sj/README.md).
 
 ## License
 

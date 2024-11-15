@@ -4,11 +4,13 @@ use crate::class::Class;
 use crate::class_instance::{ArrayInstance, ClassInstance};
 use crate::classpath::classloader::ClassLoader;
 use crate::frame::FrameRef;
-use crate::heap::class_instance::Instance;
+use crate::method::Method;
 use crate::method_invoker::MethodInvoker;
-use crate::reference::{FieldRef, MethodRef, Reference};
+use crate::objects::class_instance::Instance;
+use crate::reference::{FieldRef, Reference};
+use crate::spec::class::ClassInitializationState;
 use crate::string_interner::StringInterner;
-use crate::thread::Thread;
+use crate::thread::JavaThread;
 
 use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
@@ -23,11 +25,11 @@ use symbols::{sym, Symbol};
 macro_rules! trace_instruction {
     (@START $instruction:tt, $category:ident) => {{
 		#[cfg(debug_assertions)]
-		{ log::trace!("[INSTRUCTION] [{}] {} START", stringify!($category), stringify!($instruction)) }
+		{ tracing::trace!(target: "instruction", "[{}] {} START", stringify!($category), stringify!($instruction)) }
 	}};
     (@END $instruction:tt, $category:ident) => {{
 		#[cfg(debug_assertions)]
-		{ log::trace!("[INSTRUCTION] [{}] {} SUCCEEDED", stringify!($category), stringify!($instruction)) }
+		{ tracing::trace!(target: "instruction", "[{}] {} SUCCEEDED", stringify!($category), stringify!($instruction)) }
 	}};
     (@BLOCK $category:ident, $instruction:tt, $expr:expr) => {{
         #[allow(unreachable_code)]
@@ -251,7 +253,10 @@ macro_rules! comparisons {
 
 macro_rules! control_return {
 	($frame:ident, $instruction:ident) => {{
-		$frame.thread().get_mut().drop_to_previous_frame(None);
+		$frame
+			.thread()
+			.get_mut()
+			.drop_to_previous_frame($frame, None);
 	}};
 	($frame:ident, $instruction:ident, $return_ty:ident) => {{
 		let stack = $frame.get_operand_stack_mut();
@@ -269,7 +274,7 @@ macro_rules! control_return {
 		$frame
 			.thread()
 			.get_mut()
-			.drop_to_previous_frame(Some(value));
+			.drop_to_previous_frame($frame, Some(value));
 	}};
 }
 
@@ -291,7 +296,7 @@ impl Interpreter {
                 CATEGORY: constants
                 OpCode::nop => {},
                 OpCode::aconst_null => {
-                    frame.get_operand_stack_mut().push_reference(Reference::Null);
+                    frame.get_operand_stack_mut().push_reference(Reference::null());
                 },
                 @GROUP {
                     [
@@ -574,7 +579,7 @@ impl Interpreter {
                 
                 // ========= References =========
                 // TODO: 
-                //       invokedynamic, monitorenter, monitorexit
+                //       invokedynamic
                 CATEGORY: references
                 OpCode::getstatic => {
                     if let Some(field) = Self::fetch_field(FrameRef::clone(&frame)) {
@@ -655,7 +660,7 @@ impl Interpreter {
                     let classref = class.get().loader.load(Symbol::intern_bytes(class_name)).unwrap();
     
                     let new_class_instance = ClassInstance::new(classref);
-                    frame.get_operand_stack_mut().push_reference(Reference::Class(new_class_instance));
+                    frame.get_operand_stack_mut().push_reference(Reference::class(new_class_instance));
                 },
                 OpCode::newarray => {
                     let stack = frame.get_operand_stack_mut();
@@ -664,7 +669,7 @@ impl Interpreter {
                     let count = stack.pop_int();
                     
                     let array_ref = ArrayInstance::new_from_type(type_code, count);
-                    stack.push_reference(Reference::Array(array_ref));
+                    stack.push_reference(Reference::array(array_ref));
                 },
                 OpCode::anewarray => {
                     let stack = frame.get_operand_stack_mut();
@@ -680,7 +685,7 @@ impl Interpreter {
                     
                     let array_class = ClassLoader::Bootstrap.load(Symbol::intern_bytes(array_class_name)).unwrap();
                     let array_ref = ArrayInstance::new_reference(count, array_class);
-                    stack.push_reference(Reference::Array(array_ref));
+                    stack.push_reference(Reference::array(array_ref));
                 },
                 OpCode::arraylength => {
                     let stack = frame.get_operand_stack_mut();
@@ -692,11 +697,19 @@ impl Interpreter {
                 },
                 OpCode::athrow => {
                     let object_ref = frame.get_operand_stack_mut().pop_reference();
-                    Thread::throw_exception(frame.thread(), object_ref);
+                    JavaThread::throw_exception(frame.thread().get_mut(), object_ref);
                 },
                 OpCode::instanceof => { Self::instanceof_checkcast(FrameRef::clone(&frame), opcode) },
-                OpCode::checkcast => { Self::instanceof_checkcast(FrameRef::clone(&frame), opcode) };
-                
+                OpCode::checkcast => { Self::instanceof_checkcast(FrameRef::clone(&frame), opcode) },
+                OpCode::monitorenter => {
+                    let object_ref = frame.get_operand_stack_mut().pop_reference();
+                    object_ref.monitor_enter(JavaThread::current())
+                },
+                OpCode::monitorexit => {
+                    let object_ref = frame.get_operand_stack_mut().pop_reference();
+                    object_ref.monitor_exit(JavaThread::current())
+                };
+
                 // ========= Control =========
                 // TODO: jsr, ret,
                 CATEGORY: control
@@ -794,7 +807,7 @@ impl Interpreter {
                 let bytes = constant_pool.get_constant_utf8(*string_index);
                 let interned_string = StringInterner::get_java_string_bytes(bytes);
 
-                frame.get_operand_stack_mut().push_reference(Reference::Class(interned_string));
+                frame.get_operand_stack_mut().push_reference(Reference::class(interned_string));
             },
 
             // Otherwise, if the run-time constant pool entry is a symbolic reference to a class or interface,
@@ -806,7 +819,7 @@ impl Interpreter {
                 let class_name = constant_pool.get_constant_utf8(*name_index);
                 let classref = class.loader.load(Symbol::intern_bytes(class_name)).unwrap();
 
-                frame.get_operand_stack_mut().push_reference(Reference::Mirror(classref.get_mirror()));
+                frame.get_operand_stack_mut().push_reference(Reference::mirror(classref.mirror()));
             },
 
             // Otherwise, the run-time constant pool entry is a symbolic reference to a method type, a method handle,
@@ -953,19 +966,49 @@ impl Interpreter {
         let class = Arc::clone(&method.class);
 
         let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
+        let (class_name_index, _) = constant_pool.get_field_ref(field_ref_idx);
+
+        let class_name = constant_pool.get_class_name(class_name_index);
+		let classref = ClassLoader::Bootstrap
+			.load(Symbol::intern_bytes(class_name))
+			.unwrap();
+
+		if classref.get().initialization_state() != ClassInitializationState::Init {
+			// TODO: This is a hack
+			let _ = frame.thread().get_mut().pc.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
+
+			Class::initialize(&classref, frame.thread().get_mut());
+			return None;
+		}
 
         // If this is `None`, the class is initializing
-        Class::resolve_field(frame.thread(), constant_pool, field_ref_idx)
+        Class::resolve_field(classref, constant_pool, field_ref_idx)
     }
     
-    fn fetch_method(frame: FrameRef) -> Option<MethodRef> {
+    fn fetch_method(frame: FrameRef) -> Option<&'static Method> {
         let method_ref_idx = frame.read_byte2();
 
         let method = frame.method();
         let class = Arc::clone(&method.class);
 
         let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
-        Class::resolve_method(frame.thread(), constant_pool, method_ref_idx)
+
+        let (_, class_name_index, _) = constant_pool.get_method_ref(method_ref_idx);
+
+		let class_name = constant_pool.get_class_name(class_name_index);
+		let classref = ClassLoader::Bootstrap
+			.load(Symbol::intern_bytes(class_name))
+			.unwrap();
+
+		if classref.get().initialization_state() != ClassInitializationState::Init {
+			// TODO: This is a hack
+			let _ = frame.thread().get_mut().pc.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
+
+			Class::initialize(&classref, frame.thread().get_mut());
+			return None;
+		}
+
+        Class::resolve_method(classref, frame.thread().get_mut(), constant_pool, method_ref_idx)
     }
     
     fn tableswitch(frame: FrameRef) {

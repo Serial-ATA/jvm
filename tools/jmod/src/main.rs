@@ -111,7 +111,7 @@ enum SubCommand {
 	},
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
 	let args = Command::parse();
 
 	match args.command {
@@ -129,23 +129,24 @@ fn main() {
 }
 
 // TODO: excludes
-fn extract(_exclude: Option<String>, dir: PathBuf, jmod_file: PathBuf) {
-	let mut jmod = JmodFile::read_from_path(jmod_file).unwrap();
+fn extract(_exclude: Option<String>, dir: PathBuf, jmod_file: PathBuf) -> anyhow::Result<()> {
+	let mut jmod = JmodFile::read_from_path(jmod_file)?;
 	jmod.for_each_entry(|mut entry| {
 		let name = entry.path();
 		if let Some(last_slash_pos) = name.rfind('/') {
 			let path = dir.join(&name[..last_slash_pos]);
 			if !path.exists() {
-				std::fs::create_dir_all(path).unwrap();
+				std::fs::create_dir_all(path)?;
 			}
 		}
 
 		let entry_path = dir.join(name);
-		std::fs::write(entry_path, entry.content().unwrap()).unwrap();
+		std::fs::write(entry_path, entry.content().unwrap())?;
 	});
 }
 
-fn list(jmod_file: PathBuf) {
-	let mut jmod = JmodFile::read_from_path(jmod_file).unwrap();
-	jmod.for_each_entry(|entry| println!("{}", entry.path()))
+fn list(jmod_file: PathBuf) -> anyhow::Result<()> {
+	let mut jmod = JmodFile::read_from_path(jmod_file)?;
+	jmod.for_each_entry(|entry| println!("{}", entry.path()));
+	Ok(())
 }

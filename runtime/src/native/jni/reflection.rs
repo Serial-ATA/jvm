@@ -7,14 +7,17 @@
 
 use jni::sys::{jboolean, jclass, jfieldID, jmethodID, jobject, JNIEnv};
 
+#[no_mangle]
 pub extern "system" fn FromReflectedMethod(env: *mut JNIEnv, method: jobject) -> jmethodID {
 	unimplemented!("jni::FromReflectedMethod")
 }
 
+#[no_mangle]
 pub extern "system" fn FromReflectedField(env: *mut JNIEnv, field: jobject) -> jfieldID {
 	unimplemented!("jni::FromReflectedField")
 }
 
+#[no_mangle]
 pub extern "system" fn ToReflectedMethod(
 	env: *mut JNIEnv,
 	cls: jclass,
@@ -24,6 +27,7 @@ pub extern "system" fn ToReflectedMethod(
 	unimplemented!("jni::ToReflectedMethod")
 }
 
+#[no_mangle]
 pub extern "system" fn ToReflectedField(
 	env: *mut JNIEnv,
 	cls: jclass,

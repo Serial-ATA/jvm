@@ -5,8 +5,6 @@ use std::fs::{File, OpenOptions};
 use std::io::Write as _;
 use std::path::Path;
 
-use bitflags::Flags;
-
 impl Type {
 	fn expect_method(&self) -> &str {
 		match self {
@@ -36,7 +34,7 @@ pub fn generate_definitions_for_class(def_path: &Path, class: &Class) {
 
 	writeln!(
 		definitions_file,
-		"#[allow(non_snake_case)]\npub mod definitions {{"
+		"#[allow(non_snake_case, unused_variables)]\npub mod definitions {{"
 	)
 	.unwrap();
 
@@ -57,7 +55,7 @@ fn generate_methods_for_class(class: &Class, definitions_file: &mut File) {
 	}) {
 		writeln!(
 			definitions_file,
-			"\tpub fn _{}(env: crate::native::JNIEnv, locals: \
+			"\tpub fn _{}(env: std::ptr::NonNull<::jni::env::JniEnv>, locals: \
 			 crate::stack::local_stack::LocalStack) -> crate::native::NativeReturn {{",
 			method.name()
 		)
@@ -67,25 +65,34 @@ fn generate_methods_for_class(class: &Class, definitions_file: &mut File) {
 		if !is_static {
 			writeln!(
 				definitions_file,
-				"\t\tlet this: crate::heap::reference::Reference = locals[0].expect_reference();"
+				"\t\tlet this: crate::objects::reference::Reference = \
+				 locals[0].expect_reference();"
 			)
 			.unwrap();
 		}
 
-		for (idx, (ty, name)) in method.params.iter().enumerate() {
+		let mut idx = 0;
+		if !is_static {
+			idx += 1;
+		}
+
+		for (ty, name) in &method.params {
 			writeln!(
 				definitions_file,
-				"\t\tlet {}_: {} = locals[{}].{};",
-				name,
+				"\t\tlet {name}_: {} = locals[{idx}].{};",
 				if let Type::Array(_) = ty {
-					String::from("crate::heap::reference::Reference")
+					String::from("crate::objects::reference::Reference")
 				} else {
 					ty.map_to_rust_ty()
 				},
-				if is_static { idx } else { idx + 1 },
 				ty.expect_method()
 			)
 			.unwrap();
+
+			idx += 1;
+			if ty.occupies_two_stack_slots() {
+				idx += 1;
+			}
 		}
 
 		let mut method_call = String::new();
