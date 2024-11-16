@@ -1,3 +1,4 @@
+use crate::class::Class;
 use crate::classpath::classloader::ClassLoader;
 use crate::field::Field;
 use crate::reference::{ArrayInstanceRef, ClassInstanceRef, ClassRef, FieldRef, Reference};
@@ -38,7 +39,7 @@ impl ClassInstance {
 
 		// Set the default values for our non-static fields
 		let mut fields = Vec::with_capacity(instance_field_count);
-		for field in class.fields().filter(|field| !field.is_static()) {
+		for field in class.instance_fields() {
 			fields.push(Field::default_value_for_ty(&field.descriptor))
 		}
 
@@ -56,11 +57,11 @@ impl ClassInstance {
 		})
 	}
 
-	pub fn is_subclass_of(&self, class: ClassRef) -> bool {
+	pub fn is_subclass_of(&self, class: &Class) -> bool {
 		self.class.is_subclass_of(class)
 	}
 
-	pub fn implements(&self, class: ClassRef) -> bool {
+	pub fn implements(&self, class: &Class) -> bool {
 		self.class.implements(class)
 	}
 }
@@ -227,10 +228,13 @@ impl ArrayInstance {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.anewarray
-	pub fn new_reference(count: s4, array_class: ClassRef) -> ArrayInstanceRef {
+	pub fn new_reference(count: s4, component_class: ClassRef) -> ArrayInstanceRef {
 		if count.is_negative() {
 			panic!("NegativeArraySizeException"); // TODO
 		}
+
+		let array_class_name = component_class.array_class_name();
+		let array_class = ClassLoader::Bootstrap.load(array_class_name).unwrap();
 
 		let elements = box_slice![Reference::null(); count as usize];
 		ArrayInstancePtr::new(Self {

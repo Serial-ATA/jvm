@@ -202,8 +202,6 @@ fn lookup_style(
 	include_long: bool,
 	os_style: bool,
 ) -> Option<*const c_void> {
-	let jni_name = name_converter.compute_complete_jni_name(num_args, include_long, os_style);
-
 	let class_loader = method.class.loader;
 	if class_loader == ClassLoader::Bootstrap {
 		if let Some(entry) = crate::native::lookup_method_opt(method) {
@@ -217,9 +215,10 @@ fn lookup_style(
 		"Custom classloaders are not implemented yet"
 	);
 
-	let classloader_class = crate::globals::classes::java_lang_ClassLoader();
-	let name_arg = StringInterner::get_java_string(&jni_name);
+	let jni_name = name_converter.compute_complete_jni_name(num_args, include_long, os_style);
+	let name_arg = StringInterner::intern_string(jni_name);
 
+	let classloader_class = crate::globals::classes::java_lang_ClassLoader();
 	let findNative_method = classloader_class
 		.vtable()
 		.find(

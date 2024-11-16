@@ -13,7 +13,7 @@ macro_rules! trace_method {
 	($method:ident) => {{
 		#[cfg(debug_assertions)]
 		{
-			tracing::trace!(target: "method", "{:?}", $method);
+			tracing::debug!(target: "method", "{:?}", $method);
 		}
 	}};
 }
@@ -107,7 +107,7 @@ impl MethodInvoker {
 			local_stack[0] = this;
 		}
 
-		Self::invoke0_(frame.thread().get_mut(), method, local_stack);
+		Self::invoke0_(frame.thread_mut(), method, local_stack);
 	}
 
 	fn invoke0_(thread: &mut JavaThread, method: &'static Method, local_stack: LocalStack) {

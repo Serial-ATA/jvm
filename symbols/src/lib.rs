@@ -72,7 +72,15 @@ impl Symbol {
 	}
 
 	/// Maps a string to its interned representation
-	pub fn intern(string: &str) -> Self {
+	///
+	/// NOTE: This will leak `string`.
+	pub fn intern_owned(string: String) -> Self {
+		let leaked_str: &'static mut str = string.leak();
+		Self::intern(leaked_str)
+	}
+
+	/// Maps a string to its interned representation
+	pub fn intern(string: &'static str) -> Self {
 		let mut guard = INTERNER.lock().unwrap();
 		guard.intern(string)
 	}
@@ -146,6 +154,14 @@ vm_symbols::define_symbols! {
 	// -- GENERATED METHOD SIGNATURE MARKER, DO NOT DELETE --
 
 	// Types
+	bool: "Z",
+	byte: "B",
+	char: "C",
+	double: "D",
+	float: "F",
+	int: "I",
+	long: "J",
+	short: "S",
 	bool_array: "[Z",
 	byte_array: "[B",
 	char_array: "[C",

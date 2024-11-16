@@ -133,7 +133,7 @@ fn create_thread_object(thread: &mut JavaThread) {
 		)
 		.expect("java.lang.ThreadGroup should have an initializer");
 
-	let name = StringInterner::get_java_string("main");
+	let name = StringInterner::intern_str("main");
 	java_call!(
 		thread,
 		init_method,

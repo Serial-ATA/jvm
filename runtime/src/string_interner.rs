@@ -19,50 +19,50 @@ const CODER_UTF16: s4 = 1;
 // Compact strings are enabled by default
 const COMPACT_STRINGS: bool = true;
 
-static STRING_POOL: LazyLock<RwLock<HashMap<String, ClassInstanceRef>>> =
+static STRING_POOL: LazyLock<RwLock<HashMap<Symbol, ClassInstanceRef>>> =
 	LazyLock::new(|| RwLock::new(HashMap::new()));
 
 pub struct StringInterner;
 
 // TODO: Need to wipe the string pool when the instances fall out of scope
 impl StringInterner {
-	pub fn get_java_string_bytes(bytes: &[u1]) -> ClassInstanceRef {
-		let string = std::str::from_utf8(bytes).expect("valid UTF-8");
-		Self::get_java_string(string)
+	pub fn intern_bytes(bytes: &[u1]) -> ClassInstanceRef {
+		// TODO: Actual error handling
+		let string = String::from_utf8(bytes.to_vec()).expect("valid UTF-8");
+		Self::intern_string(string)
 	}
 
-	pub fn get_java_string(string: &str) -> ClassInstanceRef {
-		if let Some(interned) = STRING_POOL.read().unwrap().get(string) {
-			return Arc::clone(interned);
-		}
+	pub fn intern_str(string: &'static str) -> ClassInstanceRef {
+		let symbol = Symbol::intern(string);
+		Self::intern_symbol(symbol)
+	}
 
-		Self::intern_string(string)
+	pub fn intern_string(string: String) -> ClassInstanceRef {
+		let symbol = Symbol::intern_owned(string);
+		Self::intern_symbol(symbol)
 	}
 
 	pub fn intern_symbol(symbol: Symbol) -> ClassInstanceRef {
-		Self::intern_string(symbol.as_str())
-	}
+		if let Some(interned) = STRING_POOL.read().unwrap().get(&symbol) {
+			return Arc::clone(interned);
+		}
 
-	pub fn intern_bytes(bytes: &[u1]) -> ClassInstanceRef {
-		let string = std::str::from_utf8(bytes).expect("valid UTF-8");
-		Self::intern_string(string)
-	}
-
-	pub fn intern_string(string: &str) -> ClassInstanceRef {
 		// TODO: Error handling
 		let java_string_class = crate::globals::classes::java_lang_String();
 		let byte_array_class = ClassLoader::Bootstrap.load(sym!(byte_array)).unwrap();
 
+		let symbol_str = symbol.as_str();
+
 		let mut is_latin1 = false;
 		if COMPACT_STRINGS {
-			is_latin1 = str_is_latin1(string);
+			is_latin1 = str_is_latin1(symbol_str);
 		}
 
 		let encoded_str;
 		if is_latin1 {
-			encoded_str = latin1_encode(string);
+			encoded_str = latin1_encode(symbol_str);
 		} else {
-			encoded_str = utf_16_encode(string);
+			encoded_str = utf_16_encode(symbol_str);
 		}
 
 		let reference_to_byte_array = Operand::Reference(Reference::array(ArrayInstance::new(
@@ -90,7 +90,7 @@ impl StringInterner {
 		STRING_POOL
 			.write()
 			.unwrap()
-			.insert(string.to_string(), new_java_string_instance);
+			.insert(symbol, new_java_string_instance);
 		ret
 	}
 

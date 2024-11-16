@@ -11,10 +11,12 @@ classfile = { path = "../classfile" }
 common = { path = "../common" }
 instructions = { path = "../instructions" }
 jimage = { path = "../jimage" }
+jni = { path = "../jni" }
+
 bytemuck = "1.13.0"
 byte-slice-cast = { workspace = true }
-jni = { path = "../jni" }
 tracing = { workspace = true }
+libc.workspace = true
 num_cpus = "1.15.0"
 paste = { workspace = true }
 platform = { path = "../platform" }

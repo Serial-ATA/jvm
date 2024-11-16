@@ -4,6 +4,7 @@ pub mod modules;
 pub mod threads;
 
 use classfile::FieldType;
+use symbols::{sym, Symbol};
 
 pub const TYPES: &[(&str, FieldType)] = &[
 	("boolean", FieldType::Boolean),
@@ -15,4 +16,15 @@ pub const TYPES: &[(&str, FieldType)] = &[
 	("int", FieldType::Int),
 	("long", FieldType::Long),
 	("void", FieldType::Void),
+];
+
+pub const PRIMITIVES: &[Symbol] = &[
+	sym!(bool),
+	sym!(byte),
+	sym!(char),
+	sym!(double),
+	sym!(float),
+	sym!(int),
+	sym!(long),
+	sym!(short),
 ];

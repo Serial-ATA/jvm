@@ -6,6 +6,7 @@ pub mod lookup;
 
 use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
+use crate::method::Method;
 
 use std::collections::HashMap;
 use std::ptr::NonNull;
@@ -15,7 +16,6 @@ use ::jni::env::JniEnv;
 use common::traits::PtrType;
 use instructions::Operand;
 use symbols::Symbol;
-use crate::method::Method;
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq, Debug)]
 pub struct NativeMethodDef {
@@ -92,18 +92,22 @@ pub(crate) mod jdk {
 }
 
 pub(crate) mod java {
+	pub(crate) mod io {
+		pub(crate) mod FileInputStream;
+		pub(crate) mod FileDescriptor;
+	}
 	pub(crate) mod lang {
-		pub(crate) mod StringBuilder;
-		pub(crate) mod Runtime;
-		pub(crate) mod StringUTF16;
-		pub(crate) mod System;
-		pub(crate) mod Float;
-		pub(crate) mod ClassLoader;
-		pub(crate) mod Double;
-		pub(crate) mod Throwable;
-		pub(crate) mod Thread;
-		pub(crate) mod Object;
-		pub(crate) mod Class;
+	pub(crate) mod StringBuilder;
+	pub(crate) mod Runtime;
+	pub(crate) mod StringUTF16;
+	pub(crate) mod System;
+	pub(crate) mod Float;
+	pub(crate) mod ClassLoader;
+	pub(crate) mod Double;
+	pub(crate) mod Throwable;
+	pub(crate) mod Thread;
+	pub(crate) mod Object;
+	pub(crate) mod Class;
 	}
 	pub(crate) mod security {
 	pub(crate) mod AccessController;

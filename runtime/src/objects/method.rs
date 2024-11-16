@@ -137,7 +137,7 @@ impl Method {
 				.load(Symbol::intern_bytes(catch_type_class_name))
 				.expect("catch_type should be available");
 
-			if catch_type_class == class || catch_type_class.is_subclass_of(Arc::clone(&class)) {
+			if catch_type_class == class || catch_type_class.is_subclass_of(&class) {
 				return Some(exception_handler.handler_pc as isize);
 			}
 		}

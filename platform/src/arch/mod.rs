@@ -7,8 +7,8 @@ match_cfg_meta! {
 			pub use x86::*;
 		},
 		"x86_64" => {
-			mod x86_64;
-			pub use x86_64::*;
+			mod x86;
+			pub use x86::*;
 		},
 		_ => {
 			compile_error!("target architecture is not supported!");

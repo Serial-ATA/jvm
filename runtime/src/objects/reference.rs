@@ -108,67 +108,7 @@ impl Reference {
 
 impl Reference {
 	pub fn is_instance_of(&self, T_class: ClassRef) -> bool {
-		// The following rules are used to determine whether an objectref that is not null can be cast to the resolved type
-		//
-		// S is the type of the object referred to by objectref, and T is the resolved class, array, or interface type
-
-		match &self.instance {
-			ReferenceInstance::Class(S_class) => {
-				// If S is a class type, then:
-				//
-				//     If T is a class type, then S must be the same class as T, or S must be a subclass of T;
-				if !T_class.is_interface() && !T_class.is_array() {
-					if S_class.get().class == T_class {
-						return true;
-					}
-
-					return S_class.get().is_subclass_of(T_class);
-				}
-				//     If T is an interface type, then S must implement interface T.
-				if T_class.is_interface() {
-					return S_class.get().implements(T_class);
-				}
-			},
-			ReferenceInstance::Array(S_array) => {
-				if S_array.get().class == T_class {
-					return true;
-				}
-
-				// If S is an array type SC[], that is, an array of components of type SC, then:
-				//
-				//     If T is a class type, then T must be Object.
-				if !T_class.is_interface() && !T_class.is_array() {
-					return T_class.name == sym!(java_lang_Object);
-				}
-				//     If T is an interface type, then T must be one of the interfaces implemented by arrays (JLS §4.10.3).
-				if T_class.is_interface() {
-					let class_name = T_class.name;
-					return class_name == sym!(java_lang_Cloneable)
-						|| class_name == sym!(java_io_Serializable);
-				}
-				//     If T is an array type TC[], that is, an array of components of type TC, then one of the following must be true:
-				if T_class.is_array() {
-					//         TC and SC are the same primitive type.
-					let source_component = &S_array.get().class.unwrap_array_instance().component;
-					let dest_component = &T_class.unwrap_array_instance().component;
-					if source_component.is_primitive() && dest_component.is_primitive() {
-						return source_component == dest_component;
-					}
-
-					//         TC and SC are reference types, and type SC can be cast to TC by these run-time rules.
-					unimplemented!("Reference::is_instance_of with reference arrays")
-				}
-			},
-			ReferenceInstance::Mirror(S_mirror) => {
-				let mirror_deref = S_mirror.get();
-				if mirror_deref.class == T_class || mirror_deref.has_target(&T_class) {
-					return true;
-				}
-			},
-			ReferenceInstance::Null => return false,
-		}
-
-		false
+		self.extract_target_class().can_cast_to(T_class)
 	}
 
 	pub fn class_name(&self) -> Symbol {

@@ -15,19 +15,39 @@ pub mod Raw {
 	include_generated!("native/jdk/internal/util/def/SystemProps$Raw.constants.rs");
 	include_generated!("native/jdk/internal/util/def/SystemProps.definitions.rs");
 
-	// TODO
 	pub fn vmProperties(_env: NonNull<JniEnv>) -> Reference /* [Ljava/lang/String; */ {
+		macro_rules! store_properties {
+			($prop_array:ident; $($key:literal => $value:expr),+ $(,)?) => {
+				let mut index = 0;
+				$(
+					let interned_key_string = StringInterner::intern_str($key);
+					let interned_value_string = StringInterner::intern_string($value);
+					$prop_array.store(index, Operand::Reference(Reference::class(interned_key_string)));
+					index += 1;
+					$prop_array.store(index, Operand::Reference(Reference::class(interned_value_string)));
+					index += 1;
+				)+
+			};
+		}
+
 		let string_array_class = ClassLoader::Bootstrap.load(sym!(object_array)).unwrap();
 		let prop_array = ArrayInstance::new_reference(FIXED_LENGTH, string_array_class);
+
+		let prop_array_mut = prop_array.get_mut();
+		store_properties!(prop_array_mut;
+			// TODO: Something more ideal
+			"java.home" => std::env::var("JAVA_HOME").unwrap(),
+			// TODO: Set more properties
+		);
+
 		Reference::array(prop_array)
 	}
 
-	// TODO: https://github.com/openjdk/jdk/blob/19373b2ff0cd795afa262c17dcb3388fd6a5be59/src/java.base/share/native/libjava/System.c#L107
 	pub fn platformProperties(_env: NonNull<JniEnv>) -> Reference /* [Ljava/lang/String; */ {
 		macro_rules! store_properties {
 			($prop_array:ident; $($index:expr => $value:expr),+ $(,)?) => {
 				$(
-				let interned_string = StringInterner::get_java_string($value);
+				let interned_string = StringInterner::intern_str($value);
 				$prop_array.store($index, Operand::Reference(Reference::class(interned_string)));
 				)+
 			};

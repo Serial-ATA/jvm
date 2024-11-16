@@ -1,8 +1,9 @@
 use crate::method::Method;
 use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::OperandStack;
-use crate::thread::ThreadRef;
+use crate::thread::JavaThread;
 
+use std::cell::UnsafeCell;
 use std::fmt::{Debug, Formatter};
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
@@ -11,6 +12,7 @@ use classfile::ConstantPoolRef;
 use common::int_types::{s1, s2, s4, u1, u2, u4};
 use common::traits::PtrType;
 
+// TODO: Make these fields private
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6
 #[rustfmt::skip]
 pub struct Frame {
@@ -23,7 +25,7 @@ pub struct Frame {
     // and a reference to the run-time constant pool (§2.5.5)
 	pub constant_pool: ConstantPoolRef,
 	pub method: &'static Method,
-	pub thread: ThreadRef,
+	pub thread: UnsafeCell<*mut JavaThread>,
 	
 	// Used to remember the last pc when we return to a frame after a method invocation
 	pub cached_pc: AtomicIsize,
@@ -49,8 +51,12 @@ impl FrameRef {
 		Self(Arc::new(ptr))
 	}
 
-	pub fn thread(&self) -> ThreadRef {
-		Arc::clone(&self.0.get().thread)
+	pub fn thread(&self) -> &'static JavaThread {
+		unsafe { &**self.0.get().thread.get() }
+	}
+
+	pub fn thread_mut(&self) -> &'static mut JavaThread {
+		unsafe { &mut **self.0.get().thread.get() }
 	}
 
 	pub fn method(&self) -> &Method {
@@ -66,10 +72,13 @@ impl FrameRef {
 	}
 
 	pub fn read_byte(&self) -> u1 {
-		let frame = self.0.get_mut();
-		let thread = frame.thread.get();
+		let pc;
+		{
+			let thread = self.thread();
+			pc = thread.pc.fetch_add(1, Ordering::Relaxed);
+		}
 
-		let pc = thread.pc.fetch_add(1, Ordering::Relaxed);
+		let frame = self.0.get_mut();
 		frame.method.code.code[pc as usize]
 	}
 
@@ -102,8 +111,7 @@ impl FrameRef {
 	}
 
 	pub fn skip_padding(&self) {
-		let frame = self.0.get_mut();
-		let thread = frame.thread.get();
+		let thread = self.thread();
 
 		let mut pc = thread.pc.load(Ordering::Relaxed);
 		while pc % 4 != 0 {
@@ -114,8 +122,13 @@ impl FrameRef {
 	}
 
 	pub fn stash_pc(&self) {
+		let current_pc;
+		{
+			let thread = self.thread();
+			current_pc = thread.pc.load(Ordering::Relaxed);
+		}
+
 		let frame = self.0.get_mut();
-		let current_pc = frame.thread.get().pc.load(Ordering::Relaxed);
 		frame.cached_pc = AtomicIsize::from(current_pc);
 	}
 

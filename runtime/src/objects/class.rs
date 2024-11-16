@@ -7,12 +7,14 @@ use super::vtable::VTable;
 use crate::classpath::classloader::ClassLoader;
 use crate::reference::{MirrorInstanceRef, Reference};
 use crate::JavaThread;
+use std::cell::UnsafeCell;
 
 use std::fmt::{Debug, Formatter};
 use std::mem::MaybeUninit;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
+use crate::globals::PRIMITIVES;
 use classfile::accessflags::ClassAccessFlags;
 use classfile::{ClassFile, ConstantPool, ConstantPoolRef, FieldType, MethodInfo};
 use common::box_slice;
@@ -20,6 +22,13 @@ use common::int_types::{u1, u2, u4};
 use common::traits::PtrType;
 use instructions::Operand;
 use symbols::{sym, Symbol};
+
+/// A cache for miscellaneous fields
+#[derive(Default, Debug)]
+struct MiscCache {
+	array_class_name: Option<Symbol>,
+	array_component_name: Option<Symbol>,
+}
 
 struct FieldContainer {
 	/// A list of all fields, including static
@@ -53,6 +62,7 @@ pub struct Class {
 	pub loader: ClassLoader,
 	pub super_class: Option<ClassRef>,
 	pub interfaces: Vec<ClassRef>,
+	misc_cache: UnsafeCell<MiscCache>,
 	mirror: MaybeUninit<MirrorInstanceRef>,
 	field_container: FieldContainer,
 	vtable: MaybeUninit<VTable<'static>>,
@@ -145,6 +155,13 @@ impl Class {
 		self.field_container.fields.iter()
 	}
 
+	/// Get the instance fields for this class
+	///
+	/// This is simply [`Class::fields`] with static fields filtered out.
+	pub fn instance_fields(&self) -> impl Iterator<Item = &FieldRef> {
+		self.fields().filter(|field| !field.is_static())
+	}
+
 	/// Get the static fields for this class
 	pub fn static_fields(&self) -> impl Iterator<Item = &FieldRef> {
 		self.fields().filter(|field| field.is_static())
@@ -174,6 +191,73 @@ impl Class {
 		let mirror = unsafe { self.mirror.assume_init_ref() };
 		Arc::clone(mirror)
 	}
+
+	/// Wrap the class name as an array
+	///
+	/// This will, for example:
+	///
+	/// * Convert `java/lang/Object` to `[Ljava/lang/Object;`
+	/// * Convert `[Ljava/lang/Object;` to `[[Ljava/lang/Object;`
+	pub fn array_class_name(&self) -> Symbol {
+		if let Some(array_class_name) = unsafe { (*self.misc_cache.get()).array_class_name } {
+			return array_class_name;
+		};
+
+		let ret;
+		if self.is_array() {
+			let name = format!("[{}", self.name.as_str());
+			ret = Symbol::intern_owned(name);
+		} else {
+			let name = format!("[L{};", self.name.as_str());
+			ret = Symbol::intern_owned(name);
+		}
+
+		unsafe {
+			(*self.misc_cache.get()).array_class_name = Some(ret);
+		}
+		ret
+	}
+
+	/// Get the name of the component of this array class
+	///
+	/// # Panics
+	///
+	/// This will panic if called on a non-array class.
+	pub fn array_component_name(&self) -> Symbol {
+		if let Some(array_component_name) = unsafe { (*self.misc_cache.get()).array_component_name }
+		{
+			return array_component_name;
+		}
+
+		debug_assert!(
+			self.is_array(),
+			"This should never be called on non-array classes"
+		);
+
+		let mut class_name = &self.name.as_str()[1..];
+		let ret;
+		match class_name.as_bytes()[0] {
+			// Multi-dimensional array
+			b'[' => {
+				ret = Symbol::intern(class_name);
+			},
+			// Some object, need to strip the leading 'L' and trailing ';'
+			b'L' => {
+				class_name = &class_name[1..class_name.len() - 1];
+				ret = Symbol::intern(class_name);
+			},
+			// A primitive type
+			_ => {
+				debug_assert_eq!(class_name.len(), 1);
+				ret = Symbol::intern(class_name);
+			},
+		}
+
+		unsafe {
+			(*self.misc_cache.get()).array_component_name = Some(ret);
+		}
+		ret
+	}
 }
 
 // Setters
@@ -198,7 +282,88 @@ impl Class {
 	/// * This is always true for arrays of any type
 	/// * This is only true for classes that implement the `java.lang.Cloneable`
 	pub fn is_cloneable(&self) -> bool {
-		self.is_array() || self.implements(crate::globals::classes::java_lang_Cloneable())
+		self.is_array() || self.implements(&crate::globals::classes::java_lang_Cloneable())
+	}
+
+	/// Whether the class represents an array
+	pub fn is_array(&self) -> bool {
+		matches!(self.class_ty, ClassType::Array(_))
+	}
+
+	/// Whether the class is an interface
+	pub fn is_interface(&self) -> bool {
+		self.access_flags.is_interface()
+	}
+
+	/// Whether this class is a subclass of `class`
+	pub fn is_subclass_of(&self, class: &Class) -> bool {
+		let mut current_class = self;
+		while let Some(super_class) = &current_class.super_class {
+			if super_class.name == class.name {
+				return true;
+			}
+
+			current_class = super_class.get();
+		}
+
+		false
+	}
+
+	/// Whether this class can be cast into `class`
+	#[allow(non_snake_case)]
+	pub fn can_cast_to(&self, class: ClassRef) -> bool {
+		// The following rules are used to determine whether an objectref that is not null can be cast to the resolved type
+		//
+		// S is the type of the object referred to by objectref, and T is the resolved class, array, or interface type
+
+		let S_class = self;
+		let T_class = class.get();
+
+		// If S is a class type, then:
+		//
+		//     If T is a class type, then S must be the same class as T, or S must be a subclass of T;
+		if !T_class.is_interface() && !T_class.is_array() {
+			if S_class.name == T_class.name {
+				return true;
+			}
+
+			return S_class.is_subclass_of(T_class);
+		}
+		//     If T is an interface type, then S must implement interface T.
+		if T_class.is_interface() {
+			return S_class.implements(T_class);
+		}
+
+		// If S is an array type SC[], that is, an array of components of type SC, then:
+		//
+		//     If T is a class type, then T must be Object.
+		if !T_class.is_interface() && !T_class.is_array() {
+			return T_class.name == sym!(java_lang_Object);
+		}
+		//     If T is an interface type, then T must be one of the interfaces implemented by arrays (JLS §4.10.3).
+		if T_class.is_interface() {
+			let class_name = T_class.name;
+			return class_name == sym!(java_lang_Cloneable)
+				|| class_name == sym!(java_io_Serializable);
+		}
+		//     If T is an array type TC[], that is, an array of components of type TC, then one of the following must be true:
+		if T_class.is_array() {
+			//         TC and SC are the same primitive type.
+			let source_component = S_class.array_component_name();
+			let dest_component = T_class.array_component_name();
+			if PRIMITIVES.contains(&source_component) || PRIMITIVES.contains(&dest_component) {
+				return source_component == dest_component;
+			}
+
+			//         TC and SC are reference types, and type SC can be cast to TC by these run-time rules.
+
+			// It's impossible to get a reference to an unloaded class
+			let S_class = ClassLoader::lookup_class(source_component).unwrap();
+			let T_class = ClassLoader::lookup_class(dest_component).unwrap();
+			return S_class.can_cast_to(T_class);
+		}
+
+		false
 	}
 }
 
@@ -265,6 +430,7 @@ impl Class {
 			loader,
 			super_class,
 			interfaces,
+			misc_cache: UnsafeCell::new(MiscCache::default()),
 			init_thread: None,             // Set later
 			mirror: MaybeUninit::uninit(), // Set later
 			field_container: fields,
@@ -364,6 +530,7 @@ impl Class {
 					.load(sym!(java_io_Serializable))
 					.unwrap(),
 			],
+			misc_cache: UnsafeCell::new(MiscCache::default()),
 			init_thread: None,             // Set later
 			mirror: MaybeUninit::uninit(), // Set later
 			field_container: FieldContainer::null(),
@@ -439,43 +606,22 @@ impl Class {
 		return this_pkg.unwrap() == other_pkg.unwrap();
 	}
 
-	pub fn is_subclass_of(&self, class: ClassRef) -> bool {
-		let mut current_class = self;
-		while let Some(super_class) = &current_class.super_class {
-			if super_class == &class {
-				return true;
-			}
-
-			current_class = super_class.get();
-		}
-
-		false
-	}
-
-	pub fn implements(&self, class: ClassRef) -> bool {
+	pub fn implements(&self, class: &Class) -> bool {
 		for interface in &self.interfaces {
-			if &class == interface || class.implements(Arc::clone(&interface)) {
+			if class.name == interface.name || class.implements(&interface) {
 				return true;
 			}
 		}
 
 		for parent in self.parent_iter() {
 			for interface in &parent.interfaces {
-				if &class == interface || class.implements(Arc::clone(&interface)) {
+				if class.name == interface.name || class.implements(&interface) {
 					return true;
 				}
 			}
 		}
 
 		false
-	}
-
-	pub fn is_array(&self) -> bool {
-		matches!(self.class_ty, ClassType::Array(_))
-	}
-
-	pub fn is_interface(&self) -> bool {
-		self.access_flags.is_interface()
 	}
 
 	pub fn unwrap_class_instance(&self) -> &ClassDescriptor {

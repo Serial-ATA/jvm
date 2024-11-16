@@ -219,9 +219,9 @@ macro_rules! comparisons {
 
         if lhs $operator rhs {
             let branch = $frame.read_byte2_signed() as isize;
-            let _ = $frame.thread().get().pc.fetch_add(branch + COMPARISON_SEEK_BACK, std::sync::atomic::Ordering::Relaxed);
+            let _ = $frame.thread().pc.fetch_add(branch + COMPARISON_SEEK_BACK, std::sync::atomic::Ordering::Relaxed);
         } else {
-            let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
+            let _ = $frame.thread().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
         }
     }};
     ($frame:ident, $instruction:ident, $operator:tt, $rhs:literal) => {{
@@ -230,9 +230,9 @@ macro_rules! comparisons {
 
         if lhs $operator $rhs {
             let branch = $frame.read_byte2_signed() as isize;
-            let _ = $frame.thread().get().pc.fetch_add(branch + COMPARISON_SEEK_BACK, std::sync::atomic::Ordering::Relaxed);
+            let _ = $frame.thread().pc.fetch_add(branch + COMPARISON_SEEK_BACK, std::sync::atomic::Ordering::Relaxed);
         } else {
-            let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
+            let _ = $frame.thread().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
         }
     }};
     ($frame:ident, $instruction:ident, $operator:tt, $ty:ident) => {{
@@ -244,19 +244,16 @@ macro_rules! comparisons {
 
         if lhs $operator rhs {
             let branch = $frame.read_byte2_signed() as isize;
-            let _ = $frame.thread().get().pc.fetch_add(branch + COMPARISON_SEEK_BACK, std::sync::atomic::Ordering::Relaxed);
+            let _ = $frame.thread().pc.fetch_add(branch + COMPARISON_SEEK_BACK, std::sync::atomic::Ordering::Relaxed);
         } else {
-            let _ = $frame.thread().get().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
+            let _ = $frame.thread().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
         }
     }};
 }
 
 macro_rules! control_return {
 	($frame:ident, $instruction:ident) => {{
-		$frame
-			.thread()
-			.get_mut()
-			.drop_to_previous_frame($frame, None);
+		$frame.thread_mut().drop_to_previous_frame($frame, None);
 	}};
 	($frame:ident, $instruction:ident, $return_ty:ident) => {{
 		let stack = $frame.get_operand_stack_mut();
@@ -272,8 +269,7 @@ macro_rules! control_return {
 		}
 
 		$frame
-			.thread()
-			.get_mut()
+			.thread_mut()
 			.drop_to_previous_frame($frame, Some(value));
 	}};
 }
@@ -697,7 +693,7 @@ impl Interpreter {
                 },
                 OpCode::athrow => {
                     let object_ref = frame.get_operand_stack_mut().pop_reference();
-                    JavaThread::throw_exception(frame.thread().get_mut(), object_ref);
+                    JavaThread::throw_exception(frame.thread_mut(), object_ref);
                 },
                 OpCode::instanceof => { Self::instanceof_checkcast(FrameRef::clone(&frame), opcode) },
                 OpCode::checkcast => { Self::instanceof_checkcast(FrameRef::clone(&frame), opcode) },
@@ -715,7 +711,7 @@ impl Interpreter {
                 CATEGORY: control
                 OpCode::goto => {
                     let address = frame.read_byte2_signed() as isize;
-                    let _ = frame.thread().get().pc.fetch_add(address + COMPARISON_SEEK_BACK, MemOrdering::Relaxed);
+                    let _ = frame.thread().pc.fetch_add(address + COMPARISON_SEEK_BACK, MemOrdering::Relaxed);
                 },
                 OpCode::tableswitch => {
                     Self::tableswitch(frame)
@@ -742,19 +738,19 @@ impl Interpreter {
                     
                     if reference.is_null() {
                         let branch = frame.read_byte2_signed() as isize;
-                        let _ = frame.thread().get().pc.fetch_add(branch + COMPARISON_SEEK_BACK, MemOrdering::Relaxed);
+                        let _ = frame.thread().pc.fetch_add(branch + COMPARISON_SEEK_BACK, MemOrdering::Relaxed);
                     } else {
-                        let _ = frame.thread().get().pc.fetch_add(2, MemOrdering::Relaxed);
+                        let _ = frame.thread().pc.fetch_add(2, MemOrdering::Relaxed);
                     }
                 },
                 OpCode::ifnonnull => {
                     let reference = frame.get_operand_stack_mut().pop_reference();
                     
                     if reference.is_null() {
-                        let _ = frame.thread().get().pc.fetch_add(2, MemOrdering::Relaxed);
+                        let _ = frame.thread().pc.fetch_add(2, MemOrdering::Relaxed);
                     } else {
                         let branch = frame.read_byte2_signed() as isize;
-                        let _ = frame.thread().get().pc.fetch_add(branch + COMPARISON_SEEK_BACK, MemOrdering::Relaxed);
+                        let _ = frame.thread().pc.fetch_add(branch + COMPARISON_SEEK_BACK, MemOrdering::Relaxed);
                     }
                 },
                 OpCode::goto_w => {
@@ -763,7 +759,7 @@ impl Interpreter {
                     assert!(address <= s2::MAX as isize, "goto_w offset too large!");
     
                     // See doc comment on `COMPARISON_SEEK_BACK` above for explanation of this subtraction
-                    let _ = frame.thread().get().pc.fetch_add(address - 4, MemOrdering::Relaxed);
+                    let _ = frame.thread().pc.fetch_add(address - 4, MemOrdering::Relaxed);
                 };
                 
                 // ========= Reserved =========
@@ -805,7 +801,7 @@ impl Interpreter {
             // a reference to an instance of class String, then value, a reference to that instance, is pushed onto the operand stack.
             ConstantPoolValueInfo::String { string_index } => {
                 let bytes = constant_pool.get_constant_utf8(*string_index);
-                let interned_string = StringInterner::get_java_string_bytes(bytes);
+                let interned_string = StringInterner::intern_bytes(bytes);
 
                 frame.get_operand_stack_mut().push_reference(Reference::class(interned_string));
             },
@@ -940,7 +936,7 @@ impl Interpreter {
         let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
         let class_name = constant_pool.get_class_name(index);
 
-        let resolved_class = class_ref.get().loader.load(Symbol::intern_bytes(class_name)).unwrap();
+        let resolved_class = class_ref.loader.load(Symbol::intern_bytes(class_name)).unwrap();
         if objectref.is_instance_of(resolved_class) {
             match opcode {
                 // If objectref is an instance of the resolved class or array type, or implements the resolved interface,
@@ -950,12 +946,14 @@ impl Interpreter {
                 OpCode::checkcast => stack.push_reference(objectref),
                 _ => unreachable!()
             }
-        } else {
-            match opcode {
-                OpCode::instanceof => stack.push_int(0),
-                OpCode::checkcast => panic!("ClassCastException"), // TODO
-                _ => unreachable!()
-            }
+
+            return;
+        }
+
+        match opcode {
+            OpCode::instanceof => stack.push_int(0),
+            OpCode::checkcast => panic!("ClassCastException"), // TODO
+            _ => unreachable!()
         }
     }
     
@@ -975,9 +973,9 @@ impl Interpreter {
 
 		if classref.get().initialization_state() != ClassInitializationState::Init {
 			// TODO: This is a hack
-			let _ = frame.thread().get_mut().pc.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
+			let _ = frame.thread().pc.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
 
-			Class::initialize(&classref, frame.thread().get_mut());
+			Class::initialize(&classref, frame.thread_mut());
 			return None;
 		}
 
@@ -1002,18 +1000,18 @@ impl Interpreter {
 
 		if classref.get().initialization_state() != ClassInitializationState::Init {
 			// TODO: This is a hack
-			let _ = frame.thread().get_mut().pc.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
+			let _ = frame.thread().pc.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
 
-			Class::initialize(&classref, frame.thread().get_mut());
+			Class::initialize(&classref, frame.thread_mut());
 			return None;
 		}
 
-        Class::resolve_method(classref, frame.thread().get_mut(), constant_pool, method_ref_idx)
+        Class::resolve_method(classref, frame.thread_mut(), constant_pool, method_ref_idx)
     }
     
     fn tableswitch(frame: FrameRef) {
         // Subtract 1, since we already read the opcode
-        let opcode_address = frame.thread().get().pc.load(MemOrdering::Relaxed) - 1;
+        let opcode_address = frame.thread().pc.load(MemOrdering::Relaxed) - 1;
         frame.skip_padding();
         
         let default = frame.read_byte4_signed() as isize;
@@ -1035,12 +1033,12 @@ impl Interpreter {
             offset = jump_offsets[(index - low) as usize] as isize;
         }
         
-        frame.thread().get().pc.store(opcode_address + offset, MemOrdering::Relaxed);
+        frame.thread().pc.store(opcode_address + offset, MemOrdering::Relaxed);
     }
 
     fn lookupswitch(frame: FrameRef) {
         // Subtract 1, since we already read the opcode
-        let opcode_address = frame.thread().get().pc.load(MemOrdering::Relaxed) - 1;
+        let opcode_address = frame.thread().pc.load(MemOrdering::Relaxed) - 1;
         frame.skip_padding();
         
         let default = frame.read_byte4_signed() as isize;
@@ -1062,6 +1060,6 @@ impl Interpreter {
             offset = default;
         }
 
-        frame.thread().get().pc.store(opcode_address + offset, MemOrdering::Relaxed);
+        frame.thread().pc.store(opcode_address + offset, MemOrdering::Relaxed);
     }
 }

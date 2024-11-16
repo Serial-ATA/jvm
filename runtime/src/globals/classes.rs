@@ -42,6 +42,7 @@ define_classes!(
 	java_lang_ThreadGroup,
 	java_lang_Throwable,
 	java_lang_Cloneable,
+	java_io_FileDescriptor,
 	// Primitive arrays
 	bool_array,
 	byte_array,

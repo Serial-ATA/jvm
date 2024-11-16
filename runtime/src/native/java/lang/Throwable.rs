@@ -145,7 +145,7 @@ mod stacktrace_element {
 				},
 			}
 
-			let pc = frame.thread().get().pc.load(Ordering::Relaxed) - 1;
+			let pc = frame.thread().pc.load(Ordering::Relaxed) - 1;
 			let line_number = method.get_line_number(pc);
 			stacktrace_element.get_mut().put_field_value0(
 				StackTraceElement_lineNumber_FIELD_OFFSET,
@@ -169,7 +169,10 @@ pub fn fillInStackTrace(
 
 	let this_class_instance = this.extract_class();
 	let this_class = &this_class_instance.get().class;
-	let stacktrace_field = this_class.fields().find(|field| field.name == b"stackTrace" && matches!(&field.descriptor, FieldType::Array(value) if value.is_class(b"java/lang/StackTraceElement"))).expect("Throwable should have a stackTrace field");
+	// TODO: Make global field
+	let stacktrace_field = this_class.fields().find(|field| {
+		field.name == b"stackTrace" && matches!(&field.descriptor, FieldType::Array(value) if value.is_class(b"java/lang/StackTraceElement"))
+	}).expect("Throwable should have a stackTrace field");
 
 	let stack_depth = current_thread.stack_depth();
 

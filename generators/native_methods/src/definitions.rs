@@ -98,7 +98,7 @@ fn generate_methods_for_class(class: &Class, definitions_file: &mut File) {
 		let mut method_call = String::new();
 		write!(
 			method_call,
-			"\t\tsuper::{}(env,{}",
+			"super::{}(env,{}",
 			method.name(),
 			if is_static { "" } else { "this," }
 		)
@@ -113,18 +113,18 @@ fn generate_methods_for_class(class: &Class, definitions_file: &mut File) {
 		match method.return_ty {
 			Type::Void => {
 				// Cannot implement From<()> for NativeReturn, need a special case for void returns
-				writeln!(definitions_file, "{};\n\t\tNone\n\t}}", method_call).unwrap();
+				writeln!(definitions_file, "\t\t{};\n\t\tNone\n\t}}", method_call).unwrap();
 			},
 			Type::Class(_) | Type::Array(_) => {
 				writeln!(
 					definitions_file,
-					"Some(instructions::Operand::Reference({}))\n\t}}",
+					"\t\tSome(instructions::Operand::Reference({}))\n\t}}",
 					method_call
 				)
 				.unwrap();
 			},
 			_ => {
-				writeln!(definitions_file, "Some({}.into())\n\t}}", method_call).unwrap();
+				writeln!(definitions_file, "\t\tSome({}.into())\n\t}}", method_call).unwrap();
 			},
 		}
 	}

@@ -193,14 +193,31 @@ impl ClassLoader {
 		// Otherwise, the following steps are performed to create C:
 		//
 		//     If the component type is a reference type, the algorithm of this section (§5.3) is applied recursively using L in order to load and thereby create the component type of C.
-		let component = FieldType::parse(&mut descriptor.as_str().as_bytes()).unwrap(); // TODO: Error handling
+		let mut descriptor_str = descriptor.as_str();
+		let array = FieldType::parse(&mut descriptor_str.as_bytes()).unwrap(); // TODO: Error handling
+		let FieldType::Array(mut component) = array else {
+			unreachable!("The descriptor was validated as an array prior");
+		};
 
-		if let FieldType::Object(ref obj) = component {
-			self.load(Symbol::intern_bytes(&obj));
+		loop {
+			if let FieldType::Object(obj) = &*component {
+				self.load(Symbol::intern_bytes(&obj));
+				break;
+			}
+
+			if let FieldType::Array(array) = *component {
+				// Just strip '[' until we finally reach the component type.
+				descriptor_str = &descriptor_str[1..];
+				self.load(Symbol::intern(descriptor_str));
+				component = array;
+				continue;
+			}
+
+			break;
 		}
 
 		//     The Java Virtual Machine creates a new array class with the indicated component type and number of dimensions.
-		let array_class = unsafe { Class::new_array(descriptor, component, self) };
+		let array_class = unsafe { Class::new_array(descriptor, *component, self) };
 
 		//     If the component type is a reference type, the Java Virtual Machine marks C to have the defining loader of the component type as its defining loader.
 		//     Otherwise, the Java Virtual Machine marks C to have the bootstrap class loader as its defining loader.

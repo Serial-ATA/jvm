@@ -335,7 +335,7 @@ pub fn fullFence(
 	_env: NonNull<JniEnv>,
 	_this: Reference, // jdk.internal.misc.Unsafe
 ) {
-	platform::os_arch::ordering::fence();
+	platform::arch::ordering::fence();
 }
 
 pub fn allocateMemory0(

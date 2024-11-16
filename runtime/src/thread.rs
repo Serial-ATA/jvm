@@ -33,8 +33,6 @@ pub struct JVMOptions {
 	pub show_version: bool,
 }
 
-pub type ThreadRef = Arc<ThreadPtr>;
-
 #[derive(Debug)]
 enum StackFrame {
 	Ref(FrameRef),
@@ -234,7 +232,7 @@ impl JavaThread {
 		let thread_instance = ClassInstance::new(ClassRef::clone(&thread_class));
 
 		if let Some(name) = name {
-			let string_object = StringInterner::get_java_string(name);
+			let string_object = StringInterner::intern_string(name.to_string());
 			let init_method = thread_class
 				.vtable()
 				.find(
@@ -291,7 +289,7 @@ impl JavaThread {
 			)
 			.expect("method should exist");
 
-		let thread_name = StringInterner::get_java_string("main");
+		let thread_name = StringInterner::intern_str("main");
 
 		java_call!(
 			self,
@@ -353,7 +351,7 @@ impl JavaThread {
 			stack: OperandStack::new(max_stack as usize),
 			constant_pool,
 			method,
-			thread: Arc::new(ThreadPtr(&raw mut *self)),
+			thread: UnsafeCell::new(&raw mut *self),
 			cached_pc: AtomicIsize::default(),
 		};
 
@@ -450,7 +448,7 @@ impl JavaThread {
 		let throwable_class = crate::globals::classes::java_lang_Throwable();
 		assert!(
 			class_instance.get().class == throwable_class
-				|| class_instance.get().class.is_subclass_of(throwable_class)
+				|| class_instance.get().class.is_subclass_of(&throwable_class)
 		);
 
 		// Search each frame for an exception handler
@@ -499,52 +497,5 @@ impl JavaThread {
 
 	pub fn throw_npe(&mut self) {
 		todo!()
-	}
-}
-
-// A pointer to a Thread instance
-//
-// This can *not* be constructed by hand, as dropping it will
-// deallocate the thread.
-#[derive(PartialEq)]
-pub struct ThreadPtr(*mut JavaThread);
-
-impl PtrType<JavaThread, ThreadRef> for ThreadPtr {
-	fn new(val: JavaThread) -> ThreadRef {
-		let boxed = Box::new(val);
-		let ptr = Box::into_raw(boxed);
-		ThreadRef::new(Self(ptr as _))
-	}
-
-	#[inline(always)]
-	fn as_raw(&self) -> *const JavaThread {
-		self.0 as _
-	}
-
-	#[inline(always)]
-	fn as_mut_raw(&self) -> *mut JavaThread {
-		self.0
-	}
-
-	fn get(&self) -> &JavaThread {
-		unsafe { &(*self.as_raw()) }
-	}
-
-	fn get_mut(&self) -> &mut JavaThread {
-		unsafe { &mut (*self.as_mut_raw()) }
-	}
-}
-
-impl Drop for ThreadPtr {
-	fn drop(&mut self) {
-		let _ = unsafe { Box::from_raw(self.0) };
-	}
-}
-
-impl Deref for ThreadPtr {
-	type Target = JavaThread;
-
-	fn deref(&self) -> &Self::Target {
-		unsafe { &(*self.as_raw()) }
 	}
 }
