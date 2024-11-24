@@ -7,7 +7,6 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
-walkdir = "2.3.3"
 syn = { version = "2", features = ["full"] }
 proc-macro2 = "1"
 quote = "1"

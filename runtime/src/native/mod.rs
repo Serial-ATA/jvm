@@ -4,9 +4,9 @@ pub mod intrinsics;
 pub mod jni;
 pub mod lookup;
 
+use crate::method::Method;
 use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
-use crate::method::Method;
 
 use std::collections::HashMap;
 use std::ptr::NonNull;

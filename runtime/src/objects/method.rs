@@ -4,13 +4,11 @@ use crate::native::NativeMethodPtr;
 
 use std::ffi::c_void;
 use std::fmt::{Debug, Formatter};
-use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, RwLock};
 
 use classfile::accessflags::MethodAccessFlags;
 use classfile::{Code, LineNumber, MethodDescriptor, MethodInfo};
 use common::int_types::{s4, u1};
-use common::traits::PtrType;
 use symbols::Symbol;
 
 pub struct Method {

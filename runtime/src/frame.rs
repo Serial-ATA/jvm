@@ -6,29 +6,26 @@ use crate::thread::JavaThread;
 use std::cell::UnsafeCell;
 use std::fmt::{Debug, Formatter};
 use std::sync::atomic::{AtomicIsize, Ordering};
-use std::sync::Arc;
 
 use classfile::ConstantPoolRef;
 use common::int_types::{s1, s2, s4, u1, u2, u4};
-use common::traits::PtrType;
 
-// TODO: Make these fields private
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6
 #[rustfmt::skip]
 pub struct Frame {
     // Each frame has:
 
     // its own array of local variables (§2.6.1)
-	pub locals: LocalStack,
+	locals: LocalStack,
     // its own operand stack (§2.6.2)
-	pub stack: OperandStack,
+	stack: OperandStack,
     // and a reference to the run-time constant pool (§2.5.5)
-	pub constant_pool: ConstantPoolRef,
-	pub method: &'static Method,
-	pub thread: UnsafeCell<*mut JavaThread>,
+	constant_pool: ConstantPoolRef,
+	method: &'static Method,
+	thread: UnsafeCell<*mut JavaThread>,
 	
 	// Used to remember the last pc when we return to a frame after a method invocation
-	pub cached_pc: AtomicIsize,
+	cached_pc: AtomicIsize,
 }
 
 impl Debug for Frame {
@@ -42,35 +39,103 @@ impl Debug for Frame {
 	}
 }
 
-#[repr(transparent)]
-#[derive(Clone, PartialEq)]
-pub struct FrameRef(Arc<FramePtr>);
+impl Frame {
+	/// Create a new `Frame` for a [`Method`] invocation
+	pub fn new(
+		thread: &mut JavaThread,
+		locals: LocalStack,
+		max_stack: u2,
+		constant_pool: ConstantPoolRef,
+		method: &'static Method,
+	) -> Self {
+		Self {
+			locals,
+			stack: OperandStack::new(max_stack as usize),
+			constant_pool,
+			method,
+			thread: UnsafeCell::new(&raw mut *thread),
+			cached_pc: AtomicIsize::default(),
+		}
+	}
+}
 
-impl FrameRef {
-	fn new(ptr: FramePtr) -> Self {
-		Self(Arc::new(ptr))
+// Getters
+impl Frame {
+	/// Get a reference to the associated [`JavaThread`]
+	#[inline]
+	pub fn thread(&self) -> &JavaThread {
+		unsafe { &**self.thread.get() }
 	}
 
-	pub fn thread(&self) -> &'static JavaThread {
-		unsafe { &**self.0.get().thread.get() }
+	/// Get a mutable reference to the associated [`JavaThread`]
+	#[inline]
+	pub fn thread_mut(&self) -> &mut JavaThread {
+		unsafe { &mut **self.thread.get() }
 	}
 
-	pub fn thread_mut(&self) -> &'static mut JavaThread {
-		unsafe { &mut **self.0.get().thread.get() }
+	/// Get a reference to the associated operand stack
+	#[inline]
+	pub fn stack(&mut self) -> &OperandStack {
+		&self.stack
 	}
 
+	/// Get a mutable reference to the associated operand stack
+	#[inline]
+	pub fn stack_mut(&mut self) -> &mut OperandStack {
+		&mut self.stack
+	}
+
+	/// Get a reference to the associated local variables
+	#[inline]
+	pub fn local_stack(&self) -> &LocalStack {
+		&self.locals
+	}
+
+	/// Get a mutable reference to the associated local variables
+	#[inline]
+	pub fn local_stack_mut(&mut self) -> &mut LocalStack {
+		&mut self.locals
+	}
+
+	/// Get the method associated with this frame
+	#[inline]
 	pub fn method(&self) -> &Method {
-		self.0.get().method
+		self.method
 	}
 
-	pub fn get_operand_stack_mut(&self) -> &mut OperandStack {
-		&mut self.0.get_mut().stack
+	/// Get the stashed [pc] for this frame
+	///
+	/// This will only be set if the current thread needs to execute a method within this frame.
+	///
+	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
+	pub fn stashed_pc(&self) -> isize {
+		self.cached_pc.load(Ordering::Relaxed)
 	}
+}
 
-	pub fn get_local_stack_mut(&self) -> &mut LocalStack {
-		&mut self.0.get_mut().locals
+// Setters
+impl Frame {
+	/// Stash the current [pc] for later
+	///
+	/// This is used when a new frame is added to the thread's stack.
+	///
+	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
+	pub fn stash_pc(&self) {
+		let current_pc;
+		{
+			let thread = self.thread();
+			current_pc = thread.pc.load(Ordering::Relaxed);
+		}
+
+		self.cached_pc.store(current_pc, Ordering::Relaxed);
 	}
+}
 
+// Reading
+impl Frame {
+	/// Read a byte from the associated method's code at the current [pc]
+	///
+	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
 	pub fn read_byte(&self) -> u1 {
 		let pc;
 		{
@@ -78,10 +143,12 @@ impl FrameRef {
 			pc = thread.pc.fetch_add(1, Ordering::Relaxed);
 		}
 
-		let frame = self.0.get_mut();
-		frame.method.code.code[pc as usize]
+		self.method.code.code[pc as usize]
 	}
 
+	/// Read 2 bytes from the associated method's code at the current [pc]
+	///
+	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
 	pub fn read_byte2(&self) -> u2 {
 		let b1 = u2::from(self.read_byte());
 		let b2 = u2::from(self.read_byte());
@@ -89,6 +156,9 @@ impl FrameRef {
 		b1 << 8 | b2
 	}
 
+	/// Read 4 bytes from the associated method's code at the current [pc]
+	///
+	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
 	pub fn read_byte4(&self) -> u4 {
 		let b1 = u4::from(self.read_byte());
 		let b2 = u4::from(self.read_byte());
@@ -98,18 +168,24 @@ impl FrameRef {
 		b1 << 24 | b2 << 16 | b3 << 8 | b4
 	}
 
+	/// Same as [`read_byte()`](Self::read_byte), casting to `s1`
 	pub fn read_byte_signed(&self) -> s1 {
 		self.read_byte() as s1
 	}
 
+	/// Same as [`read_byte2()`](Self::read_byte2), casting to `s2`
 	pub fn read_byte2_signed(&self) -> s2 {
 		self.read_byte2() as s2
 	}
 
+	/// Same as [`read_byte4()`](Self::read_byte4), casting to `s4`
 	pub fn read_byte4_signed(&self) -> s4 {
 		self.read_byte4() as s4
 	}
 
+	/// Skip padding bytes in an instruction
+	///
+	/// This is used in the `tableswitch` and `lookupswitch` instructions.
 	pub fn skip_padding(&self) {
 		let thread = self.thread();
 
@@ -119,73 +195,5 @@ impl FrameRef {
 		}
 
 		thread.pc.store(pc, Ordering::Relaxed);
-	}
-
-	pub fn stash_pc(&self) {
-		let current_pc;
-		{
-			let thread = self.thread();
-			current_pc = thread.pc.load(Ordering::Relaxed);
-		}
-
-		let frame = self.0.get_mut();
-		frame.cached_pc = AtomicIsize::from(current_pc);
-	}
-
-	pub fn get_stashed_pc(&self) -> isize {
-		let frame = self.0.get();
-		frame.cached_pc.load(Ordering::Relaxed)
-	}
-}
-
-impl Debug for FrameRef {
-	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		f.write_fmt(format_args!("{:?}", &self.0))
-	}
-}
-
-// A pointer to a Class instance
-//
-// This can *not* be constructed by hand, as dropping it will
-// deallocate the class.
-#[derive(PartialEq)]
-pub struct FramePtr(usize);
-
-impl PtrType<Frame, FrameRef> for FramePtr {
-	fn new(val: Frame) -> FrameRef {
-		let boxed = Box::new(val);
-		let ptr = Box::into_raw(boxed);
-		FrameRef::new(Self(ptr as usize))
-	}
-
-	#[inline(always)]
-	fn as_raw(&self) -> *const Frame {
-		self.0 as *const Frame
-	}
-
-	#[inline(always)]
-	fn as_mut_raw(&self) -> *mut Frame {
-		self.0 as *mut Frame
-	}
-
-	fn get(&self) -> &Frame {
-		unsafe { &(*self.as_raw()) }
-	}
-
-	fn get_mut(&self) -> &mut Frame {
-		unsafe { &mut (*self.as_mut_raw()) }
-	}
-}
-
-impl Drop for FramePtr {
-	fn drop(&mut self) {
-		let _ = unsafe { Box::from_raw(self.0 as *mut Frame) };
-	}
-}
-
-impl Debug for FramePtr {
-	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		let frame = self.get();
-		f.write_fmt(format_args!("{:?}", frame))
 	}
 }

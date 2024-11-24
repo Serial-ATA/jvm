@@ -95,6 +95,7 @@ fn generate_methods_for_class(class: &Class, definitions_file: &mut File) {
 			}
 		}
 
+		// TODO: static methods should have a `class` argument
 		let mut method_call = String::new();
 		write!(
 			method_call,

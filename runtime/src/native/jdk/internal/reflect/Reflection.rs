@@ -11,7 +11,7 @@ include_generated!("native/jdk/internal/reflect/def/Reflection.definitions.rs");
 #[expect(clippy::match_same_arms)]
 pub fn getCallerClass(env: NonNull<JniEnv>) -> Reference {
 	let current_thread = unsafe { &*JavaThread::for_env(env.as_ptr() as _) };
-	for (n, frame) in current_thread.frames().rev().enumerate() {
+	for (n, frame) in current_thread.frame_stack().iter().rev().enumerate() {
 		let method = frame.method();
 		match n {
 			// TODO:

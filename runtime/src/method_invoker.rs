@@ -1,4 +1,4 @@
-use crate::frame::FrameRef;
+use crate::frame::Frame;
 use crate::method::Method;
 use crate::objects::class::Class;
 use crate::reference::Reference;
@@ -6,7 +6,6 @@ use crate::stack::local_stack::LocalStack;
 use crate::JavaThread;
 
 use common::int_types::{u1, u2};
-use common::traits::PtrType;
 use instructions::{Operand, StackLike};
 
 macro_rules! trace_method {
@@ -40,7 +39,7 @@ impl MethodInvoker {
 	/// Invoke a method
 	///
 	/// This will pop the necessary number of arguments off of the current Frame's stack
-	pub fn invoke(frame: FrameRef, method: &'static Method) {
+	pub fn invoke(frame: &mut Frame, method: &'static Method) {
 		Self::invoke_(frame, method, false)
 	}
 
@@ -48,7 +47,7 @@ impl MethodInvoker {
 	///
 	/// This is identical to `MethodInvoker::invoke`, except it will attempt to find
 	/// the implementation of the interface method on the `objectref` class.
-	pub fn invoke_interface(frame: FrameRef, method: &'static Method) {
+	pub fn invoke_interface(frame: &mut Frame, method: &'static Method) {
 		Self::invoke_(frame, method, true)
 	}
 
@@ -56,7 +55,7 @@ impl MethodInvoker {
 	///
 	/// This is identical to `MethodInvoker::invoke`, except it will attempt to find
 	/// the implementation of the method on the `objectref` class.
-	pub fn invoke_virtual(frame: FrameRef, method: &'static Method) {
+	pub fn invoke_virtual(frame: &mut Frame, method: &'static Method) {
 		if method.is_polymorphic() {
 			unimplemented!("polymorphic virtual method invocation");
 		}
@@ -64,7 +63,7 @@ impl MethodInvoker {
 		Self::invoke_(frame, method, true)
 	}
 
-	fn invoke_(frame: FrameRef, mut method: &'static Method, reresolve_method: bool) {
+	fn invoke_(frame: &mut Frame, mut method: &'static Method, reresolve_method: bool) {
 		let mut max_locals = method.code.max_locals;
 		let parameter_count = method.parameter_count;
 		let is_static_method = method.is_static();
@@ -72,14 +71,14 @@ impl MethodInvoker {
 		// Move the arguments from the previous frame into a new local stack
 		let mut args_from_frame = Vec::new();
 		if parameter_count > 0 {
-			args_from_frame = frame.get_operand_stack_mut().popn(parameter_count as usize);
+			args_from_frame = frame.stack_mut().popn(parameter_count as usize);
 		}
 
 		// For non-static methods, the first argument will be `this`.
 		// We need to check for null before proceeding.
 		let mut this_argument = None;
 		if !is_static_method {
-			let this = frame.get_operand_stack_mut().pop_reference();
+			let this = frame.stack_mut().pop_reference();
 			if this.is_null() {
 				panic!(
 					"NullPointerException - {}#{}",

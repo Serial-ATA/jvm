@@ -3,7 +3,7 @@
 use crate::class::Class;
 use crate::class_instance::{ArrayInstance, ClassInstance};
 use crate::classpath::classloader::ClassLoader;
-use crate::frame::FrameRef;
+use crate::frame::Frame;
 use crate::method::Method;
 use crate::method_invoker::MethodInvoker;
 use crate::objects::class_instance::Instance;
@@ -70,19 +70,19 @@ macro_rules! define_instructions {
 macro_rules! push_const {
 	($frame:ident, $opcode:ident, $value:tt $(, $const_value:ident)?) => {{
 		paste::paste! {
-			{ $frame.get_operand_stack_mut().push_op(Operand:: [<Const $value>] $((ConstOperandType:: $const_value))?); }
+			{ $frame.stack_mut().push_op(Operand:: [<Const $value>] $((ConstOperandType:: $const_value))?); }
 		};
         push_const!($frame, $($const_value)?)
 	}};
     // Add `Empty` slots for long/double
     ($frame:ident, Long) => {{
 		paste::paste! {
-			{ $frame.get_operand_stack_mut().push_op(Operand::Empty); }
+			{ $frame.stack_mut().push_op(Operand::Empty); }
 		};
 	}};
     ($frame:ident, Double) => {{
 		paste::paste! {
-			{ $frame.get_operand_stack_mut().push_op(Operand::Empty); }
+			{ $frame.stack_mut().push_op(Operand::Empty); }
 		};
 	}};
     ($_frame:ident, $($_const_value:ident)?) => {{}};
@@ -90,27 +90,13 @@ macro_rules! push_const {
 
 macro_rules! local_variable_load {
 	($frame:ident, $opcode:ident, $ty:ident) => {{
-		let local_stack = $frame.get_local_stack_mut();
 		let index = $frame.read_byte() as usize;
-
-		let local_variable = &local_stack[index];
-		paste::paste! {
-			assert!(
-				local_variable.[<is_ $ty:lower>](),
-				"Invalid operand type on local stack for `{}` instruction: {:?}",
-				stringify!($opcode),
-				local_variable
-			);
-		}
-
-		paste::paste! {
-			{ $frame.get_operand_stack_mut().push_op(local_variable.clone()); }
-		}
+		local_variable_load!($frame, $opcode, $ty, index)
 	}};
-	($frame:ident, $opcode:ident, $ty:ident, $index:literal) => {{
-		let local_stack = $frame.get_local_stack_mut();
-		let local_variable = &local_stack[$index];
+	($frame:ident, $opcode:ident, $ty:ident, $index:expr) => {{
+		let local_stack = $frame.local_stack_mut();
 
+		let local_variable = &local_stack[$index];
 		paste::paste! {
 			assert!(
 				local_variable.[<is_ $ty:lower>](),
@@ -120,15 +106,16 @@ macro_rules! local_variable_load {
 			);
 		}
 
+		let local_variable = local_variable.clone();
 		paste::paste! {
-			{ $frame.get_operand_stack_mut().push_op(local_variable.clone()); }
+			{ $frame.stack_mut().push_op(local_variable); }
 		}
 	}};
 }
 
 macro_rules! load_from_array {
 	($frame:ident, $opcode:ident) => {{
-		let stack = $frame.get_operand_stack_mut();
+		let stack = $frame.stack_mut();
 		let index = stack.pop_int();
 
 		let object_ref = stack.pop_reference();
@@ -146,9 +133,7 @@ macro_rules! local_variable_store {
 		local_variable_store!($frame, $opcode, $ty, index)
 	}};
 	($frame:ident, $opcode:ident, $ty:ident, $index:expr) => {{
-		let local_stack = $frame.get_local_stack_mut();
-
-		let stack = $frame.get_operand_stack_mut();
+		let stack = $frame.stack_mut();
 		let value = stack.pop();
 		paste::paste! {
 			assert!(
@@ -159,13 +144,14 @@ macro_rules! local_variable_store {
 			);
 		}
 
+		let local_stack = $frame.local_stack_mut();
 		local_stack[$index] = value;
 	}};
 }
 
 macro_rules! store_into_array {
 	($frame:ident, $opcode:ident) => {{
-		let stack = $frame.get_operand_stack_mut();
+		let stack = $frame.stack_mut();
 		let value = stack.pop();
 		let index = stack.pop_int();
 
@@ -178,7 +164,7 @@ macro_rules! store_into_array {
 
 macro_rules! stack_operations {
 	($frame:ident, $opcode:ident) => {{
-		$frame.get_operand_stack_mut().$opcode();
+		$frame.stack_mut().$opcode();
 	}};
 }
 
@@ -186,7 +172,7 @@ macro_rules! arithmetic {
 	($frame:ident, $opcode:ident, $instruction:ident) => {{
 		paste::paste! {
 			{
-				let stack = $frame.get_operand_stack_mut();
+				let stack = $frame.stack_mut();
 				let rhs = stack.pop();
 				let mut val = stack.pop();
 
@@ -199,7 +185,7 @@ macro_rules! arithmetic {
 
 macro_rules! conversions {
 	($frame:ident, $instruction:ident) => {{
-		let stack = $frame.get_operand_stack_mut();
+		let stack = $frame.stack_mut();
 		let mut val = stack.pop();
 
 		val.$instruction();
@@ -213,7 +199,7 @@ macro_rules! conversions {
 const COMPARISON_SEEK_BACK: isize = -3;
 macro_rules! comparisons {
     ($frame:ident, $instruction:ident, $operator:tt) => {{
-        let stack = $frame.get_operand_stack_mut();
+        let stack = $frame.stack_mut();
         let rhs = stack.pop_int();
         let lhs = stack.pop_int();
 
@@ -225,7 +211,7 @@ macro_rules! comparisons {
         }
     }};
     ($frame:ident, $instruction:ident, $operator:tt, $rhs:literal) => {{
-        let stack = $frame.get_operand_stack_mut();
+        let stack = $frame.stack_mut();
         let lhs = stack.pop_int();
 
         if lhs $operator $rhs {
@@ -236,7 +222,7 @@ macro_rules! comparisons {
         }
     }};
     ($frame:ident, $instruction:ident, $operator:tt, $ty:ident) => {{
-        let stack = $frame.get_operand_stack_mut();
+        let stack = $frame.stack_mut();
         paste::paste! {
             let rhs = stack.[<pop_ $ty>]();
             let lhs = stack.[<pop_ $ty>]();
@@ -253,10 +239,11 @@ macro_rules! comparisons {
 
 macro_rules! control_return {
 	($frame:ident, $instruction:ident) => {{
-		$frame.thread_mut().drop_to_previous_frame($frame, None);
+		let thread = $frame.thread_mut();
+		thread.drop_to_previous_frame(None);
 	}};
 	($frame:ident, $instruction:ident, $return_ty:ident) => {{
-		let stack = $frame.get_operand_stack_mut();
+		let stack = $frame.stack_mut();
 		let value = stack.pop();
 
 		paste::paste! {
@@ -268,9 +255,8 @@ macro_rules! control_return {
 			);
 		}
 
-		$frame
-			.thread_mut()
-			.drop_to_previous_frame($frame, Some(value));
+		let thread = $frame.thread_mut();
+		thread.drop_to_previous_frame(Some(value));
 	}};
 }
 
@@ -279,7 +265,7 @@ pub struct Interpreter;
 #[rustfmt::skip]
 #[allow(unused_braces)]
 impl Interpreter {
-	pub fn instruction(frame: FrameRef) {
+	pub fn instruction(frame: &mut Frame) {
         // The opcodes are broken into sections as defined here:
         // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-7.html
 
@@ -292,7 +278,7 @@ impl Interpreter {
                 CATEGORY: constants
                 OpCode::nop => {},
                 OpCode::aconst_null => {
-                    frame.get_operand_stack_mut().push_reference(Reference::null());
+                    frame.stack_mut().push_reference(Reference::null());
                 },
                 @GROUP {
                     [
@@ -317,11 +303,11 @@ impl Interpreter {
                 } => push_const,
                 OpCode::bipush => {
                     let byte = frame.read_byte_signed();
-                    frame.get_operand_stack_mut().push_op(Operand::Int(s4::from(byte)));
+                    frame.stack_mut().push_op(Operand::Int(s4::from(byte)));
                 },
                 OpCode::sipush => {
                     let short = frame.read_byte2_signed();
-                    frame.get_operand_stack_mut().push_op(Operand::Int(s4::from(short)));
+                    frame.stack_mut().push_op(Operand::Int(s4::from(short)));
                 },
                 OpCode::ldc => {
                     Interpreter::ldc(frame, false);
@@ -491,16 +477,16 @@ impl Interpreter {
                 | OpCode::lneg
                 | OpCode::fneg
                 | OpCode::dneg => {
-                    let mut val = frame.get_operand_stack_mut().pop();
+                    let mut val = frame.stack_mut().pop();
                     
                     val.neg();
-                    frame.get_operand_stack_mut().push_op(val);
+                    frame.stack_mut().push_op(val);
                 },
                 OpCode::iinc => {
                     let index = frame.read_byte();
                     let const_ = frame.read_byte_signed();
                     
-                    frame.get_local_stack_mut()[index as usize].add(Operand::Int(s4::from(const_)));
+                    frame.local_stack_mut()[index as usize].add(Operand::Int(s4::from(const_)));
                 };
                 
                 // ========= Conversions =========
@@ -532,7 +518,7 @@ impl Interpreter {
                 // ========= Comparisons =========
                 CATEGORY: comparisons
                 OpCode::lcmp => {
-                    let stack = frame.get_operand_stack_mut();
+                    let stack = frame.stack_mut();
                     let value2 = stack.pop_long();
                     let value1 = stack.pop_long();
                     
@@ -578,69 +564,69 @@ impl Interpreter {
                 //       invokedynamic
                 CATEGORY: references
                 OpCode::getstatic => {
-                    if let Some(field) = Self::fetch_field(FrameRef::clone(&frame)) {
-                        frame.get_operand_stack_mut().push_op(field.get_static_value());
+                    if let Some(field) = Self::fetch_field(frame, true) {
+                        frame.stack_mut().push_op(field.get_static_value());
                     }
                 },
                 OpCode::putstatic => {
-                    if let Some(field) = Self::fetch_field(FrameRef::clone(&frame)) {
-                        let value = frame.get_operand_stack_mut().pop();
-                    
+                    if let Some(field) = Self::fetch_field(frame, true) {
+                        let value = frame.stack_mut().pop();
+
                         field.set_static_value(value);
                     }
                 },
                 OpCode::getfield => {
-                    if let Some(field) = Self::fetch_field(FrameRef::clone(&frame)) {
+                    if let Some(field) = Self::fetch_field(frame, false) {
                         if field.is_static() {
                             panic!("IncompatibleClassChangeError"); // TODO
                         }
-    
-                        let stack = frame.get_operand_stack_mut();
-                        
+
+                        let stack = frame.stack_mut();
+
                         let object_ref = stack.pop_reference();
-                        
+
                         let field_value = object_ref.get_field_value(field);
                         stack.push_op(field_value);
                     }
                 },
                 OpCode::putfield => {
-                    if let Some(field) = Self::fetch_field(FrameRef::clone(&frame)) {
+                    if let Some(field) = Self::fetch_field(frame, false) {
                         if field.is_static() {
                             panic!("IncompatibleClassChangeError"); // TODO
                         }
-                        
+
                         // TODO: if the resolved field is final, it must be declared in the current class,
                         //       and the instruction must occur in an instance initialization method of the current class.
-                        //       Otherwise, an IllegalAccessError is thrown. 
-                        
-                        let stack = frame.get_operand_stack_mut();
-                        
+                        //       Otherwise, an IllegalAccessError is thrown.
+
+                        let stack = frame.stack_mut();
+
                         let value = stack.pop();
                         let mut object_ref = stack.pop_reference();
-                        
+
                         object_ref.put_field_value(field, value);
                     }
                 },
                 OpCode::invokevirtual => {
-                    if let Some(method) = Self::fetch_method(FrameRef::clone(&frame)) {
+                    if let Some(method) = Self::fetch_method(frame) {
                         MethodInvoker::invoke_virtual(frame, method);
                     }
                 },
                 OpCode::invokespecial
                 | OpCode::invokestatic => {
-                    if let Some(method) = Self::fetch_method(FrameRef::clone(&frame)) {
+                    if let Some(method) = Self::fetch_method(frame) {
                         MethodInvoker::invoke(frame, method);
                     }
                 },
                 OpCode::invokeinterface => {
-                    if let Some(method) = Self::fetch_method(FrameRef::clone(&frame)) {
+                    if let Some(method) = Self::fetch_method(frame) {
                         // The count operand is an unsigned byte that must not be zero.
                         let count = frame.read_byte();
                         assert!(count > 0);
-                        
+
                         // The value of the fourth operand byte must always be zero.
                         assert_eq!(frame.read_byte(), 0);
-                        
+
                         MethodInvoker::invoke_interface(frame, method);
                     }
                 },
@@ -656,35 +642,35 @@ impl Interpreter {
                     let classref = class.get().loader.load(Symbol::intern_bytes(class_name)).unwrap();
     
                     let new_class_instance = ClassInstance::new(classref);
-                    frame.get_operand_stack_mut().push_reference(Reference::class(new_class_instance));
+                    frame.stack_mut().push_reference(Reference::class(new_class_instance));
                 },
                 OpCode::newarray => {
-                    let stack = frame.get_operand_stack_mut();
-                    
                     let type_code = frame.read_byte();
+
+                    let stack = frame.stack_mut();
                     let count = stack.pop_int();
                     
                     let array_ref = ArrayInstance::new_from_type(type_code, count);
                     stack.push_reference(Reference::array(array_ref));
                 },
                 OpCode::anewarray => {
-                    let stack = frame.get_operand_stack_mut();
-                    
                     let index = frame.read_byte2();
-                    let count = stack.pop_int();
-                    
+
                     let method = frame.method();
-                    let class_ref = &method.class;
-            
+                    let class_ref = Arc::clone(&method.class);
+
                     let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
                     let array_class_name = constant_pool.get_class_name(index);
+
+                    let stack = frame.stack_mut();
+                    let count = stack.pop_int();
                     
                     let array_class = ClassLoader::Bootstrap.load(Symbol::intern_bytes(array_class_name)).unwrap();
                     let array_ref = ArrayInstance::new_reference(count, array_class);
                     stack.push_reference(Reference::array(array_ref));
                 },
                 OpCode::arraylength => {
-                    let stack = frame.get_operand_stack_mut();
+                    let stack = frame.stack_mut();
                     let object_ref = stack.pop_reference();
                     let array_ref = object_ref.extract_array();
                     
@@ -692,17 +678,18 @@ impl Interpreter {
                     stack.push_int(array_len as s4);
                 },
                 OpCode::athrow => {
-                    let object_ref = frame.get_operand_stack_mut().pop_reference();
-                    JavaThread::throw_exception(frame.thread_mut(), object_ref);
+                    let object_ref = frame.stack_mut().pop_reference();
+                    let thread = frame.thread_mut();
+                    thread.throw_exception(object_ref);
                 },
-                OpCode::instanceof => { Self::instanceof_checkcast(FrameRef::clone(&frame), opcode) },
-                OpCode::checkcast => { Self::instanceof_checkcast(FrameRef::clone(&frame), opcode) },
+                OpCode::instanceof => { Self::instanceof_checkcast(frame, opcode) },
+                OpCode::checkcast => { Self::instanceof_checkcast(frame, opcode) },
                 OpCode::monitorenter => {
-                    let object_ref = frame.get_operand_stack_mut().pop_reference();
+                    let object_ref = frame.stack_mut().pop_reference();
                     object_ref.monitor_enter(JavaThread::current())
                 },
                 OpCode::monitorexit => {
-                    let object_ref = frame.get_operand_stack_mut().pop_reference();
+                    let object_ref = frame.stack_mut().pop_reference();
                     object_ref.monitor_exit(JavaThread::current())
                 };
 
@@ -734,7 +721,7 @@ impl Interpreter {
                 // TODO: wide, multianewarray, jsr_w
                 CATEGORY: extended
                 OpCode::ifnull => {
-                    let reference = frame.get_operand_stack_mut().pop_reference();
+                    let reference = frame.stack_mut().pop_reference();
                     
                     if reference.is_null() {
                         let branch = frame.read_byte2_signed() as isize;
@@ -744,7 +731,7 @@ impl Interpreter {
                     }
                 },
                 OpCode::ifnonnull => {
-                    let reference = frame.get_operand_stack_mut().pop_reference();
+                    let reference = frame.stack_mut().pop_reference();
                     
                     if reference.is_null() {
                         let _ = frame.thread().pc.fetch_add(2, MemOrdering::Relaxed);
@@ -773,7 +760,7 @@ impl Interpreter {
     }
 
     // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.ldc
-    fn ldc(frame: FrameRef, wide: bool) {
+    fn ldc(frame: &mut Frame, wide: bool) {
         let idx = if wide {
             frame.read_byte2()
         } else {
@@ -781,7 +768,7 @@ impl Interpreter {
         };
 
         let method = frame.method();
-        let class_ref = &method.class;
+        let class_ref = Arc::clone(&method.class);
 
         let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
         let constant = &constant_pool[idx];
@@ -794,8 +781,8 @@ impl Interpreter {
 
             // If the run-time constant pool entry is a numeric constant of type int or float,
             // then the value of that numeric constant is pushed onto the operand stack as an int or float, respectively.
-            ConstantPoolValueInfo::Integer { bytes } => frame.get_operand_stack_mut().push_int((*bytes) as s4),
-            ConstantPoolValueInfo::Float { bytes } => frame.get_operand_stack_mut().push_float(f32::from_be_bytes(bytes.to_be_bytes())),
+            ConstantPoolValueInfo::Integer { bytes } => frame.stack_mut().push_int((*bytes) as s4),
+            ConstantPoolValueInfo::Float { bytes } => frame.stack_mut().push_float(f32::from_be_bytes(bytes.to_be_bytes())),
 
             // Otherwise, if the run-time constant pool entry is a string constant, that is,
             // a reference to an instance of class String, then value, a reference to that instance, is pushed onto the operand stack.
@@ -803,7 +790,7 @@ impl Interpreter {
                 let bytes = constant_pool.get_constant_utf8(*string_index);
                 let interned_string = StringInterner::intern_bytes(bytes);
 
-                frame.get_operand_stack_mut().push_reference(Reference::class(interned_string));
+                frame.stack_mut().push_reference(Reference::class(interned_string));
             },
 
             // Otherwise, if the run-time constant pool entry is a symbolic reference to a class or interface,
@@ -815,7 +802,7 @@ impl Interpreter {
                 let class_name = constant_pool.get_constant_utf8(*name_index);
                 let classref = class.loader.load(Symbol::intern_bytes(class_name)).unwrap();
 
-                frame.get_operand_stack_mut().push_reference(Reference::mirror(classref.mirror()));
+                frame.stack_mut().push_reference(Reference::mirror(classref.mirror()));
             },
 
             // Otherwise, the run-time constant pool entry is a symbolic reference to a method type, a method handle,
@@ -828,11 +815,11 @@ impl Interpreter {
     }
 
     // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.ldc2_w
-    fn ldc2_w(frame: FrameRef) {
+    fn ldc2_w(frame: &mut Frame) {
         let idx = frame.read_byte2();
 
         let method = frame.method();
-        let class_ref = &method.class;
+        let class_ref = Arc::clone(&method.class);
 
         let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
         let constant = &constant_pool[idx];
@@ -841,13 +828,13 @@ impl Interpreter {
         match constant {
             // and not any of the following:
             ConstantPoolValueInfo::Long { high_bytes, low_bytes } => {
-                frame.get_operand_stack_mut().push_long((s8::from(*high_bytes) << 32) + s8::from(*low_bytes))
+                frame.stack_mut().push_long((s8::from(*high_bytes) << 32) + s8::from(*low_bytes))
             },
             ConstantPoolValueInfo::Double { high_bytes, low_bytes } => {
                 let high = high_bytes.to_be_bytes();
                 let low = low_bytes.to_be_bytes();
 
-                frame.get_operand_stack_mut().push_double(f64::from_be_bytes([
+                frame.stack_mut().push_double(f64::from_be_bytes([
                     high[0], high[1], high[2], high[3], low[0], low[1], low[2], low[3],
                 ]))
             },
@@ -857,8 +844,8 @@ impl Interpreter {
     }
 
     // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.fcmp_op
-    fn fcmp(frame: FrameRef, ordering: Ordering) {
-        let operand_stack = frame.get_operand_stack_mut();
+    fn fcmp(frame: &mut Frame, ordering: Ordering) {
+        let operand_stack = frame.stack_mut();
 
         // Both value1 and value2 must be of type float.
         // The values are popped from the operand stack and a floating-point comparison is performed:
@@ -885,8 +872,8 @@ impl Interpreter {
     }
 
     // https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-6.html#jvms-6.5.dcmp_op
-    fn dcmp(frame: FrameRef, ordering: Ordering) {
-        let operand_stack = frame.get_operand_stack_mut();
+    fn dcmp(frame: &mut Frame, ordering: Ordering) {
+        let operand_stack = frame.stack_mut();
 
         // Both value1 and value2 must be of type double.
         // The values are popped from the operand stack and a floating-point comparison is performed:
@@ -912,22 +899,25 @@ impl Interpreter {
         }
     }
     
-    fn instanceof_checkcast(frame: FrameRef, opcode: OpCode) {
-        let stack = frame.get_operand_stack_mut();
-
+    fn instanceof_checkcast(frame: &mut Frame, opcode: OpCode) {
         let index = frame.read_byte2();
-        let objectref = stack.pop_reference();
 
-        if objectref.is_null() {
-            match opcode {
-                // If objectref is null, the instanceof instruction pushes an int result of 0 as an int onto the operand stack.
-                OpCode::instanceof => stack.push_int(0),
-                // If objectref is null, then the operand stack is unchanged.
-                OpCode::checkcast => stack.push_reference(objectref),
-                _ => unreachable!()
+        let objectref;
+        {
+            let stack = frame.stack_mut();
+            objectref = stack.pop_reference();
+
+            if objectref.is_null() {
+                match opcode {
+                    // If objectref is null, the instanceof instruction pushes an int result of 0 as an int onto the operand stack.
+                    OpCode::instanceof => stack.push_int(0),
+                    // If objectref is null, then the operand stack is unchanged.
+                    OpCode::checkcast => stack.push_reference(objectref),
+                    _ => unreachable!()
+                }
+
+                return;
             }
-            
-            return;
         }
 
         let method = frame.method();
@@ -935,8 +925,9 @@ impl Interpreter {
 
         let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
         let class_name = constant_pool.get_class_name(index);
-
         let resolved_class = class_ref.loader.load(Symbol::intern_bytes(class_name)).unwrap();
+
+        let stack = frame.stack_mut();
         if objectref.is_instance_of(resolved_class) {
             match opcode {
                 // If objectref is an instance of the resolved class or array type, or implements the resolved interface,
@@ -957,7 +948,7 @@ impl Interpreter {
         }
     }
     
-    fn fetch_field(frame: FrameRef) -> Option<FieldRef> {
+    fn fetch_field(frame: &mut Frame, is_static: bool) -> Option<FieldRef> {
         let field_ref_idx = frame.read_byte2();
 
         let method = frame.method();
@@ -971,7 +962,9 @@ impl Interpreter {
 			.load(Symbol::intern_bytes(class_name))
 			.unwrap();
 
-		if classref.get().initialization_state() != ClassInitializationState::Init {
+        let initialization_state = classref.initialization_state();
+        let staticially_valid = is_static && (initialization_state == ClassInitializationState::InProgress || initialization_state == ClassInitializationState::Init);
+		if !staticially_valid && initialization_state != ClassInitializationState::Init {
 			// TODO: This is a hack
 			let _ = frame.thread().pc.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
 
@@ -983,7 +976,7 @@ impl Interpreter {
         Class::resolve_field(classref, constant_pool, field_ref_idx)
     }
     
-    fn fetch_method(frame: FrameRef) -> Option<&'static Method> {
+    fn fetch_method(frame: &mut Frame) -> Option<&'static Method> {
         let method_ref_idx = frame.read_byte2();
 
         let method = frame.method();
@@ -991,25 +984,10 @@ impl Interpreter {
 
         let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
 
-        let (_, class_name_index, _) = constant_pool.get_method_ref(method_ref_idx);
-
-		let class_name = constant_pool.get_class_name(class_name_index);
-		let classref = ClassLoader::Bootstrap
-			.load(Symbol::intern_bytes(class_name))
-			.unwrap();
-
-		if classref.get().initialization_state() != ClassInitializationState::Init {
-			// TODO: This is a hack
-			let _ = frame.thread().pc.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
-
-			Class::initialize(&classref, frame.thread_mut());
-			return None;
-		}
-
-        Class::resolve_method(classref, frame.thread_mut(), constant_pool, method_ref_idx)
+        class.resolve_method(frame.thread_mut(), constant_pool, method_ref_idx)
     }
     
-    fn tableswitch(frame: FrameRef) {
+    fn tableswitch(frame: &mut Frame) {
         // Subtract 1, since we already read the opcode
         let opcode_address = frame.thread().pc.load(MemOrdering::Relaxed) - 1;
         frame.skip_padding();
@@ -1026,7 +1004,7 @@ impl Interpreter {
         }
         
         let offset;
-        let index = frame.get_operand_stack_mut().pop_int() as isize;
+        let index = frame.stack_mut().pop_int() as isize;
         if index < low || index > high {
             offset = default;
         } else {
@@ -1036,7 +1014,7 @@ impl Interpreter {
         frame.thread().pc.store(opcode_address + offset, MemOrdering::Relaxed);
     }
 
-    fn lookupswitch(frame: FrameRef) {
+    fn lookupswitch(frame: &mut Frame) {
         // Subtract 1, since we already read the opcode
         let opcode_address = frame.thread().pc.load(MemOrdering::Relaxed) - 1;
         frame.skip_padding();
@@ -1051,7 +1029,7 @@ impl Interpreter {
             *offset = frame.read_byte4_signed();
         }
 
-        let key = frame.get_operand_stack_mut().pop_int();
+        let key = frame.stack_mut().pop_int();
         let offset;
         
         if let Some((_, matched_offset)) = match_offset_pairs.iter().find(|(match_, _)| *match_ == key) {

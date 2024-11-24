@@ -58,7 +58,9 @@ macro_rules! java_call {
     ) => {{
 		tracing::debug!(target: "java_call", "Invoking manual Java call for method `{:?}`", $method);
 		let max_locals = $method.code.max_locals;
-		$crate::calls::jcall::java_call_inner($thread, $method, $crate::stack::local_stack::LocalStack::new_with_args(vec![$(Operand::from($arg)),+], max_locals as usize))
+		let __ret = $thread.invoke_method_scoped($method, $crate::stack::local_stack::LocalStack::new_with_args(vec![$(Operand::from($arg)),+], max_locals as usize));
+		tracing::debug!(target: "java_call", "Manual Java call finished");
+		__ret
 	}};
 	// No arguments path, still needs to allocate a LocalStack for stores
 	(
@@ -67,17 +69,8 @@ macro_rules! java_call {
     ) => {{
 		tracing::debug!(target: "java_call", "Invoking manual Java call for method `{:?}`", $method);
 		let max_locals = $method.code.max_locals;
-		$crate::calls::jcall::java_call_inner($thread, $method, $crate::stack::local_stack::LocalStack::new(max_locals as usize))
+		let __ret = $thread.invoke_method_scoped($method, $crate::stack::local_stack::LocalStack::new(max_locals as usize));
+		tracing::debug!(target: "java_call", "Manual Java call finished for method `{:?}`", $method);
+		__ret
 	}};
-}
-
-#[doc(hidden)]
-pub fn java_call_inner(
-	thread: &mut JavaThread,
-	method: &'static Method,
-	args: LocalStack,
-) -> Option<Operand<Reference>> {
-	thread.invoke_method_with_local_stack(method, args);
-	thread.run();
-	thread.pull_remaining_operand()
 }

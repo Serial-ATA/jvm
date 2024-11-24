@@ -228,15 +228,12 @@ fn lookup_style(
 		)
 		.unwrap();
 
-	java_call!(
+	let address = java_call!(
 		thread,
 		findNative_method,
 		Operand::Reference(Reference::null()),
 		Operand::Reference(Reference::class(name_arg))
-	);
-
-	let address = JavaThread::pull_remaining_operand(thread)
-		.unwrap()
+	).unwrap()
 		.expect_long();
 
 	if address == 0 {

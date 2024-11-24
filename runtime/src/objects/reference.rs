@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use common::traits::PtrType;
 use instructions::Operand;
-use symbols::{sym, Symbol};
+use symbols::Symbol;
 
 pub type FieldRef = Arc<Field>;
 pub type ClassRef = Arc<ClassPtr>;

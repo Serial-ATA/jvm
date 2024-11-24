@@ -1,4 +1,7 @@
 use crate::class::Class;
+use crate::classpath::classloader::ClassLoader;
+use crate::java_call;
+use crate::method::Method;
 use crate::method_invoker::MethodInvoker;
 use crate::reference::{ClassRef, FieldRef, Reference};
 use crate::string_interner::StringInterner;
@@ -6,7 +9,6 @@ use crate::thread::JavaThread;
 
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
-use crate::method::Method;
 use classfile::accessflags::MethodAccessFlags;
 use classfile::{ConstantPoolRef, FieldType};
 use common::int_types::u2;
@@ -95,13 +97,12 @@ impl Class {
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.3
 	#[tracing::instrument(skip_all)]
 	pub fn resolve_method<'a>(
-		classref: ClassRef,
+		&'a self,
 		thread: &mut JavaThread,
 		constant_pool: ConstantPoolRef,
 		method_ref_idx: u2,
-	) -> Option<&'a Method> {
-		// TODO: Double constant pool lookup
-		let (interface_method, _, name_and_type_index) =
+	) -> Option<&'static Method> {
+		let (interface_method, class_name_index, name_and_type_index) =
 			constant_pool.get_method_ref(method_ref_idx);
 
 		let (method_name_index, method_descriptor_index) =
@@ -112,6 +113,9 @@ impl Class {
 
 		let method_name = Symbol::intern_bytes(method_name_raw);
 		let descriptor = Symbol::intern_bytes(descriptor_raw);
+
+		let class_name = constant_pool.get_class_name(class_name_index);
+		let classref = self.loader.load(Symbol::intern_bytes(class_name)).unwrap();
 
 		if interface_method {
 			return Self::resolve_interface_method(thread, classref, method_name, descriptor);
@@ -282,21 +286,29 @@ impl Class {
 	)]
 	#[tracing::instrument(skip_all)]
 	pub fn initialize(class_ref: &ClassRef, thread: &mut JavaThread) {
-		let class = class_ref.get_mut();
+		let class = class_ref.get();
 
 		// 1. Synchronize on the initialization lock, LC, for C. This involves waiting until the current thread can acquire LC.
-		let mut _guard = class.init_lock.lock();
+		let init = class.initialization_lock();
+		let mut _guard = init.lock();
 
 		// 2. If the Class object for C indicates that initialization is in progress for C by some other thread
-		if class.initialization_state() == ClassInitializationState::InProgress {
+		if class.initialization_state() == ClassInitializationState::InProgress
+			&& !class.is_initialized_by(thread)
+		{
 			// then release LC and block the current thread until informed that the in-progress initialization
 			// has completed, at which time repeat this procedure.
-			_guard = class.init_lock.wait(_guard);
+			_guard = init.wait(_guard);
 		}
 
-		// TODO:
 		// 3. If the Class object for C indicates that initialization is in progress for C by the current thread,
 		//    then this must be a recursive request for initialization. Release LC and complete normally.
+		if class.initialization_state() == ClassInitializationState::InProgress
+			&& class.is_initialized_by(thread)
+		{
+			panic!();
+			return;
+		}
 
 		// 4. If the Class object for C indicates that C has already been initialized, then no further action
 		//    is required. Release LC and complete normally.
@@ -311,22 +323,18 @@ impl Class {
 			panic!("NoClassDefFoundError");
 		}
 
-		// TODO: Need to specify thread
 		// 6. Otherwise, record the fact that initialization of the Class object for C is in progress
 		//    by the current thread, and release LC.
 		tracing::debug!(target: "class-init", "Starting initialization of class `{}`", class.name.as_str());
-
-		class.init_state = ClassInitializationState::InProgress;
-		drop(_guard);
-
 		let class = class_ref.get_mut();
+
+		class.set_initialization_state(ClassInitializationState::InProgress);
+		class.set_initializing_thread();
+		drop(_guard);
 
 		//  Then, initialize each final static field of C with the constant value in its ConstantValue attribute (§4.7.2),
 		//  in the order the fields appear in the ClassFile structure.
-		for field in class_ref
-			.fields()
-			.filter(|field| field.is_static() && field.is_final())
-		{
+		for field in class_ref.static_fields().filter(|field| field.is_final()) {
 			let Some(constant_value_index) = field.constant_value_index else {
 				continue;
 			};
@@ -384,7 +392,15 @@ impl Class {
 				Class::initialize(super_class, thread);
 			}
 
-			// TODO: let SI1, ..., SIn be all superinterfaces of C [...] that declare at least one non-abstract, non-static method.
+			for interface in &class_ref.interfaces {
+				if interface
+					.vtable()
+					.iter()
+					.any(|method| !method.is_abstract() && !method.is_static())
+				{
+					Class::initialize(interface, thread);
+				}
+			}
 
 			// TODO:
 			//    If the initialization of S completes abruptly because of a thrown exception, then acquire LC, label the Class object
@@ -403,7 +419,9 @@ impl Class {
 		//     then acquire LC, label the Class object for C as fully initialized, notify all waiting threads,
 		//     release LC, and complete this procedure normally.
 		class.set_initialization_state(ClassInitializationState::Init);
-		class.init_lock.notify_all();
+		init.notify_all();
+
+		tracing::debug!(target: "class-init", "Finished initialization of class `{}`", class.name.as_str());
 		return;
 
 		// TODO:
@@ -412,7 +430,7 @@ impl Class {
 		// 12. Acquire LC, label the Class object for C as erroneous, notify all waiting threads, release LC, and complete this
 		//     procedure abruptly with reason E or its replacement as determined in the previous step.
 		class.set_initialization_state(ClassInitializationState::Failed);
-		class.init_lock.notify_all();
+		init.notify_all();
 	}
 
 	// Instance initialization method
@@ -462,7 +480,7 @@ impl Class {
 		);
 
 		if let Some(method) = method {
-			MethodInvoker::invoke_with_args(thread, method, Vec::new());
+			java_call!(thread, method);
 		}
 	}
 

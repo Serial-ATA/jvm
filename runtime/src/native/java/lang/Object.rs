@@ -1,4 +1,4 @@
-use crate::class_instance::{ArrayInstancePtr, ClassInstance, ClassInstancePtr};
+use crate::class_instance::{ArrayInstancePtr, ClassInstancePtr};
 use crate::include_generated;
 use crate::native::JniEnv;
 use crate::reference::Reference;

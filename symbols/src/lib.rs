@@ -12,7 +12,7 @@ type FxIndexSet<T> = IndexSet<T, FxBuildHasher>;
 /// The symbol interner, responsible for mapping symbols to strings
 struct SymbolInterner {
 	arena: bumpalo::Bump,
-	set: FxIndexSet<&'static str>,
+	set: FxIndexSet<&'static [u8]>,
 }
 
 impl SymbolInterner {
@@ -34,21 +34,26 @@ impl SymbolInterner {
 
 	/// Intern a string
 	#[allow(trivial_casts)]
-	fn intern(&mut self, string: &str) -> Symbol {
+	fn intern(&mut self, string: &[u8]) -> Symbol {
 		if let Some(symbol_idx) = self.set.get_index_of(string) {
 			return Symbol::new(symbol_idx as u32);
 		}
 
 		// We extend the lifetime of the string to `'static`, which is safe,
 		// as we only use the strings while the arena is alive
-		let string: &'static str = unsafe { &*(*self.arena.alloc(string) as *const str) };
+		let string: &'static [u8] = unsafe { &*(*self.arena.alloc(string) as *const [u8]) };
 
 		let (index, _) = self.set.insert_full(string);
 		Symbol::new(index as u32)
 	}
 
+	fn intern_static(&mut self, bytes: &'static [u8]) -> Symbol {
+		let (index, _) = self.set.insert_full(bytes);
+		Symbol::new(index as u32)
+	}
+
 	/// Gets the string for a Symbol
-	fn get(&self, symbol: Symbol) -> &str {
+	fn get(&self, symbol: Symbol) -> &'static [u8] {
 		self.set[symbol.as_u32() as usize]
 	}
 }
@@ -75,30 +80,35 @@ impl Symbol {
 	///
 	/// NOTE: This will leak `string`.
 	pub fn intern_owned(string: String) -> Self {
-		let leaked_str: &'static mut str = string.leak();
-		Self::intern(leaked_str)
+		let leaked_bytes: &'static mut [u8] = string.into_bytes().leak();
+		let mut guard = INTERNER.lock().unwrap();
+		guard.intern_static(leaked_bytes)
 	}
 
 	/// Maps a string to its interned representation
 	pub fn intern(string: &'static str) -> Self {
 		let mut guard = INTERNER.lock().unwrap();
-		guard.intern(string)
+
+		// SAFETY: &str and &[u8] have the same layout
+		guard.intern_static(unsafe { core::mem::transmute(string) })
 	}
 
 	/// Same as [`Symbol::intern`], but takes a byte slice, which is used
 	/// heavily in the VM
 	pub fn intern_bytes(bytes: &[u1]) -> Self {
-		// TODO: Actually check this for correctness
-		let string = unsafe { std::str::from_utf8_unchecked(bytes) };
+		assert!(std::str::from_utf8(bytes).is_ok());
+		unsafe { Self::intern_bytes_unchecked(bytes) }
+	}
 
+	pub unsafe fn intern_bytes_unchecked(bytes: &[u1]) -> Self {
 		let mut guard = INTERNER.lock().unwrap();
-		guard.intern(string)
+		guard.intern(bytes)
 	}
 
 	/// Access the actual string associated with this symbol
 	pub fn as_str(&self) -> &'static str {
 		let guard = INTERNER.lock().unwrap();
-		unsafe { core::mem::transmute::<&str, &'static str>(guard.get(*self)) }
+		unsafe { std::str::from_utf8_unchecked(guard.get(*self)) }
 	}
 
 	/// Access the `u32` representation of this symbol
@@ -131,17 +141,9 @@ vm_symbols::define_symbols! {
 	java_lang_StackTraceElement: "java/lang/StackTraceElement",
 	java_lang_invoke_MethodHandle: "java/lang/invoke/MethodHandle",
 	java_lang_invoke_VarHandle: "java/lang/invoke/VarHandle",
+	java_lang_Thread: "java/lang/Thread",
 	java_lang_ThreadGroup: "java/lang/ThreadGroup",
 	java_lang_Thread_FieldHolder: "java/lang/Thread$FieldHolder",
-
-	java_lang_Byte: "java/lang/Byte",
-	java_lang_Bool: "java/lang/Bool",
-	java_lang_Short: "java/lang/Short",
-	java_lang_Character: "java/lang/Character",
-	java_lang_Integer: "java/lang/Integer",
-	java_lang_Float: "java/lang/Float",
-	java_lang_Long: "java/lang/Long",
-	java_lang_Double: "java/lang/Double",
 	// -- GENERATED CLASS NAME MARKER, DO NOT DELETE --
 
 	// Signatures

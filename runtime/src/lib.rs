@@ -2,6 +2,8 @@
 #![feature(box_into_inner)]
 #![feature(thread_local)]
 #![feature(impl_trait_in_assoc_type)]
+#![feature(macro_metavar_expr)]
+#![feature(specialization)]
 
 pub mod calls;
 pub mod classpath;
@@ -16,6 +18,7 @@ mod objects;
 pub mod stack;
 mod string_interner;
 mod thread;
+pub mod verifier;
 
 pub use frame::Frame;
 pub use interpreter::Interpreter;

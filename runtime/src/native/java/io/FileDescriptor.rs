@@ -3,8 +3,7 @@ use crate::reference::{ClassRef, Reference};
 
 use std::cell::UnsafeCell;
 use std::ptr::NonNull;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering::SeqCst;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
@@ -12,9 +11,12 @@ use symbols::sym;
 
 include_generated!("native/java/io/def/FileDescriptor.definitions.rs");
 
+/// `java.io.FileDescriptor#fd` field offset
 static mut fd: UnsafeCell<usize> = UnsafeCell::new(0);
+/// `java.io.FileDescriptor#handle` field offset
 #[cfg(windows)]
 static mut handle: UnsafeCell<usize> = UnsafeCell::new(0);
+/// `java.io.FileDescriptor#append` field offset
 static mut append: UnsafeCell<usize> = UnsafeCell::new(0);
 
 // throws SyncFailedException
@@ -24,7 +26,10 @@ pub fn sync0(_: NonNull<JniEnv>, _this: Reference) {
 
 pub fn initIDs(_: NonNull<JniEnv>) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
-	if ONCE.compare_exchange(false, true, SeqCst, SeqCst).is_err() {
+	if ONCE
+		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+		.is_err()
+	{
 		// TODO
 		panic!("java.io.FileDescriptor#initIDs: attempt to initialize more than once.");
 	}
@@ -34,20 +39,31 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 		crate::globals::classes::set_java_io_FileDescriptor(ClassRef::clone(&class));
 	}
 
+	let mut fields = 0;
 	for (index, field) in class.fields().enumerate() {
 		match &*field.name {
 			b"fd" => unsafe {
+				assert!(fields & 1 << 3 == 0, "Field can only occur once");
 				*fd.get_mut() = index;
+				fields |= 1 << 2;
 			},
 			#[cfg(windows)]
 			b"handle" => unsafe {
 				*handle.get_mut() = index;
+				fields |= 1 << 1;
 			},
 			b"append" => unsafe {
 				*append.get_mut() = index;
+				fields |= 1;
 			},
 			_ => {},
 		}
+	}
+
+	if cfg!(windows) {
+		assert_eq!(fields, 0b111, "All fields must be present");
+	} else {
+		assert_eq!(fields, 0b101, "All fields must be present");
 	}
 }
 

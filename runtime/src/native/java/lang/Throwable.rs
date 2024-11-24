@@ -1,6 +1,5 @@
 use crate::class_instance::{ArrayContent, ArrayInstance, Instance};
 use crate::classpath::classloader::ClassLoader;
-use crate::frame::FrameRef;
 use crate::reference::Reference;
 use crate::JavaThread;
 
@@ -18,7 +17,7 @@ use symbols::sym;
 #[allow(non_upper_case_globals)]
 mod stacktrace_element {
 	use crate::class_instance::{ClassInstance, Instance};
-	use crate::frame::FrameRef;
+	use crate::frame::Frame;
 	use crate::reference::{ClassRef, Reference};
 	use crate::string_interner::StringInterner;
 
@@ -101,7 +100,7 @@ mod stacktrace_element {
 		*initialized = true;
 	}
 
-	pub fn from_stack_frame(stacktrace_element_class: ClassRef, frame: FrameRef) -> Reference {
+	pub fn from_stack_frame(stacktrace_element_class: ClassRef, frame: &Frame) -> Reference {
 		unsafe {
 			initialize(Arc::clone(&stacktrace_element_class));
 		}
@@ -174,7 +173,7 @@ pub fn fillInStackTrace(
 		field.name == b"stackTrace" && matches!(&field.descriptor, FieldType::Array(value) if value.is_class(b"java/lang/StackTraceElement"))
 	}).expect("Throwable should have a stackTrace field");
 
-	let stack_depth = current_thread.stack_depth();
+	let stack_depth = current_thread.frame_stack().depth();
 
 	// We need to skip the current frame at the very least
 	let mut frames_to_skip = 1;
@@ -194,7 +193,8 @@ pub fn fillInStackTrace(
 
 	// We need to skip the <athrow> method
 	let athrow_frame = current_thread
-		.frame_at(frames_to_skip)
+		.frame_stack()
+		.get(frames_to_skip)
 		.expect("Frame should exist");
 	if athrow_frame.method().name == sym!(athrow_name) {
 		frames_to_skip += 1;
@@ -213,14 +213,13 @@ pub fn fillInStackTrace(
 	// Create the StackTraceElement array
 	let mut stacktrace_elements = box_slice![Reference::null(); stack_depth - frames_to_skip];
 	for (idx, frame) in current_thread
-		.frames()
+		.frame_stack()
+		.iter()
 		.take(stack_depth - frames_to_skip)
 		.enumerate()
 	{
-		stacktrace_elements[idx] = stacktrace_element::from_stack_frame(
-			Arc::clone(&stacktrace_element_class),
-			FrameRef::clone(frame),
-		);
+		stacktrace_elements[idx] =
+			stacktrace_element::from_stack_frame(Arc::clone(&stacktrace_element_class), frame);
 	}
 
 	let array = ArrayInstance::new(

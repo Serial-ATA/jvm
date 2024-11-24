@@ -5,16 +5,16 @@ use super::reference::{ClassRef, FieldRef};
 use super::spec::class::{ClassInitializationState, InitializationLock};
 use super::vtable::VTable;
 use crate::classpath::classloader::ClassLoader;
+use crate::globals::PRIMITIVES;
 use crate::reference::{MirrorInstanceRef, Reference};
 use crate::JavaThread;
-use std::cell::UnsafeCell;
 
+use std::cell::UnsafeCell;
 use std::fmt::{Debug, Formatter};
 use std::mem::MaybeUninit;
 use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
+use std::sync::{Arc, MutexGuard};
 
-use crate::globals::PRIMITIVES;
 use classfile::accessflags::ClassAccessFlags;
 use classfile::{ClassFile, ConstantPool, ConstantPoolRef, FieldType, MethodInfo};
 use common::box_slice;
@@ -67,13 +67,11 @@ pub struct Class {
 	field_container: FieldContainer,
 	vtable: MaybeUninit<VTable<'static>>,
 
-	pub(super) init_thread: Option<JavaThread>,
+	init_thread: Option<*const JavaThread>,
 	pub(super) class_ty: ClassType,
 
-	#[doc(hidden)]
-	pub(super) init_state: ClassInitializationState,
-	#[doc(hidden)]
-	pub(super) init_lock: Arc<InitializationLock>,
+	init_state: ClassInitializationState,
+	init_lock: Arc<InitializationLock>,
 }
 
 impl Debug for Class {
@@ -258,6 +256,10 @@ impl Class {
 		}
 		ret
 	}
+
+	pub fn initialization_lock(&self) -> Arc<InitializationLock> {
+		Arc::clone(&self.init_lock)
+	}
 }
 
 // Setters
@@ -269,6 +271,19 @@ impl Class {
 	/// This will panic if the index is out of bounds.
 	pub fn set_static_field(&mut self, index: usize, value: Operand<Reference>) {
 		self.field_container.static_field_slots[index] = value;
+	}
+
+	/// Set the thread that initialized this class
+	///
+	/// # Panics
+	///
+	/// This will panic if called more than once for this class.
+	pub fn set_initializing_thread(&mut self) {
+		assert!(
+			self.init_thread.is_none(),
+			"A class initialization thread can only be set once"
+		);
+		self.init_thread = Some(JavaThread::current_ptr());
 	}
 }
 
@@ -364,6 +379,15 @@ impl Class {
 		}
 
 		false
+	}
+
+	/// Whether `thread` initiated the initialization of this class
+	#[allow(trivial_casts)]
+	pub fn is_initialized_by(&self, thread: &JavaThread) -> bool {
+		match self.init_thread {
+			Some(init_thread) => init_thread == (thread as _),
+			None => false,
+		}
 	}
 }
 

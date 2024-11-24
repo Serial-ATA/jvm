@@ -26,6 +26,7 @@ pub mod Raw {
 					index += 1;
 					$prop_array.store(index, Operand::Reference(Reference::class(interned_value_string)));
 					index += 1;
+					let _ = index;
 				)+
 			};
 		}

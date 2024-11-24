@@ -1,11 +1,18 @@
-use crate::reference::Reference;
+use crate::classpath::classloader::ClassLoader;
+use crate::reference::{ClassRef, Reference};
 
+use std::cell::UnsafeCell;
 use std::ptr::NonNull;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
+use symbols::sym;
 
 include_generated!("native/java/io/def/FileInputStream.definitions.rs");
+
+/// `java.io.FileInputStream#fd` field offset
+static mut fd: UnsafeCell<usize> = UnsafeCell::new(0);
 
 // throws FileNotFoundException
 pub fn open0(_: NonNull<JniEnv>, _this: Reference, _name: Reference /* java.lang.String */) {
@@ -57,5 +64,30 @@ pub fn isRegularFile0(
 }
 
 pub fn initIDs(_: NonNull<JniEnv>) {
-	unimplemented!("java.io.FileInputStream#initIDs");
+	static ONCE: AtomicBool = AtomicBool::new(false);
+	if ONCE
+		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+		.is_err()
+	{
+		// TODO
+		panic!("java.io.FileInputStream#initIDs: attempt to initialize more than once.");
+	}
+
+	let class = ClassLoader::lookup_class(sym!(java_io_FileInputStream)).unwrap();
+	unsafe {
+		crate::globals::classes::set_java_io_FileInputStream(ClassRef::clone(&class));
+	}
+
+	let mut field_set = false;
+	for (index, field) in class.fields().enumerate() {
+		if field.name == b"fd" {
+			unsafe {
+				*fd.get_mut() = index;
+			}
+			field_set = true;
+			break;
+		}
+	}
+
+	assert!(field_set, "Field must be present");
 }
