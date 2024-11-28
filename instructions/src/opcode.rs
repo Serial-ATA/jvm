@@ -4,8 +4,8 @@ use common::int_types::u1;
 ///
 /// The format of this is simple:
 ///
-/// ```rust
-/// define_opcode!(
+/// ```rust,ignore
+/// define_opcodes!(
 /// 	pub enum OpCode {
 /// 	    some_opcode [= byte_value] [; size = $size],
 ///         // ...

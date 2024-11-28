@@ -70,7 +70,7 @@ mod patterns {
 /// use std::str::FromStr;
 /// use versioning::Version;
 ///
-/// # fn main() -> versioning::error::Result {
+/// # fn main() -> versioning::error::Result<()> {
 /// // Simple version number, only contains a feature element
 /// let simple_version = Version::from_str("10")?;
 ///
@@ -80,7 +80,7 @@ mod patterns {
 ///
 /// // This version features a pre-release identifier
 /// let pre_release_version = Version::from_str("10-ea")?;
-/// # }
+/// # Ok(()) }
 /// ```
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Version {

@@ -258,13 +258,11 @@ pub struct JNINativeInterface_ {
 	/// In that case, the result of `ClassLoader.getSystemClassLoader` is used. This is the class loader the virtual machine creates for applications, and is able to locate classes
 	/// listed in the java.class.path property.
 	///
-	/// The name argument is a fully-qualified class name or an array type signature . For example, the fully-qualified class name for the `java.lang.String` class is:
+	/// The name argument is a fully-qualified class name or an array type signature.
 	///
-	///                    "java/lang/String"
+	/// For example, the fully-qualified class name for the `java.lang.String` class is: "java/lang/String"
 	///
-	/// The array type signature of the array class java.lang.Object[] is:
-	///
-	///                    "[Ljava/lang/Object;"
+	/// The array type signature of the array class java.lang.Object[] is: "[Ljava/lang/Object;"
 	///
 	/// ## LINKAGE
 	///

@@ -113,7 +113,7 @@ mod tests {
 	#[test]
 	fn descriptor_no_parameters_void_return() {
 		let descriptor = "()V";
-		let method_descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes());
+		let method_descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes()).unwrap();
 
 		assert!(method_descriptor.parameters.is_empty());
 		assert_eq!(method_descriptor.return_type, FieldType::Void);
@@ -181,14 +181,17 @@ mod tests {
 		];
 
 		for (raw, expected) in descriptors {
-			assert_eq!(MethodDescriptor::parse(&mut raw.as_bytes()), expected);
+			assert_eq!(
+				MethodDescriptor::parse(&mut raw.as_bytes()).unwrap(),
+				expected
+			);
 		}
 	}
 
 	#[test]
 	fn descriptor_multiple_primitive_parameters() {
 		let descriptor = "(BBCD)V";
-		let method_descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes());
+		let method_descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes()).unwrap();
 
 		assert_eq!(
 			&*method_descriptor.parameters,
@@ -205,7 +208,7 @@ mod tests {
 	#[test]
 	fn descriptor_object_parameter() {
 		let descriptor = "(Ljava/lang/Object;)V";
-		let method_descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes());
+		let method_descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes()).unwrap();
 
 		assert_eq!(
 			&*method_descriptor.parameters,
@@ -219,7 +222,7 @@ mod tests {
 	#[test]
 	fn descriptor_mutliple_object_parameters() {
 		let descriptor = "(Ljava/lang/Object;Ljava/lang/Integer;Ljava/lang/String;)V";
-		let method_descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes());
+		let method_descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes()).unwrap();
 
 		assert_eq!(
 			&*method_descriptor.parameters,

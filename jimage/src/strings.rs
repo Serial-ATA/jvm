@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use std::cmp::Ordering;
 
 use common::endian::Endian;

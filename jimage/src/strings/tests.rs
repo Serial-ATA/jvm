@@ -1,4 +1,4 @@
-use jimage::ImageStrings;
+use crate::ImageStrings;
 
 #[test]
 #[ignore]

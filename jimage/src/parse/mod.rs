@@ -1,5 +1,6 @@
 mod header;
 pub(crate) mod index;
+mod tests;
 
 use crate::error::Result;
 use crate::header::JImageHeader;
