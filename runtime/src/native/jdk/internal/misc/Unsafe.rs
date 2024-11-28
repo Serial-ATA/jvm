@@ -1,7 +1,7 @@
 use crate::class::Class;
 use crate::class_instance::Instance;
 use crate::native::JniEnv;
-use crate::objects::spec::class::ClassInitializationState;
+use crate::objects::class::ClassInitializationState;
 use crate::reference::Reference;
 use crate::string_interner::StringInterner;
 use crate::thread::JavaThread;

@@ -7,7 +7,7 @@ use symbols::sym;
 impl Method {
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.3
 	pub fn is_polymorphic(&self) -> bool {
-		let class = self.class.get();
+		let class = self.class;
 		let mut is_polymorphic = false;
 
 		// A method is signature polymorphic if all of the following are true:
@@ -57,6 +57,6 @@ impl Method {
 			&& !self.is_private()
 			&& (other.is_public()
 				|| other.is_protected()
-				|| (!other.is_private() && other.class.shares_package_with(self.class.get())))
+				|| (!other.is_private() && other.class.shares_package_with(self.class)))
 	}
 }

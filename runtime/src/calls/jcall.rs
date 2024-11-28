@@ -1,31 +1,3 @@
-use crate::method::Method;
-use crate::reference::Reference;
-use crate::stack::local_stack::LocalStack;
-use crate::JavaThread;
-use instructions::Operand;
-// macro_rules! static_jcall {
-//     (
-//         ENV: $env:ident,
-// 		THREAD: $thread:ident,
-//         METHOD: $method:ident,
-//         ARGS: $($arg:expr),*
-//     ) => {
-// 		debug_assert!($method.is_static());
-// 		if $method.is_native() {
-// 			// Try to lookup and set the method prior to calling
-// 			let _ = $crate::native::lookup::lookup_native_method($method, $thread);
-// 			$method.native_invoker()(
-// 				$method,
-// 				$env,
-// 				(jclass_from_classref(Arc::clone(&$method.class)), $($arg),*),
-// 			)
-// 		}
-//
-// 		unimplemented!("Non-native static method jcall");
-// 	};
-// }
-//
-
 /// Call a Java method with arguments
 ///
 /// This will invoke `method` on `thread` with the provided arguments.

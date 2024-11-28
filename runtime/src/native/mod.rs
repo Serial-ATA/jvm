@@ -13,7 +13,6 @@ use std::ptr::NonNull;
 use std::sync::{LazyLock, RwLock};
 
 use ::jni::env::JniEnv;
-use common::traits::PtrType;
 use instructions::Operand;
 use symbols::Symbol;
 
@@ -54,7 +53,7 @@ pub fn lookup_method(method: &Method) -> NativeMethodPtr {
 /// Lookup the native method defintion for `method`, or return `None`
 pub fn lookup_method_opt(method: &Method) -> Option<NativeMethodPtr> {
 	let native_method = NativeMethodDef {
-		class: method.class.get().name,
+		class: method.class.name,
 		name: method.name,
 		descriptor: method.descriptor,
 	};

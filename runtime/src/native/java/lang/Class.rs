@@ -8,9 +8,10 @@ use crate::string_interner::StringInterner;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
-use common::int_types::s4;
+use ::jni::sys::jboolean;
 use common::traits::PtrType;
 use instructions::Operand;
+use jni::sys::jint;
 use symbols::sym;
 
 include_generated!("native/java/lang/def/Class.registerNatives.rs");
@@ -20,7 +21,7 @@ include_generated!("native/java/lang/def/Class.definitions.rs");
 pub fn forName0(
 	_env: NonNull<JniEnv>,
 	_name: Reference, // java.lang.String
-	_initialize: bool,
+	_initialize: jboolean,
 	_loader: Reference, // java.lang.ClassLoader
 	_caller: Reference, // java.lang.Class
 ) -> Reference /* java.lang.Class */ {
@@ -31,23 +32,23 @@ pub fn isInstance(
 	_env: NonNull<JniEnv>,
 	_this: Reference, // java.lang.Class
 	_obj: Reference,  // java.lang.Object
-) -> bool {
+) -> jboolean {
 	unimplemented!("Class#isInstance");
 }
 pub fn isAssignableFrom(
 	_env: NonNull<JniEnv>,
 	_this: Reference, // java.lang.Class
 	_cls: Reference,  // java.lang.Class
-) -> bool {
+) -> jboolean {
 	unimplemented!("Class#isAssignableFrom");
 }
-pub fn isInterface(_env: NonNull<JniEnv>, _this: Reference /* java.lang.Class */) -> bool {
+pub fn isInterface(_env: NonNull<JniEnv>, _this: Reference /* java.lang.Class */) -> jboolean {
 	unimplemented!("Class#isInterface");
 }
-pub fn isArray(_env: NonNull<JniEnv>, this: Reference /* java.lang.Class */) -> bool {
+pub fn isArray(_env: NonNull<JniEnv>, this: Reference /* java.lang.Class */) -> jboolean {
 	this.extract_mirror().get().is_array()
 }
-pub fn isPrimitive(_env: NonNull<JniEnv>, this: Reference /* java.lang.Class */) -> bool {
+pub fn isPrimitive(_env: NonNull<JniEnv>, this: Reference /* java.lang.Class */) -> jboolean {
 	this.extract_mirror().get().is_primitive()
 }
 
@@ -57,7 +58,7 @@ pub fn initClassName(
 ) -> Reference {
 	let this_mirror = this.extract_mirror();
 	let this_mirror_target = this_mirror.get().expect_class(); // TODO: Support primitive mirrors
-	let this_name = this_mirror_target.get().name;
+	let this_name = this_mirror_target.name;
 	let name_string = StringInterner::intern_symbol(this_name);
 
 	this_mirror.get_mut().put_field_value0(
@@ -82,7 +83,7 @@ pub fn getInterfaces0(
 {
 	unimplemented!("Class#getInterfaces0");
 }
-pub fn getModifiers(_env: NonNull<JniEnv>, _this: Reference /* java.lang.Class */) -> s4 {
+pub fn getModifiers(_env: NonNull<JniEnv>, _this: Reference /* java.lang.Class */) -> jint {
 	unimplemented!("Class#getModifiers");
 }
 pub fn getSigners(_env: NonNull<JniEnv>, _this: Reference /* java.lang.Class */) -> Reference /* Object[] */
@@ -169,21 +170,21 @@ pub fn getConstantPool(
 pub fn getDeclaredFields0(
 	_env: NonNull<JniEnv>,
 	_this: Reference, // java.lang.Class
-	_public_only: bool,
+	_public_only: jboolean,
 ) -> Reference /* Field[] */ {
 	unimplemented!("Class#getDeclaredFields0");
 }
 pub fn getDeclaredMethods0(
 	_env: NonNull<JniEnv>,
 	_this: Reference, // java.lang.Class
-	_public_only: bool,
+	_public_only: jboolean,
 ) -> Reference /* Method[] */ {
 	unimplemented!("Class#getDeclaredMethods0");
 }
 pub fn getDeclaredConstructors0(
 	_env: NonNull<JniEnv>,
 	_this: Reference, // java.lang.Class
-	_public_only: bool,
+	_public_only: jboolean,
 ) -> Reference /* Constructor<T>[] */ {
 	unimplemented!("Class#getDeclaredConstructors0");
 }
@@ -202,7 +203,7 @@ pub fn getRecordComponents0(
 {
 	unimplemented!("Class#getRecordComponents0");
 }
-pub fn isRecord0(_env: NonNull<JniEnv>, _this: Reference /* java.lang.Class */) -> bool {
+pub fn isRecord0(_env: NonNull<JniEnv>, _this: Reference /* java.lang.Class */) -> jboolean {
 	unimplemented!("Class#isRecord0");
 }
 
@@ -211,9 +212,9 @@ pub fn isRecord0(_env: NonNull<JniEnv>, _this: Reference /* java.lang.Class */) 
 pub fn desiredAssertionStatus0(
 	_env: NonNull<JniEnv>,
 	clazz: Reference, // java/lang/Class
-) -> bool {
+) -> jboolean {
 	let mirror = clazz.extract_mirror();
-	let _name = &mirror.get().expect_class().get().name;
+	let _name = &mirror.get().expect_class().name;
 
 	false
 }
@@ -234,7 +235,7 @@ pub fn getNestMembers0(
 	unimplemented!("Class#getNestMembers0");
 }
 
-pub fn isHidden(_env: NonNull<JniEnv>, _this: Reference /* java.lang.Class */) -> bool {
+pub fn isHidden(_env: NonNull<JniEnv>, _this: Reference /* java.lang.Class */) -> jboolean {
 	unimplemented!("Class#isHidden");
 }
 
@@ -243,4 +244,18 @@ pub fn getPermittedSubclasses0(
 	_this: Reference, // java.lang.Class
 ) -> Reference /* Class<?>[] */ {
 	unimplemented!("Class#getPermittedSubclasses0");
+}
+
+pub fn getClassFileVersion0(
+	_env: NonNull<JniEnv>,
+	_this: Reference, // java.lang.Class
+) -> jint {
+	unimplemented!("Class#getClassFileVersion0");
+}
+
+pub fn getClassAccessFlagsRaw0(
+	_env: NonNull<JniEnv>,
+	_this: Reference, // java.lang.Class
+) -> jint {
+	unimplemented!("Class#getClassAccessFlagsRaw0");
 }

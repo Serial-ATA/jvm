@@ -3,7 +3,6 @@
 use super::type_system::VerificationType;
 use crate::class::Class;
 use crate::method::Method;
-use crate::reference::ClassRef;
 use crate::vtable::VTable;
 
 use classfile::accessflags::MethodAccessFlags;
@@ -20,13 +19,13 @@ pub(super) trait ClassAccessorExt {
 	/// Extracts the name, `SuperClassName`, of the superclass of class `Class`.
 	fn super_class_name(&self) -> Symbol;
 	/// Extracts a list, `Interfaces`, of the direct superinterfaces of the class `Class`.
-	fn interfaces(&self) -> &[ClassRef];
+	fn interfaces(&self) -> &[&'static Class];
 	/// Extracts a list, `Methods`, of the methods declared in the class `Class`.
 	fn methods(&self) -> &VTable<'_>;
 	/// Extracts a list, `Attributes`, of the attributes of the class `Class`.
 	fn attributes(&self) -> &[Attribute];
 	/// Extracts the defining class loader, `Loader`, of the class `Class`.
-	fn defining_loader(&self) -> ClassRef;
+	fn defining_loader(&self) -> &'static Class;
 	/// True iff the class loader `Loader` is the bootstrap class loader.
 	fn is_bootstrap_loader(&self) -> bool;
 	/// True iff there exists a class named `Name` whose representation (in accordance with this specification) when loaded by the class loader `InitiatingLoader` is `ClassDefinition`.
@@ -61,7 +60,7 @@ impl ClassAccessorExt for Class {
 		self.super_class.as_ref().unwrap().name
 	}
 
-	fn interfaces(&self) -> &[ClassRef] {
+	fn interfaces(&self) -> &[&'static Class] {
 		todo!()
 	}
 
@@ -73,7 +72,7 @@ impl ClassAccessorExt for Class {
 		todo!()
 	}
 
-	fn defining_loader(&self) -> ClassRef {
+	fn defining_loader(&self) -> &'static Class {
 		todo!()
 	}
 
@@ -110,26 +109,26 @@ pub(super) trait MethodAccessorExt {
 	/// True iff `Method` (regardless of class) is not `<init>`.
 	fn is_not_init(&self) -> bool;
 	/// True iff Method in class `Class` is not final.
-	fn is_not_final(&self, class: ClassRef) -> bool;
+	fn is_not_final(&self, class: &'static Class) -> bool;
 	/// True iff Method in class `Class` is static.
-	fn is_static(&self, class: ClassRef) -> bool;
+	fn is_static(&self, class: &'static Class) -> bool;
 	/// True iff Method in class `Class` is not static.
-	fn is_not_static(&self, class: ClassRef) -> bool;
+	fn is_not_static(&self, class: &'static Class) -> bool;
 	/// True iff Method in class `Class` is private.
-	fn is_private(&self, class: ClassRef) -> bool;
+	fn is_private(&self, class: &'static Class) -> bool;
 	/// True iff Method in class `Class` is not private.
-	fn is_not_private(&self, class: ClassRef) -> bool;
+	fn is_not_private(&self, class: &'static Class) -> bool;
 	/// True iff there is a member named `MemberName` with descriptor `MemberDescriptor` in the class `MemberClass` and it is protected.
 	fn is_protected(
 		&self,
-		member_class: ClassRef,
+		member_class: &'static Class,
 		member_name: Symbol,
 		member_descriptor: Symbol,
 	) -> bool;
 	/// True iff there is a member named `MemberName` with descriptor `MemberDescriptor` in the class `MemberClass` and it is not protected.
 	fn is_not_protected(
 		&self,
-		member_class: ClassRef,
+		member_class: &'static Class,
 		member_name: Symbol,
 		member_descriptor: Symbol,
 	) -> bool;
@@ -165,29 +164,29 @@ impl MethodAccessorExt for Method {
 		!self.is_init()
 	}
 
-	fn is_not_final(&self, class: ClassRef) -> bool {
+	fn is_not_final(&self, class: &'static Class) -> bool {
 		todo!()
 	}
 
-	fn is_static(&self, class: ClassRef) -> bool {
+	fn is_static(&self, class: &'static Class) -> bool {
 		todo!()
 	}
 
-	fn is_not_static(&self, class: ClassRef) -> bool {
+	fn is_not_static(&self, class: &'static Class) -> bool {
 		todo!()
 	}
 
-	fn is_private(&self, class: ClassRef) -> bool {
+	fn is_private(&self, class: &'static Class) -> bool {
 		todo!()
 	}
 
-	fn is_not_private(&self, class: ClassRef) -> bool {
+	fn is_not_private(&self, class: &'static Class) -> bool {
 		todo!()
 	}
 
 	fn is_protected(
 		&self,
-		member_class: ClassRef,
+		member_class: &'static Class,
 		member_name: Symbol,
 		member_descriptor: Symbol,
 	) -> bool {
@@ -196,7 +195,7 @@ impl MethodAccessorExt for Method {
 
 	fn is_not_protected(
 		&self,
-		member_class: ClassRef,
+		member_class: &'static Class,
 		member_name: Symbol,
 		member_descriptor: Symbol,
 	) -> bool {

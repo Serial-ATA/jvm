@@ -1,10 +1,9 @@
 use super::{classref_from_jclass, jclass_from_classref};
 use crate::classpath::classloader::ClassLoader;
-use crate::reference::ClassRef;
 
 use core::ffi::{c_char, CStr};
-use std::sync::Arc;
 
+use crate::class::Class;
 use jni::sys::{jboolean, jbyte, jclass, jobject, jsize, JNIEnv};
 use symbols::Symbol;
 
@@ -27,18 +26,18 @@ pub unsafe extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -
 		return jclass_from_classref(class);
 	}
 
-	return core::ptr::null::<ClassRef>() as jclass;
+	return core::ptr::null::<&'static Class>() as jclass;
 }
 
 #[no_mangle]
 pub unsafe extern "system" fn GetSuperclass(env: *mut JNIEnv, sub: jclass) -> jclass {
 	if let Some(class) = classref_from_jclass(sub) {
-		if let Some(super_class) = class.super_class.as_ref().map(Arc::clone) {
+		if let Some(super_class) = class.super_class {
 			return jclass_from_classref(super_class);
 		}
 	}
 
-	return core::ptr::null::<ClassRef>() as jclass;
+	return core::ptr::null::<&'static Class>() as jclass;
 }
 
 #[no_mangle]

@@ -1,5 +1,5 @@
 use crate::classpath::classloader::ClassLoader;
-use crate::reference::{ClassRef, Reference};
+use crate::reference::Reference;
 
 use std::cell::UnsafeCell;
 use std::ptr::NonNull;
@@ -36,7 +36,7 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 
 	let class = ClassLoader::lookup_class(sym!(java_io_FileDescriptor)).unwrap();
 	unsafe {
-		crate::globals::classes::set_java_io_FileDescriptor(ClassRef::clone(&class));
+		crate::globals::classes::set_java_io_FileDescriptor(class);
 	}
 
 	let mut fields = 0;

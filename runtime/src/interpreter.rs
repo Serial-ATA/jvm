@@ -1,14 +1,13 @@
 #![allow(unused_imports)] // Intellij-Rust doesn't like this file much, the imports used in macros are not recognized
 
-use crate::class::Class;
+use crate::class::{Class, ClassInitializationState};
 use crate::class_instance::{ArrayInstance, ClassInstance};
 use crate::classpath::classloader::ClassLoader;
 use crate::frame::Frame;
 use crate::method::Method;
 use crate::method_invoker::MethodInvoker;
 use crate::objects::class_instance::Instance;
-use crate::reference::{FieldRef, Reference};
-use crate::spec::class::ClassInitializationState;
+use crate::reference::{ClassInstanceRef, Reference};
 use crate::string_interner::StringInterner;
 use crate::thread::JavaThread;
 
@@ -16,6 +15,7 @@ use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
 use std::sync::Arc;
 
+use crate::field::Field;
 use classfile::ConstantPoolValueInfo;
 use common::int_types::{s2, s4, s8, u2};
 use common::traits::PtrType;
@@ -608,18 +608,22 @@ impl Interpreter {
                     }
                 },
                 OpCode::invokevirtual => {
-                    if let Some(method) = Self::fetch_method(frame) {
+                    if let Some(method) = Self::fetch_method(frame, false) {
                         MethodInvoker::invoke_virtual(frame, method);
                     }
                 },
-                OpCode::invokespecial
-                | OpCode::invokestatic => {
-                    if let Some(method) = Self::fetch_method(frame) {
+                OpCode::invokespecial => {
+                    if let Some(method) = Self::fetch_method(frame, false) {
+                        MethodInvoker::invoke(frame, method);
+                    }
+                },
+                OpCode::invokestatic => {
+                    if let Some(method) = Self::fetch_method(frame, true) {
                         MethodInvoker::invoke(frame, method);
                     }
                 },
                 OpCode::invokeinterface => {
-                    if let Some(method) = Self::fetch_method(frame) {
+                    if let Some(method) = Self::fetch_method(frame, false) {
                         // The count operand is an unsigned byte that must not be zero.
                         let count = frame.read_byte();
                         assert!(count > 0);
@@ -631,17 +635,7 @@ impl Interpreter {
                     }
                 },
                 OpCode::new => {
-                    let index = frame.read_byte2();
-                    
-                    let class = &frame.method().class;
-                    let constant_pool = &class.unwrap_class_instance().constant_pool;
-                    
-                    // TODO: if the symbolic reference to the class or interface type resolves to an
-                    //       interface or an abstract class, new throws an InstantiationError. 
-                    let class_name = constant_pool.get_class_name(index);
-                    let classref = class.get().loader.load(Symbol::intern_bytes(class_name)).unwrap();
-    
-                    let new_class_instance = ClassInstance::new(classref);
+                    let new_class_instance = Self::new(frame);
                     frame.stack_mut().push_reference(Reference::class(new_class_instance));
                 },
                 OpCode::newarray => {
@@ -657,9 +651,8 @@ impl Interpreter {
                     let index = frame.read_byte2();
 
                     let method = frame.method();
-                    let class_ref = Arc::clone(&method.class);
 
-                    let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
+                    let constant_pool = &method.class.unwrap_class_instance().constant_pool;
                     let array_class_name = constant_pool.get_class_name(index);
 
                     let stack = frame.stack_mut();
@@ -767,10 +760,7 @@ impl Interpreter {
             u2::from(frame.read_byte())
         };
 
-        let method = frame.method();
-        let class_ref = Arc::clone(&method.class);
-
-        let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
+        let constant_pool = frame.constant_pool();
         let constant = &constant_pool[idx];
         
         // The run-time constant pool entry at index must be loadable (§5.1),
@@ -797,7 +787,7 @@ impl Interpreter {
             // then the named class or interface is resolved (§5.4.3.1) and value, a reference to the Class object
             // representing that class or interface, is pushed onto the operand stack.
             ConstantPoolValueInfo::Class { name_index } => {
-                let class = class_ref.get();
+                let class = frame.method().class;
 
                 let class_name = constant_pool.get_constant_utf8(*name_index);
                 let classref = class.loader.load(Symbol::intern_bytes(class_name)).unwrap();
@@ -818,10 +808,7 @@ impl Interpreter {
     fn ldc2_w(frame: &mut Frame) {
         let idx = frame.read_byte2();
 
-        let method = frame.method();
-        let class_ref = Arc::clone(&method.class);
-
-        let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
+        let constant_pool = frame.constant_pool();
         let constant = &constant_pool[idx];
 
         // The run-time constant pool entry at index must be loadable (§5.1),
@@ -947,46 +934,75 @@ impl Interpreter {
             _ => unreachable!()
         }
     }
-    
-    fn fetch_field(frame: &mut Frame, is_static: bool) -> Option<FieldRef> {
+
+    fn initialize_class_if_needed(classref: &'static Class, frame: &mut Frame) -> bool {
+        if classref.initialization_state() != ClassInitializationState::Uninit {
+            return false;
+        }
+
+        // TODO: This is a hack
+        let _ = frame.thread().pc.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
+
+        Class::initialize(&classref, frame.thread_mut());
+        true
+    }
+
+    fn fetch_field(frame: &mut Frame, is_static: bool) -> Option<&'static Field> {
         let field_ref_idx = frame.read_byte2();
 
-        let method = frame.method();
-        let class = Arc::clone(&method.class);
-
-        let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
+        let constant_pool = frame.constant_pool();
         let (class_name_index, _) = constant_pool.get_field_ref(field_ref_idx);
 
         let class_name = constant_pool.get_class_name(class_name_index);
-		let classref = ClassLoader::Bootstrap
+		let class = ClassLoader::Bootstrap
 			.load(Symbol::intern_bytes(class_name))
 			.unwrap();
 
-        let initialization_state = classref.initialization_state();
-        let staticially_valid = is_static && (initialization_state == ClassInitializationState::InProgress || initialization_state == ClassInitializationState::Init);
-		if !staticially_valid && initialization_state != ClassInitializationState::Init {
-			// TODO: This is a hack
-			let _ = frame.thread().pc.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
-
-			Class::initialize(&classref, frame.thread_mut());
-			return None;
-		}
-
         // If this is `None`, the class is initializing
-        Class::resolve_field(classref, constant_pool, field_ref_idx)
+        let ret = class.resolve_field(constant_pool, field_ref_idx);
+        if ret.is_some() && is_static {
+            Self::initialize_class_if_needed(class, frame);
+        }
+
+        ret
     }
     
-    fn fetch_method(frame: &mut Frame) -> Option<&'static Method> {
+    fn fetch_method(frame: &mut Frame, is_static: bool) -> Option<&'static Method> {
         let method_ref_idx = frame.read_byte2();
 
         let method = frame.method();
-        let class = Arc::clone(&method.class);
+        let class = method.class;
 
-        let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
+        let ret = class.resolve_method(frame.thread_mut(), method_ref_idx);
+        if ret.is_some() && is_static {
+            // On successful resolution of the method, the class or interface that declared the resolved method is initialized if that class or interface has not already been initialized
+            if Self::initialize_class_if_needed(class, frame) {
+                return None
+            }
+        }
 
-        class.resolve_method(frame.thread_mut(), constant_pool, method_ref_idx)
+        ret
     }
-    
+
+    fn new(frame: &mut Frame) -> ClassInstanceRef {
+        let index = frame.read_byte2();
+
+        let class = &frame.method().class;
+        let constant_pool = frame.constant_pool();
+
+        let class_name = constant_pool.get_class_name(index);
+        let class = class.loader.load(Symbol::intern_bytes(class_name)).unwrap();
+
+        if class.is_interface() || class.is_abstract() {
+            panic!("InstantiationError") // TODO
+        }
+
+        // On successful resolution of the class, it is initialized if it has not already been initialized
+        Self::initialize_class_if_needed(class, frame);
+
+        ClassInstance::new(class)
+    }
+
     fn tableswitch(frame: &mut Frame) {
         // Subtract 1, since we already read the opcode
         let opcode_address = frame.thread().pc.load(MemOrdering::Relaxed) - 1;

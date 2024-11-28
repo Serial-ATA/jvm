@@ -1,9 +1,11 @@
-use super::reference::ClassRef;
+pub mod spec;
+
+use crate::class::Class;
 use crate::classpath::classloader::ClassLoader;
 use crate::native::NativeMethodPtr;
 
 use std::ffi::c_void;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Formatter, Pointer};
 use std::sync::{Arc, RwLock};
 
 use classfile::accessflags::MethodAccessFlags;
@@ -12,7 +14,7 @@ use common::int_types::{s4, u1};
 use symbols::Symbol;
 
 pub struct Method {
-	pub class: ClassRef,
+	pub class: &'static Class,
 	pub access_flags: MethodAccessFlags,
 	pub name: Symbol,
 	pub descriptor: Symbol,
@@ -39,15 +41,7 @@ impl PartialEq for Method {
 
 impl Debug for Method {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		f.debug_struct("Method")
-			.field("class", &self.class)
-			.field("access_flags", &self.access_flags)
-			.field("name", &self.name.as_str())
-			.field("descriptor", &self.descriptor.as_str())
-			.field("parameter_count", &self.parameter_count)
-			.field("code_len", &self.code.code.len())
-			.field("is_intrinsic", &self.is_intrinsic)
-			.finish()
+		write!(f, "{}#{}", self.class.name.as_str(), self.name.as_str())
 	}
 }
 
@@ -56,7 +50,7 @@ impl Method {
 	///
 	/// NOTE: This will leak the `Method` and return a reference. It is important that this only
 	///       be called once per method. It should never be used outside of class loading.
-	pub fn new(class: ClassRef, method_info: &MethodInfo) -> &'static mut Self {
+	pub(super) fn new(class: &'static Class, method_info: &MethodInfo) -> &'static mut Self {
 		let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
 
 		let access_flags = method_info.access_flags;
@@ -113,7 +107,7 @@ impl Method {
 
 	// https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-2.html#jvms-2.10
 	/// Find the exception handler for the given class and pc
-	pub fn find_exception_handler(&self, class: ClassRef, pc: isize) -> Option<isize> {
+	pub fn find_exception_handler(&self, class: &'static Class, pc: isize) -> Option<isize> {
 		for exception_handler in &self.code.exception_table {
 			let active_range =
 				(exception_handler.start_pc as isize)..(exception_handler.end_pc as isize);
@@ -135,7 +129,7 @@ impl Method {
 				.load(Symbol::intern_bytes(catch_type_class_name))
 				.expect("catch_type should be available");
 
-			if catch_type_class == class || catch_type_class.is_subclass_of(&class) {
+			if catch_type_class == class || catch_type_class.is_subclass_of(class) {
 				return Some(exception_handler.handler_pc as isize);
 			}
 		}

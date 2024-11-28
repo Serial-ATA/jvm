@@ -1,4 +1,4 @@
-use crate::reference::ClassRef;
+use crate::objects::class::Class;
 
 use std::cell::UnsafeCell;
 
@@ -7,7 +7,7 @@ macro_rules! define_classes {
         paste::paste! {
             $(
 			#[allow(non_upper_case_globals)]
-            static mut [<$name _>]: UnsafeCell<Option<ClassRef>> = UnsafeCell::new(None);
+            static mut [<$name _>]: UnsafeCell<Option<&'static Class>> = UnsafeCell::new(None);
 
             #[doc = "Set the loaded " $name " class"]
             ///
@@ -15,7 +15,7 @@ macro_rules! define_classes {
             ///
             /// This must only be called once
 			#[allow(non_snake_case)]
-            pub unsafe fn [<set_ $name>](class: ClassRef) {
+            pub unsafe fn [<set_ $name>](class: &'static Class) {
                 *[<$name _>].get_mut() = Some(class);
             }
 
@@ -25,9 +25,9 @@ macro_rules! define_classes {
             ///
             /// This will panic if the class is not actually loaded.
 			#[allow(non_snake_case)]
-            pub fn $name() -> ClassRef {
+            pub fn $name() -> &'static Class {
                 unsafe {
-                    (*[<$name _>].get()).as_ref().map(ClassRef::clone).expect(concat!(stringify!($name), " not loaded"))
+                    (*[<$name _>].get()).expect(concat!(stringify!($name), " not loaded"))
                 }
             }
             )+

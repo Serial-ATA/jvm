@@ -1,18 +1,18 @@
 use crate::class::Class;
-use crate::classpath::classloader::ClassLoader;
 use crate::java_call;
 use crate::method::Method;
 use crate::method_invoker::MethodInvoker;
-use crate::reference::{ClassRef, FieldRef, Reference};
+use crate::objects::field::Field;
+use crate::reference::Reference;
 use crate::string_interner::StringInterner;
 use crate::thread::JavaThread;
 
+use std::cell::UnsafeCell;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 use classfile::accessflags::MethodAccessFlags;
 use classfile::{ConstantPoolRef, FieldType};
 use common::int_types::u2;
-use common::traits::PtrType;
 use instructions::Operand;
 use symbols::{sym, Symbol};
 
@@ -30,16 +30,27 @@ pub enum ClassInitializationState {
 	Failed,
 }
 
-#[derive(Default, Debug)]
-pub(crate) struct InitializationLock(Mutex<()>, Condvar);
+pub(super) struct InitializationLock(Mutex<InitializationGuard>, Condvar);
 
-#[doc(hidden)]
 impl InitializationLock {
-	fn lock(&self) -> MutexGuard<'_, ()> {
+	pub fn new() -> Self {
+		let mutex = Mutex::new(InitializationGuard {
+			init_thread: UnsafeCell::new(None),
+			init_state: UnsafeCell::new(ClassInitializationState::default()),
+		});
+		Self(mutex, Condvar::new())
+	}
+}
+
+impl InitializationLock {
+	pub fn lock(&self) -> MutexGuard<'_, InitializationGuard> {
 		self.0.lock().unwrap()
 	}
 
-	fn wait<'a>(&self, guard: MutexGuard<'a, ()>) -> MutexGuard<'a, ()> {
+	fn wait<'a>(
+		&self,
+		guard: MutexGuard<'a, InitializationGuard>,
+	) -> MutexGuard<'a, InitializationGuard> {
 		self.1.wait(guard).unwrap()
 	}
 
@@ -48,14 +59,92 @@ impl InitializationLock {
 	}
 }
 
+pub(super) struct InitializationGuard {
+	init_thread: UnsafeCell<Option<*const JavaThread>>,
+	init_state: UnsafeCell<ClassInitializationState>,
+}
+
+impl InitializationGuard {
+	/// Set the thread that initialized this class
+	///
+	/// # Panics
+	///
+	/// This will panic if called more than once for this class.
+	fn set_initializing_thread(&self) {
+		let init_thread = self.init_thread.get();
+		unsafe {
+			assert!(
+				(&*init_thread).is_none(),
+				"A class initialization thread can only be set once"
+			);
+
+			*init_thread = Some(JavaThread::current_ptr());
+		}
+	}
+
+	/// Set the initialization state of this class
+	fn set_initialization_state(&self, state: ClassInitializationState) {
+		let init_state = self.init_state.get();
+		unsafe {
+			*init_state = state;
+		}
+	}
+
+	/// Whether `thread` initiated the initialization of this class
+	#[allow(trivial_casts)]
+	pub fn is_initialized_by(&self, thread: &JavaThread) -> bool {
+		// SAFETY: We hold the lock, no one can write to this, reads are safe.
+		let init_thread = unsafe { *self.init_thread.get() };
+		match init_thread {
+			Some(init_thread) => init_thread == (thread as _),
+			None => false,
+		}
+	}
+
+	/// Get the initialization state of this class
+	pub fn initialization_state(&self) -> ClassInitializationState {
+		let init_state = unsafe { *self.init_state.get() };
+		init_state
+	}
+}
+
 impl Class {
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4
+	fn link(&self) {
+		// Linking a class or interface involves verifying and preparing that class or interface, its direct superclass,
+		// its direct superinterfaces, and its element type (if it is an array type), if necessary.
+		// Linking also involves resolution of symbolic references in the class or interface, though
+		// not necessarily at the same time as the class or interface is verified and prepared.
+	}
+
+	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.2
+	pub fn prepare(&self) {
+		// Preparation involves creating the static fields for a class or interface and initializing such fields
+		// to their default values (§2.3, §2.4). This does not require the execution of any Java Virtual Machine code;
+		// explicit initializers for static fields are executed as part of initialization (§5.5), not preparation.
+		let mut prepared_fields = Vec::new();
+		for (idx, field) in self.static_fields().enumerate() {
+			prepared_fields.push((field, idx));
+		}
+
+		for (field, idx) in prepared_fields {
+			let value = Field::default_value_for_ty(&field.descriptor);
+			unsafe {
+				self.set_static_field(idx, value);
+			}
+		}
+
+		// TODO:
+		// During preparation of a class or interface C, the Java Virtual Machine also imposes loading constraints (§5.3.4):
+	}
+
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.2
 	#[tracing::instrument(skip_all)]
 	pub fn resolve_field(
-		classref: ClassRef,
+		&self,
 		constant_pool: ConstantPoolRef,
 		field_ref_idx: u2,
-	) -> Option<FieldRef> {
+	) -> Option<&'static Field> {
 		// TODO: Double constant pool lookup
 		let (_, name_and_type_index) = constant_pool.get_field_ref(field_ref_idx);
 
@@ -71,9 +160,9 @@ impl Class {
 
 		// 1. If C declares a field with the name and descriptor specified by the field reference,
 		//    field lookup succeeds. The declared field is the result of the field lookup.
-		for field in classref.fields() {
+		for field in self.fields() {
 			if field.name == field_name && field.descriptor == field_type {
-				return Some(Arc::clone(field));
+				return Some(field);
 			}
 		}
 
@@ -82,9 +171,8 @@ impl Class {
 		//    specified class or interface C.
 
 		// 3. Otherwise, if C has a superclass S, field lookup is applied recursively to S.
-		if let Some(super_class) = &classref.get().super_class {
-			Class::resolve_field(
-				Arc::clone(&classref),
+		if let Some(super_class) = &self.super_class {
+			super_class.resolve_field(
 				super_class.unwrap_class_instance().constant_pool.clone(),
 				field_ref_idx,
 			);
@@ -99,9 +187,11 @@ impl Class {
 	pub fn resolve_method<'a>(
 		&'a self,
 		thread: &mut JavaThread,
-		constant_pool: ConstantPoolRef,
 		method_ref_idx: u2,
 	) -> Option<&'static Method> {
+		let descriptor = self.unwrap_class_instance();
+		let constant_pool = Arc::clone(&descriptor.constant_pool);
+
 		let (interface_method, class_name_index, name_and_type_index) =
 			constant_pool.get_method_ref(method_ref_idx);
 
@@ -115,21 +205,21 @@ impl Class {
 		let descriptor = Symbol::intern_bytes(descriptor_raw);
 
 		let class_name = constant_pool.get_class_name(class_name_index);
-		let classref = self.loader.load(Symbol::intern_bytes(class_name)).unwrap();
+		let class = self.loader.load(Symbol::intern_bytes(class_name)).unwrap();
 
 		if interface_method {
-			return Self::resolve_interface_method(thread, classref, method_name, descriptor);
+			return class.resolve_interface_method(thread, method_name, descriptor);
 		}
 
 		// When resolving a method reference:
 
 		//  1. If C is an interface, method resolution throws an IncompatibleClassChangeError.
-		if classref.get().is_interface() {
+		if class.is_interface() {
 			panic!("IncompatibleClassChangeError"); // TODO
 		}
 
 		//  2. Otherwise, method resolution attempts to locate the referenced method in C and its superclasses:
-		if let ret @ Some(_) = Class::resolve_method_step_two(classref, method_name, descriptor) {
+		if let ret @ Some(_) = Class::resolve_method_step_two(class, method_name, descriptor) {
 			return ret;
 		}
 
@@ -147,14 +237,14 @@ impl Class {
 	}
 
 	pub fn resolve_method_step_two(
-		class_ref: ClassRef,
+		&self,
 		method_name: Symbol,
 		descriptor: Symbol,
 	) -> Option<&'static Method> {
 		//    2.1. If C declares exactly one method with the name specified by the method reference, and the declaration
 		//         is a signature polymorphic method (§2.9.3), then method lookup succeeds. All the class names mentioned
 		//         in the descriptor are resolved (§5.4.3.1).
-		let searched_method = class_ref
+		let searched_method = self
 			.vtable()
 			.iter()
 			.find(|method| method.name == method_name);
@@ -165,7 +255,7 @@ impl Class {
 		}
 
 		// 	  2.2. Otherwise, if C declares a method with the name and descriptor specified by the method reference, method lookup succeeds.
-		let searched_method = class_ref
+		let searched_method = self
 			.vtable()
 			.iter()
 			.find(|method| method.name == method_name && method.descriptor == descriptor);
@@ -174,9 +264,9 @@ impl Class {
 		}
 
 		// 	  2.3. Otherwise, if C has a superclass, step 2 of method resolution is recursively invoked on the direct superclass of C.
-		if let Some(ref super_class) = &class_ref.super_class {
+		if let Some(super_class) = self.super_class {
 			if let Some(resolved_method) =
-				Class::resolve_method_step_two(Arc::clone(super_class), method_name, descriptor)
+				Class::resolve_method_step_two(super_class, method_name, descriptor)
 			{
 				return Some(&resolved_method);
 			}
@@ -187,20 +277,20 @@ impl Class {
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.4
 	fn resolve_interface_method(
+		&self,
 		_thread: &JavaThread,
-		classref: ClassRef,
 		method_name: Symbol,
 		descriptor: Symbol,
 	) -> Option<&'static Method> {
 		// When resolving an interface method reference:
 
 		// 1. If C is not an interface, interface method resolution throws an IncompatibleClassChangeError.
-		if !classref.is_interface() {
+		if !self.is_interface() {
 			panic!("IncompatibleClassChangeError"); // TODO
 		}
 
 		// 2. Otherwise, if C declares a method with the name and descriptor specified by the interface method reference, method lookup succeeds.
-		for method in classref.vtable() {
+		for method in self.vtable() {
 			if method.name == method_name && method.descriptor == descriptor {
 				return Some(method);
 			}
@@ -221,23 +311,15 @@ impl Class {
 
 		// 4. Otherwise, if the maximally-specific superinterface methods (§5.4.3.3) of C for the name and descriptor specified by the method reference include exactly
 		//    one method that does not have its ACC_ABSTRACT flag set, then this method is chosen and method lookup succeeds.
-		if let Some(method) = Class::resolve_method_in_superinterfaces(
-			method_name,
-			descriptor,
-			Arc::clone(&classref),
-			true,
-		) {
+		if let Some(method) = self.resolve_method_in_superinterfaces(method_name, descriptor, true)
+		{
 			return Some(method);
 		}
 
 		// 5. Otherwise, if any superinterface of C declares a method with the name and descriptor specified by the method reference that has neither its ACC_PRIVATE flag
 		//    nor its ACC_STATIC flag set, one of these is arbitrarily chosen and method lookup succeeds.
-		if let Some(method) = Class::resolve_method_in_superinterfaces(
-			method_name,
-			descriptor,
-			Arc::clone(&classref),
-			false,
-		) {
+		if let Some(method) = self.resolve_method_in_superinterfaces(method_name, descriptor, false)
+		{
 			return Some(method);
 		}
 
@@ -246,17 +328,16 @@ impl Class {
 	}
 
 	fn resolve_method_in_superinterfaces(
+		&self,
 		method_name: Symbol,
 		descriptor: Symbol,
-		classref: ClassRef,
 		// TODO: Deal with maximally-specific check (§5.4.3.3)
 		maximally_specific: bool,
 	) -> Option<&'static Method> {
-		for interface in &classref.interfaces {
-			if let Some(method) = Class::resolve_method_in_superinterfaces(
+		for interface in &self.interfaces {
+			if let Some(method) = interface.resolve_method_in_superinterfaces(
 				method_name,
 				descriptor,
-				Arc::clone(interface),
 				maximally_specific,
 			) {
 				return Some(method);
@@ -285,26 +366,24 @@ impl Class {
 		reason = "We have no way of checking of the <clinit> executed successfully yet"
 	)]
 	#[tracing::instrument(skip_all)]
-	pub fn initialize(class_ref: &ClassRef, thread: &mut JavaThread) {
-		let class = class_ref.get();
-
+	pub fn initialize(&self, thread: &mut JavaThread) {
 		// 1. Synchronize on the initialization lock, LC, for C. This involves waiting until the current thread can acquire LC.
-		let init = class.initialization_lock();
-		let mut _guard = init.lock();
+		let init = self.initialization_lock();
+		let mut guard = init.lock();
 
 		// 2. If the Class object for C indicates that initialization is in progress for C by some other thread
-		if class.initialization_state() == ClassInitializationState::InProgress
-			&& !class.is_initialized_by(thread)
+		if self.initialization_state() == ClassInitializationState::InProgress
+			&& !guard.is_initialized_by(thread)
 		{
 			// then release LC and block the current thread until informed that the in-progress initialization
 			// has completed, at which time repeat this procedure.
-			_guard = init.wait(_guard);
+			guard = init.wait(guard);
 		}
 
 		// 3. If the Class object for C indicates that initialization is in progress for C by the current thread,
 		//    then this must be a recursive request for initialization. Release LC and complete normally.
-		if class.initialization_state() == ClassInitializationState::InProgress
-			&& class.is_initialized_by(thread)
+		if self.initialization_state() == ClassInitializationState::InProgress
+			&& guard.is_initialized_by(thread)
 		{
 			panic!();
 			return;
@@ -312,34 +391,33 @@ impl Class {
 
 		// 4. If the Class object for C indicates that C has already been initialized, then no further action
 		//    is required. Release LC and complete normally.
-		if class.initialization_state() == ClassInitializationState::Init {
+		if self.initialization_state() == ClassInitializationState::Init {
 			return;
 		}
 
 		// TODO:
 		// 5. If the Class object for C is in an erroneous state, then initialization is not possible.
 		//    Release LC and throw a NoClassDefFoundError.
-		if class.initialization_state() == ClassInitializationState::Failed {
+		if self.initialization_state() == ClassInitializationState::Failed {
 			panic!("NoClassDefFoundError");
 		}
 
 		// 6. Otherwise, record the fact that initialization of the Class object for C is in progress
 		//    by the current thread, and release LC.
-		tracing::debug!(target: "class-init", "Starting initialization of class `{}`", class.name.as_str());
-		let class = class_ref.get_mut();
+		tracing::debug!(target: "class-init", "Starting initialization of class `{}`", self.name.as_str());
 
-		class.set_initialization_state(ClassInitializationState::InProgress);
-		class.set_initializing_thread();
-		drop(_guard);
+		guard.set_initialization_state(ClassInitializationState::InProgress);
+		guard.set_initializing_thread();
+		drop(guard);
 
 		//  Then, initialize each final static field of C with the constant value in its ConstantValue attribute (§4.7.2),
 		//  in the order the fields appear in the ClassFile structure.
-		for field in class_ref.static_fields().filter(|field| field.is_final()) {
+		for field in self.static_fields().filter(|field| field.is_final()) {
 			let Some(constant_value_index) = field.constant_value_index else {
 				continue;
 			};
 
-			let class_instance = field.class.unwrap_class_instance_mut();
+			let class_instance = field.class.unwrap_class_instance();
 
 			match field.descriptor {
 				FieldType::Byte
@@ -350,33 +428,45 @@ impl Class {
 					let constant_value = class_instance
 						.constant_pool
 						.get_integer(constant_value_index);
-					class.set_static_field(field.idx, Operand::from(constant_value));
+					let value = Operand::from(constant_value);
+					unsafe {
+						self.set_static_field(field.idx, value);
+					}
 				},
 				FieldType::Double => {
 					let constant_value = class_instance
 						.constant_pool
 						.get_double(constant_value_index);
-					class.set_static_field(field.idx, Operand::from(constant_value));
+					let value = Operand::from(constant_value);
+					unsafe {
+						self.set_static_field(field.idx, value);
+					}
 				},
 				FieldType::Float => {
 					let constant_value =
 						class_instance.constant_pool.get_float(constant_value_index);
-					class.set_static_field(field.idx, Operand::from(constant_value));
+					let value = Operand::from(constant_value);
+					unsafe {
+						self.set_static_field(field.idx, value);
+					}
 				},
 				FieldType::Long => {
 					let constant_value =
 						class_instance.constant_pool.get_long(constant_value_index);
-					class.set_static_field(field.idx, Operand::from(constant_value));
+					let value = Operand::from(constant_value);
+					unsafe {
+						self.set_static_field(field.idx, value);
+					}
 				},
 				FieldType::Object(ref obj) if &**obj == b"java/lang/String" => {
 					let raw_string = class_instance
 						.constant_pool
 						.get_string(constant_value_index);
 					let string_instance = StringInterner::intern_bytes(raw_string);
-					class.set_static_field(
-						field.idx,
-						Operand::Reference(Reference::class(string_instance)),
-					);
+					let value = Operand::Reference(Reference::class(string_instance));
+					unsafe {
+						self.set_static_field(field.idx, value);
+					}
 				},
 				_ => unreachable!(),
 			}
@@ -387,12 +477,12 @@ impl Class {
 		//
 		//    For each S in the list [ SC, SI1, ..., SIn ], if S has not yet been initialized, then recursively perform this
 		//    entire procedure for S. If necessary, verify and prepare S first.
-		if !class_ref.is_interface() {
-			if let Some(super_class) = &class_ref.super_class {
+		if !self.is_interface() {
+			if let Some(super_class) = &self.super_class {
 				Class::initialize(super_class, thread);
 			}
 
-			for interface in &class_ref.interfaces {
+			for interface in &self.interfaces {
 				if interface
 					.vtable()
 					.iter()
@@ -412,16 +502,17 @@ impl Class {
 		// 8. Next, determine whether assertions are enabled for C by querying its defining loader.
 
 		// 9. Next, execute the class or interface initialization method of C.
-		Self::clinit(Arc::clone(class_ref), thread);
+		Self::clinit(self, thread);
 
 		// TODO: We have no way of telling if the method successfully executed
 		// 10. If the execution of the class or interface initialization method completes normally,
 		//     then acquire LC, label the Class object for C as fully initialized, notify all waiting threads,
 		//     release LC, and complete this procedure normally.
-		class.set_initialization_state(ClassInitializationState::Init);
+		let guard = init.lock();
+		guard.set_initialization_state(ClassInitializationState::Init);
 		init.notify_all();
 
-		tracing::debug!(target: "class-init", "Finished initialization of class `{}`", class.name.as_str());
+		tracing::debug!(target: "class-init", "Finished initialization of class `{}`", self.name.as_str());
 		return;
 
 		// TODO:
@@ -429,7 +520,7 @@ impl Class {
 
 		// 12. Acquire LC, label the Class object for C as erroneous, notify all waiting threads, release LC, and complete this
 		//     procedure abruptly with reason E or its replacement as determined in the previous step.
-		class.set_initialization_state(ClassInitializationState::Failed);
+		guard.set_initialization_state(ClassInitializationState::Failed);
 		init.notify_all();
 	}
 
@@ -437,7 +528,7 @@ impl Class {
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.1
 	#[tracing::instrument(skip_all)]
 	pub fn construct(
-		class: ClassRef,
+		&self,
 		thread: &mut JavaThread,
 		descriptor: Symbol,
 		args: Vec<Operand<Reference>>,
@@ -447,11 +538,11 @@ impl Class {
 		// A method is an instance initialization method if all of the following are true:
 
 		//     It is defined in a class (not an interface).
-		if class.get().is_interface() {
+		if self.is_interface() {
 			return;
 		}
 
-		let method = class
+		let method = self
 			.vtable()
 			.find(
 				sym!(object_initializer_name), // It has the special name <init>.
@@ -465,15 +556,15 @@ impl Class {
 
 	// Class initialization method
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.2
-	#[rustfmt::skip]
+    #[rustfmt::skip]
 	#[tracing::instrument(skip_all)]
-	pub fn clinit(class: ClassRef, thread: &mut JavaThread) {
+	pub fn clinit(&self, thread: &mut JavaThread) {
 		// A class or interface has at most one class or interface initialization method and is initialized
 		// by the Java Virtual Machine invoking that method (§5.5).
 
 		// TODO: Check version number for flags and parameters
 		// A method is a class or interface initialization method if all of the following are true:
-		let method = class.vtable().find(
+		let method = self.vtable().find(
 			sym!(class_initializer_name),     /* It has the special name <clinit>. */
 			sym!(void_method_signature), /* It is void (§4.3.3). */
 			MethodAccessFlags::ACC_STATIC    /* In a class file whose version number is 51.0 or above, the method has its ACC_STATIC flag set and takes no arguments (§4.6). */
@@ -486,7 +577,7 @@ impl Class {
 
 	/// Find an implementation of an interface method on the target class
 	#[tracing::instrument(skip_all)]
-	pub fn map_interface_method(class: ClassRef, method: &Method) -> &Method {
+	pub fn map_interface_method(&self, method: &'static Method) -> &'static Method {
 		// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.6
 
 		// During execution of an invokeinterface or invokevirtual instruction, a method is
@@ -505,7 +596,7 @@ impl Class {
 		// 2. Otherwise, the selected method is determined by the following lookup procedure:
 
 		//    If C contains a declaration of an instance method m that can override mR (§5.4.5), then m is the selected method.
-		for instance_method in class.vtable() {
+		for instance_method in self.vtable() {
 			if instance_method.can_override(&*method) {
 				// We found an implementation
 				return instance_method;
@@ -515,7 +606,7 @@ impl Class {
 		//    Otherwise, if C has a superclass, a search for a declaration of an instance method that can override mR is performed,
 		//    starting with the direct superclass of C and continuing with the direct superclass of that class, and so forth, until a
 		//    method is found or no further superclasses exist. If a method is found, it is the selected method.
-		for parent in class.parent_iter() {
+		for parent in self.parent_iter() {
 			for instance_method in parent.vtable() {
 				if instance_method.can_override(&*method) {
 					// We found an implementation
@@ -527,7 +618,7 @@ impl Class {
 		//    Otherwise, the maximally-specific superinterface methods of C are determined (§5.4.3.3). If exactly one matches mR's name
 		//    and descriptor and is not abstract, then it is the selected method.
 		if let Some(superinterface_method) =
-			Class::resolve_method_in_superinterfaces(method.name, method.descriptor, class, true)
+			self.resolve_method_in_superinterfaces(method.name, method.descriptor, true)
 		{
 			return superinterface_method;
 		}

@@ -70,7 +70,7 @@ impl StringInterner {
 			ArrayContent::Byte(encoded_str),
 		)));
 
-		let new_java_string_instance = ClassInstance::new(Arc::clone(&java_string_class));
+		let new_java_string_instance = ClassInstance::new(java_string_class);
 
 		// Set `private byte[] value`
 		new_java_string_instance.get_mut().put_field_value0(

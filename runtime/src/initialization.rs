@@ -5,7 +5,7 @@ use crate::thread::JavaThread;
 
 use crate::class_instance::ClassInstance;
 use crate::java_call;
-use crate::reference::{ClassRef, Reference};
+use crate::reference::Reference;
 use crate::string_interner::StringInterner;
 use classfile::accessflags::MethodAccessFlags;
 use classfile::FieldType;
@@ -121,8 +121,7 @@ fn load_global_classes() {
 
 fn create_thread_object(thread: &mut JavaThread) {
 	let thread_group_class = crate::globals::classes::java_lang_ThreadGroup();
-	let system_thread_group_instance =
-		Reference::class(ClassInstance::new(ClassRef::clone(&thread_group_class)));
+	let system_thread_group_instance = Reference::class(ClassInstance::new(thread_group_class));
 
 	let init_method = thread_group_class
 		.vtable()

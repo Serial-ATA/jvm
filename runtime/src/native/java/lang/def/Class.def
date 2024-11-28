@@ -17,16 +17,23 @@ public class Class {
                                             Class<?> caller)
         throws ClassNotFoundException;
 
+    @IntrinsicCandidate
     public native boolean isInstance(Object obj);
+    @IntrinsicCandidate
     public native boolean isAssignableFrom(Class<?> cls);
+    @IntrinsicCandidate
     public native boolean isInterface();
+    @IntrinsicCandidate
     public native boolean isArray();
+    @IntrinsicCandidate
     public native boolean isPrimitive();
 
     private native String initClassName();
 
+    @IntrinsicCandidate
     public native Class<? super T> getSuperclass();
     private native Class<?>[] getInterfaces0();
+    @IntrinsicCandidate
     public native int getModifiers();
     public native Object[] getSigners();
     private native void setSigners(Object[] signers);
@@ -53,7 +60,12 @@ public class Class {
 
     private native Class<?>[] getNestMembers0();
 
+    @IntrinsicCandidate
     public native boolean isHidden();
 
     private native Class<?>[] getPermittedSubclasses0();
+
+    private native int getClassFileVersion0();
+
+    private native int getClassAccessFlagsRaw0();
 }

@@ -34,7 +34,7 @@ impl Debug for Frame {
 			.field("locals", &self.locals)
 			.field("stack", &self.stack)
 			.field("method", &self.method)
-			.field("cached_pc", &self.cached_pc)
+			.field("cached_pc", &self.cached_pc.load(Ordering::Acquire))
 			.finish()
 	}
 }
@@ -71,6 +71,12 @@ impl Frame {
 	#[inline]
 	pub fn thread_mut(&self) -> &mut JavaThread {
 		unsafe { &mut **self.thread.get() }
+	}
+
+	/// Get a reference to the constant pool
+	#[inline]
+	pub fn constant_pool(&self) -> ConstantPoolRef {
+		self.constant_pool.clone()
 	}
 
 	/// Get a reference to the associated operand stack

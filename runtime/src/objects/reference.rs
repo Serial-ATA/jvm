@@ -1,5 +1,5 @@
-use super::class::ClassPtr;
 use super::field::Field;
+use crate::class::Class;
 use crate::class_instance::{ArrayInstancePtr, ClassInstancePtr, Instance};
 use crate::monitor::Monitor;
 use crate::objects::mirror::MirrorInstancePtr;
@@ -12,9 +12,6 @@ use std::sync::Arc;
 use common::traits::PtrType;
 use instructions::Operand;
 use symbols::Symbol;
-
-pub type FieldRef = Arc<Field>;
-pub type ClassRef = Arc<ClassPtr>;
 
 pub type ClassInstanceRef = Arc<ClassInstancePtr>;
 pub type ArrayInstanceRef = Arc<ArrayInstancePtr>;
@@ -107,15 +104,15 @@ impl Reference {
 }
 
 impl Reference {
-	pub fn is_instance_of(&self, T_class: ClassRef) -> bool {
+	pub fn is_instance_of(&self, T_class: &'static Class) -> bool {
 		self.extract_target_class().can_cast_to(T_class)
 	}
 
 	pub fn class_name(&self) -> Symbol {
 		match &self.instance {
-			ReferenceInstance::Class(class_instance) => class_instance.get().class.get().name,
-			ReferenceInstance::Array(array_instance) => array_instance.get().class.get().name,
-			ReferenceInstance::Mirror(mirror_instance) => mirror_instance.get().class.get().name,
+			ReferenceInstance::Class(class_instance) => class_instance.get().class.name,
+			ReferenceInstance::Array(array_instance) => array_instance.get().class.name,
+			ReferenceInstance::Mirror(mirror_instance) => mirror_instance.get().class.name,
 			ReferenceInstance::Null => panic!("NullPointerException"),
 		}
 	}
@@ -136,13 +133,12 @@ impl Reference {
 		}
 	}
 
-	pub fn extract_target_class(&self) -> ClassRef {
+	pub fn extract_target_class(&self) -> &'static Class {
 		match &self.instance {
-			ReferenceInstance::Class(class) => Arc::clone(&class.get().class),
-			ReferenceInstance::Mirror(mirror) => Arc::clone(&mirror.get().class),
-			ReferenceInstance::Array(arr) => Arc::clone(&arr.get().class),
+			ReferenceInstance::Class(class) => &class.get().class,
+			ReferenceInstance::Mirror(mirror) => &mirror.get().class,
+			ReferenceInstance::Array(arr) => &arr.get().class,
 			ReferenceInstance::Null => panic!("NullPointerException"),
-			_ => panic!("Expected a class or mirror reference!"),
 		}
 	}
 
@@ -167,7 +163,7 @@ impl Reference {
 
 // TODO: Can this also handle Reference::Array in the future? Doing many manual checks in jdk.internal.misc.Unsafe
 impl Instance for Reference {
-	fn get_field_value(&self, field: FieldRef) -> Operand<Reference> {
+	fn get_field_value(&self, field: &Field) -> Operand<Reference> {
 		match &self.instance {
 			ReferenceInstance::Class(class) => class.get().get_field_value(field),
 			ReferenceInstance::Mirror(mirror) => mirror.get().get_field_value(field),
@@ -185,7 +181,7 @@ impl Instance for Reference {
 		}
 	}
 
-	fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>) {
+	fn put_field_value(&mut self, field: &Field, value: Operand<Reference>) {
 		match &self.instance {
 			ReferenceInstance::Class(class) => class.get_mut().put_field_value(field, value),
 			ReferenceInstance::Mirror(mirror) => mirror.get_mut().put_field_value(field, value),

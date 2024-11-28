@@ -4,7 +4,6 @@ use crate::reference::Reference;
 use crate::JavaThread;
 
 use std::ptr::NonNull;
-use std::sync::Arc;
 
 use ::jni::env::JniEnv;
 use classfile::FieldType;
@@ -16,13 +15,14 @@ use symbols::sym;
 
 #[allow(non_upper_case_globals)]
 mod stacktrace_element {
+	use crate::class::Class;
 	use crate::class_instance::{ClassInstance, Instance};
 	use crate::frame::Frame;
-	use crate::reference::{ClassRef, Reference};
+	use crate::reference::Reference;
 	use crate::string_interner::StringInterner;
 
 	use std::sync::atomic::Ordering;
-	use std::sync::{Arc, Mutex};
+	use std::sync::Mutex;
 
 	use common::traits::PtrType;
 	use instructions::Operand;
@@ -37,7 +37,7 @@ mod stacktrace_element {
 	static mut StackTraceElement_fileName_FIELD_OFFSET: usize = 0;
 	static mut StackTraceElement_lineNumber_FIELD_OFFSET: usize = 0;
 
-	unsafe fn initialize(class: ClassRef) {
+	unsafe fn initialize(class: &'static Class) {
 		let mut initialized = INITIALIZED.lock().unwrap();
 		if *initialized {
 			return;
@@ -100,9 +100,9 @@ mod stacktrace_element {
 		*initialized = true;
 	}
 
-	pub fn from_stack_frame(stacktrace_element_class: ClassRef, frame: &Frame) -> Reference {
+	pub fn from_stack_frame(stacktrace_element_class: &'static Class, frame: &Frame) -> Reference {
 		unsafe {
-			initialize(Arc::clone(&stacktrace_element_class));
+			initialize(stacktrace_element_class);
 		}
 
 		let method = frame.method();
@@ -114,7 +114,7 @@ mod stacktrace_element {
 			// TODO: classLoaderName
 			// TODO: moduleName
 			// TODO: moduleVersion
-			let declaring_class = StringInterner::intern_symbol(method.class.get().name);
+			let declaring_class = StringInterner::intern_symbol(method.class.name);
 			stacktrace_element.get_mut().put_field_value0(
 				StackTraceElement_declaringClass_FIELD_OFFSET,
 				Operand::Reference(Reference::class(declaring_class)),
@@ -167,7 +167,7 @@ pub fn fillInStackTrace(
 	let current_thread = unsafe { &*JavaThread::for_env(env.as_ptr() as _) };
 
 	let this_class_instance = this.extract_class();
-	let this_class = &this_class_instance.get().class;
+	let this_class = this_class_instance.get().class;
 	// TODO: Make global field
 	let stacktrace_field = this_class.fields().find(|field| {
 		field.name == b"stackTrace" && matches!(&field.descriptor, FieldType::Array(value) if value.is_class(b"java/lang/StackTraceElement"))
@@ -178,13 +178,13 @@ pub fn fillInStackTrace(
 	// We need to skip the current frame at the very least
 	let mut frames_to_skip = 1;
 
-	let mut current_class = this_class.get();
+	let mut current_class = this_class;
 	loop {
 		// Skip all frames related to the Throwable class and its superclasses
 		frames_to_skip += 1;
 
-		if let Some(ref super_class) = current_class.super_class {
-			current_class = super_class.get();
+		if let Some(super_class) = current_class.super_class {
+			current_class = super_class;
 			continue;
 		}
 
@@ -219,7 +219,7 @@ pub fn fillInStackTrace(
 		.enumerate()
 	{
 		stacktrace_elements[idx] =
-			stacktrace_element::from_stack_frame(Arc::clone(&stacktrace_element_class), frame);
+			stacktrace_element::from_stack_frame(stacktrace_element_class, frame);
 	}
 
 	let array = ArrayInstance::new(

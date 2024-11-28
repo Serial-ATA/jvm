@@ -4,7 +4,7 @@ use crate::interpreter::Interpreter;
 use crate::java_call;
 use crate::method::Method;
 use crate::native::jni::invocation_api::new_env;
-use crate::reference::{ClassInstanceRef, ClassRef, Reference};
+use crate::reference::{ClassInstanceRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::string_interner::StringInterner;
 
@@ -308,7 +308,7 @@ impl JavaThread {
 		assert!(self.obj.is_none());
 
 		let thread_class = crate::globals::classes::java_lang_Thread();
-		let thread_instance = ClassInstance::new(ClassRef::clone(&thread_class));
+		let thread_instance = ClassInstance::new(thread_class);
 
 		if let Some(name) = name {
 			let string_object = StringInterner::intern_string(name.to_string());
@@ -354,7 +354,7 @@ impl JavaThread {
 
 	pub fn init_obj(&mut self, thread_group: Reference) {
 		let thread_class = crate::globals::classes::java_lang_Thread();
-		let thread_instance = ClassInstance::new(ClassRef::clone(&thread_class));
+		let thread_instance = ClassInstance::new(thread_class);
 
 		// Set the obj early, since the java.lang.Thread constructor calls Thread#current.
 		self.set_obj(Reference::class(ClassInstanceRef::clone(&thread_instance)));
@@ -407,9 +407,9 @@ impl JavaThread {
 		self.frame_stack.push(StackFrame::Fake);
 		self.invoke_method_with_local_stack(method, locals);
 		self.run();
-		self.frame_stack.pop_dummy();
 
 		let ret = self.remaining_operand.take();
+		// Will pop the dummy frame for us
 		self.drop_to_previous_frame(None);
 
 		ret
@@ -520,7 +520,7 @@ impl JavaThread {
 			// If an exception handler that matches objectref is found, it contains the location of the code intended to handle this exception.
 			if let Some(handler_pc) = current_frame
 				.method()
-				.find_exception_handler(Arc::clone(&class_instance.get().class), current_frame_pc)
+				.find_exception_handler(class_instance.get().class, current_frame_pc)
 			{
 				// The pc register is reset to that location,the operand stack of the current frame is cleared, objectref
 				// is pushed back onto the operand stack, and execution continues.

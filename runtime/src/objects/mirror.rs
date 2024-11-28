@@ -1,10 +1,10 @@
 use crate::class_instance::Instance;
 use crate::field::Field;
-use crate::reference::{ClassRef, FieldRef, MirrorInstanceRef, Reference};
+use crate::objects::class::Class;
+use crate::reference::{MirrorInstanceRef, Reference};
 
 use std::fmt::{Debug, Formatter};
 use std::ptr::NonNull;
-use std::sync::Arc;
 
 use classfile::FieldType;
 use common::traits::PtrType;
@@ -12,7 +12,7 @@ use instructions::Operand;
 
 #[derive(Debug, Clone, PartialEq)]
 enum MirrorTarget {
-	Class(ClassRef),
+	Class(&'static Class),
 	Primitive(FieldType),
 }
 
@@ -25,14 +25,14 @@ enum MirrorTarget {
 /// [`ClassInstance`]: super::class_instance::ClassInstance
 #[derive(Debug, Clone, PartialEq)]
 pub struct MirrorInstance {
-	pub class: ClassRef,
+	pub class: &'static Class,
 	pub fields: Box<[Operand<Reference>]>,
 	target: MirrorTarget,
 }
 
 impl MirrorInstance {
-	pub fn new(mirror_class: ClassRef, target: ClassRef) -> MirrorInstanceRef {
-		let fields = Self::initialize_fields(Arc::clone(&mirror_class));
+	pub fn new(mirror_class: &'static Class, target: &'static Class) -> MirrorInstanceRef {
+		let fields = Self::initialize_fields(mirror_class);
 		MirrorInstancePtr::new(Self {
 			class: mirror_class,
 			fields,
@@ -40,8 +40,8 @@ impl MirrorInstance {
 		})
 	}
 
-	pub fn new_array(mirror_class: ClassRef, target: ClassRef) -> MirrorInstanceRef {
-		let fields = Self::initialize_fields(Arc::clone(&mirror_class));
+	pub fn new_array(mirror_class: &'static Class, target: &'static Class) -> MirrorInstanceRef {
+		let fields = Self::initialize_fields(mirror_class);
 		MirrorInstancePtr::new(Self {
 			class: mirror_class,
 			fields,
@@ -49,13 +49,13 @@ impl MirrorInstance {
 		})
 	}
 
-	pub fn new_primitive(mirror_class: ClassRef, target: FieldType) -> MirrorInstanceRef {
+	pub fn new_primitive(mirror_class: &'static Class, target: FieldType) -> MirrorInstanceRef {
 		assert!(
 			!matches!(target, FieldType::Array(_) | FieldType::Object(_)),
 			"`Array` and `Object` field types are incompatible with the primitive mirror"
 		);
 
-		let fields = Self::initialize_fields(Arc::clone(&mirror_class));
+		let fields = Self::initialize_fields(mirror_class);
 		MirrorInstancePtr::new(Self {
 			class: mirror_class,
 			fields,
@@ -63,9 +63,9 @@ impl MirrorInstance {
 		})
 	}
 
-	pub fn has_target(&self, class: &ClassRef) -> bool {
+	pub fn has_target(&self, class: &'static Class) -> bool {
 		match &self.target {
-			MirrorTarget::Class(target) => target == class,
+			MirrorTarget::Class(target) => *target == class,
 			_ => false,
 		}
 	}
@@ -78,9 +78,9 @@ impl MirrorInstance {
 		matches!(&self.target, MirrorTarget::Class(class) if class.is_array())
 	}
 
-	pub fn expect_class(&self) -> ClassRef {
+	pub fn expect_class(&self) -> &'static Class {
 		match &self.target {
-			MirrorTarget::Class(class) => Arc::clone(class),
+			MirrorTarget::Class(class) => *class,
 			_ => panic!("Expected mirror instance to point to class!"),
 		}
 	}
@@ -92,7 +92,7 @@ impl MirrorInstance {
 		}
 	}
 
-	fn initialize_fields(mirror_class: ClassRef) -> Box<[Operand<Reference>]> {
+	fn initialize_fields(mirror_class: &'static Class) -> Box<[Operand<Reference>]> {
 		let instance_field_count = mirror_class.instance_field_count();
 
 		// Set the default values for our non-static fields
@@ -106,7 +106,7 @@ impl MirrorInstance {
 }
 
 impl Instance for MirrorInstance {
-	fn get_field_value(&self, field: FieldRef) -> Operand<Reference> {
+	fn get_field_value(&self, field: &Field) -> Operand<Reference> {
 		self.get_field_value0(field.idx)
 	}
 
@@ -121,7 +121,7 @@ impl Instance for MirrorInstance {
 		self.fields[field_idx].clone()
 	}
 
-	fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>) {
+	fn put_field_value(&mut self, field: &Field, value: Operand<Reference>) {
 		self.put_field_value0(field.idx, value)
 	}
 

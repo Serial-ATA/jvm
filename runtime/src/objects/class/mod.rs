@@ -1,25 +1,24 @@
+mod spec;
+pub use spec::ClassInitializationState;
+
 use super::field::Field;
 use super::method::Method;
 use super::mirror::MirrorInstance;
-use super::reference::{ClassRef, FieldRef};
-use super::spec::class::{ClassInitializationState, InitializationLock};
 use super::vtable::VTable;
 use crate::classpath::classloader::ClassLoader;
 use crate::globals::PRIMITIVES;
 use crate::reference::{MirrorInstanceRef, Reference};
-use crate::JavaThread;
+use spec::InitializationLock;
 
 use std::cell::UnsafeCell;
 use std::fmt::{Debug, Formatter};
 use std::mem::MaybeUninit;
-use std::ops::{Deref, DerefMut};
-use std::sync::{Arc, MutexGuard};
+use std::sync::Arc;
 
 use classfile::accessflags::ClassAccessFlags;
 use classfile::{ClassFile, ConstantPool, ConstantPoolRef, FieldType, MethodInfo};
 use common::box_slice;
-use common::int_types::{u1, u2, u4};
-use common::traits::PtrType;
+use common::int_types::{s4, u1, u2, u4};
 use instructions::Operand;
 use symbols::{sym, Symbol};
 
@@ -32,25 +31,73 @@ struct MiscCache {
 
 struct FieldContainer {
 	/// A list of all fields, including static
-	fields: Vec<FieldRef>,
+	fields: UnsafeCell<Vec<&'static Field>>,
 	/// All static field slots
 	///
 	/// This needs to be scaled to the `fields` field, in that index 0 of this array relates
 	/// to the index of the first static field in `fields`.
-	static_field_slots: Box<[Operand<Reference>]>,
+	static_field_slots: Box<[UnsafeCell<Operand<Reference>>]>,
 	/// The number of dynamic fields in a class instance
 	///
 	/// This is essentially `fields.len() - static_field_slots.len()`, provided here for convenience.
-	instance_field_count: u4,
+	instance_field_count: UnsafeCell<u4>,
 }
 
 impl FieldContainer {
 	/// Used as the field container for arrays, as they have no instance fields.
 	fn null() -> Self {
 		Self {
-			fields: Vec::new(),
+			fields: UnsafeCell::new(Vec::new()),
 			static_field_slots: box_slice![],
-			instance_field_count: 0,
+			instance_field_count: UnsafeCell::new(0),
+		}
+	}
+
+	fn new(
+		static_field_slots: Box<[UnsafeCell<Operand<Reference>>]>,
+		instance_field_count: u4,
+	) -> Self {
+		Self {
+			fields: UnsafeCell::new(Vec::new()),
+			static_field_slots,
+			instance_field_count: UnsafeCell::new(instance_field_count),
+		}
+	}
+
+	fn fields(&self) -> impl Iterator<Item = &'static Field> {
+		let fields = unsafe { &*self.fields.get() };
+		fields.iter().copied()
+	}
+
+	// This is only ever used in class loading
+	fn set_fields(&self, fields: Vec<&'static Field>) {
+		unsafe {
+			*self.fields.get() = fields;
+		}
+	}
+
+	/// # SAFETY
+	///
+	/// See [`Class::set_static_field`]
+	unsafe fn set_static_field(&self, index: usize, value: Operand<Reference>) {
+		let field = &self.static_field_slots[index];
+		let old = core::mem::replace(unsafe { &mut *field.get() }, value);
+		drop(old);
+	}
+
+	fn get_static_field(&self, index: usize) -> Operand<Reference> {
+		let field = self.static_field_slots[index].get();
+		unsafe { (*field).clone() }
+	}
+
+	fn instance_field_count(&self) -> u4 {
+		unsafe { *self.instance_field_count.get() }
+	}
+
+	// This is only ever used in class loading
+	fn set_instance_field_count(&self, value: u4) {
+		unsafe {
+			*self.instance_field_count.get() = value;
 		}
 	}
 }
@@ -60,19 +107,21 @@ pub struct Class {
 	pub name: Symbol,
 	pub access_flags: ClassAccessFlags,
 	pub loader: ClassLoader,
-	pub super_class: Option<ClassRef>,
-	pub interfaces: Vec<ClassRef>,
+	pub super_class: Option<&'static Class>,
+	pub interfaces: Vec<&'static Class>,
 	misc_cache: UnsafeCell<MiscCache>,
-	mirror: MaybeUninit<MirrorInstanceRef>,
+	mirror: UnsafeCell<MaybeUninit<MirrorInstanceRef>>,
 	field_container: FieldContainer,
-	vtable: MaybeUninit<VTable<'static>>,
+	vtable: UnsafeCell<MaybeUninit<VTable<'static>>>,
 
-	init_thread: Option<*const JavaThread>,
 	pub(super) class_ty: ClassType,
 
-	init_state: ClassInitializationState,
 	init_lock: Arc<InitializationLock>,
 }
+
+// SAFETY: Any pointer writes require synchronization
+unsafe impl Send for Class {}
+unsafe impl Sync for Class {}
 
 impl Debug for Class {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -82,9 +131,14 @@ impl Debug for Class {
 			.field("loader", &self.loader)
 			.field("super_class", &self.super_class)
 			.field("interfaces", &self.interfaces)
-			.field("vtable", &self.vtable)
 			.field("instance", &self.class_ty)
 			.finish()
+	}
+}
+
+impl PartialEq for Class {
+	fn eq(&self, other: &Self) -> bool {
+		self.name == other.name
 	}
 }
 
@@ -141,7 +195,7 @@ impl Class {
 	pub fn vtable(&self) -> &VTable<'static> {
 		// SAFETY: The only way to construct a `Class` is via `Class::new()`, which ensures that the
 		//         vtable is initialized.
-		unsafe { self.vtable.assume_init_ref() }
+		unsafe { (&*self.vtable.get()).assume_init_ref() }
 	}
 
 	/// Get the fields for this class
@@ -149,19 +203,19 @@ impl Class {
 	/// NOTE: This includes the static fields as well.
 	///
 	/// This is the only way to access the class fields externally.
-	pub fn fields(&self) -> impl Iterator<Item = &FieldRef> {
-		self.field_container.fields.iter()
+	pub fn fields(&self) -> impl Iterator<Item = &'static Field> {
+		self.field_container.fields()
 	}
 
 	/// Get the instance fields for this class
 	///
 	/// This is simply [`Class::fields`] with static fields filtered out.
-	pub fn instance_fields(&self) -> impl Iterator<Item = &FieldRef> {
+	pub fn instance_fields(&self) -> impl Iterator<Item = &'static Field> {
 		self.fields().filter(|field| !field.is_static())
 	}
 
 	/// Get the static fields for this class
-	pub fn static_fields(&self) -> impl Iterator<Item = &FieldRef> {
+	pub fn static_fields(&self) -> impl Iterator<Item = &'static Field> {
 		self.fields().filter(|field| field.is_static())
 	}
 
@@ -171,12 +225,12 @@ impl Class {
 	///
 	/// This will panic if the index is out of bounds.
 	pub fn static_field_value(&self, index: usize) -> Operand<Reference> {
-		self.field_container.static_field_slots[index].clone()
+		self.field_container.get_static_field(index)
 	}
 
 	/// The number of non-static fields
 	pub fn instance_field_count(&self) -> usize {
-		self.field_container.instance_field_count as usize
+		self.field_container.instance_field_count() as usize
 	}
 
 	/// Get the mirror for this class
@@ -186,7 +240,7 @@ impl Class {
 		// SAFETY: The mirror is only uninitialized for a few classes few early in VM initialization
 		//         due to them loading *before* `java.lang.Class`. Afterwards, all classes are
 		//         guaranteed to have mirrors.
-		let mirror = unsafe { self.mirror.assume_init_ref() };
+		let mirror = unsafe { (*self.mirror.get()).assume_init_ref() };
 		Arc::clone(mirror)
 	}
 
@@ -266,24 +320,20 @@ impl Class {
 impl Class {
 	/// Set the value of the static field at `index`
 	///
+	/// NOTE: This will drop the previous value (if any).
+	///
+	/// # Safety
+	///
+	/// This method is unsafe in that it will mutate fields that other threads may be reading. However,
+	/// that behavior is acceptable, as synchronization is a requirement of the Java code, not the VM.
+	///
 	/// # Panics
 	///
 	/// This will panic if the index is out of bounds.
-	pub fn set_static_field(&mut self, index: usize, value: Operand<Reference>) {
-		self.field_container.static_field_slots[index] = value;
-	}
-
-	/// Set the thread that initialized this class
-	///
-	/// # Panics
-	///
-	/// This will panic if called more than once for this class.
-	pub fn set_initializing_thread(&mut self) {
-		assert!(
-			self.init_thread.is_none(),
-			"A class initialization thread can only be set once"
-		);
-		self.init_thread = Some(JavaThread::current_ptr());
+	pub unsafe fn set_static_field(&self, index: usize, value: Operand<Reference>) {
+		unsafe {
+			self.field_container.set_static_field(index, value);
+		}
 	}
 }
 
@@ -310,6 +360,11 @@ impl Class {
 		self.access_flags.is_interface()
 	}
 
+	/// Whether the class is declared abstract
+	pub fn is_abstract(&self) -> bool {
+		self.access_flags.is_abstract()
+	}
+
 	/// Whether this class is a subclass of `class`
 	pub fn is_subclass_of(&self, class: &Class) -> bool {
 		let mut current_class = self;
@@ -318,7 +373,7 @@ impl Class {
 				return true;
 			}
 
-			current_class = super_class.get();
+			current_class = super_class;
 		}
 
 		false
@@ -326,13 +381,13 @@ impl Class {
 
 	/// Whether this class can be cast into `class`
 	#[allow(non_snake_case)]
-	pub fn can_cast_to(&self, class: ClassRef) -> bool {
+	pub fn can_cast_to(&self, other: &'static Class) -> bool {
 		// The following rules are used to determine whether an objectref that is not null can be cast to the resolved type
 		//
 		// S is the type of the object referred to by objectref, and T is the resolved class, array, or interface type
 
 		let S_class = self;
-		let T_class = class.get();
+		let T_class = other;
 
 		// If S is a class type, then:
 		//
@@ -380,15 +435,6 @@ impl Class {
 
 		false
 	}
-
-	/// Whether `thread` initiated the initialization of this class
-	#[allow(trivial_casts)]
-	pub fn is_initialized_by(&self, thread: &JavaThread) -> bool {
-		match self.init_thread {
-			Some(init_thread) => init_thread == (thread as _),
-			None => false,
-		}
-	}
 }
 
 impl Class {
@@ -400,9 +446,9 @@ impl Class {
 	/// be handled properly, as some fields remain uninitialized.
 	pub unsafe fn new(
 		parsed_file: ClassFile,
-		super_class: Option<ClassRef>,
+		super_class: Option<&'static Class>,
 		loader: ClassLoader,
-	) -> ClassRef {
+	) -> &'static Class {
 		let access_flags = parsed_file.access_flags;
 		let class_name_index = parsed_file.this_class;
 
@@ -421,7 +467,7 @@ impl Class {
 		let mut instance_field_count = 0;
 
 		if let Some(ref super_class) = super_class {
-			instance_field_count = super_class.field_container.instance_field_count;
+			instance_field_count = super_class.field_container.instance_field_count();
 		}
 
 		let interfaces = parsed_file
@@ -434,18 +480,12 @@ impl Class {
 			})
 			.collect();
 
-		let static_field_slots = box_slice![Operand::Empty; static_field_count];
+		let static_field_slots = box_slice![UnsafeCell::new(Operand::Empty); static_field_count];
 
 		// We need the Class instance to create our methods and fields
 		let class_instance = ClassDescriptor {
 			source_file_index,
 			constant_pool,
-		};
-
-		let fields = FieldContainer {
-			fields: Vec::new(),
-			static_field_slots,
-			instance_field_count,
 		};
 
 		let class = Self {
@@ -455,22 +495,20 @@ impl Class {
 			super_class,
 			interfaces,
 			misc_cache: UnsafeCell::new(MiscCache::default()),
-			init_thread: None,             // Set later
-			mirror: MaybeUninit::uninit(), // Set later
-			field_container: fields,
-			vtable: MaybeUninit::uninit(), // Set later
+			mirror: UnsafeCell::new(MaybeUninit::uninit()), // Set later
+			field_container: FieldContainer::new(static_field_slots, instance_field_count),
+			vtable: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			class_ty: ClassType::Instance(class_instance),
-			init_state: ClassInitializationState::default(),
-			init_lock: Arc::default(),
+			init_lock: Arc::new(InitializationLock::new()),
 		};
 
-		let classref = ClassPtr::new(class);
+		let class: &'static mut Class = Box::leak(Box::new(class));
 
 		// Create our vtable...
-		let vtable = new_vtable(Some(&parsed_file.methods), Arc::clone(&classref));
-
-		let class = classref.get_mut();
-		class.vtable = MaybeUninit::new(vtable);
+		let vtable = new_vtable(Some(&parsed_file.methods), class);
+		unsafe {
+			*class.vtable.get() = MaybeUninit::new(vtable);
+		}
 
 		// Then the fields...
 		let mut fields =
@@ -479,7 +517,7 @@ impl Class {
 			// First we have to inherit the super classes' fields
 			for field in super_class.fields() {
 				if !field.is_static() {
-					fields.push(Arc::clone(field));
+					fields.push(field);
 				}
 			}
 		}
@@ -498,28 +536,26 @@ impl Class {
 				&mut instance_field_idx
 			};
 
-			fields.push(Field::new(
-				*field_idx,
-				Arc::clone(&classref),
-				&field,
-				constant_pool,
-			));
+			fields.push(Field::new(*field_idx, class, &field, constant_pool));
 
 			*field_idx += 1;
 		}
-		class.field_container.fields = fields;
+		class.field_container.set_fields(fields);
 
 		// Update the instance field count if we encountered any new ones
 		if instance_field_idx > 0 {
 			if instance_field_count > 0 {
-				class.field_container.instance_field_count +=
-					(instance_field_idx as u4) - instance_field_count;
+				class
+					.field_container
+					.set_instance_field_count(instance_field_count + instance_field_idx as u4);
 			} else {
-				class.field_container.instance_field_count = instance_field_idx as u4;
+				class
+					.field_container
+					.set_instance_field_count(instance_field_idx as u4);
 			}
 		}
 
-		classref
+		class
 	}
 
 	/// Create a new array class of type `component`
@@ -528,7 +564,11 @@ impl Class {
 	///
 	/// This should never be used outside of the ClassLoader. The resulting [`ClassRef`] needs to
 	/// be handled properly, as some fields remain uninitialized.
-	pub unsafe fn new_array(name: Symbol, component: FieldType, loader: ClassLoader) -> ClassRef {
+	pub unsafe fn new_array(
+		name: Symbol,
+		component: FieldType,
+		loader: ClassLoader,
+	) -> &'static Class {
 		let dimensions = name
 			.as_str()
 			.chars()
@@ -555,28 +595,22 @@ impl Class {
 					.unwrap(),
 			],
 			misc_cache: UnsafeCell::new(MiscCache::default()),
-			init_thread: None,             // Set later
-			mirror: MaybeUninit::uninit(), // Set later
+			mirror: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			field_container: FieldContainer::null(),
-			vtable: MaybeUninit::uninit(), // Set later
+			vtable: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			class_ty: ClassType::Array(array_instance),
-			init_state: ClassInitializationState::default(),
-			init_lock: Arc::default(),
+			init_lock: Arc::new(InitializationLock::new()),
 		};
 
-		let classref = ClassPtr::new(class);
+		let class: &'static mut Class = Box::leak(Box::new(class));
 
 		// Create a vtable, inheriting from `java.lang.Object`
-		let vtable = new_vtable(None, Arc::clone(&classref));
+		let vtable = new_vtable(None, class);
+		unsafe {
+			*class.vtable.get() = MaybeUninit::new(vtable);
+		}
 
-		let class = classref.get_mut();
-		class.vtable = MaybeUninit::new(vtable);
-
-		classref
-	}
-
-	pub fn set_initialization_state(&mut self, state: ClassInitializationState) {
-		self.init_state = state;
+		class
 	}
 
 	pub fn parent_iter(&self) -> ClassParentIterator {
@@ -586,16 +620,25 @@ impl Class {
 	}
 
 	pub fn initialization_state(&self) -> ClassInitializationState {
-		self.init_state
+		let _guard = self.init_lock.lock();
+		_guard.initialization_state()
 	}
 
-	pub fn set_mirror(mirror_class: ClassRef, target: ClassRef) {
-		let mirror = match target.get().class_ty {
-			ClassType::Instance(_) => MirrorInstance::new(mirror_class, Arc::clone(&target)),
-			ClassType::Array(_) => MirrorInstance::new_array(mirror_class, Arc::clone(&target)),
+	/// Set the mirror for this class
+	///
+	/// # Safety
+	///
+	/// This is only safe to call *before* the class is in use. It should never be used outside of
+	/// class loading.
+	pub unsafe fn set_mirror(&'static self, mirror_class: &'static Class) {
+		let mirror = match self.class_ty {
+			ClassType::Instance(_) => MirrorInstance::new(mirror_class, self),
+			ClassType::Array(_) => MirrorInstance::new_array(mirror_class, self),
 		};
 
-		target.get_mut().mirror = MaybeUninit::new(mirror);
+		unsafe {
+			*self.mirror.get() = MaybeUninit::new(mirror);
+		}
 	}
 
 	pub fn shares_package_with(&self, other: &Self) -> bool {
@@ -678,117 +721,41 @@ impl Class {
 }
 
 pub struct ClassParentIterator {
-	current_class: Option<ClassRef>,
+	current_class: Option<&'static Class>,
 }
 
 impl Iterator for ClassParentIterator {
-	type Item = ClassRef;
+	type Item = &'static Class;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		return match &self.current_class {
+		match &self.current_class {
 			None => None,
 			Some(current) => {
 				let ret = self.current_class.clone();
-				self.current_class = current.super_class.as_ref().map(Arc::clone);
+				self.current_class = current.super_class;
 				ret
 			},
-		};
+		}
 	}
 }
 
-fn new_vtable(class_methods: Option<&[MethodInfo]>, classref: ClassRef) -> VTable<'static> {
+fn new_vtable(class_methods: Option<&[MethodInfo]>, class: &'static Class) -> VTable<'static> {
 	let mut vtable;
 	match class_methods {
 		// Initialize the vtable with the new `ClassFile`'s parsed methods
 		Some(class_methods) => {
 			vtable = class_methods
 				.iter()
-				.map(|mi| &*Method::new(Arc::clone(&classref), mi))
+				.map(|mi| &*Method::new(class, mi))
 				.collect::<Vec<_>>();
 		},
 		// The vtable will only inherit from the super classes
 		None => vtable = Vec::new(),
 	}
 
-	if let Some(super_class) = &classref.super_class {
+	if let Some(super_class) = &class.super_class {
 		vtable.extend(super_class.vtable().iter())
 	}
 
 	VTable::from(vtable)
-}
-
-// A pointer to a Class instance
-//
-// This can *not* be constructed by hand, as dropping it will
-// deallocate the class.
-#[derive(PartialEq)]
-pub struct ClassPtr(usize);
-
-impl ClassPtr {
-	pub fn unwrap_class_instance_mut(&self) -> &mut ClassDescriptor {
-		match self.get_mut().class_ty {
-			ClassType::Instance(ref mut instance) => instance,
-			_ => unreachable!(),
-		}
-	}
-
-	pub fn unwrap_array_instance_mut(&self) -> &mut ArrayDescriptor {
-		match self.get_mut().class_ty {
-			ClassType::Array(ref mut instance) => instance,
-			_ => unreachable!(),
-		}
-	}
-}
-
-impl PtrType<Class, ClassRef> for ClassPtr {
-	fn new(val: Class) -> ClassRef {
-		let boxed = Box::new(val);
-		let ptr = Box::into_raw(boxed);
-		ClassRef::new(Self(ptr as usize))
-	}
-
-	#[inline(always)]
-	fn as_raw(&self) -> *const Class {
-		self.0 as *const Class
-	}
-
-	#[inline(always)]
-	fn as_mut_raw(&self) -> *mut Class {
-		self.0 as *mut Class
-	}
-
-	fn get(&self) -> &Class {
-		unsafe { &(*self.as_raw()) }
-	}
-
-	fn get_mut(&self) -> &mut Class {
-		unsafe { &mut (*self.as_mut_raw()) }
-	}
-}
-
-impl Drop for ClassPtr {
-	fn drop(&mut self) {
-		let _ = unsafe { Box::from_raw(self.0 as *mut Class) };
-	}
-}
-
-impl Deref for ClassPtr {
-	type Target = Class;
-
-	fn deref(&self) -> &Self::Target {
-		unsafe { &(*self.as_raw()) }
-	}
-}
-
-impl DerefMut for ClassPtr {
-	fn deref_mut(&mut self) -> &mut Self::Target {
-		unsafe { &mut (*self.as_mut_raw()) }
-	}
-}
-
-impl Debug for ClassPtr {
-	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		let class = self.get();
-		f.write_str(class.name.as_str())
-	}
 }

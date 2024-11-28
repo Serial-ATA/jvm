@@ -1,17 +1,17 @@
-use super::reference::{ClassRef, FieldRef, Reference};
+use super::reference::Reference;
+use crate::class::Class;
 
 use std::fmt::{Debug, Formatter};
 
 use classfile::accessflags::FieldAccessFlags;
 use classfile::{ConstantPool, FieldInfo, FieldType};
 use common::int_types::{u1, u2};
-use common::traits::PtrType;
 use instructions::Operand;
 
 #[derive(Clone, PartialEq)]
 pub struct Field {
 	pub idx: usize, // Used to set the value on `ClassInstance`s
-	pub class: ClassRef,
+	pub class: &'static Class,
 	pub access_flags: FieldAccessFlags,
 	pub name: Vec<u1>,
 	pub descriptor: FieldType,
@@ -20,12 +20,16 @@ pub struct Field {
 }
 
 impl Field {
-	pub fn new(
+	/// Create a new `Field` instance
+	///
+	/// NOTE: This will leak the `Field` and return a reference. It is important that this only
+	///       be called once per field. It should never be used outside of class loading.
+	pub(super) fn new(
 		idx: usize,
-		class: ClassRef,
+		class: &'static Class,
 		field_info: &FieldInfo,
 		constant_pool: &ConstantPool,
-	) -> FieldRef {
+	) -> &'static Field {
 		let access_flags = field_info.access_flags;
 
 		let name_index = field_info.name_index;
@@ -39,14 +43,14 @@ impl Field {
 			.get_constant_value_attribute()
 			.map(|constant_value| constant_value.constantvalue_index);
 
-		FieldRef::new(Self {
+		Box::leak(Box::new(Self {
 			idx,
 			class,
 			access_flags,
 			name,
 			descriptor,
 			constant_value_index,
-		})
+		}))
 	}
 
 	pub fn is_static(&self) -> bool {
@@ -64,7 +68,9 @@ impl Field {
 
 	pub fn set_static_value(&self, value: Operand<Reference>) {
 		assert!(self.is_static());
-		self.class.get_mut().set_static_field(self.idx, value);
+		unsafe {
+			self.class.set_static_field(self.idx, value);
+		}
 	}
 
 	pub fn default_value_for_ty(ty: &FieldType) -> Operand<Reference> {

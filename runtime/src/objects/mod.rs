@@ -6,5 +6,4 @@ pub mod mirror;
 pub mod module;
 pub mod monitor;
 pub mod reference;
-pub mod spec;
 pub mod vtable;

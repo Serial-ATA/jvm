@@ -1,6 +1,5 @@
 use crate::frame::Frame;
 use crate::method::Method;
-use crate::objects::class::Class;
 use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::JavaThread;
@@ -88,7 +87,8 @@ impl MethodInvoker {
 			}
 
 			if reresolve_method {
-				method = Class::map_interface_method(this.extract_target_class(), method);
+				let class = this.extract_target_class();
+				method = class.map_interface_method(method);
 				max_locals = method.code.max_locals;
 			}
 

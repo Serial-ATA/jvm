@@ -1,15 +1,12 @@
 use crate::error::{Result, RuntimeError};
-use crate::field::Field;
 use crate::objects::class::Class;
-use crate::objects::reference::ClassRef;
 
 use std::collections::HashMap;
 use std::ops::RangeInclusive;
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex};
 
 use classfile::{ClassFile, FieldType};
 use common::int_types::u1;
-use common::traits::PtrType;
 use symbols::{sym, Symbol};
 
 const SUPPORTED_MAJOR_LOWER_BOUND: u1 = 45;
@@ -17,7 +14,7 @@ const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 67;
 const SUPPORTED_MAJOR_VERSION_RANGE: RangeInclusive<u1> =
 	SUPPORTED_MAJOR_LOWER_BOUND..=SUPPORTED_MAJOR_UPPER_BOUND;
 
-static BOOTSTRAP_LOADED_CLASSES: LazyLock<Mutex<HashMap<Symbol, ClassRef>>> =
+static BOOTSTRAP_LOADED_CLASSES: LazyLock<Mutex<HashMap<Symbol, &'static Class>>> =
 	LazyLock::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -27,21 +24,20 @@ pub enum ClassLoader {
 }
 
 impl ClassLoader {
-	pub(crate) fn lookup_class(name: Symbol) -> Option<ClassRef> {
+	pub(crate) fn lookup_class(name: Symbol) -> Option<&'static Class> {
 		let loaded_classes = BOOTSTRAP_LOADED_CLASSES.lock().unwrap();
 
-		let classref = loaded_classes.get(&name);
-		classref.map(Arc::clone)
+		loaded_classes.get(&name).map(|&class| class)
 	}
 
-	fn insert_bootstrapped_class(name: Symbol, classref: ClassRef) {
+	fn insert_bootstrapped_class(name: Symbol, classref: &'static Class) {
 		let mut loaded_classes = BOOTSTRAP_LOADED_CLASSES.lock().unwrap();
 		loaded_classes.insert(name, classref);
 	}
 }
 
 impl ClassLoader {
-	pub fn load(&self, name: Symbol) -> Option<ClassRef> {
+	pub fn load(&self, name: Symbol) -> Option<&'static Class> {
 		match self {
 			ClassLoader::Bootstrap => Self::load_bootstrap(name),
 			ClassLoader::UserDefined => unimplemented!("User defined loader"),
@@ -49,7 +45,7 @@ impl ClassLoader {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.3.1
-	fn load_bootstrap(name: Symbol) -> Option<ClassRef> {
+	fn load_bootstrap(name: Symbol) -> Option<&'static Class> {
 		// First, the Java Virtual Machine determines whether the bootstrap class loader has
 		// already been recorded as an initiating loader of a class or interface denoted by N.
 		// If so, this class or interface is C, and no class loading or creation is necessary.
@@ -74,7 +70,7 @@ impl ClassLoader {
 
 	// Deriving a Class from a class File Representation
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.3.5
-	fn load_class_by_name(self, name: Symbol) -> ClassRef {
+	fn load_class_by_name(self, name: Symbol) -> &'static Class {
 		if let Some(class) = Self::lookup_class(name) {
 			return class;
 		}
@@ -135,19 +131,22 @@ impl ClassLoader {
 
 		// Finally, prepare the class (§5.4.2)
 		// "Preparation may occur at any time following creation but must be completed prior to initialization."
-		Self::prepare(Arc::clone(&class));
+		class.prepare();
 
 		// Set the mirror
 		if let Some(mirror_class) = Self::lookup_class(sym!(java_lang_Class)) {
-			Class::set_mirror(mirror_class, Arc::clone(&class));
+			// SAFETY: The only condition of `set_mirror` is that the class isn't in use yet.
+			unsafe {
+				Class::set_mirror(mirror_class, class);
+			}
 		}
 
-		Self::insert_bootstrapped_class(name, Arc::clone(&class));
+		Self::insert_bootstrapped_class(name, class);
 
 		class
 	}
 
-	fn resolve_super_class(self, super_class_name: Symbol) -> ClassRef {
+	fn resolve_super_class(self, super_class_name: Symbol) -> &'static Class {
 		// Any exception that can be thrown as a result of failure of class or interface resolution
 		// can be thrown as a result of derivation. In addition, derivation must detect the following problems:
 
@@ -180,7 +179,7 @@ impl ClassLoader {
 
 	// Creating array classes
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.3.3
-	fn create_array_class(self, descriptor: Symbol) -> ClassRef {
+	fn create_array_class(self, descriptor: Symbol) -> &'static Class {
 		// The following steps are used to create the array class C denoted by the name N in association with the class loader L.
 		// L may be either the bootstrap class loader or a user-defined class loader.
 
@@ -234,37 +233,24 @@ impl ClassLoader {
 
 		// Set the mirror
 		if let Some(mirror_class) = Self::lookup_class(sym!(java_lang_Class)) {
-			Class::set_mirror(mirror_class, Arc::clone(&array_class));
+			// SAFETY: The only condition of `set_mirror` is that the class isn't in use yet.
+			unsafe {
+				array_class.set_mirror(mirror_class);
+			}
 		}
 
-		Self::insert_bootstrapped_class(descriptor, Arc::clone(&array_class));
+		Self::insert_bootstrapped_class(descriptor, array_class);
 		array_class
-	}
-
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.2
-	fn prepare(class: ClassRef) {
-		// Preparation involves creating the static fields for a class or interface and initializing such fields
-		// to their default values (§2.3, §2.4). This does not require the execution of any Java Virtual Machine code;
-		// explicit initializers for static fields are executed as part of initialization (§5.5), not preparation.
-		let mut prepared_fields = Vec::new();
-		for (idx, field) in class.static_fields().enumerate() {
-			prepared_fields.push((field, idx));
-		}
-
-		let class = class.get_mut();
-		for (field, idx) in prepared_fields {
-			class.set_static_field(idx, Field::default_value_for_ty(&field.descriptor));
-		}
-
-		// TODO:
-		// During preparation of a class or interface C, the Java Virtual Machine also imposes loading constraints (§5.3.4):
 	}
 
 	/// Recreate mirrors for all loaded classes
 	pub fn fixup_mirrors() {
 		let java_lang_class = crate::globals::classes::java_lang_Class();
 		for (_, class) in BOOTSTRAP_LOADED_CLASSES.lock().unwrap().iter() {
-			Class::set_mirror(Arc::clone(&java_lang_class), Arc::clone(class));
+			// SAFETY: The only condition of `set_mirror` is that the class isn't in use yet.
+			unsafe {
+				class.set_mirror(java_lang_class);
+			}
 		}
 	}
 

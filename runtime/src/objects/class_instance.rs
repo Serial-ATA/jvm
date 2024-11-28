@@ -1,11 +1,10 @@
 use crate::class::Class;
 use crate::classpath::classloader::ClassLoader;
 use crate::field::Field;
-use crate::reference::{ArrayInstanceRef, ClassInstanceRef, ClassRef, FieldRef, Reference};
+use crate::reference::{ArrayInstanceRef, ClassInstanceRef, Reference};
 
 use std::fmt::{Debug, Formatter};
 use std::ptr::NonNull;
-use std::sync::Arc;
 
 use common::box_slice;
 use common::int_types::{s1, s2, s4, s8, u1, u2};
@@ -14,9 +13,9 @@ use instructions::Operand;
 use symbols::sym;
 
 pub trait Instance {
-	fn get_field_value(&self, field: FieldRef) -> Operand<Reference>;
+	fn get_field_value(&self, field: &Field) -> Operand<Reference>;
 	fn get_field_value0(&self, field_idx: usize) -> Operand<Reference>;
-	fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>);
+	fn put_field_value(&mut self, field: &Field, value: Operand<Reference>);
 	fn put_field_value0(&mut self, field_idx: usize, value: Operand<Reference>);
 	unsafe fn get_field_value_raw(&mut self, field_idx: usize) -> NonNull<Operand<Reference>>;
 }
@@ -24,17 +23,17 @@ pub trait Instance {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassInstance {
 	pub super_class: Option<ClassInstanceRef>,
-	pub class: ClassRef,
+	pub class: &'static Class,
 	pub fields: Box<[Operand<Reference>]>,
 }
 
 impl ClassInstance {
-	pub fn new(class: ClassRef) -> ClassInstanceRef {
+	pub fn new(class: &'static Class) -> ClassInstanceRef {
 		let instance_field_count = class.instance_field_count();
 
 		let mut super_class = None;
-		if let Some(ref super_class_) = class.get().super_class {
-			super_class = Some(Self::new(Arc::clone(super_class_)));
+		if let Some(ref super_class_) = class.super_class {
+			super_class = Some(Self::new(super_class_));
 		}
 
 		// Set the default values for our non-static fields
@@ -67,7 +66,7 @@ impl ClassInstance {
 }
 
 impl Instance for ClassInstance {
-	fn get_field_value(&self, field: FieldRef) -> Operand<Reference> {
+	fn get_field_value(&self, field: &Field) -> Operand<Reference> {
 		assert!(!field.is_static());
 		self.get_field_value0(field.idx)
 	}
@@ -82,7 +81,7 @@ impl Instance for ClassInstance {
 				return self.fields[field_idx].clone();
 			}
 
-			if let Some(ref super_class) = current_class.get().super_class {
+			if let Some(ref super_class) = current_class.super_class {
 				current_class = super_class;
 				continue;
 			}
@@ -96,7 +95,7 @@ impl Instance for ClassInstance {
 		);
 	}
 
-	fn put_field_value(&mut self, field: FieldRef, value: Operand<Reference>) {
+	fn put_field_value(&mut self, field: &Field, value: Operand<Reference>) {
 		assert!(!field.is_static());
 		self.put_field_value0(field.idx, value)
 	}
@@ -120,7 +119,7 @@ impl Instance for ClassInstance {
 				return;
 			}
 
-			if let Some(ref super_class) = current_class.get().super_class {
+			if let Some(ref super_class) = current_class.super_class {
 				current_class = super_class;
 				continue;
 			}
@@ -182,7 +181,7 @@ impl Drop for ClassInstancePtr {
 impl Debug for ClassInstancePtr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		let class = self.get();
-		f.write_str(class.class.get().name.as_str())
+		f.write_str(class.class.name.as_str())
 	}
 }
 
@@ -191,12 +190,12 @@ impl Debug for ClassInstancePtr {
 /// This covers all array types, including primitives and objects.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ArrayInstance {
-	pub class: ClassRef,
+	pub class: &'static Class,
 	pub elements: ArrayContent,
 }
 
 impl ArrayInstance {
-	pub fn new(class: ClassRef, elements: ArrayContent) -> ArrayInstanceRef {
+	pub fn new(class: &'static Class, elements: ArrayContent) -> ArrayInstanceRef {
 		ArrayInstancePtr::new(Self { class, elements })
 	}
 
@@ -228,7 +227,7 @@ impl ArrayInstance {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.anewarray
-	pub fn new_reference(count: s4, component_class: ClassRef) -> ArrayInstanceRef {
+	pub fn new_reference(count: s4, component_class: &'static Class) -> ArrayInstanceRef {
 		if count.is_negative() {
 			panic!("NegativeArraySizeException"); // TODO
 		}
@@ -477,6 +476,6 @@ impl Drop for ArrayInstancePtr {
 impl Debug for ArrayInstancePtr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		let class = self.get();
-		f.write_str(&class.class.get().name.as_str())
+		f.write_str(&class.class.name.as_str())
 	}
 }
