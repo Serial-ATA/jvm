@@ -137,7 +137,7 @@ impl ClassLoader {
 		if let Some(mirror_class) = Self::lookup_class(sym!(java_lang_Class)) {
 			// SAFETY: The only condition of `set_mirror` is that the class isn't in use yet.
 			unsafe {
-				Class::set_mirror(mirror_class, class);
+				class.set_mirror(mirror_class);
 			}
 		}
 

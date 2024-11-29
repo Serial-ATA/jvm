@@ -5,18 +5,32 @@ use std::fmt::{Debug, Formatter};
 
 use classfile::accessflags::FieldAccessFlags;
 use classfile::{ConstantPool, FieldInfo, FieldType};
-use common::int_types::{u1, u2};
+use common::int_types::u2;
 use instructions::Operand;
+use symbols::Symbol;
 
+// TODO: Make more fields private
 #[derive(Clone, PartialEq)]
 pub struct Field {
 	pub idx: usize, // Used to set the value on `ClassInstance`s
 	pub class: &'static Class,
 	pub access_flags: FieldAccessFlags,
-	pub name: Vec<u1>,
+	pub name: Symbol,
 	pub descriptor: FieldType,
 	pub constant_value_index: Option<u2>,
 	// TODO
+}
+
+impl Debug for Field {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(
+			f,
+			"{}#{} (index: {})",
+			self.class.name.as_str(),
+			self.name.as_str(),
+			self.idx
+		)
+	}
 }
 
 impl Field {
@@ -33,7 +47,8 @@ impl Field {
 		let access_flags = field_info.access_flags;
 
 		let name_index = field_info.name_index;
-		let name = constant_pool.get_constant_utf8(name_index).to_vec();
+		let name_bytes = constant_pool.get_constant_utf8(name_index);
+		let name = Symbol::intern_bytes(name_bytes);
 
 		let descriptor_index = field_info.descriptor_index;
 		let mut descriptor_bytes = constant_pool.get_constant_utf8(descriptor_index);
@@ -87,20 +102,5 @@ impl Field {
 				Operand::Reference(Reference::null())
 			},
 		}
-	}
-}
-
-impl Debug for Field {
-	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		f.debug_struct("Field")
-			.field("idx", &self.idx)
-			.field("class", &self.class)
-			.field("access_flags", &self.access_flags)
-			.field("name", &unsafe {
-				std::str::from_utf8_unchecked(&self.name)
-			})
-			.field("descriptor", &self.descriptor)
-			.field("constant_value_index", &self.constant_value_index)
-			.finish()
 	}
 }

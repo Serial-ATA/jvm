@@ -762,7 +762,7 @@ impl Interpreter {
 
         let constant_pool = frame.constant_pool();
         let constant = &constant_pool[idx];
-        
+
         // The run-time constant pool entry at index must be loadable (§5.1),
         match constant {
             // and not any of the following:
@@ -935,18 +935,6 @@ impl Interpreter {
         }
     }
 
-    fn initialize_class_if_needed(classref: &'static Class, frame: &mut Frame) -> bool {
-        if classref.initialization_state() != ClassInitializationState::Uninit {
-            return false;
-        }
-
-        // TODO: This is a hack
-        let _ = frame.thread().pc.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
-
-        Class::initialize(&classref, frame.thread_mut());
-        true
-    }
-
     fn fetch_field(frame: &mut Frame, is_static: bool) -> Option<&'static Field> {
         let field_ref_idx = frame.read_byte2();
 
@@ -958,10 +946,9 @@ impl Interpreter {
 			.load(Symbol::intern_bytes(class_name))
 			.unwrap();
 
-        // If this is `None`, the class is initializing
         let ret = class.resolve_field(constant_pool, field_ref_idx);
         if ret.is_some() && is_static {
-            Self::initialize_class_if_needed(class, frame);
+            class.initialize(frame.thread_mut());
         }
 
         ret
@@ -976,9 +963,7 @@ impl Interpreter {
         let ret = class.resolve_method(frame.thread_mut(), method_ref_idx);
         if ret.is_some() && is_static {
             // On successful resolution of the method, the class or interface that declared the resolved method is initialized if that class or interface has not already been initialized
-            if Self::initialize_class_if_needed(class, frame) {
-                return None
-            }
+            class.initialize(frame.thread_mut());
         }
 
         ret
@@ -998,7 +983,7 @@ impl Interpreter {
         }
 
         // On successful resolution of the class, it is initialized if it has not already been initialized
-        Self::initialize_class_if_needed(class, frame);
+        class.initialize(frame.thread_mut());
 
         ClassInstance::new(class)
     }

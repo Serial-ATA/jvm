@@ -1,5 +1,6 @@
 mod header;
 pub(crate) mod index;
+#[cfg(test)]
 mod tests;
 
 use crate::error::Result;

@@ -41,18 +41,18 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 
 	let mut fields = 0;
 	for (index, field) in class.fields().enumerate() {
-		match &*field.name {
-			b"fd" => unsafe {
+		match field.name.as_str() {
+			"fd" => unsafe {
 				assert!(fields & 1 << 3 == 0, "Field can only occur once");
 				*fd.get_mut() = index;
 				fields |= 1 << 2;
 			},
 			#[cfg(windows)]
-			b"handle" => unsafe {
+			"handle" => unsafe {
 				*handle.get_mut() = index;
 				fields |= 1 << 1;
 			},
-			b"append" => unsafe {
+			"append" => unsafe {
 				*append.get_mut() = index;
 				fields |= 1;
 			},

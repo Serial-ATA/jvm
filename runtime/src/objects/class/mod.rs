@@ -8,9 +8,10 @@ use super::vtable::VTable;
 use crate::classpath::classloader::ClassLoader;
 use crate::globals::PRIMITIVES;
 use crate::reference::{MirrorInstanceRef, Reference};
+use crate::thread::JavaThread;
 use spec::InitializationLock;
 
-use std::cell::UnsafeCell;
+use std::cell::{Cell, UnsafeCell};
 use std::fmt::{Debug, Formatter};
 use std::mem::MaybeUninit;
 use std::sync::Arc;
@@ -31,7 +32,7 @@ struct MiscCache {
 
 struct FieldContainer {
 	/// A list of all fields, including static
-	fields: UnsafeCell<Vec<&'static Field>>,
+	fields: UnsafeCell<Box<[&'static Field]>>,
 	/// All static field slots
 	///
 	/// This needs to be scaled to the `fields` field, in that index 0 of this array relates
@@ -47,20 +48,17 @@ impl FieldContainer {
 	/// Used as the field container for arrays, as they have no instance fields.
 	fn null() -> Self {
 		Self {
-			fields: UnsafeCell::new(Vec::new()),
+			fields: UnsafeCell::new(box_slice![]),
 			static_field_slots: box_slice![],
 			instance_field_count: UnsafeCell::new(0),
 		}
 	}
 
-	fn new(
-		static_field_slots: Box<[UnsafeCell<Operand<Reference>>]>,
-		instance_field_count: u4,
-	) -> Self {
+	fn new(static_field_slots: Box<[UnsafeCell<Operand<Reference>>]>) -> Self {
 		Self {
-			fields: UnsafeCell::new(Vec::new()),
+			fields: UnsafeCell::new(box_slice![]),
 			static_field_slots,
-			instance_field_count: UnsafeCell::new(instance_field_count),
+			instance_field_count: UnsafeCell::new(0),
 		}
 	}
 
@@ -70,10 +68,10 @@ impl FieldContainer {
 	}
 
 	// This is only ever used in class loading
-	fn set_fields(&self, fields: Vec<&'static Field>) {
-		unsafe {
-			*self.fields.get() = fields;
-		}
+	fn set_fields(&self, new: Vec<&'static Field>) {
+		let fields = self.fields.get();
+		let old = core::mem::replace(unsafe { &mut *fields }, new.into_boxed_slice());
+		drop(old);
 	}
 
 	/// # SAFETY
@@ -117,6 +115,9 @@ pub struct Class {
 	pub(super) class_ty: ClassType,
 
 	init_lock: Arc<InitializationLock>,
+
+	// Used for fast path, initialization checks are needed for multiple instructions
+	is_initialized: Cell<bool>,
 }
 
 // SAFETY: Any pointer writes require synchronization
@@ -464,10 +465,10 @@ impl Class {
 			.iter()
 			.filter(|field| field.access_flags.is_static())
 			.count();
-		let mut instance_field_count = 0;
 
+		let mut super_instance_field_count = 0;
 		if let Some(ref super_class) = super_class {
-			instance_field_count = super_class.field_container.instance_field_count();
+			super_instance_field_count = super_class.field_container.instance_field_count();
 		}
 
 		let interfaces = parsed_file
@@ -496,10 +497,11 @@ impl Class {
 			interfaces,
 			misc_cache: UnsafeCell::new(MiscCache::default()),
 			mirror: UnsafeCell::new(MaybeUninit::uninit()), // Set later
-			field_container: FieldContainer::new(static_field_slots, instance_field_count),
+			field_container: FieldContainer::new(static_field_slots),
 			vtable: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			class_ty: ClassType::Instance(class_instance),
 			init_lock: Arc::new(InitializationLock::new()),
+			is_initialized: Cell::new(false),
 		};
 
 		let class: &'static mut Class = Box::leak(Box::new(class));
@@ -512,20 +514,18 @@ impl Class {
 
 		// Then the fields...
 		let mut fields =
-			Vec::with_capacity(instance_field_count as usize + parsed_file.fields.len());
+			Vec::with_capacity(super_instance_field_count as usize + parsed_file.fields.len());
 		if let Some(ref super_class) = class.super_class {
 			// First we have to inherit the super classes' fields
-			for field in super_class.fields() {
-				if !field.is_static() {
-					fields.push(field);
-				}
+			for field in super_class.instance_fields() {
+				fields.push(field);
 			}
 		}
 
 		// Now the fields defined in our class
 		let mut static_idx = 0;
 		// Continue the index from our existing instance fields
-		let mut instance_field_idx = core::cmp::max(0, instance_field_count) as usize;
+		let mut instance_field_idx = core::cmp::max(0, super_instance_field_count) as usize;
 		let constant_pool = class
 			.constant_pool()
 			.expect("we just set the constant pool");
@@ -540,19 +540,14 @@ impl Class {
 
 			*field_idx += 1;
 		}
+
 		class.field_container.set_fields(fields);
 
 		// Update the instance field count if we encountered any new ones
 		if instance_field_idx > 0 {
-			if instance_field_count > 0 {
-				class
-					.field_container
-					.set_instance_field_count(instance_field_count + instance_field_idx as u4);
-			} else {
-				class
-					.field_container
-					.set_instance_field_count(instance_field_idx as u4);
-			}
+			class
+				.field_container
+				.set_instance_field_count(instance_field_idx as u4);
 		}
 
 		class
@@ -600,6 +595,7 @@ impl Class {
 			vtable: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			class_ty: ClassType::Array(array_instance),
 			init_lock: Arc::new(InitializationLock::new()),
+			is_initialized: Cell::new(false),
 		};
 
 		let class: &'static mut Class = Box::leak(Box::new(class));
@@ -622,6 +618,15 @@ impl Class {
 	pub fn initialization_state(&self) -> ClassInitializationState {
 		let _guard = self.init_lock.lock();
 		_guard.initialization_state()
+	}
+
+	pub fn initialize(&self, thread: &mut JavaThread) {
+		if self.is_initialized.get() {
+			return;
+		}
+
+		self.initialization(thread);
+		self.is_initialized.set(true);
 	}
 
 	/// Set the mirror for this class

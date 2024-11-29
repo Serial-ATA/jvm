@@ -42,12 +42,19 @@ impl StackFrame {
 	}
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct FrameStack {
 	inner: Vec<StackFrame>,
 }
 
 impl FrameStack {
+	// TODO
+	fn new() -> Self {
+		FrameStack {
+			inner: Vec::with_capacity(1024),
+		}
+	}
+
 	fn current(&mut self) -> Option<&mut Frame> {
 		let current_frame = self.inner.last_mut();
 		match current_frame {
@@ -217,7 +224,7 @@ impl JavaThread {
 				.filter(|field| !field.is_static())
 				.enumerate()
 			{
-				if field.name == b"holder" {
+				if field.name == sym!(holder) {
 					unsafe {
 						crate::globals::field_offsets::set_thread_holder_field_offset(index);
 					}
@@ -229,14 +236,14 @@ impl JavaThread {
 		{
 			let class = crate::globals::classes::java_lang_Thread_FieldHolder();
 			for (index, field) in class.static_fields().enumerate() {
-				match &*field.name {
-					b"priority" => unsafe {
+				match field.name.as_str() {
+					"priority" => unsafe {
 						crate::globals::field_offsets::set_field_holder_priority_field_offset(index)
 					},
-					b"daemon" => unsafe {
+					"daemon" => unsafe {
 						crate::globals::field_offsets::set_field_holder_daemon_field_offset(index)
 					},
-					b"threadStatus" => unsafe {
+					"threadStatus" => unsafe {
 						crate::globals::field_offsets::set_field_holder_thread_status_field_offset(
 							index,
 						)
@@ -282,7 +289,7 @@ impl JavaThread {
 			obj: None,
 
 			pc: AtomicIsize::new(0),
-			frame_stack: FrameStack::default(),
+			frame_stack: FrameStack::new(),
 			remaining_operand: None,
 		}
 	}

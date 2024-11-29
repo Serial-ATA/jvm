@@ -26,6 +26,7 @@ mod stacktrace_element {
 
 	use common::traits::PtrType;
 	use instructions::Operand;
+	use symbols::sym;
 
 	static mut INITIALIZED: Mutex<bool> = Mutex::new(false);
 
@@ -43,59 +44,62 @@ mod stacktrace_element {
 			return;
 		}
 
-		StackTraceElement_classLoaderName_FIELD_OFFSET = class
-			.fields()
-			.find(|field| {
-				field.descriptor.is_class(b"java/lang/String") && field.name == b"classLoaderName"
-			})
-			.expect("classLoaderName field should exist")
-			.idx;
+		let mut field_set = 0;
+		for field in class.fields() {
+			if field.name == sym!(classLoaderName) {
+				assert!(field.descriptor.is_class(b"java/lang/String"));
+				StackTraceElement_classLoaderName_FIELD_OFFSET = field.idx;
+				field_set |= 1;
+				continue;
+			}
 
-		StackTraceElement_moduleName_FIELD_OFFSET = class
-			.fields()
-			.find(|field| {
-				field.descriptor.is_class(b"java/lang/String") && field.name == b"moduleName"
-			})
-			.expect("moduleName field should exist")
-			.idx;
+			if field.name == sym!(moduleName) {
+				assert!(field.descriptor.is_class(b"java/lang/String"));
+				StackTraceElement_moduleName_FIELD_OFFSET = field.idx;
+				field_set |= 1 << 1;
+				continue;
+			}
 
-		StackTraceElement_moduleVersion_FIELD_OFFSET = class
-			.fields()
-			.find(|field| {
-				field.descriptor.is_class(b"java/lang/String") && field.name == b"moduleVersion"
-			})
-			.expect("moduleVersion field should exist")
-			.idx;
+			if field.name == sym!(moduleVersion) {
+				assert!(field.descriptor.is_class(b"java/lang/String"));
+				StackTraceElement_moduleVersion_FIELD_OFFSET = field.idx;
+				field_set |= 1 << 2;
+				continue;
+			}
 
-		StackTraceElement_declaringClass_FIELD_OFFSET = class
-			.fields()
-			.find(|field| {
-				field.descriptor.is_class(b"java/lang/String") && field.name == b"declaringClass"
-			})
-			.expect("declaringClass field should exist")
-			.idx;
+			if field.name == sym!(declaringClass) {
+				assert!(field.descriptor.is_class(b"java/lang/String"));
+				StackTraceElement_declaringClass_FIELD_OFFSET = field.idx;
+				field_set |= 1 << 3;
+				continue;
+			}
 
-		StackTraceElement_methodName_FIELD_OFFSET = class
-			.fields()
-			.find(|field| {
-				field.descriptor.is_class(b"java/lang/String") && field.name == b"methodName"
-			})
-			.expect("methodName field should exist")
-			.idx;
+			if field.name == sym!(methodName) {
+				assert!(field.descriptor.is_class(b"java/lang/String"));
+				StackTraceElement_methodName_FIELD_OFFSET = field.idx;
+				field_set |= 1 << 4;
+				continue;
+			}
 
-		StackTraceElement_fileName_FIELD_OFFSET = class
-			.fields()
-			.find(|field| {
-				field.descriptor.is_class(b"java/lang/String") && field.name == b"fileName"
-			})
-			.expect("fileName field should exist")
-			.idx;
+			if field.name == sym!(fileName) {
+				assert!(field.descriptor.is_class(b"java/lang/String"));
+				StackTraceElement_fileName_FIELD_OFFSET = field.idx;
+				field_set |= 1 << 5;
+				continue;
+			}
 
-		StackTraceElement_lineNumber_FIELD_OFFSET = class
-			.fields()
-			.find(|field| field.descriptor.is_int() && field.name == b"lineNumber")
-			.expect("lineNumber field should exist")
-			.idx;
+			if field.name == sym!(lineNumber) {
+				assert!(field.descriptor.is_int());
+				StackTraceElement_lineNumber_FIELD_OFFSET = field.idx;
+				field_set |= 1 << 6;
+				continue;
+			}
+		}
+
+		assert_eq!(
+			field_set, 0b1111111,
+			"Not all fields were found in java/lang/StackTraceElement"
+		);
 
 		*initialized = true;
 	}
@@ -170,7 +174,7 @@ pub fn fillInStackTrace(
 	let this_class = this_class_instance.get().class;
 	// TODO: Make global field
 	let stacktrace_field = this_class.fields().find(|field| {
-		field.name == b"stackTrace" && matches!(&field.descriptor, FieldType::Array(value) if value.is_class(b"java/lang/StackTraceElement"))
+		field.name.as_str() == "stackTrace" && matches!(&field.descriptor, FieldType::Array(value) if value.is_class(b"java/lang/StackTraceElement"))
 	}).expect("Throwable should have a stackTrace field");
 
 	let stack_depth = current_thread.frame_stack().depth();

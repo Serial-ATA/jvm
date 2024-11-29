@@ -1,12 +1,12 @@
 use crate::class::Class;
-use crate::classpath::classloader::ClassLoader;
-use crate::native::jni::invocation_api::main_java_vm;
-use crate::thread::JavaThread;
-
 use crate::class_instance::ClassInstance;
+use crate::classpath::classloader::ClassLoader;
 use crate::java_call;
+use crate::native::jni::invocation_api::main_java_vm;
 use crate::reference::Reference;
 use crate::string_interner::StringInterner;
+use crate::thread::JavaThread;
+
 use classfile::accessflags::MethodAccessFlags;
 use classfile::FieldType;
 use common::int_types::s4;
@@ -36,7 +36,7 @@ fn initialize_thread(thread: &mut JavaThread) {
 			.fields()
 			.find(|field| {
 				!field.is_static()
-					&& field.name == b"value"
+					&& field.name == sym!(value)
 					&& matches!(field.descriptor, FieldType::Array(ref val) if **val == FieldType::Byte)
 			})
 			.expect("java.lang.String should have a value field");
@@ -45,7 +45,7 @@ fn initialize_thread(thread: &mut JavaThread) {
 			.fields()
 			.find(|field| {
 				field.is_final()
-					&& field.name == b"coder"
+					&& field.name == sym!(coder)
 					&& matches!(field.descriptor, FieldType::Byte)
 			})
 			.expect("java.lang.String should have a value field");
@@ -159,8 +159,7 @@ fn create_thread_object(thread: &mut JavaThread) {
 /// * Thread group of the main thread
 fn init_phase_1(thread: &mut JavaThread) {
 	let system_class = ClassLoader::Bootstrap.load(sym!(java_lang_System)).unwrap();
-	let init_phase_1 = Class::resolve_method_step_two(
-		system_class,
+	let init_phase_1 = system_class.resolve_method_step_two(
 		sym!(initPhase1_name),
 		sym!(void_method_signature),
 	)
@@ -181,8 +180,7 @@ fn init_phase_2(thread: &mut JavaThread) {
 	let print_stacktrace_on_exception = true;
 
 	// TODO: Need some way to check failure
-	let init_phase_2 = Class::resolve_method_step_two(
-		system_class,
+	let init_phase_2 = system_class.resolve_method_step_two(
 		sym!(initPhase2_name),
 		sym!(bool_bool_int_signature),
 	)
@@ -210,8 +208,7 @@ fn init_phase_2(thread: &mut JavaThread) {
 fn init_phase_3(thread: &mut JavaThread) {
 	let system_class = ClassLoader::Bootstrap.load(sym!(java_lang_System)).unwrap();
 
-	let init_phase_3 = Class::resolve_method_step_two(
-		system_class,
+	let init_phase_3 = system_class.resolve_method_step_two(
 		sym!(initPhase3_name),
 		sym!(void_method_signature),
 	)

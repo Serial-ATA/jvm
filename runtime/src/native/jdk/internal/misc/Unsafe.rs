@@ -424,7 +424,7 @@ pub fn objectFieldOffset1(
 			continue;
 		}
 
-		if field.name == name_str.as_bytes() {
+		if field.name.as_str() == name_str {
 			return (offset as jlong).into();
 		}
 
@@ -467,7 +467,7 @@ pub fn ensureClassInitialized0(
 
 	let target_class = mirror.get().expect_class();
 	match target_class.initialization_state() {
-		ClassInitializationState::Uninit => Class::initialize(&target_class, current_thread),
+		ClassInitializationState::Uninit => target_class.initialize(current_thread),
 		ClassInitializationState::InProgress | ClassInitializationState::Init => {},
 		// TODO: Is this the best we can do?
 		ClassInitializationState::Failed => unreachable!("Failed to ensure class initialization"),

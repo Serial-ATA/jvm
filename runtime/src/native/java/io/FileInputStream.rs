@@ -80,7 +80,7 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 
 	let mut field_set = false;
 	for (index, field) in class.fields().enumerate() {
-		if field.name == b"fd" {
+		if field.name == sym!(fd) {
 			unsafe {
 				*fd.get_mut() = index;
 			}

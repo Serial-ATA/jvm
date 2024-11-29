@@ -66,6 +66,26 @@ impl SymbolInterner {
 pub struct Symbol(u32);
 
 impl Symbol {
+	/// Access the actual string associated with this symbol
+	pub fn as_str(&self) -> &'static str {
+		let guard = INTERNER.lock().unwrap();
+		unsafe { std::str::from_utf8_unchecked(guard.get(*self)) }
+	}
+
+	/// Access the byte string associated with this symbol
+	pub fn as_bytes(&self) -> &'static [u8] {
+		let guard = INTERNER.lock().unwrap();
+		guard.get(*self)
+	}
+
+	/// Access the `u32` representation of this symbol
+	#[inline]
+	pub fn as_u32(&self) -> u32 {
+		self.0
+	}
+}
+
+impl Symbol {
 	/// The maximum number of bits that a pre-interned symbol ID can occupy
 	///
 	/// This currently allows for up to 2048 VM symbols
@@ -103,18 +123,6 @@ impl Symbol {
 	pub unsafe fn intern_bytes_unchecked(bytes: &[u1]) -> Self {
 		let mut guard = INTERNER.lock().unwrap();
 		guard.intern(bytes)
-	}
-
-	/// Access the actual string associated with this symbol
-	pub fn as_str(&self) -> &'static str {
-		let guard = INTERNER.lock().unwrap();
-		unsafe { std::str::from_utf8_unchecked(guard.get(*self)) }
-	}
-
-	/// Access the `u32` representation of this symbol
-	#[inline]
-	pub fn as_u32(&self) -> u32 {
-		self.0
 	}
 }
 
@@ -190,4 +198,17 @@ vm_symbols::define_symbols! {
 	printStackTrace_name: "printStackTrace",
 	findNative_name: "findNative",
 	// -- GENERATED METHOD NAME MARKER, DO NOT DELETE --
+
+	// Fields
+	holder: "holder",
+	value: "value",
+	coder: "coder",
+	fd: "fd",
+	classLoaderName: "classLoaderName",
+	moduleName: "moduleName",
+	moduleVersion: "moduleVersion",
+	declaringClass: "declaringClass",
+	methodName: "methodName",
+	fileName: "fileName",
+	lineNumber: "lineNumber",
 }

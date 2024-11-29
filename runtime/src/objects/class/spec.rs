@@ -161,7 +161,7 @@ impl Class {
 		// 1. If C declares a field with the name and descriptor specified by the field reference,
 		//    field lookup succeeds. The declared field is the result of the field lookup.
 		for field in self.fields() {
-			if field.name == field_name && field.descriptor == field_type {
+			if field.name.as_bytes() == field_name && field.descriptor == field_type {
 				return Some(field);
 			}
 		}
@@ -219,7 +219,7 @@ impl Class {
 		}
 
 		//  2. Otherwise, method resolution attempts to locate the referenced method in C and its superclasses:
-		if let ret @ Some(_) = Class::resolve_method_step_two(class, method_name, descriptor) {
+		if let ret @ Some(_) = class.resolve_method_step_two(method_name, descriptor) {
 			return ret;
 		}
 
@@ -266,7 +266,7 @@ impl Class {
 		// 	  2.3. Otherwise, if C has a superclass, step 2 of method resolution is recursively invoked on the direct superclass of C.
 		if let Some(super_class) = self.super_class {
 			if let Some(resolved_method) =
-				Class::resolve_method_step_two(super_class, method_name, descriptor)
+				super_class.resolve_method_step_two(method_name, descriptor)
 			{
 				return Some(&resolved_method);
 			}
@@ -366,13 +366,13 @@ impl Class {
 		reason = "We have no way of checking of the <clinit> executed successfully yet"
 	)]
 	#[tracing::instrument(skip_all)]
-	pub fn initialize(&self, thread: &mut JavaThread) {
+	pub fn initialization(&self, thread: &mut JavaThread) {
 		// 1. Synchronize on the initialization lock, LC, for C. This involves waiting until the current thread can acquire LC.
 		let init = self.initialization_lock();
 		let mut guard = init.lock();
 
 		// 2. If the Class object for C indicates that initialization is in progress for C by some other thread
-		if self.initialization_state() == ClassInitializationState::InProgress
+		if guard.initialization_state() == ClassInitializationState::InProgress
 			&& !guard.is_initialized_by(thread)
 		{
 			// then release LC and block the current thread until informed that the in-progress initialization
@@ -382,23 +382,22 @@ impl Class {
 
 		// 3. If the Class object for C indicates that initialization is in progress for C by the current thread,
 		//    then this must be a recursive request for initialization. Release LC and complete normally.
-		if self.initialization_state() == ClassInitializationState::InProgress
+		if guard.initialization_state() == ClassInitializationState::InProgress
 			&& guard.is_initialized_by(thread)
 		{
-			panic!();
 			return;
 		}
 
 		// 4. If the Class object for C indicates that C has already been initialized, then no further action
 		//    is required. Release LC and complete normally.
-		if self.initialization_state() == ClassInitializationState::Init {
+		if guard.initialization_state() == ClassInitializationState::Init {
 			return;
 		}
 
 		// TODO:
 		// 5. If the Class object for C is in an erroneous state, then initialization is not possible.
 		//    Release LC and throw a NoClassDefFoundError.
-		if self.initialization_state() == ClassInitializationState::Failed {
+		if guard.initialization_state() == ClassInitializationState::Failed {
 			panic!("NoClassDefFoundError");
 		}
 
@@ -479,7 +478,7 @@ impl Class {
 		//    entire procedure for S. If necessary, verify and prepare S first.
 		if !self.is_interface() {
 			if let Some(super_class) = &self.super_class {
-				Class::initialize(super_class, thread);
+				super_class.initialize(thread);
 			}
 
 			for interface in &self.interfaces {
@@ -488,7 +487,7 @@ impl Class {
 					.iter()
 					.any(|method| !method.is_abstract() && !method.is_static())
 				{
-					Class::initialize(interface, thread);
+					interface.initialize(thread);
 				}
 			}
 
@@ -558,7 +557,7 @@ impl Class {
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.2
     #[rustfmt::skip]
 	#[tracing::instrument(skip_all)]
-	pub fn clinit(&self, thread: &mut JavaThread) {
+	fn clinit(&self, thread: &mut JavaThread) {
 		// A class or interface has at most one class or interface initialization method and is initialized
 		// by the Java Virtual Machine invoking that method (§5.5).
 
