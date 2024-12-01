@@ -172,10 +172,9 @@ impl Class {
 
 		// 3. Otherwise, if C has a superclass S, field lookup is applied recursively to S.
 		if let Some(super_class) = &self.super_class {
-			super_class.resolve_field(
-				super_class.unwrap_class_instance().constant_pool.clone(),
-				field_ref_idx,
-			);
+			if let Some(field) = super_class.resolve_field(constant_pool, field_ref_idx) {
+				return Some(field);
+			}
 		}
 
 		// 4. Otherwise, field lookup fails.

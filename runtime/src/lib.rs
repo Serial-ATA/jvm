@@ -4,6 +4,7 @@
 #![feature(impl_trait_in_assoc_type)]
 #![feature(macro_metavar_expr)]
 #![feature(specialization)]
+#![feature(sync_unsafe_cell)]
 
 pub mod calls;
 pub mod classpath;

@@ -21,11 +21,21 @@ pub fn setIn0(_: NonNull<JniEnv>, in_: Reference /* java.io.InputStream */) {
 		.expect("java/lang/System#in field should exist");
 	field.set_static_value(Operand::Reference(in_));
 }
-pub fn setOut0(_env: NonNull<JniEnv>, _out: Reference /* java.io.PrintStream */) {
-	unimplemented!("System#setOut0")
+pub fn setOut0(_env: NonNull<JniEnv>, out: Reference /* java.io.PrintStream */) {
+	let class = ClassLoader::lookup_class(sym!(java_lang_System)).unwrap();
+	let field = class
+		.fields()
+		.find(|field| field.name == sym!(out) && field.descriptor.is_class(b"java/io/PrintStream"))
+		.expect("java/lang/System#out field should exist");
+	field.set_static_value(Operand::Reference(out));
 }
-pub fn setErr0(_env: NonNull<JniEnv>, _err: Reference /* java.io.PrintStream */) {
-	unimplemented!("System#setErr0")
+pub fn setErr0(_env: NonNull<JniEnv>, err: Reference /* java.io.PrintStream */) {
+	let class = ClassLoader::lookup_class(sym!(java_lang_System)).unwrap();
+	let field = class
+		.fields()
+		.find(|field| field.name == sym!(err) && field.descriptor.is_class(b"java/io/PrintStream"))
+		.expect("java/lang/System#err field should exist");
+	field.set_static_value(Operand::Reference(err));
 }
 
 pub fn currentTimeMillis(_env: NonNull<JniEnv>) -> jlong {

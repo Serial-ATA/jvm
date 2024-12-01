@@ -13,7 +13,7 @@ pub struct FieldInfo {
 	pub access_flags: FieldAccessFlags,
 	pub name_index: u2,
 	pub descriptor_index: u2,
-	pub attributes: Vec<Attribute>,
+	pub attributes: Box<[Attribute]>,
 }
 
 impl FieldInfo {

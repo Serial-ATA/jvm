@@ -15,7 +15,7 @@ pub struct MethodInfo {
 	pub access_flags: MethodAccessFlags,
 	pub name_index: u2,
 	pub descriptor_index: u2,
-	pub attributes: Vec<Attribute>,
+	pub attributes: Box<[Attribute]>,
 }
 
 impl MethodInfo {

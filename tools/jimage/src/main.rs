@@ -126,8 +126,12 @@ fn extract(dir: String, path: PathBuf) -> Result<()> {
 				.write(true)
 				.create(true)
 				.truncate(true)
-				.open(&local_resource_path) else {
-				exit(format!("Cannot create file '{}'", local_resource_path.to_string_lossy()));
+				.open(&local_resource_path)
+			else {
+				exit(format!(
+					"Cannot create file '{}'",
+					local_resource_path.to_string_lossy()
+				));
 				return Ok(());
 			};
 
@@ -149,16 +153,16 @@ fn info(path: PathBuf) -> Result<()> {
 	let mut file = fs::File::open(&path)?;
 	let jimage = JImage::read_from(&mut file)?;
 
-	let header = jimage.borrow_header();
+	let header = jimage.header();
 	println!(" Major Version:  {}", header.major_version());
 	println!(" Minor Version:  {}", header.minor_version());
-	println!(" Flags:          {}", header.flags);
-	println!(" Resource Count: {}", header.resource_count);
-	println!(" Table Length:   {}", header.table_length);
+	println!(" Flags:          {}", header.flags());
+	println!(" Resource Count: {}", header.resource_count());
+	println!(" Table Length:   {}", header.table_length());
 	println!(" Offsets Size:   {}", header.offset_table_length());
-	println!(" Redirects Size: {}", header.table_length());
-	println!(" Locations Size: {}", header.locations_size);
-	println!(" Strings Size:   {}", header.strings_size);
+	println!(" Redirects Size: {}", header.redirect_table_length());
+	println!(" Locations Size: {}", header.location_table_length());
+	println!(" Strings Size:   {}", header.string_table_length());
 	println!(" Index Size:     {}", header.index_length());
 
 	Ok(())
@@ -246,8 +250,10 @@ fn module_name(path: &str) -> &str {
 
 fn trim_module(name: &str) -> &str {
 	let offset = name[1..].find('/').map(|offset| offset + 1);
-	if let Some(offset) = offset && offset + 1 < name.len() {
-		return &name[offset+1..];
+	if let Some(offset) = offset
+		&& offset + 1 < name.len()
+	{
+		return &name[offset + 1..];
 	}
 
 	name

@@ -1,4 +1,4 @@
-use crate::error::{JImageError, Result};
+use crate::error::{Error, Result};
 use crate::header::{JImageHeader, JIMAGE_MAGIC, JIMAGE_MAGIC_INVERTED};
 
 use std::io::Read;
@@ -40,10 +40,7 @@ pub(crate) fn read_header<R>(reader: &mut R) -> Result<(JImageHeader, Endian)>
 where
 	R: Read,
 {
-	#[cfg(target_endian = "little")]
-	let mut endian = Endian::Little;
-	#[cfg(target_endian = "big")]
-	let mut endian = Endian::Big;
+	let mut endian = Endian::native();
 
 	let magic = endian.read_u4(reader)?;
 	match magic {
@@ -51,7 +48,7 @@ where
 		JIMAGE_MAGIC => {},
 		// The image was created on a platform with opposite endianness
 		JIMAGE_MAGIC_INVERTED => endian = endian.invert(),
-		_ => return Err(JImageError::InvalidMagic),
+		_ => return Err(Error::InvalidMagic),
 	}
 
 	let version = endian.read_u4(reader)?;

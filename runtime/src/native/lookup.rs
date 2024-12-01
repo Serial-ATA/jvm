@@ -153,7 +153,7 @@ impl<'a> NativeNameConverter<'a> {
 		}
 
 		if os_style && cfg!(all(windows, not(target_arch = "x86_64"))) {
-			name = format!("{name}@{}", num_args * core::mem::size_of::<c_int>());
+			name = format!("{name}@{}", num_args * size_of::<c_int>());
 		}
 
 		name

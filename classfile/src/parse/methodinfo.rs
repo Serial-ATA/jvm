@@ -31,6 +31,6 @@ where
 		access_flags: MethodAccessFlags::from(access_flags),
 		name_index,
 		descriptor_index,
-		attributes,
+		attributes: attributes.into_boxed_slice(),
 	})
 }

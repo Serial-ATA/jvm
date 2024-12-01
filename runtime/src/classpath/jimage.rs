@@ -1,11 +1,11 @@
 use common::int_types::u1;
 use jimage::JImage;
 
-use std::cell::UnsafeCell;
+use std::cell::SyncUnsafeCell;
 use std::fs::File;
 use std::path::PathBuf;
 
-static mut JIMAGE_FILE: UnsafeCell<Option<JImage>> = UnsafeCell::new(None);
+static JIMAGE_FILE: SyncUnsafeCell<Option<JImage>> = SyncUnsafeCell::new(None);
 
 pub fn initialized() -> bool {
 	unsafe { (*JIMAGE_FILE.get()).is_some() }
@@ -52,7 +52,7 @@ pub fn lookup_vm_options() -> Option<Vec<u1>> {
 	let jimage = JImage::read_from(&mut jimage_file).unwrap(); // TODO: Error handling
 
 	unsafe {
-		*JIMAGE_FILE.get_mut() = Some(jimage);
+		*JIMAGE_FILE.get() = Some(jimage);
 	}
 
 	lookup_vm_resource("jdk/internal/vm/options")

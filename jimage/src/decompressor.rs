@@ -111,7 +111,7 @@ pub fn decompress_resource(
 
 		has_header = header.__magic == ResourceHeader::RESOURCE_HEADER_MAGIC;
 		if !has_header {
-			resource = unsafe { resource.sub(core::mem::size_of::<ResourceHeader>()) };
+			resource = unsafe { resource.sub(size_of::<ResourceHeader>()) };
 			break;
 		}
 

@@ -34,10 +34,12 @@ fn read_classes() {
 
 	for class in CLASSES {
 		let location = file.find_location(class);
-		let size = if let Some(location) = &location {
-			location.get_uncompressed_size()
+
+		let size;
+		if let Some(location) = &location {
+			size = location.get_uncompressed_size();
 		} else {
-			0
+			size = 0;
 		};
 
 		println!("reading: path: {}, size: {}", class, size);

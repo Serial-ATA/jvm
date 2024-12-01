@@ -3,23 +3,37 @@ pub(crate) mod index;
 #[cfg(test)]
 mod tests;
 
-use crate::error::Result;
-use crate::header::JImageHeader;
+use crate::error::{Error, Result};
+use crate::image::JImage;
+use crate::JImageHeader;
 
 use std::io::Read;
 
-use common::endian::Endian;
-use common::int_types::u1;
-
-pub(crate) fn parse<R>(reader: &mut R) -> Result<(JImageHeader, Endian, Vec<u1>)>
+pub(crate) fn parse<R>(reader: &mut R) -> Result<JImage>
 where
 	R: Read,
 {
-	let mut jimage_bytes = Vec::new();
-	reader.read_to_end(&mut jimage_bytes)?;
-
-	let reader = &mut &jimage_bytes[..];
 	let (header, endian) = header::read_header(reader)?;
+	let index = index::read_index(reader, header, endian)?;
 
-	Ok((header, endian, jimage_bytes))
+	if header.index_length() < size_of::<JImageHeader>() {
+		return Err(Error::InvalidTableSize);
+	}
+
+	// `index_length()` contains the length of the header as well for some reason, need to subtract it.
+	// Copying this behavior for parity with OpenJDK.
+	if index.len() != (header.index_length() - size_of::<JImageHeader>()) {
+		return Err(Error::BadIndexSize);
+	}
+
+	// Everything left is the resources section
+	let mut resources = Vec::new();
+	reader.read_to_end(&mut resources)?;
+
+	Ok(JImage {
+		endian,
+		header,
+		index,
+		resources: resources.into(),
+	})
 }

@@ -11,6 +11,13 @@ pub enum Endian {
 }
 
 impl Endian {
+	pub fn native() -> Self {
+		#[cfg(target_endian = "little")]
+		return Endian::Little;
+		#[cfg(target_endian = "big")]
+		return Endian::Big;
+	}
+
 	pub fn invert(self) -> Self {
 		match self {
 			Self::Little => Self::Big,
@@ -49,6 +56,20 @@ impl<R: Read> JavaEndianAwareRead<R> for Endian {
 		match self {
 			Endian::Little => JavaLittleEndianRead::read_s4(reader),
 			Endian::Big => JavaReadExt::read_s4(reader),
+		}
+	}
+
+	fn read_s4_into(self, reader: &mut R, dst: &mut [s4]) -> Result<()> {
+		match self {
+			Endian::Little => JavaLittleEndianRead::read_s4_into(reader, dst),
+			Endian::Big => JavaReadExt::read_s4_into(reader, dst),
+		}
+	}
+
+	fn read_u4_into(self, reader: &mut R, dst: &mut [u4]) -> Result<()> {
+		match self {
+			Endian::Little => JavaLittleEndianRead::read_u4_into(reader, dst),
+			Endian::Big => JavaReadExt::read_u4_into(reader, dst),
 		}
 	}
 }

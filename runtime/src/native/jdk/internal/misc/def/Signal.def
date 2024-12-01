@@ -1,0 +1,15 @@
+import java.lang.String;
+
+public final class Signal {
+    // Find the signal number, given a name. Returns -1 for unknown signals.
+    private static native int findSignal0(String sigName);
+    // Registers a native signal handler, and returns the old handler.
+    // Handler values:
+    //   0     default handler
+    //   1     ignore the signal
+    //   2     call back to Signal.dispatch
+    //   other arbitrary native signal handlers
+    private static native long handle0(int sig, long nativeH);
+    // Raise a given signal number
+    private static native void raise0(int sig);
+}

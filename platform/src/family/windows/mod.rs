@@ -1,2 +1,2 @@
-pub mod os_arch;
 pub mod properties;
+pub(super) mod signals;

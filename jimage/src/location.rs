@@ -57,88 +57,6 @@ impl<'a> JImageLocation<'a> {
 }
 
 impl<'a> JImageLocation<'a> {
-	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L252
-	/// Return the attribute value number of bytes.
-	#[inline(always)]
-	pub fn attribute_length(data: u1) -> u1 {
-		(data & 0x7) + 1
-	}
-
-	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L257
-	/// Return the attribute kind.
-	#[inline(always)]
-	pub fn attribute_kind(data: u1) -> u1 {
-		let kind = data >> 3;
-		assert!(
-			kind < attr::ATTRIBUTE_COUNT as u1,
-			"Invalid JImage attribute kind: {}",
-			kind
-		);
-		kind
-	}
-
-	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L264
-	/// Return the attribute length.
-	#[inline(always)]
-	pub fn attribute_value(data: &[u1], length: u1) -> u8 {
-		assert!(
-			(1..=8).contains(&length),
-			"Invalid JImage attribute value length: {}",
-			length
-		);
-
-		let mut value = 0;
-		for i in 0..length {
-			value <<= 8;
-			value |= u8::from(data[i as usize]);
-		}
-
-		value
-	}
-
-	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L125
-	/// Inflates the attribute stream into individual values stored in the long
-	/// array _attributes. This allows an attribute value to be quickly accessed by
-	/// direct indexing.  Unspecified values default to zero (from constructor.)
-	pub fn set_data(&mut self, data: &[u1]) {
-		// Deflate the attribute stream into an array of attributes.
-		// Repeat until end header is found.
-		let mut i = 0;
-		loop {
-			// Extract kind from header byte.
-			let header_byte = data[i];
-			let kind = Self::attribute_kind(header_byte);
-			if u8::from(kind) == attr::ATTRIBUTE_END {
-				return;
-			}
-
-			// Extract length of data (in bytes).
-			let n = Self::attribute_length(header_byte);
-
-			// Read value (most significant first.)
-			self.attributes[kind as usize] = Self::attribute_value(&data[i + 1..], n);
-			i += n as usize + 1;
-		}
-	}
-
-	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L143
-	/// Zero all attribute values.
-	pub fn clear_data(&mut self) {
-		// Set defaults to zero.
-		self.attributes.fill(0);
-	}
-
-	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L294
-	/// Retrieve an attribute value from the inflated array.
-	#[inline(always)]
-	pub fn get_attribute(&self, kind: u1) -> u8 {
-		assert!(
-			attr::ATTRIBUTE_END < u8::from(kind) && u8::from(kind) < attr::ATTRIBUTE_COUNT,
-			"invalid attribute kind"
-		);
-		self.attributes[kind as usize]
-	}
-
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L300
 	/// Retrieve an attribute string value from the inflated array.
 	#[inline(always)]
@@ -186,11 +104,12 @@ impl<'a> JImageLocation<'a> {
 	/// # Errors
 	/// * The string at the offset is non UTF-8
 	pub fn get_module(&self) -> Result<&str> {
-		let strings = ImageStrings(self.image.borrow_index().string_bytes);
-		Ok(core::str::from_utf8(self.get_attribute_string(
-			attr::ATTRIBUTE_MODULE as u4,
-			strings,
-		))?)
+		let strings = ImageStrings(self.image.index.string_bytes());
+
+		let ret =
+			core::str::from_utf8(self.get_attribute_string(attr::ATTRIBUTE_MODULE as u4, strings))?;
+
+		Ok(ret)
 	}
 
 	/// Retrieve the string at `ATTRIBUTE_PARENT`
@@ -198,7 +117,7 @@ impl<'a> JImageLocation<'a> {
 	/// # Errors
 	/// * The string at the offset is non UTF-8
 	pub fn get_parent(&self) -> Result<&str> {
-		let strings = ImageStrings(self.image.borrow_index().string_bytes);
+		let strings = ImageStrings(self.image.index.string_bytes());
 		Ok(core::str::from_utf8(self.get_attribute_string(
 			attr::ATTRIBUTE_PARENT as u4,
 			strings,
@@ -210,7 +129,7 @@ impl<'a> JImageLocation<'a> {
 	/// # Errors
 	/// * The string at the offset is non UTF-8
 	pub fn get_base(&self) -> Result<&str> {
-		let strings = ImageStrings(self.image.borrow_index().string_bytes);
+		let strings = ImageStrings(self.image.index.string_bytes());
 		Ok(core::str::from_utf8(self.get_attribute_string(
 			attr::ATTRIBUTE_BASE as u4,
 			strings,
@@ -222,7 +141,7 @@ impl<'a> JImageLocation<'a> {
 	/// # Errors
 	/// * The string at the offset is non UTF-8
 	pub fn get_extension(&self) -> Result<&str> {
-		let strings = ImageStrings(self.image.borrow_index().string_bytes);
+		let strings = ImageStrings(self.image.index.string_bytes());
 		Ok(core::str::from_utf8(self.get_attribute_string(
 			attr::ATTRIBUTE_EXTENSION as u4,
 			strings,
@@ -242,5 +161,82 @@ impl<'a> JImageLocation<'a> {
 	/// Retrieve the `ATTRIBUTE_UNCOMPRESSED`
 	pub fn get_uncompressed_size(&self) -> u8 {
 		self.get_attribute(attr::ATTRIBUTE_UNCOMPRESSED as u1)
+	}
+}
+
+impl JImageLocation<'_> {
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L252
+	/// Return the attribute value number of bytes.
+	#[inline(always)]
+	fn attribute_length(data: u1) -> u1 {
+		(data & 0x7) + 1
+	}
+
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L257
+	/// Return the attribute kind.
+	#[inline(always)]
+	fn attribute_kind(data: u1) -> u1 {
+		let kind = data >> 3;
+		assert!(
+			kind < attr::ATTRIBUTE_COUNT as u1,
+			"Invalid JImage attribute kind: {}",
+			kind
+		);
+		kind
+	}
+
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L264
+	/// Return the attribute length.
+	#[inline(always)]
+	fn attribute_value(data: &[u1], length: u1) -> u8 {
+		assert!(
+			(1..=8).contains(&length),
+			"Invalid JImage attribute value length: {}",
+			length
+		);
+
+		let mut value = 0;
+		for i in 0..length {
+			value <<= 8;
+			value |= u8::from(data[i as usize]);
+		}
+
+		value
+	}
+
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L125
+	/// Inflates the attribute stream into individual values stored in the long
+	/// array _attributes. This allows an attribute value to be quickly accessed by
+	/// direct indexing.  Unspecified values default to zero (from constructor.)
+	fn set_data(&mut self, data: &[u1]) {
+		// Deflate the attribute stream into an array of attributes.
+		// Repeat until end header is found.
+		let mut i = 0;
+		loop {
+			// Extract kind from header byte.
+			let header_byte = data[i];
+			let kind = Self::attribute_kind(header_byte);
+			if u8::from(kind) == attr::ATTRIBUTE_END {
+				return;
+			}
+
+			// Extract length of data (in bytes).
+			let n = Self::attribute_length(header_byte);
+
+			// Read value (most significant first.)
+			self.attributes[kind as usize] = Self::attribute_value(&data[i + 1..], n);
+			i += n as usize + 1;
+		}
+	}
+
+	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L294
+	/// Retrieve an attribute value from the inflated array.
+	#[inline(always)]
+	fn get_attribute(&self, kind: u1) -> u8 {
+		assert!(
+			attr::ATTRIBUTE_END < u8::from(kind) && u8::from(kind) < attr::ATTRIBUTE_COUNT,
+			"invalid attribute kind"
+		);
+		self.attributes[kind as usize]
 	}
 }

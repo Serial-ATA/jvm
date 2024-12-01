@@ -78,6 +78,7 @@ pub(crate) mod jdk {
 			pub(crate) mod CDS;
 			pub(crate) mod VM;
 			pub(crate) mod Unsafe;
+			pub(crate) mod Signal;
 		}
 		pub(crate) mod util {
 		pub(crate) mod SystemProps;

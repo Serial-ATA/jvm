@@ -1,7 +1,6 @@
 use crate::ImageStrings;
 
 #[test]
-#[ignore]
 fn hash_code() {
 	assert_eq!(
 		16_777_619,
