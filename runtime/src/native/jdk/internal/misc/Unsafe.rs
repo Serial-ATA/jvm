@@ -1,4 +1,3 @@
-use crate::class::Class;
 use crate::class_instance::Instance;
 use crate::native::JniEnv;
 use crate::objects::class::ClassInitializationState;

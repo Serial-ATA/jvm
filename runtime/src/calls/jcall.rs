@@ -31,7 +31,7 @@ macro_rules! java_call {
 		tracing::debug!(target: "java_call", "Invoking manual Java call for method `{:?}`", $method);
 		let max_locals = $method.code.max_locals;
 		let __ret = $thread.invoke_method_scoped($method, $crate::stack::local_stack::LocalStack::new_with_args(vec![$(Operand::from($arg)),+], max_locals as usize));
-		tracing::debug!(target: "java_call", "Manual Java call finished");
+		tracing::debug!(target: "java_call", "Manual Java call finished for method `{:?}`", $method);
 		__ret
 	}};
 	// No arguments path, still needs to allocate a LocalStack for stores

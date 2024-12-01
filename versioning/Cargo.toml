@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 const_format = { workspace = true }
-regex = "1.7.1"
+regex = "1.11.1"

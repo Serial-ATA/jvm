@@ -543,7 +543,7 @@ impl Class {
 
 		let method = self
 			.vtable()
-			.find(
+			.find_local(
 				sym!(object_initializer_name), // It has the special name <init>.
 				descriptor,                    // It is void (§4.3.3).
 				MethodAccessFlags::NONE,
@@ -563,7 +563,7 @@ impl Class {
 
 		// TODO: Check version number for flags and parameters
 		// A method is a class or interface initialization method if all of the following are true:
-		let method = self.vtable().find(
+		let method = self.vtable().find_local(
 			sym!(class_initializer_name),     /* It has the special name <clinit>. */
 			sym!(void_method_signature), /* It is void (§4.3.3). */
 			MethodAccessFlags::ACC_STATIC    /* In a class file whose version number is 51.0 or above, the method has its ACC_STATIC flag set and takes no arguments (§4.6). */

@@ -74,6 +74,7 @@ pub(self) fn insert_method((def, ptr): (NativeMethodDef, NativeMethodPtr)) {
 pub(crate) mod jdk {
 	pub(crate) mod internal {
 		pub(crate) mod misc {
+			pub(crate) mod ScopedMemoryAccess;
 			pub(crate) mod CDS;
 			pub(crate) mod VM;
 			pub(crate) mod Unsafe;
@@ -94,6 +95,7 @@ pub(crate) mod java {
 	pub(crate) mod io {
 		pub(crate) mod FileInputStream;
 		pub(crate) mod FileDescriptor;
+		pub(crate) mod FileOutputStream;
 	}
 	pub(crate) mod lang {
 	pub(crate) mod StringBuilder;

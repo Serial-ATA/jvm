@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-byte-slice-cast = { workspace = true }
-common = { path = "../common" }
-ouroboros = "0.15.5"
-zip = { workspace = true }
+byte-slice-cast.workspace = true
+common.workspace = true
+ouroboros.workspace = true
+zip.workspace = true

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bitflags = "2.2.1"
-combine = "4.6.6"
-common = { path = "../../common" }
-walkdir = "2.3.2"
+bitflags.workspace = true
+combine.workspace = true
+common.workspace = true
+walkdir.workspace = true

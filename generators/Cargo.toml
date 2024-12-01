@@ -6,6 +6,11 @@ members = [
 ]
 
 [workspace.dependencies]
-syn = { version = "2", features = ["full"] }
+common = { path = "../common" }
+
+combine = "4.6.7"
+bitflags = "2.6.0"
 proc-macro2 = "1"
 quote = "1"
+syn = { version = "2", default-features = false }
+walkdir = "2.5.0"

@@ -104,8 +104,8 @@ impl Reference {
 }
 
 impl Reference {
-	pub fn is_instance_of(&self, T_class: &'static Class) -> bool {
-		self.extract_target_class().can_cast_to(T_class)
+	pub fn is_instance_of(&self, other: &'static Class) -> bool {
+		self.extract_target_class().can_cast_to(other)
 	}
 
 	pub fn class_name(&self) -> Symbol {

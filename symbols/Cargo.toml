@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bumpalo = "3.13.0"
+bumpalo = "3.16.0"
 common = { path = "../common" }
 fxhash = "0.2.1"
 indexmap = "2.6.0"

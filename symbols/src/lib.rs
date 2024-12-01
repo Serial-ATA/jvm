@@ -204,6 +204,7 @@ vm_symbols::define_symbols! {
 	value: "value",
 	coder: "coder",
 	fd: "fd",
+	r#in: "in",
 	classLoaderName: "classLoaderName",
 	moduleName: "moduleName",
 	moduleVersion: "moduleVersion",

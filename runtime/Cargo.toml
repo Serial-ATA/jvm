@@ -13,11 +13,11 @@ instructions = { path = "../instructions" }
 jimage = { path = "../jimage" }
 jni = { path = "../jni" }
 
-bytemuck = "1.13.0"
+bytemuck = "1.20.0"
 byte-slice-cast = { workspace = true }
 tracing = { workspace = true }
 libc.workspace = true
-num_cpus = "1.15.0"
+num_cpus = "1.16.0"
 paste = { workspace = true }
 platform = { path = "../platform" }
 seq-macro = "0.3.5"

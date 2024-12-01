@@ -19,7 +19,7 @@ use std::sync::Arc;
 use classfile::accessflags::ClassAccessFlags;
 use classfile::{ClassFile, ConstantPool, ConstantPoolRef, FieldType, MethodInfo};
 use common::box_slice;
-use common::int_types::{s4, u1, u2, u4};
+use common::int_types::{u1, u2, u4};
 use instructions::Operand;
 use symbols::{sym, Symbol};
 
@@ -312,7 +312,7 @@ impl Class {
 		ret
 	}
 
-	pub fn initialization_lock(&self) -> Arc<InitializationLock> {
+	pub(self) fn initialization_lock(&self) -> Arc<InitializationLock> {
 		Arc::clone(&self.init_lock)
 	}
 }
@@ -620,6 +620,9 @@ impl Class {
 		_guard.initialization_state()
 	}
 
+	/// Attempt to initialize this class
+	///
+	/// NOTE: If the class is being initialized by another thread, this will block until it is completed.
 	pub fn initialize(&self, thread: &mut JavaThread) {
 		if self.is_initialized.get() {
 			return;
@@ -758,9 +761,10 @@ fn new_vtable(class_methods: Option<&[MethodInfo]>, class: &'static Class) -> VT
 		None => vtable = Vec::new(),
 	}
 
+	let local_methods_end = vtable.len();
 	if let Some(super_class) = &class.super_class {
 		vtable.extend(super_class.vtable().iter())
 	}
 
-	VTable::from(vtable)
+	VTable::new(vtable, local_methods_end)
 }

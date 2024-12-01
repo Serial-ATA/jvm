@@ -5,7 +5,7 @@ use crate::classpath::classloader::ClassLoader;
 use crate::native::NativeMethodPtr;
 
 use std::ffi::c_void;
-use std::fmt::{Debug, Formatter, Pointer};
+use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, RwLock};
 
 use classfile::accessflags::MethodAccessFlags;
@@ -22,7 +22,6 @@ pub struct Method {
 	pub line_number_table: Vec<LineNumber>,
 	pub code: Code,
 	pub is_intrinsic: bool, // TODO: This can be done better
-	native_invoker: *const c_void,
 	native_method: RwLock<*const c_void>,
 }
 
@@ -84,7 +83,6 @@ impl Method {
 			line_number_table,
 			code,
 			is_intrinsic,
-			native_invoker: std::ptr::null(),
 			native_method: RwLock::new(std::ptr::null()),
 		};
 

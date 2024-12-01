@@ -1,3 +1,5 @@
+#![allow(non_upper_case_globals)]
+
 use crate::classpath::classloader::ClassLoader;
 use crate::reference::Reference;
 

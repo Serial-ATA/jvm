@@ -1,7 +1,6 @@
 use crate::method::Method;
 
 use classfile::{FieldType, MethodDescriptor};
-use common::traits::PtrType;
 use symbols::sym;
 
 impl Method {

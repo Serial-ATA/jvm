@@ -47,6 +47,7 @@ define_classes!(
 	java_lang_Cloneable,
 	java_io_FileDescriptor,
 	java_io_FileInputStream,
+	java_io_FileOutputStream,
 	// Primitive arrays
 	bool_array,
 	byte_array,

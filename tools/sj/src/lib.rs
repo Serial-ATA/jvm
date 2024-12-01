@@ -1,5 +1,3 @@
-#![feature(once_cell_try)]
-
 mod cli;
 mod error;
 mod native;

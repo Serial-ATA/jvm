@@ -1,0 +1,8 @@
+import jdk.internal.foreign.MemorySessionImpl;
+import jdk.internal.misc.ScopedMemoryAccess.ScopedAccessError;
+
+public class ScopedMemoryAccess {
+    private static native void registerNatives();
+
+    native void closeScope0(MemorySessionImpl session, ScopedAccessError error);
+}

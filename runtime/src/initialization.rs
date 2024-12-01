@@ -1,4 +1,3 @@
-use crate::class::Class;
 use crate::class_instance::ClassInstance;
 use crate::classpath::classloader::ClassLoader;
 use crate::java_call;
@@ -58,7 +57,12 @@ fn initialize_thread(thread: &mut JavaThread) {
 		}
 	}
 
+	// Grab the java.lang.Thread field offsets
 	JavaThread::set_field_holder_offsets();
+
+	// Init some important classes
+	initialize_global_classes(thread);
+
 	create_thread_object(thread);
 
 	// https://github.com/openjdk/jdk/blob/04591595374e84cfbfe38d92bff4409105b28009/src/hotspot/share/runtime/threads.cpp#L408
@@ -119,6 +123,15 @@ fn load_global_classes() {
 	)
 }
 
+fn initialize_global_classes(thread: &mut JavaThread) {
+	crate::globals::classes::java_lang_Object().initialize(thread);
+	crate::globals::classes::java_lang_Class().initialize(thread);
+	crate::globals::classes::java_lang_String().initialize(thread);
+
+	crate::globals::classes::java_lang_Thread().initialize(thread);
+	crate::globals::classes::java_lang_ThreadGroup().initialize(thread);
+}
+
 fn create_thread_object(thread: &mut JavaThread) {
 	let thread_group_class = crate::globals::classes::java_lang_ThreadGroup();
 	let system_thread_group_instance = Reference::class(ClassInstance::new(thread_group_class));
@@ -159,11 +172,9 @@ fn create_thread_object(thread: &mut JavaThread) {
 /// * Thread group of the main thread
 fn init_phase_1(thread: &mut JavaThread) {
 	let system_class = ClassLoader::Bootstrap.load(sym!(java_lang_System)).unwrap();
-	let init_phase_1 = system_class.resolve_method_step_two(
-		sym!(initPhase1_name),
-		sym!(void_method_signature),
-	)
-	.unwrap();
+	let init_phase_1 = system_class
+		.resolve_method_step_two(sym!(initPhase1_name), sym!(void_method_signature))
+		.unwrap();
 
 	java_call!(thread, init_phase_1);
 }
@@ -180,11 +191,9 @@ fn init_phase_2(thread: &mut JavaThread) {
 	let print_stacktrace_on_exception = true;
 
 	// TODO: Need some way to check failure
-	let init_phase_2 = system_class.resolve_method_step_two(
-		sym!(initPhase2_name),
-		sym!(bool_bool_int_signature),
-	)
-	.unwrap();
+	let init_phase_2 = system_class
+		.resolve_method_step_two(sym!(initPhase2_name), sym!(bool_bool_int_signature))
+		.unwrap();
 
 	java_call!(
 		thread,
@@ -208,11 +217,9 @@ fn init_phase_2(thread: &mut JavaThread) {
 fn init_phase_3(thread: &mut JavaThread) {
 	let system_class = ClassLoader::Bootstrap.load(sym!(java_lang_System)).unwrap();
 
-	let init_phase_3 = system_class.resolve_method_step_two(
-		sym!(initPhase3_name),
-		sym!(void_method_signature),
-	)
-	.unwrap();
+	let init_phase_3 = system_class
+		.resolve_method_step_two(sym!(initPhase3_name), sym!(void_method_signature))
+		.unwrap();
 
 	java_call!(thread, init_phase_3);
 }

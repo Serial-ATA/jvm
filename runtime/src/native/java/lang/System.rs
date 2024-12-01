@@ -1,3 +1,4 @@
+use crate::classpath::classloader::ClassLoader;
 use crate::reference::Reference;
 
 use std::ptr::NonNull;
@@ -6,12 +7,19 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use ::jni::env::JniEnv;
 use ::jni::sys::{jint, jlong};
 use common::traits::PtrType;
+use instructions::Operand;
+use symbols::sym;
 
 include_generated!("native/java/lang/def/System.registerNatives.rs");
 include_generated!("native/java/lang/def/System.definitions.rs");
 
-pub fn setIn0(_: NonNull<JniEnv>, _in_: Reference /* java.io.PrintStream */) {
-	unimplemented!("System#setIn0")
+pub fn setIn0(_: NonNull<JniEnv>, in_: Reference /* java.io.InputStream */) {
+	let class = ClassLoader::lookup_class(sym!(java_lang_System)).unwrap();
+	let field = class
+		.fields()
+		.find(|field| field.name == sym!(r#in) && field.descriptor.is_class(b"java/io/InputStream"))
+		.expect("java/lang/System#in field should exist");
+	field.set_static_value(Operand::Reference(in_));
 }
 pub fn setOut0(_env: NonNull<JniEnv>, _out: Reference /* java.io.PrintStream */) {
 	unimplemented!("System#setOut0")
