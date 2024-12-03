@@ -9,6 +9,7 @@ use crate::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::ptr::NonNull;
 use std::sync::{LazyLock, RwLock};
 
@@ -16,11 +17,22 @@ use ::jni::env::JniEnv;
 use instructions::Operand;
 use symbols::Symbol;
 
-#[derive(Copy, Clone, Eq, Hash, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub struct NativeMethodDef {
 	pub class: Symbol,
 	pub name: Symbol,
 	pub descriptor: Symbol,
+}
+
+impl Debug for NativeMethodDef {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!(
+			"{}#{} ({})",
+			self.class.as_str(),
+			self.name.as_str(),
+			self.descriptor.as_str()
+		))
+	}
 }
 
 #[macro_export]
@@ -71,6 +83,7 @@ pub(self) fn insert_method((def, ptr): (NativeMethodDef, NativeMethodPtr)) {
 }
 
 // Module marker, do not remove
+
 pub(crate) mod jdk {
 	pub(crate) mod internal {
 		pub(crate) mod misc {
@@ -81,13 +94,13 @@ pub(crate) mod jdk {
 			pub(crate) mod Signal;
 		}
 		pub(crate) mod util {
-		pub(crate) mod SystemProps;
+			pub(crate) mod SystemProps;
 		}
 		pub(crate) mod loader {
-		pub(crate) mod NativeLibraries;
+			pub(crate) mod NativeLibraries;
 		}
 		pub(crate) mod reflect {
-		pub(crate) mod Reflection;
+			pub(crate) mod Reflection;
 		}
 	}
 }
@@ -99,20 +112,23 @@ pub(crate) mod java {
 		pub(crate) mod FileOutputStream;
 	}
 	pub(crate) mod lang {
-	pub(crate) mod StringBuilder;
-	pub(crate) mod Runtime;
-	pub(crate) mod StringUTF16;
-	pub(crate) mod System;
-	pub(crate) mod Float;
-	pub(crate) mod ClassLoader;
-	pub(crate) mod Double;
-	pub(crate) mod Throwable;
-	pub(crate) mod Thread;
-	pub(crate) mod Object;
-	pub(crate) mod Class;
+		pub(crate) mod r#ref {
+			pub(crate) mod Finalizer;
+		}
+		pub(crate) mod StringBuilder;
+		pub(crate) mod Runtime;
+		pub(crate) mod StringUTF16;
+		pub(crate) mod System;
+		pub(crate) mod Float;
+		pub(crate) mod ClassLoader;
+		pub(crate) mod Double;
+		pub(crate) mod Throwable;
+		pub(crate) mod Thread;
+		pub(crate) mod Object;
+		pub(crate) mod Class;
 	}
 	pub(crate) mod security {
-	pub(crate) mod AccessController;
+		pub(crate) mod AccessController;
 	}
 }
 

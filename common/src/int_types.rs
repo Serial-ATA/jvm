@@ -1,3 +1,11 @@
+//! Java specification integer types
+//!
+//! The Java specification uses integers specified by their size in **bytes** rather than **bits**.
+//! For example [`u1`] is a [`u8`](core::primitive::u8).
+//!
+//! These types names are used throughout the various parsers (ex. [`JavaReadExt`](crate::traits::JavaReadExt))
+//! as well as in the runtime.
+
 #![allow(non_camel_case_types)]
 
 pub type u1 = ::core::primitive::u8;

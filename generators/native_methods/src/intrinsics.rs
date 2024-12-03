@@ -1,3 +1,4 @@
+use crate::error::Result;
 use crate::modules::Module;
 use crate::parse::{AccessFlags, Method};
 use crate::SymbolCollector;
@@ -50,7 +51,7 @@ pub(crate) fn generate_intrinsics<'a>(
 	generated_directory: &Path,
 	modules: &[Module],
 	symbol_collector: &mut SymbolCollector,
-) {
+) -> Result<()> {
 	let mut intrinsic_methods = HashMap::new();
 	for module in modules {
 		module.for_each_class(|class| {
@@ -79,8 +80,7 @@ pub(crate) fn generate_intrinsics<'a>(
 		.write(true)
 		.truncate(true)
 		.create(true)
-		.open(generated_file_path)
-		.unwrap();
+		.open(generated_file_path)?;
 
 	// + 1 to account for the null ID
 	let total_ids = intrinsic_methods.len() + 1;
@@ -89,8 +89,7 @@ pub(crate) fn generate_intrinsics<'a>(
 		&mut generated_file,
 		"{}",
 		format_args!(generated_file_header!(), total_ids)
-	)
-	.unwrap();
+	)?;
 
 	writeln!(
 		&mut generated_file,
@@ -99,31 +98,30 @@ pub(crate) fn generate_intrinsics<'a>(
 		create_intrinsic_name_table(
 			std::iter::once("None").chain(intrinsic_methods.keys().map(String::as_str)),
 			total_ids
-		)
-	)
-	.unwrap();
+		)?
+	)?;
 
 	writeln!(
 		&mut generated_file,
 		"{}",
 		create_intrinsic_id_enum(
 			std::iter::once("None").chain(intrinsic_methods.keys().map(String::as_str))
-		)
-	)
-	.unwrap();
+		)?
+	)?;
 
 	writeln!(
 		&mut generated_file,
 		"{}",
-		create_method_mappings(intrinsic_methods.iter())
-	)
-	.unwrap();
+		create_method_mappings(intrinsic_methods.iter())?
+	)?;
+
+	Ok(())
 }
 
 fn create_intrinsic_name_table<'a>(
 	intrinsic_ids: impl Iterator<Item = &'a str>,
 	total_ids: usize,
-) -> String {
+) -> Result<String> {
 	let mut intrinsic_name_table = format!(
 		"pub(in crate::native) static INTRINSIC_NAME_TABLE: [&[u1]; {}] = [\n",
 		total_ids
@@ -133,11 +131,11 @@ fn create_intrinsic_name_table<'a>(
 	}
 
 	writeln!(intrinsic_name_table, "];").unwrap();
-	intrinsic_name_table
+	Ok(intrinsic_name_table)
 }
 
 /// Creates the `IntrinsicId` enum
-fn create_intrinsic_id_enum<'a>(intrinsic_ids: impl Iterator<Item = &'a str>) -> String {
+fn create_intrinsic_id_enum<'a>(intrinsic_ids: impl Iterator<Item = &'a str>) -> Result<String> {
 	let mut intrinsic_name_enum = String::from(
 		"#[allow(non_camel_case_types)]\n#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, \
 		 Debug)]\npub enum IntrinsicId {\n",
@@ -147,13 +145,13 @@ fn create_intrinsic_id_enum<'a>(intrinsic_ids: impl Iterator<Item = &'a str>) ->
 	}
 
 	intrinsic_name_enum.push('}');
-	intrinsic_name_enum
+	Ok(intrinsic_name_enum)
 }
 
 /// Creates the `IntrinsicId::for_method` method
 fn create_method_mappings<'a>(
 	intrinsic_ids: impl Iterator<Item = (&'a String, &'a (String, IntrinsicMethodDefinition))>,
-) -> String {
+) -> Result<String> {
 	let mut intrinsic_id_method_mapping = String::from(
 		r#"
 impl IntrinsicId {
@@ -193,5 +191,5 @@ impl IntrinsicId {
 		"\t\t\t_ => return IntrinsicId::None,\n\t\t}}\n\n\t\treturn IntrinsicId::None;\n\t}}\n}}"
 	)
 	.unwrap();
-	intrinsic_id_method_mapping
+	Ok(intrinsic_id_method_mapping)
 }

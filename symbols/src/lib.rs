@@ -152,6 +152,7 @@ vm_symbols::define_symbols! {
 	java_lang_Thread: "java/lang/Thread",
 	java_lang_ThreadGroup: "java/lang/ThreadGroup",
 	java_lang_Thread_FieldHolder: "java/lang/Thread$FieldHolder",
+	java_lang_ref_Finalizer: "java/lang/ref/Finalizer",
 	// -- GENERATED CLASS NAME MARKER, DO NOT DELETE --
 
 	// Signatures

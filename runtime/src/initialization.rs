@@ -65,6 +65,8 @@ fn initialize_thread(thread: &mut JavaThread) {
 
 	create_thread_object(thread);
 
+	// TODO: Set jdk/internal/misc/UnsafeConstants
+
 	// https://github.com/openjdk/jdk/blob/04591595374e84cfbfe38d92bff4409105b28009/src/hotspot/share/runtime/threads.cpp#L408
 
 	init_phase_1(thread);
@@ -108,6 +110,7 @@ fn load_global_classes() {
 		java_lang_ThreadGroup,
 		java_lang_Throwable,
 		java_lang_Cloneable,
+		java_lang_ref_Finalizer,
 	);
 
 	// Primitive arrays
@@ -130,6 +133,7 @@ fn initialize_global_classes(thread: &mut JavaThread) {
 
 	crate::globals::classes::java_lang_Thread().initialize(thread);
 	crate::globals::classes::java_lang_ThreadGroup().initialize(thread);
+	crate::globals::classes::java_lang_ref_Finalizer().initialize(thread);
 }
 
 fn create_thread_object(thread: &mut JavaThread) {

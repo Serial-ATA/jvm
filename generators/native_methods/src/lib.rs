@@ -1,6 +1,7 @@
 #![feature(extract_if)]
 
 mod definitions;
+mod error;
 mod field;
 mod intrinsics;
 mod modules;
@@ -11,6 +12,7 @@ mod util;
 use crate::intrinsics::generate_intrinsics;
 use crate::modules::Module;
 use crate::parse::{AccessFlags, Class, Member, Method};
+use error::Result;
 
 use std::collections::HashMap;
 use std::fmt::Write as _;
@@ -136,7 +138,7 @@ impl SymbolCollector {
 		generated_directory: &Path,
 		file_name: &str,
 		symbols_file_contents: &str,
-	) {
+	) -> Result<()> {
 		let section_header_position =
 			Self::get_position_of_marker_comment(symbols_file_contents, section_header);
 		let marker_comment_position =
@@ -146,8 +148,7 @@ impl SymbolCollector {
 			.write(true)
 			.truncate(true)
 			.create(true)
-			.open(generated_directory.join(file_name))
-			.unwrap();
+			.open(generated_directory.join(file_name))?;
 
 		for (symbol, value) in symbol_iter {
 			if !Self::check_in_section(
@@ -156,9 +157,11 @@ impl SymbolCollector {
 				marker_comment_position,
 				symbol,
 			) {
-				writeln!(symbols_file, "{}: {:?},", symbol.replace('/', "_"), value).unwrap();
+				writeln!(symbols_file, "{}: {:?},", symbol.replace('/', "_"), value)?;
 			}
 		}
+
+		Ok(())
 	}
 }
 
@@ -178,7 +181,7 @@ fn get_generated_directory() -> PathBuf {
 }
 
 /// Generate native and intrinsic method definitions
-pub fn generate() {
+pub fn generate() -> Result<()> {
 	let mut symbol_collector = SymbolCollector::default();
 
 	let native_directory = get_runtime_native_directory();
@@ -189,37 +192,40 @@ pub fn generate() {
 		&mut symbol_collector,
 	);
 
-	generate_intrinsics(&generated_directory, &modules, &mut symbol_collector);
-	create_native_method_table(&generated_directory, &modules, &mut symbol_collector);
+	generate_intrinsics(&generated_directory, &modules, &mut symbol_collector)?;
+	create_native_method_table(&generated_directory, &modules, &mut symbol_collector)?;
 
 	// Generate any new symbols we found that are not defined in `../../symbols/src/lib.rs`
 	symbol_collector.generate_symbols(&generated_directory);
 
-	generate_modules(&native_directory, &modules);
+	generate_modules(&native_directory, &modules)?;
+
+	Ok(())
 }
 
 fn create_native_method_table(
 	generated_directory: &Path,
 	modules: &[Module],
 	symbol_collector: &mut SymbolCollector,
-) {
+) -> Result<()> {
 	let init_fn_file_path = generated_directory.join("native_init.rs");
 	let mut init_fn_file = OpenOptions::new()
 		.write(true)
 		.truncate(true)
 		.create(true)
-		.open(init_fn_file_path)
-		.unwrap();
+		.open(init_fn_file_path)?;
 
-	write!(init_fn_file, "{}", INIT_FN_FILE_HEADER).unwrap();
+	write!(init_fn_file, "{}", INIT_FN_FILE_HEADER)?;
 
 	for module in modules {
-		for class in &module.classes {
-			build_map_inserts(&mut init_fn_file, module, class, symbol_collector);
-		}
+		module.for_each_class(|class| {
+			build_map_inserts(&mut init_fn_file, module, class, symbol_collector).unwrap()
+		});
 	}
 
-	write!(init_fn_file, "\tmap\n}}").unwrap();
+	write!(init_fn_file, "\tmap\n}}")?;
+
+	Ok(())
 }
 
 fn build_map_inserts(
@@ -227,29 +233,30 @@ fn build_map_inserts(
 	module: &Module,
 	class: &Class,
 	symbol_collector: &mut SymbolCollector,
-) {
+) -> Result<()> {
 	symbol_collector.add_class_name(module.name_for_class(&class.class_name));
 
 	for member in &class.members {
-		match member {
-			Member::Method(method) => {
-				if !method.modifiers.contains(AccessFlags::ACC_NATIVE) {
-					continue;
-				}
+		let Member::Method(method) = member else {
+			// Don't need to check for `Member::Class`, this was called inside `for_each_class`, which
+			// already walks through members.
+			continue;
+		};
 
-				symbol_collector.add_method(method);
-
-				writeln!(
-					file,
-					"\tinsert(&mut map, {});",
-					util::method_table_entry(&module.name, &class, method)
-				)
-				.unwrap();
-			},
-			Member::Class(class_) => build_map_inserts(file, module, class_, symbol_collector),
-			_ => {},
+		if !method.modifiers.contains(AccessFlags::ACC_NATIVE) {
+			continue;
 		}
+
+		symbol_collector.add_method(method);
+
+		writeln!(
+			file,
+			"\tinsert(&mut map, {});",
+			util::method_table_entry(&module.name, &class, method)
+		)?;
 	}
+
+	Ok(())
 }
 
 /// Create module definitions to be placed in `runtime/src/native/mod.rs`
@@ -265,9 +272,9 @@ fn build_map_inserts(
 ///     }
 /// }
 /// ```
-fn generate_modules(native_directory: &Path, modules: &[Module]) {
+fn generate_modules(native_directory: &Path, modules: &[Module]) -> Result<()> {
 	let root_module_path = native_directory.join("mod.rs");
-	let root_mod_file_content = std::fs::read_to_string(&root_module_path).unwrap();
+	let root_mod_file_content = std::fs::read_to_string(&root_module_path)?;
 
 	let marker_comment_start_pos = root_mod_file_content
 		.rfind(MODULE_MARKER_START_COMMENT)
@@ -278,110 +285,79 @@ fn generate_modules(native_directory: &Path, modules: &[Module]) {
 	root_mod_file_content_bytes
 		.drain(marker_comment_start_pos + MODULE_MARKER_START_COMMENT.len()..);
 
-	let generated_modules = create_modules_string(modules);
+	let generated_modules = create_modules_string(modules)?;
 
 	write!(
 		&mut root_mod_file_content_bytes,
 		"\n{}\n",
 		&generated_modules
-	)
-	.unwrap();
+	)?;
 	std::fs::write(&root_module_path, &root_mod_file_content_bytes)
 		.expect("Failed to write modules to native/mod.rs");
+
+	Ok(())
 }
 
-fn create_modules_string(modules: &[Module]) -> String {
+fn create_modules_string(modules: &[Module]) -> Result<String> {
 	let mut modules_str = String::new();
 
 	let mut current_root = None;
-	let mut current_module;
+	let mut previous_module = &modules[0];
 	let mut current_depth = 0;
-	let mut index = 0;
-	loop {
-		if index == modules.len() {
-			while current_depth > 0 {
-				writeln!(&mut modules_str, "{}}}", "\t".repeat(current_depth)).unwrap();
-				current_depth -= 1;
+	for module in modules {
+		let root = &module.components[0].name;
+
+		// Onto a new root. The module list is sorted by roots, so we can just close to current
+		// root, knowing there will be no more entries for it.
+		let is_new_root = Some(root) != current_root;
+		if is_new_root {
+			current_root = Some(root);
+			for depth in (0..current_depth).rev() {
+				writeln!(modules_str, "{}}}", "\t".repeat(depth)).unwrap();
 			}
-			writeln!(&mut modules_str, "{}}}", "\t".repeat(current_depth)).unwrap();
-			break;
+			writeln!(modules_str).unwrap();
+			current_depth = 0;
 		}
 
-		let module = &modules[index];
-		if current_root != module.components.first() {
-			if index != 0 {
-				while current_depth > 0 {
-					writeln!(&mut modules_str, "{}}}", "\t".repeat(current_depth)).unwrap();
-					current_depth -= 1;
-				}
-				writeln!(&mut modules_str, "}}\n").unwrap();
-			}
+		let mut common_root_depth = module.common_root_depth(previous_module) as usize;
+		let mut needs_module_definition =
+			common_root_depth != module.components.len() || is_new_root;
+		if common_root_depth == module.components.len() {
+			common_root_depth = 0;
+		}
 
-			current_root = module.components.first();
-
-			let module = &modules[index];
-			for component in &module.components {
-				current_module = Some(component);
-
+		for component in &module.components[common_root_depth..] {
+			if needs_module_definition {
 				writeln!(
-					&mut modules_str,
+					modules_str,
 					"{}pub(crate) mod {} {{",
 					"\t".repeat(current_depth),
-					current_module.unwrap()
+					component.rust_name()
 				)
 				.unwrap();
+
 				current_depth += 1;
 			}
 
-			for class in &module.classes {
+			for class in &component.classes {
 				writeln!(
-					&mut modules_str,
+					modules_str,
 					"{}pub(crate) mod {};",
 					"\t".repeat(current_depth),
 					&class.class_name
 				)
 				.unwrap();
 			}
-
-			current_depth = module.components.len() - 1;
-			index += 1;
-			continue;
 		}
 
-		current_module = Some(&module.components[current_depth]);
-		if (module.components.len() - 1) == current_depth {
-			writeln!(&mut modules_str, "{}}}", "\t".repeat(current_depth)).unwrap();
-		}
-
-		writeln!(
-			&mut modules_str,
-			"{}pub(crate) mod {} {{",
-			"\t".repeat(current_depth),
-			current_module.unwrap()
-		)
-		.unwrap();
-
-		if current_depth != module.components.len() - 1 {
-			current_depth += 1;
-		}
-
-		for class in &module.classes {
-			writeln!(
-				&mut modules_str,
-				"{}pub(crate) mod {};",
-				"\t".repeat(current_depth),
-				&class.class_name
-			)
-			.unwrap();
-		}
-
-		index += 1;
+		previous_module = module;
+		current_depth = current_depth.saturating_sub(1);
+		writeln!(modules_str, "{}}}", "\t".repeat(current_depth)).unwrap();
 	}
 
-	modules_str
-}
+	for depth in (0..current_depth).rev() {
+		writeln!(modules_str, "{}}}", "\t".repeat(depth)).unwrap();
+	}
 
-#[test]
-fn test_parse() {
-	generate();
+	Ok(modules_str)
 }

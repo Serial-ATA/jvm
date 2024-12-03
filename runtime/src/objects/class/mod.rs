@@ -14,6 +14,7 @@ use spec::InitializationLock;
 use std::cell::{Cell, UnsafeCell};
 use std::fmt::{Debug, Formatter};
 use std::mem::MaybeUninit;
+use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
 
 use classfile::accessflags::ClassAccessFlags;
@@ -86,6 +87,12 @@ impl FieldContainer {
 	fn get_static_field(&self, index: usize) -> Operand<Reference> {
 		let field = self.static_field_slots[index].get();
 		unsafe { (*field).clone() }
+	}
+
+	fn get_static_field_volatile(&self, index: usize) -> Operand<Reference> {
+		let field = self.static_field_slots[index].get();
+		let ptr = AtomicPtr::new(field);
+		unsafe { (&*ptr.load(Ordering::Acquire)).clone() }
 	}
 
 	fn instance_field_count(&self) -> u4 {
@@ -229,6 +236,10 @@ impl Class {
 		self.field_container.get_static_field(index)
 	}
 
+	pub fn static_field_value_volatile(&self, index: usize) -> Operand<Reference> {
+		self.field_container.get_static_field_volatile(index)
+	}
+
 	/// The number of non-static fields
 	pub fn instance_field_count(&self) -> usize {
 		self.field_container.instance_field_count() as usize
@@ -332,6 +343,13 @@ impl Class {
 	///
 	/// This will panic if the index is out of bounds.
 	pub unsafe fn set_static_field(&self, index: usize, value: Operand<Reference>) {
+		unsafe {
+			self.field_container.set_static_field(index, value);
+		}
+	}
+
+	pub fn set_static_field_volatile(&self, index: usize, value: Operand<Reference>) {
+		// TODO: Actually do this right
 		unsafe {
 			self.field_container.set_static_field(index, value);
 		}

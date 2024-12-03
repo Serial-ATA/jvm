@@ -34,6 +34,20 @@ impl Debug for Field {
 }
 
 impl Field {
+	pub fn is_static(&self) -> bool {
+		self.access_flags.is_static()
+	}
+
+	pub fn is_final(&self) -> bool {
+		self.access_flags.is_final()
+	}
+
+	pub fn is_volatile(&self) -> bool {
+		self.access_flags.is_volatile()
+	}
+}
+
+impl Field {
 	/// Create a new `Field` instance
 	///
 	/// NOTE: This will leak the `Field` and return a reference. It is important that this only
@@ -68,23 +82,21 @@ impl Field {
 		}))
 	}
 
-	pub fn is_static(&self) -> bool {
-		self.access_flags.is_static()
-	}
-
-	pub fn is_final(&self) -> bool {
-		self.access_flags.is_final()
-	}
-
 	pub fn get_static_value(&self) -> Operand<Reference> {
-		assert!(self.is_static());
-		self.class.static_field_value(self.idx)
+		if self.is_volatile() {
+			self.class.static_field_value_volatile(self.idx)
+		} else {
+			self.class.static_field_value(self.idx)
+		}
 	}
 
 	pub fn set_static_value(&self, value: Operand<Reference>) {
-		assert!(self.is_static());
-		unsafe {
-			self.class.set_static_field(self.idx, value);
+		if self.is_volatile() {
+			unsafe { self.class.set_static_field_volatile(self.idx, value) }
+		} else {
+			unsafe {
+				self.class.set_static_field(self.idx, value);
+			}
 		}
 	}
 

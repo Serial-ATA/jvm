@@ -1,0 +1,7 @@
+import java.lang.Object;
+
+final class Finalizer {
+    private static native boolean isFinalizationEnabled();
+
+    private static native void reportComplete(Object finalizee);
+}

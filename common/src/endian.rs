@@ -11,13 +11,33 @@ pub enum Endian {
 }
 
 impl Endian {
-	pub fn native() -> Self {
+	/// Get the native `Endian` for this target
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use common::endian::Endian;
+	///
+	/// let endian = Endian::native();
+	/// assert_eq!(endian, Endian::Little);
+	/// ```
+	pub const fn native() -> Self {
 		#[cfg(target_endian = "little")]
 		return Endian::Little;
 		#[cfg(target_endian = "big")]
 		return Endian::Big;
 	}
 
+	/// Convert this `Endian` to the opposite value
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use common::endian::Endian;
+	///
+	/// let endian = Endian::Little;
+	/// assert_eq!(endian.invert(), Endian::Big);
+	/// ```
 	pub fn invert(self) -> Self {
 		match self {
 			Self::Little => Self::Big,
@@ -25,6 +45,17 @@ impl Endian {
 		}
 	}
 
+	/// Whether this `Endian` is this target's endianness
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use common::endian::Endian;
+	///
+	/// let endian = Endian::Little;
+	/// assert!(endian.is_target());
+	/// assert!(!Endian::Big.is_target());
+	/// ```
 	pub fn is_target(self) -> bool {
 		match self {
 			Self::Little => cfg!(target_endian = "little"),

@@ -45,6 +45,7 @@ define_classes!(
 	java_lang_ThreadGroup,
 	java_lang_Throwable,
 	java_lang_Cloneable,
+	java_lang_ref_Finalizer,
 	java_io_FileDescriptor,
 	java_io_FileInputStream,
 	java_io_FileOutputStream,

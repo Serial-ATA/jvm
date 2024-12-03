@@ -14,7 +14,7 @@ pub(crate) fn method_table_entry(module: &str, class: &Class, method: &Method) -
 			.replace('$', "_"),
 		method.name_symbol(),
 		method.signature_symbol_name(),
-		module.replace('/', "::"),
+		escape_module_name(module).replace('/', "::"),
 		class.class_name.replace('$', "::"),
 		method.name()
 	)
@@ -36,4 +36,11 @@ pub(crate) fn create_relative_path_components(path: &Path, skip_first: bool) -> 
 
 	components.reverse();
 	components
+}
+
+/// Convert a module name into a valid rust module name
+///
+/// This is needed for java/lang/ref
+pub(crate) fn escape_module_name(name: &str) -> String {
+	name.replace("ref", "r#ref")
 }

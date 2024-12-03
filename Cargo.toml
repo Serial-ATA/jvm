@@ -31,7 +31,7 @@ libc = "0.2"
 libloading = "0.8.5"
 tracing = "0.1.41"
 paste = "1.0.15"
-zip = "2.2.1"
+zip = { version = "2.2.1", default-features = false }
 
 # Nested workspace members
 tools = { path = "tools" }

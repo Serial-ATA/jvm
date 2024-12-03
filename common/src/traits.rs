@@ -5,6 +5,10 @@ use std::io::Read;
 
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 
+/// Big endian read operations for Java integer types
+///
+/// Java's specification uses big endian, so this is the default "Java" reader extension trait.
+/// See [`JavaLittleEndianRead`] for the little endian equivalents.
 pub trait JavaReadExt: Read {
 	fn read_u1(&mut self) -> Result<u1> {
 		let mut buf = [0u8; 1];
@@ -47,6 +51,9 @@ pub trait JavaReadExt: Read {
 
 impl<R: Read> JavaReadExt for R {}
 
+/// Little endian read operations for Java integer types
+///
+/// See [`JavaReadExt`] for the big endian counterpart.
 pub trait JavaLittleEndianRead: Read {
 	fn read_u4(&mut self) -> Result<u4> {
 		let mut buf = [0u8; 4];
@@ -77,6 +84,7 @@ pub trait JavaLittleEndianRead: Read {
 
 impl<R: Read> JavaLittleEndianRead for R {}
 
+/// An extension trait for [`Endian`](crate::endian::Endian) for reading Java integer types
 pub trait JavaEndianAwareRead<R: Read> {
 	fn read_u1(self, reader: &mut R) -> Result<u1>;
 	fn read_u4(self, reader: &mut R) -> Result<u4>;
