@@ -1,18 +1,272 @@
-use crate::class_instance::Instance;
+use crate::class_instance::{ArrayInstance, Instance};
 use crate::native::JniEnv;
 use crate::objects::class::ClassInitializationState;
 use crate::reference::Reference;
 use crate::string_interner::StringInterner;
 use crate::thread::JavaThread;
 
+use std::marker::PhantomData;
 use std::ptr::NonNull;
+use std::sync::atomic::{
+	AtomicBool, AtomicI16, AtomicI32, AtomicI64, AtomicI8, AtomicU16, Ordering,
+};
 
 use ::jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
+use common::atomic::{Atomic, AtomicF32, AtomicF64};
 use common::traits::PtrType;
 use instructions::Operand;
 
 include_generated!("native/jdk/internal/misc/def/Unsafe.definitions.rs");
 include_generated!("native/jdk/internal/misc/def/Unsafe.registerNatives.rs");
+
+/// Wrapper for unsafe operations
+///
+/// This does all the work of checking the object type (class, array, or null) and performing gets/sets.
+struct UnsafeMemoryOp<T, A> {
+	object: Reference,
+	offset: usize,
+	_phantom: PhantomData<(T, A)>,
+}
+
+impl<T, A> UnsafeMemoryOp<T, A> {
+	fn new(object: Reference, offset: jlong) -> Self {
+		let offset = offset as usize;
+		Self {
+			object,
+			offset,
+			_phantom: PhantomData,
+		}
+	}
+}
+
+impl<T, A> UnsafeMemoryOp<T, A>
+where
+	T: UnsafeOpImpl<Output = T>,
+	A: Atomic<Output = T>,
+{
+	unsafe fn get(&self) -> T {
+		if self.object.is_null() {
+			return self.__get_raw();
+		}
+
+		if self.object.is_array() {
+			return self.__get_array();
+		}
+
+		assert!(self.object.is_class());
+		self.__get_field()
+	}
+
+	#[doc(hidden)]
+	unsafe fn __get_raw(&self) -> T {
+		let offset = self.offset;
+		let ptr = offset as *const T;
+		unsafe { ptr.read() }
+	}
+
+	#[doc(hidden)]
+	unsafe fn __get_array(&self) -> T {
+		let offset = self.offset;
+		let instance = self.object.extract_array();
+		let array_mut = instance.get_mut();
+		unsafe { <T as UnsafeOpImpl>::get_array_impl(array_mut, offset) }
+	}
+
+	#[doc(hidden)]
+	unsafe fn __get_field(&self) -> T {
+		let offset = self.offset;
+		let instance = self.object.extract_class();
+		unsafe {
+			let field_value = instance.get_mut().get_field_value_raw(offset).as_ptr();
+			<T as UnsafeOpImpl>::get_field_impl(field_value)
+		}
+	}
+
+	unsafe fn get_volatile(&self) -> T {
+		if self.object.is_null() {
+			return unsafe { self.__get_raw_volatile() };
+		}
+
+		if self.object.is_array() {
+			return unsafe { self.__get_array_volatile() };
+		}
+
+		assert!(self.object.is_class());
+		unsafe { self.__get_field_volatile() }
+	}
+
+	#[doc(hidden)]
+	unsafe fn __get_raw_volatile(&self) -> T {
+		let offset = self.offset;
+		let ptr = offset as *const T;
+		let atomic_ptr: &A = unsafe { &*ptr.cast() };
+		unsafe { atomic_ptr.load(Ordering::Acquire) }
+	}
+
+	#[doc(hidden)]
+	unsafe fn __get_array_volatile(&self) -> T {
+		unimplemented!("Volatile array access")
+	}
+
+	#[doc(hidden)]
+	unsafe fn __get_field_volatile(&self) -> T {
+		unimplemented!("Volatile field access")
+	}
+
+	unsafe fn put(&self, value: T) {
+		if self.object.is_null() {
+			return unsafe { self.__put_raw(value) };
+		}
+
+		if self.object.is_array() {
+			return unsafe { self.__put_array(value) };
+		}
+
+		assert!(self.object.is_class());
+		unsafe { self.__put_field(value) }
+	}
+
+	#[doc(hidden)]
+	unsafe fn __put_raw(&self, _value: T) {
+		unimplemented!("put at raw pointer offsets");
+	}
+
+	#[doc(hidden)]
+	unsafe fn __put_array(&self, value: T) {
+		let offset = self.offset;
+		let instance = self.object.extract_array();
+		let array_mut = instance.get_mut();
+		unsafe { <T as UnsafeOpImpl>::put_array_impl(array_mut, offset, value) }
+	}
+
+	#[doc(hidden)]
+	unsafe fn __put_field(&self, value: T) {
+		let offset = self.offset;
+		let instance = self.object.extract_class();
+		unsafe {
+			let field_value = instance.get_mut().get_field_value_raw(offset).as_ptr();
+			<T as UnsafeOpImpl>::put_field_impl(field_value, value)
+		}
+	}
+
+	unsafe fn put_volatile(&self, value: T) {
+		if self.object.is_null() {
+			return unsafe { self.__put_raw_volatile(value) };
+		}
+
+		if self.object.is_array() {
+			return unsafe { self.__put_array_volatile(value) };
+		}
+
+		assert!(self.object.is_class());
+		unsafe { self.__put_field_volatile(value) }
+	}
+
+	#[doc(hidden)]
+	unsafe fn __put_raw_volatile(&self, _value: T) {
+		unimplemented!("Volatile raw pointer set")
+	}
+
+	#[doc(hidden)]
+	unsafe fn __put_array_volatile(&self, _value: T) {
+		unimplemented!("Volatile array set")
+	}
+
+	#[doc(hidden)]
+	unsafe fn __put_field_volatile(&self, _value: T) {
+		unimplemented!("Volatile field put")
+	}
+}
+
+trait UnsafeOpImpl: Sized {
+	type Output;
+	unsafe fn get_array_impl(array: &mut ArrayInstance, offset: usize) -> Self::Output;
+	unsafe fn put_array_impl(array: &mut ArrayInstance, offset: usize, value: Self::Output);
+	unsafe fn get_field_impl(field_value: *mut Operand<Reference>) -> Self::Output;
+	unsafe fn put_field_impl(field_value: *mut Operand<Reference>, value: Self::Output);
+}
+
+// bool implemented separated due to `get_field_impl` cast
+impl UnsafeOpImpl for jboolean {
+	type Output = jboolean;
+
+	unsafe fn get_array_impl(array: &mut ArrayInstance, offset: usize) -> jboolean {
+		let raw = array.get_content_mut().get_boolean_raw(offset).as_ptr();
+		unsafe { (&*raw).clone() }
+	}
+
+	#[allow(dropping_copy_types)]
+	unsafe fn put_array_impl(array: &mut ArrayInstance, offset: usize, value: jboolean) {
+		let raw = array.get_content_mut().get_boolean_raw(offset);
+		let old = unsafe { raw.replace(value) };
+		drop(old);
+	}
+
+	unsafe fn get_field_impl(field_value: *mut Operand<Reference>) -> jboolean {
+		unsafe { (*field_value).expect_int() != 0 }
+	}
+
+	#[allow(dropping_copy_types)]
+	unsafe fn put_field_impl(field_value: *mut Operand<Reference>, value: Self::Output) {
+		let old = unsafe { field_value.replace(Operand::from(value)) };
+		drop(old);
+	}
+}
+
+macro_rules! unsafe_ops {
+	($($ty:ident => $operand_ty:ident),+) => {
+		paste::paste! {
+			$(
+			impl UnsafeOpImpl for [<j $ty>] {
+				type Output = [<j $ty>];
+
+				unsafe fn get_array_impl(array: &mut ArrayInstance, offset: usize) -> Self::Output {
+					let raw = array
+						.get_content_mut()
+						.[<get_ $ty _raw>](offset).as_ptr();
+					unsafe { (&*raw).clone() }
+				}
+
+				#[allow(dropping_copy_types)]
+				unsafe fn put_array_impl(
+					array: &mut ArrayInstance,
+					offset: usize,
+					value: Self::Output,
+				) {
+					let raw = array
+						.get_content_mut()
+						.[<get_ $ty _raw>](offset);
+					let old = unsafe { raw.replace(value) };
+					drop(old);
+				}
+
+				#[allow(trivial_numeric_casts)]
+				unsafe fn get_field_impl(field_value: *mut Operand<Reference>) -> Self::Output {
+					unsafe {
+						(*field_value).[<expect_ $operand_ty>]() as [<j $ty>]
+					}
+				}
+
+				#[allow(dropping_copy_types)]
+				unsafe fn put_field_impl(field_value: *mut Operand<Reference>, value: Self::Output) {
+					let old = unsafe { field_value.replace(Operand::from(value)) };
+					drop(old);
+				}
+			}
+			)+
+		}
+	};
+}
+
+unsafe_ops! {
+	byte => int,
+	short => int,
+	char => int,
+	int => int,
+	long => long,
+	float => float,
+	double => double
+}
 
 pub fn getUncompressedObject(
 	_env: NonNull<JniEnv>,
@@ -91,17 +345,11 @@ pub fn compareAndExchangeInt(
 	expected: jint,
 	value: jint,
 ) -> jint {
-	let instance = object.extract_class();
-
+	let op = UnsafeMemoryOp::<jint, AtomicI32>::new(object, offset);
 	unsafe {
-		let field_value = instance
-			.get_mut()
-			.get_field_value_raw(offset as usize)
-			.as_ptr();
-
-		let current_field_value = (*field_value).expect_int();
+		let current_field_value = op.get();
 		if current_field_value == expected {
-			*field_value = Operand::Int(value);
+			op.put(value);
 			return value;
 		}
 
@@ -128,17 +376,12 @@ pub fn compareAndExchangeLong(
 	expected: jlong,
 	value: jlong,
 ) -> jlong {
-	let instance = object.extract_class();
+	let op = UnsafeMemoryOp::<jlong, AtomicI64>::new(object, offset);
 
 	unsafe {
-		let field_value = instance
-			.get_mut()
-			.get_field_value_raw(offset as usize)
-			.as_ptr();
-
-		let current_field_value = (*field_value).expect_long();
+		let current_field_value = op.get();
 		if current_field_value == expected {
-			*field_value = Operand::Long(value);
+			op.put(value);
 			return value;
 		}
 
@@ -207,25 +450,6 @@ pub fn compareAndExchangeReference(
 
 pub fn getReference(
 	_env: NonNull<JniEnv>,
-	_this: Reference,   // jdk.internal.misc.Unsafe
-	_object: Reference, // Object
-	_offset: jlong,
-) -> Reference /* Object */ {
-	unimplemented!("jdk.internal.misc.Unsafe#getReference")
-}
-
-pub fn putReference(
-	_env: NonNull<JniEnv>,
-	_this: Reference,   // jdk.internal.misc.Unsafe
-	_object: Reference, // Object
-	_offset: jlong,
-	_value: Reference, // Object
-) -> Reference /* Object */ {
-	unimplemented!("jdk.internal.misc.Unsafe#putReference")
-}
-
-pub fn getReferenceVolatile(
-	_env: NonNull<JniEnv>,
 	_this: Reference,  // jdk.internal.misc.Unsafe
 	object: Reference, // Object
 	offset: jlong,
@@ -253,6 +477,26 @@ pub fn getReferenceVolatile(
 	}
 }
 
+pub fn putReference(
+	_env: NonNull<JniEnv>,
+	_this: Reference,   // jdk.internal.misc.Unsafe
+	_object: Reference, // Object
+	_offset: jlong,
+	_value: Reference, // Object
+) -> Reference /* Object */ {
+	unimplemented!("jdk.internal.misc.Unsafe#putReference")
+}
+
+pub fn getReferenceVolatile(
+	_env: NonNull<JniEnv>,
+	_this: Reference,  // jdk.internal.misc.Unsafe
+	object: Reference, // Object
+	offset: jlong,
+) -> Reference /* Object */ {
+	tracing::warn!("(!!!) Unsafe#getReferenceVolatile not actually volatile");
+	getReference(_env, _this, object, offset)
+}
+
 pub fn putReferenceVolatile(
 	_env: NonNull<JniEnv>,
 	_this: Reference,   // jdk.internal.misc.Unsafe
@@ -265,53 +509,56 @@ pub fn putReferenceVolatile(
 
 /// Creates the many `{get, put}Ty` and `{get, put}TyVolatile` methods
 macro_rules! get_put_methods {
-	($($ty:ident),+) => {
+	($(($ty:ident; $atomic_ty:ident)),+) => {
 		$(
 			paste::paste! {
 				pub fn [<get $ty:camel>](
 					_env: NonNull<JniEnv>,
 					_this: Reference,  // jdk.internal.misc.Unsafe
-					_object: Reference, // Object
-					_offset: jlong
+					object: Reference, // Object
+					offset: jlong
 				) -> [<j $ty>] {
-					unimplemented!()
+					let op = UnsafeMemoryOp::<[<j $ty>], $atomic_ty>::new(object, offset);
+					unsafe { op.get() }
 				}
 
 				pub fn [<put $ty:camel>](
 					_env: NonNull<JniEnv>,
 					_this: Reference,  // jdk.internal.misc.Unsafe
-					_object: Reference, // Object
-					_offset: jlong,
-					_value: [<j $ty>]
+					object: Reference, // Object
+					offset: jlong,
+					value: [<j $ty>]
 				) {
-					unimplemented!()
+					let op = UnsafeMemoryOp::<[<j $ty>], $atomic_ty>::new(object, offset);
+					unsafe { op.put(value) }
 				}
 
 				pub fn [<get $ty:camel Volatile>](
 					_env: NonNull<JniEnv>,
 					_this: Reference,  // jdk.internal.misc.Unsafe
-					_object: Reference, // Object
-					_offset: jlong
+					object: Reference, // Object
+					offset: jlong
 				) -> [<j $ty>] {
-					unimplemented!()
+					let op = UnsafeMemoryOp::<[<j $ty>], $atomic_ty>::new(object, offset);
+					unsafe { op.get_volatile() }
 				}
 
 				pub fn [<put $ty:camel Volatile>](
 					_env: NonNull<JniEnv>,
 					_this: Reference,  // jdk.internal.misc.Unsafe
-					_object: Reference, // Object
-					_offset: jlong,
-					_value: [<j $ty>]
+					object: Reference, // Object
+					offset: jlong,
+					value: [<j $ty>]
 				) {
-					unimplemented!()
+					let op = UnsafeMemoryOp::<[<j $ty>], $atomic_ty>::new(object, offset);
+					unsafe { op.put_volatile(value) }
 				}
-
 			}
 		)+
 	};
 }
 
-get_put_methods! { boolean, byte, short, char, int, long, float, double }
+get_put_methods! { (boolean; AtomicBool), (byte; AtomicI8), (short; AtomicI16), (char; AtomicU16), (int; AtomicI32), (long; AtomicI64), (float; AtomicF32), (double; AtomicF64) }
 
 pub fn unpark(
 	_env: NonNull<JniEnv>,

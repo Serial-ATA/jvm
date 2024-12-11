@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 
 use walkdir::WalkDir;
 
-const MAX_MODULE_NAME_DEPTH: u8 = 5;
 static METHOD_DEFINITION_DIR_NAME: &str = "def";
 
 #[derive(Debug)]

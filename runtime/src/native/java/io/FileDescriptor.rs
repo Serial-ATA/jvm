@@ -3,7 +3,7 @@
 use crate::classpath::classloader::ClassLoader;
 use crate::reference::Reference;
 
-use std::cell::UnsafeCell;
+use std::cell::SyncUnsafeCell;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -14,12 +14,12 @@ use symbols::sym;
 include_generated!("native/java/io/def/FileDescriptor.definitions.rs");
 
 /// `java.io.FileDescriptor#fd` field offset
-static mut fd: UnsafeCell<usize> = UnsafeCell::new(0);
+static fd: SyncUnsafeCell<usize> = SyncUnsafeCell::new(0);
 /// `java.io.FileDescriptor#handle` field offset
 #[cfg(windows)]
-static mut handle: UnsafeCell<usize> = UnsafeCell::new(0);
+static handle: SyncUnsafeCell<usize> = SyncUnsafeCell::new(0);
 /// `java.io.FileDescriptor#append` field offset
-static mut append: UnsafeCell<usize> = UnsafeCell::new(0);
+static append: SyncUnsafeCell<usize> = SyncUnsafeCell::new(0);
 
 // throws SyncFailedException
 pub fn sync0(_: NonNull<JniEnv>, _this: Reference) {
@@ -46,16 +46,16 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 		match field.name.as_str() {
 			"fd" => unsafe {
 				assert!(fields & 1 << 3 == 0, "Field can only occur once");
-				*fd.get_mut() = index;
+				*fd.get() = index;
 				fields |= 1 << 2;
 			},
 			#[cfg(windows)]
 			"handle" => unsafe {
-				*handle.get_mut() = index;
+				*handle.get() = index;
 				fields |= 1 << 1;
 			},
 			"append" => unsafe {
-				*append.get_mut() = index;
+				*append.get() = index;
 				fields |= 1;
 			},
 			_ => {},

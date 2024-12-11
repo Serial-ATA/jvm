@@ -3,7 +3,7 @@
 use crate::classpath::classloader::ClassLoader;
 use crate::reference::Reference;
 
-use std::cell::UnsafeCell;
+use std::cell::SyncUnsafeCell;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -14,7 +14,7 @@ use symbols::sym;
 include_generated!("native/java/io/def/FileInputStream.definitions.rs");
 
 /// `java.io.FileInputStream#fd` field offset
-static mut fd: UnsafeCell<usize> = UnsafeCell::new(0);
+static fd: SyncUnsafeCell<usize> = SyncUnsafeCell::new(0);
 
 // throws FileNotFoundException
 pub fn open0(_: NonNull<JniEnv>, _this: Reference, _name: Reference /* java.lang.String */) {
@@ -84,7 +84,7 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 	for (index, field) in class.fields().enumerate() {
 		if field.name == sym!(fd) {
 			unsafe {
-				*fd.get_mut() = index;
+				*fd.get() = index;
 			}
 			field_set = true;
 			break;

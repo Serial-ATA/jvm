@@ -35,7 +35,7 @@ pub fn clone(_: NonNull<JniEnv>, this: Reference /* java.lang.Object */) -> Refe
 
 	let instance_ref = this.extract_class();
 	let instance = instance_ref.get();
-	if !instance.class.is_cloneable() {
+	if !instance.class().is_cloneable() {
 		// TODO
 		panic!("CloneNotSupportedException");
 	}

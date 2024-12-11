@@ -110,7 +110,7 @@ impl Reference {
 
 	pub fn class_name(&self) -> Symbol {
 		match &self.instance {
-			ReferenceInstance::Class(class_instance) => class_instance.get().class.name,
+			ReferenceInstance::Class(class_instance) => class_instance.get().class().name,
 			ReferenceInstance::Array(array_instance) => array_instance.get().class.name,
 			ReferenceInstance::Mirror(mirror_instance) => mirror_instance.get().class.name,
 			ReferenceInstance::Null => panic!("NullPointerException"),
@@ -135,7 +135,7 @@ impl Reference {
 
 	pub fn extract_target_class(&self) -> &'static Class {
 		match &self.instance {
-			ReferenceInstance::Class(class) => &class.get().class,
+			ReferenceInstance::Class(class) => class.get().class(),
 			ReferenceInstance::Mirror(mirror) => &mirror.get().class,
 			ReferenceInstance::Array(arr) => &arr.get().class,
 			ReferenceInstance::Null => panic!("NullPointerException"),
@@ -153,7 +153,7 @@ impl Reference {
 	/// Extract a mirror instance from a `Class` or `Array` instance, this is NOT the same as `Reference::extract_mirror`
 	pub fn extract_class_mirror(&self) -> MirrorInstanceRef {
 		match &self.instance {
-			ReferenceInstance::Class(class) => class.get().class.mirror(),
+			ReferenceInstance::Class(class) => class.get().class().mirror(),
 			ReferenceInstance::Array(arr) => arr.get().class.mirror(),
 			ReferenceInstance::Null => panic!("NullPointerException"),
 			_ => panic!("Expected a class/array reference!"),

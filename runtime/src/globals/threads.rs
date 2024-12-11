@@ -1,10 +1,10 @@
 use crate::reference::Reference;
 
-use std::cell::UnsafeCell;
+use std::cell::SyncUnsafeCell;
 use std::mem::MaybeUninit;
 
-static mut THREAD_GROUP: UnsafeCell<MaybeUninit<Reference>> =
-	UnsafeCell::new(MaybeUninit::uninit());
+static THREAD_GROUP: SyncUnsafeCell<MaybeUninit<Reference>> =
+	SyncUnsafeCell::new(MaybeUninit::uninit());
 
 /// Get the main thread group
 ///

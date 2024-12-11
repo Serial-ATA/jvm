@@ -1,3 +1,4 @@
+pub mod atomic;
 pub mod endian;
 pub mod error;
 pub mod int_types;

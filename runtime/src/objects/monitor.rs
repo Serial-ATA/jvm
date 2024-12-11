@@ -29,6 +29,10 @@ pub struct Monitor {
 	_cond: Condvar,
 }
 
+// SAFETY: The `Monitor` handles locking internally
+unsafe impl Send for Monitor {}
+unsafe impl Sync for Monitor {}
+
 impl Debug for Monitor {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("Monitor")

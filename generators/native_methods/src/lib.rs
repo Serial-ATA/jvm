@@ -83,7 +83,8 @@ impl SymbolCollector {
 			generated_directory,
 			"class_names.symbols",
 			&symbols_file_contents,
-		);
+		)
+		.unwrap();
 
 		const METHOD_NAME_SECTION_HEADER: &str = "// Methods";
 		const METHOD_NAME_MARKER_COMMENT: &str =
@@ -96,7 +97,8 @@ impl SymbolCollector {
 			generated_directory,
 			"method_names.symbols",
 			&symbols_file_contents,
-		);
+		)
+		.unwrap();
 
 		const METHOD_SIGNATURE_SECTION_HEADER: &str = "// Signatures";
 		const METHOD_SIGNATURE_MARKER_COMMENT: &str =
@@ -109,7 +111,8 @@ impl SymbolCollector {
 			generated_directory,
 			"signature_names.symbols",
 			&symbols_file_contents,
-		);
+		)
+		.unwrap();
 	}
 
 	/// Gets the position of a marker comment (eg. "// Classes")
@@ -320,8 +323,7 @@ fn create_modules_string(modules: &[Module]) -> Result<String> {
 		}
 
 		let mut common_root_depth = module.common_root_depth(previous_module) as usize;
-		let mut needs_module_definition =
-			common_root_depth != module.components.len() || is_new_root;
+		let needs_module_definition = common_root_depth != module.components.len() || is_new_root;
 		if common_root_depth == module.components.len() {
 			common_root_depth = 0;
 		}

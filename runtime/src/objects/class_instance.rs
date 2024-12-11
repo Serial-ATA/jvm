@@ -20,11 +20,21 @@ pub trait Instance {
 	unsafe fn get_field_value_raw(&mut self, field_idx: usize) -> NonNull<Operand<Reference>>;
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct ClassInstance {
-	pub super_class: Option<ClassInstanceRef>,
-	pub class: &'static Class,
-	pub fields: Box<[Operand<Reference>]>,
+	super_class: Option<ClassInstanceRef>,
+	class: &'static Class,
+	fields: Box<[Operand<Reference>]>,
+}
+
+impl Clone for ClassInstance {
+	fn clone(&self) -> Self {
+		Self {
+			super_class: self.super_class.clone(),
+			class: self.class,
+			fields: self.fields.to_vec().into_boxed_slice(),
+		}
+	}
 }
 
 impl ClassInstance {
@@ -54,6 +64,10 @@ impl ClassInstance {
 			class,
 			fields: fields.into_boxed_slice(),
 		})
+	}
+
+	pub fn class(&self) -> &'static Class {
+		self.class
 	}
 
 	pub fn is_subclass_of(&self, class: &Class) -> bool {
@@ -258,8 +272,8 @@ impl ArrayInstance {
 		let index = index as usize;
 		match self.elements {
 			ArrayContent::Byte(ref mut contents) => contents[index] = value.expect_int() as s1,
-			ArrayContent::Bool(ref mut contents) => {
-				contents[index] = (value.expect_int() & 1) as s1
+			ArrayContent::Boolean(ref mut contents) => {
+				contents[index] = (value.expect_int() & 1) == 1
 			},
 			ArrayContent::Short(ref mut contents) => contents[index] = value.expect_int() as s2,
 			ArrayContent::Char(ref mut contents) => contents[index] = value.expect_int() as u2,
@@ -271,6 +285,10 @@ impl ArrayInstance {
 		}
 	}
 
+	pub fn get_content(&self) -> &ArrayContent {
+		&self.elements
+	}
+
 	pub unsafe fn get_content_mut(&mut self) -> &mut ArrayContent {
 		&mut self.elements
 	}
@@ -279,7 +297,7 @@ impl ArrayInstance {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArrayContent {
 	Byte(Box<[s1]>),
-	Bool(Box<[s1]>),
+	Boolean(Box<[bool]>),
 	Short(Box<[s2]>),
 	Char(Box<[u2]>),
 	Int(Box<[s4]>),
@@ -329,7 +347,7 @@ macro_rules! unsafe_getters {
 impl ArrayContent {
 	fn default_initialize(type_code: u1, count: s4) -> Self {
 		match type_code {
-			4 => Self::Bool(box_slice![0; count as usize]),
+			4 => Self::Boolean(box_slice![bool::default(); count as usize]),
 			5 => Self::Char(box_slice![0; count as usize]),
 			6 => Self::Float(box_slice![0.; count as usize]),
 			7 => Self::Double(box_slice![0.; count as usize]),
@@ -343,9 +361,8 @@ impl ArrayContent {
 
 	fn get(&self, index: usize) -> Operand<Reference> {
 		match self {
-			ArrayContent::Byte(content) | ArrayContent::Bool(content) => {
-				Operand::Int(s4::from(content[index]))
-			},
+			ArrayContent::Boolean(content) => Operand::Int(s4::from(content[index])),
+			ArrayContent::Byte(content) => Operand::Int(s4::from(content[index])),
 			ArrayContent::Short(content) => Operand::Int(s4::from(content[index])),
 			ArrayContent::Char(content) => Operand::Int(s4::from(content[index])),
 			ArrayContent::Int(content) => Operand::Int(content[index]),
@@ -358,7 +375,8 @@ impl ArrayContent {
 
 	pub fn element_count(&self) -> usize {
 		match self {
-			ArrayContent::Byte(content) | ArrayContent::Bool(content) => content.len(),
+			ArrayContent::Boolean(content) => content.len(),
+			ArrayContent::Byte(content) => content.len(),
 			ArrayContent::Short(content) => content.len(),
 			ArrayContent::Char(content) => content.len(),
 			ArrayContent::Int(content) => content.len(),
@@ -398,20 +416,20 @@ impl ArrayContent {
 		}
 
 		copy! {
-			ArrayContent::Byte,     (byte)
-			| ArrayContent::Bool,   (bool)
-			| ArrayContent::Short,  (short)
-			| ArrayContent::Char,   (char)
-			| ArrayContent::Int,    (int)
-			| ArrayContent::Float,  (float)
-			| ArrayContent::Double, (double)
-			| ArrayContent::Long,   (long)
+			ArrayContent::Byte,      (byte)
+			| ArrayContent::Boolean, (boolean)
+			| ArrayContent::Short,   (short)
+			| ArrayContent::Char,    (char)
+			| ArrayContent::Int,     (int)
+			| ArrayContent::Float,   (float)
+			| ArrayContent::Double,  (double)
+			| ArrayContent::Long,    (long)
 		}
 	}
 
 	expect_functions! {
 		[byte, Byte, s1],
-		[bool, Bool, s1],
+		[boolean, Boolean, bool],
 		[short, Short, s2],
 		[char, Char, u2],
 		[int, Int, s4],
@@ -423,7 +441,7 @@ impl ArrayContent {
 
 	unsafe_getters! {
 		[byte, Byte, s1],
-		[bool, Bool, s1],
+		[boolean, Boolean, bool],
 		[short, Short, s2],
 		[char, Char, u2],
 		[int, Int, s4],

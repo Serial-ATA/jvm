@@ -21,14 +21,11 @@ mod stacktrace_element {
 	use crate::reference::Reference;
 	use crate::string_interner::StringInterner;
 
-	use std::sync::atomic::Ordering;
-	use std::sync::Mutex;
+	use std::sync::atomic::{AtomicBool, Ordering};
 
 	use common::traits::PtrType;
 	use instructions::Operand;
 	use symbols::sym;
-
-	static mut INITIALIZED: Mutex<bool> = Mutex::new(false);
 
 	static mut StackTraceElement_classLoaderName_FIELD_OFFSET: usize = 0;
 	static mut StackTraceElement_moduleName_FIELD_OFFSET: usize = 0;
@@ -39,8 +36,12 @@ mod stacktrace_element {
 	static mut StackTraceElement_lineNumber_FIELD_OFFSET: usize = 0;
 
 	unsafe fn initialize(class: &'static Class) {
-		let mut initialized = INITIALIZED.lock().unwrap();
-		if *initialized {
+		static ONCE: AtomicBool = AtomicBool::new(false);
+		if ONCE
+			.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+			.is_err()
+		{
+			// Already initialized
 			return;
 		}
 
@@ -100,8 +101,6 @@ mod stacktrace_element {
 			field_set, 0b1111111,
 			"Not all fields were found in java/lang/StackTraceElement"
 		);
-
-		*initialized = true;
 	}
 
 	pub fn from_stack_frame(stacktrace_element_class: &'static Class, frame: &Frame) -> Reference {
@@ -171,7 +170,7 @@ pub fn fillInStackTrace(
 	let current_thread = unsafe { &*JavaThread::for_env(env.as_ptr() as _) };
 
 	let this_class_instance = this.extract_class();
-	let this_class = this_class_instance.get().class;
+	let this_class = this_class_instance.get().class();
 	// TODO: Make global field
 	let stacktrace_field = this_class.fields().find(|field| {
 		field.name.as_str() == "stackTrace" && matches!(&field.descriptor, FieldType::Array(value) if value.is_class(b"java/lang/StackTraceElement"))

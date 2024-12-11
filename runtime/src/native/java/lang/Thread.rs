@@ -2,6 +2,7 @@ use crate::reference::Reference;
 use crate::JavaThread;
 
 use std::ptr::NonNull;
+use std::sync::atomic::AtomicUsize;
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
@@ -109,5 +110,9 @@ pub fn setNativeName(
 }
 
 pub fn getNextThreadIdOffset(_env: NonNull<JniEnv>) -> jlong {
-	unimplemented!("java.lang.Thread#getNextThreadIdOffset");
+	// https://github.com/openjdk/jdk/blob/a3b58ee5cd1ec0ea78649d4128d272458b05eb13/src/java.base/share/classes/java/lang/Thread.java#L624-L627
+	const INITIAL_THREAD_ID: usize = 3;
+	static NEXT_THREAD_ID: AtomicUsize = AtomicUsize::new(INITIAL_THREAD_ID);
+
+	NEXT_THREAD_ID.as_ptr() as jlong
 }

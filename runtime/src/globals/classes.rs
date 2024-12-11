@@ -1,13 +1,13 @@
 use crate::objects::class::Class;
 
-use std::cell::UnsafeCell;
+use std::cell::SyncUnsafeCell;
 
 macro_rules! define_classes {
     ($($name:ident),+ $(,)?) => {
         paste::paste! {
             $(
 			#[allow(non_upper_case_globals)]
-            static mut [<$name _>]: UnsafeCell<Option<&'static Class>> = UnsafeCell::new(None);
+            static [<$name _>]: SyncUnsafeCell<Option<&'static Class>> = SyncUnsafeCell::new(None);
 
             #[doc = "Set the loaded " $name " class"]
             ///
@@ -16,7 +16,8 @@ macro_rules! define_classes {
             /// This must only be called once
 			#[allow(non_snake_case)]
             pub unsafe fn [<set_ $name>](class: &'static Class) {
-                *[<$name _>].get_mut() = Some(class);
+				let ptr = [<$name _>].get();
+                unsafe { *ptr = Some(class); }
             }
 
             #[doc = "Get the loaded " $name " class"]

@@ -1,4 +1,4 @@
-use crate::class_instance::ClassInstance;
+use crate::class_instance::{ClassInstance, Instance};
 use crate::frame::Frame;
 use crate::interpreter::Interpreter;
 use crate::java_call;
@@ -8,7 +8,7 @@ use crate::reference::{ClassInstanceRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::string_interner::StringInterner;
 
-use std::cell::UnsafeCell;
+use std::cell::SyncUnsafeCell;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
@@ -21,7 +21,7 @@ use jni::env::JniEnv;
 use symbols::sym;
 
 #[thread_local]
-static mut CURRENT_JAVA_THREAD: Option<UnsafeCell<JavaThread>> = None;
+static CURRENT_JAVA_THREAD: Option<SyncUnsafeCell<JavaThread>> = None;
 
 pub struct JVMOptions {
 	pub dry_run: bool,
@@ -181,7 +181,11 @@ impl JavaThread {
 	}
 
 	pub fn current_opt_mut() -> Option<&'static mut JavaThread> {
-		unsafe { CURRENT_JAVA_THREAD.as_mut().map(|thread| thread.get_mut()) }
+		unsafe {
+			CURRENT_JAVA_THREAD
+				.as_ref()
+				.map(|thread| unsafe { &mut *thread.get() })
+		}
 	}
 
 	/// Sets the current Java [`JavaThread`]
@@ -194,7 +198,7 @@ impl JavaThread {
 			CURRENT_JAVA_THREAD.is_none(),
 			"attempting to overwrite an existing JavaThread"
 		);
-		CURRENT_JAVA_THREAD = Some(UnsafeCell::new(thread));
+		CURRENT_JAVA_THREAD = Some(SyncUnsafeCell::new(thread));
 	}
 }
 
@@ -228,6 +232,8 @@ impl JavaThread {
 					unsafe {
 						crate::globals::field_offsets::set_thread_holder_field_offset(index);
 					}
+
+					break;
 				}
 			}
 		}
@@ -235,22 +241,34 @@ impl JavaThread {
 		// java.lang.Thread$FieldHolder fields
 		{
 			let class = crate::globals::classes::java_lang_Thread_FieldHolder();
-			for (index, field) in class.static_fields().enumerate() {
+
+			let mut field_set = 0;
+			for (index, field) in class.fields().enumerate() {
 				match field.name.as_str() {
 					"priority" => unsafe {
-						crate::globals::field_offsets::set_field_holder_priority_field_offset(index)
+						crate::globals::field_offsets::set_field_holder_priority_field_offset(
+							index,
+						);
+						field_set |= 1;
 					},
 					"daemon" => unsafe {
-						crate::globals::field_offsets::set_field_holder_daemon_field_offset(index)
+						crate::globals::field_offsets::set_field_holder_daemon_field_offset(index);
+						field_set |= 1 << 1;
 					},
 					"threadStatus" => unsafe {
 						crate::globals::field_offsets::set_field_holder_thread_status_field_offset(
 							index,
-						)
+						);
+						field_set |= 1 << 2;
 					},
 					_ => {},
 				}
 			}
+
+			assert_eq!(
+				field_set, 0b111,
+				"Not all fields were found in java/lang/Thread$FieldHolder"
+			);
 		}
 	}
 
@@ -259,10 +277,14 @@ impl JavaThread {
 		let class_instance = obj.extract_class();
 
 		let field_holder_offset = crate::globals::field_offsets::thread_holder_field_offset();
-		let field_holder_ref = &class_instance.get_mut().fields[field_holder_offset];
+		let field_holder_ref = &class_instance
+			.get_mut()
+			.get_field_value0(field_holder_offset);
 
 		let field_holder_instance = field_holder_ref.expect_reference().extract_class();
-		field_holder_instance.get_mut().fields[offset] = value;
+		field_holder_instance
+			.get_mut()
+			.put_field_value0(offset, value);
 	}
 
 	fn set_priority(&mut self, _priority: s4) {
@@ -515,8 +537,8 @@ impl JavaThread {
 
 		let throwable_class = crate::globals::classes::java_lang_Throwable();
 		assert!(
-			class_instance.get().class == throwable_class
-				|| class_instance.get().class.is_subclass_of(&throwable_class)
+			class_instance.get().class() == throwable_class
+				|| class_instance.get().is_subclass_of(&throwable_class)
 		);
 
 		// Search each frame for an exception handler
@@ -527,7 +549,7 @@ impl JavaThread {
 			// If an exception handler that matches objectref is found, it contains the location of the code intended to handle this exception.
 			if let Some(handler_pc) = current_frame
 				.method()
-				.find_exception_handler(class_instance.get().class, current_frame_pc)
+				.find_exception_handler(class_instance.get().class(), current_frame_pc)
 			{
 				// The pc register is reset to that location,the operand stack of the current frame is cleared, objectref
 				// is pushed back onto the operand stack, and execution continues.
@@ -548,7 +570,7 @@ impl JavaThread {
 
 		let print_stack_trace = class_instance
 			.get()
-			.class
+			.class()
 			.vtable()
 			.find(
 				sym!(printStackTrace_name),
