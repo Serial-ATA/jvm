@@ -202,6 +202,7 @@ vm_symbols::define_symbols! {
 
 	// Fields
 	holder: "holder",
+	eetop: "eetop",
 	value: "value",
 	coder: "coder",
 	fd: "fd",

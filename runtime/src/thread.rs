@@ -223,57 +223,70 @@ pub enum ThreadStatus {
 
 /// `java.lang.Thread$FieldHolder` accessors
 impl JavaThread {
-	pub fn set_field_holder_offsets() {
-		// java.lang.Thread#holder
+	pub fn set_field_offsets() {
+		// java.lang.Thread fields
 		{
 			let class = crate::globals::classes::java_lang_Thread();
-			for (index, field) in class
-				.fields()
-				.filter(|field| !field.is_static())
-				.enumerate()
-			{
+
+			let mut field_set = 0;
+			for (index, field) in class.instance_fields().enumerate() {
 				if field.name == sym!(holder) {
 					unsafe {
 						crate::globals::field_offsets::set_thread_holder_field_offset(index);
 					}
 
-					break;
+					field_set |= 1;
+					continue;
 				}
-			}
-		}
 
-		// java.lang.Thread$FieldHolder fields
-		{
-			let class = crate::globals::classes::java_lang_Thread_FieldHolder();
+				if field.name == sym!(eetop) {
+					unsafe {
+						crate::globals::field_offsets::set_thread_eetop_field_offset(index);
+					}
 
-			let mut field_set = 0;
-			for (index, field) in class.fields().enumerate() {
-				match field.name.as_str() {
-					"priority" => unsafe {
-						crate::globals::field_offsets::set_field_holder_priority_field_offset(
-							index,
-						);
-						field_set |= 1;
-					},
-					"daemon" => unsafe {
-						crate::globals::field_offsets::set_field_holder_daemon_field_offset(index);
-						field_set |= 1 << 1;
-					},
-					"threadStatus" => unsafe {
-						crate::globals::field_offsets::set_field_holder_thread_status_field_offset(
-							index,
-						);
-						field_set |= 1 << 2;
-					},
-					_ => {},
+					field_set |= 1 << 1;
+					continue;
 				}
 			}
 
 			assert_eq!(
-				field_set, 0b111,
-				"Not all fields were found in java/lang/Thread$FieldHolder"
+				field_set, 0b11,
+				"Not all fields were found in java/lang/Thread"
 			);
 		}
+
+		Self::set_field_holder_offsets();
+	}
+
+	// java.lang.Thread$FieldHolder fields
+	fn set_field_holder_offsets() {
+		let class = crate::globals::classes::java_lang_Thread_FieldHolder();
+
+		let mut field_set = 0;
+		for (index, field) in class.fields().enumerate() {
+			match field.name.as_str() {
+				"priority" => unsafe {
+					crate::globals::field_offsets::set_field_holder_priority_field_offset(index);
+					field_set |= 1;
+				},
+				"daemon" => unsafe {
+					crate::globals::field_offsets::set_field_holder_daemon_field_offset(index);
+					field_set |= 1 << 1;
+				},
+				"threadStatus" => unsafe {
+					crate::globals::field_offsets::set_field_holder_thread_status_field_offset(
+						index,
+					);
+					field_set |= 1 << 2;
+				},
+				_ => {},
+			}
+		}
+
+		assert_eq!(
+			field_set, 0b111,
+			"Not all fields were found in java/lang/Thread$FieldHolder"
+		);
 	}
 
 	fn set_field_holder_field(&self, offset: usize, value: Operand<Reference>) {
@@ -367,6 +380,7 @@ impl JavaThread {
 
 		// Set the obj early, since the java.lang.Thread constructor calls Thread#current.
 		self.set_obj(Reference::class(ClassInstanceRef::clone(&thread_instance)));
+		self.set_eetop();
 
 		let init_method = thread_class
 			.vtable()
@@ -408,6 +422,16 @@ impl JavaThread {
 		// SAFETY: The object is an `Option`, so it's always initialized with *something*
 		let obj_opt = unsafe { &*obj_ptr };
 		obj_opt.as_ref().map(Reference::clone)
+	}
+
+	fn set_eetop(&self) {
+		let offset = crate::globals::field_offsets::thread_eetop_field_offset();
+
+		let obj = self.obj().unwrap();
+		obj.extract_class().get_mut().put_field_value0(
+			offset,
+			Operand::Long(JavaThread::current_ptr() as jni::sys::jlong),
+		);
 	}
 }
 

@@ -127,8 +127,12 @@ where
 	}
 
 	#[doc(hidden)]
-	unsafe fn __put_raw(&self, _value: T) {
-		unimplemented!("put at raw pointer offsets");
+	unsafe fn __put_raw(&self, value: T) {
+		let offset = self.offset;
+		let ptr = offset as *mut T;
+		unsafe {
+			*ptr = value;
+		}
 	}
 
 	#[doc(hidden)]

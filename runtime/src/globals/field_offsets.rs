@@ -94,3 +94,18 @@ pub fn field_holder_thread_status_field_offset() -> usize {
 pub unsafe fn set_field_holder_thread_status_field_offset(value: usize) {
 	FIELDHOLDER_THREAD_STATUS_FIELD_OFFSET = value;
 }
+
+static mut THREAD_EETOP_FIELD_OFFSET: usize = 0;
+
+/// `java.lang.Thread#eetop` field offset
+///
+/// This will not change for the lifetime of the program.
+///
+/// Expected type: `jlong`
+pub fn thread_eetop_field_offset() -> usize {
+	unsafe { THREAD_EETOP_FIELD_OFFSET }
+}
+
+pub unsafe fn set_thread_eetop_field_offset(value: usize) {
+	THREAD_EETOP_FIELD_OFFSET = value;
+}

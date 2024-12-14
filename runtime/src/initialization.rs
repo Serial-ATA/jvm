@@ -58,7 +58,7 @@ fn initialize_thread(thread: &JavaThread) {
 	}
 
 	// Grab the java.lang.Thread field offsets
-	JavaThread::set_field_holder_offsets();
+	JavaThread::set_field_offsets();
 
 	// Init some important classes
 	initialize_global_classes(thread);
