@@ -196,7 +196,7 @@ impl<'a> NativeNameConverter<'a> {
 
 fn lookup_style(
 	method: &Method,
-	thread: &mut JavaThread,
+	thread: &JavaThread,
 	name_converter: &NativeNameConverter<'_>,
 	num_args: usize,
 	include_long: bool,
@@ -233,8 +233,9 @@ fn lookup_style(
 		findNative_method,
 		Operand::Reference(Reference::null()),
 		Operand::Reference(Reference::class(name_arg))
-	).unwrap()
-		.expect_long();
+	)
+	.unwrap()
+	.expect_long();
 
 	if address == 0 {
 		todo!("Agent library search");
@@ -244,7 +245,7 @@ fn lookup_style(
 	Some(entry)
 }
 
-fn lookup_entry(method: &Method, thread: &mut JavaThread) -> Option<*const c_void> {
+fn lookup_entry(method: &Method, thread: &JavaThread) -> Option<*const c_void> {
 	let mut name_converter = NativeNameConverter::new(method);
 
 	// Compute pure name
@@ -314,11 +315,11 @@ fn lookup_entry(method: &Method, thread: &mut JavaThread) -> Option<*const c_voi
 }
 
 /// Check if there are any JVM TI prefixes which have been applied to the native method name.
-fn lookup_entry_prefixed(_method: &Method, _thread: &mut JavaThread) -> Option<*const c_void> {
+fn lookup_entry_prefixed(_method: &Method, _thread: &JavaThread) -> Option<*const c_void> {
 	todo!()
 }
 
-fn lookup_base(method: &Method, thread: &mut JavaThread) -> *const c_void {
+fn lookup_base(method: &Method, thread: &JavaThread) -> *const c_void {
 	if let Some(entry) = lookup_entry(method, thread) {
 		return entry;
 	}
@@ -331,7 +332,7 @@ fn lookup_base(method: &Method, thread: &mut JavaThread) -> *const c_void {
 	panic!("UnsatisfiedLinkError")
 }
 
-pub fn lookup_native_method(method: &Method, thread: &mut JavaThread) {
+pub fn lookup_native_method(method: &Method, thread: &JavaThread) {
 	let native_method = method.native_method();
 	if !native_method.is_some() {
 		return;

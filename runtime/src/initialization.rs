@@ -20,11 +20,11 @@ pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> JavaVm {
 		JavaThread::set_current_thread(thread);
 	}
 
-	initialize_thread(JavaThread::current_mut());
+	initialize_thread(JavaThread::current());
 	unsafe { main_java_vm() }
 }
 
-fn initialize_thread(thread: &mut JavaThread) {
+fn initialize_thread(thread: &JavaThread) {
 	// Load some important classes first
 	load_global_classes();
 
@@ -126,7 +126,7 @@ fn load_global_classes() {
 	)
 }
 
-fn initialize_global_classes(thread: &mut JavaThread) {
+fn initialize_global_classes(thread: &JavaThread) {
 	crate::globals::classes::java_lang_Object().initialize(thread);
 	crate::globals::classes::java_lang_Class().initialize(thread);
 	crate::globals::classes::java_lang_String().initialize(thread);
@@ -136,7 +136,7 @@ fn initialize_global_classes(thread: &mut JavaThread) {
 	crate::globals::classes::java_lang_ref_Finalizer().initialize(thread);
 }
 
-fn create_thread_object(thread: &mut JavaThread) {
+fn create_thread_object(thread: &JavaThread) {
 	let thread_group_class = crate::globals::classes::java_lang_ThreadGroup();
 	let system_thread_group_instance = Reference::class(ClassInstance::new(thread_group_class));
 
@@ -174,7 +174,7 @@ fn create_thread_object(thread: &mut JavaThread) {
 /// * Signal handlers
 /// * OS-specific system settings
 /// * Thread group of the main thread
-fn init_phase_1(thread: &mut JavaThread) {
+fn init_phase_1(thread: &JavaThread) {
 	let system_class = ClassLoader::Bootstrap.load(sym!(java_lang_System)).unwrap();
 	let init_phase_1 = system_class
 		.resolve_method_step_two(sym!(initPhase1_name), sym!(void_method_signature))
@@ -187,7 +187,7 @@ fn init_phase_1(thread: &mut JavaThread) {
 ///
 /// This is responsible for initializing the module system. Prior to this point, the only module
 /// available to us is `java.base`.
-fn init_phase_2(thread: &mut JavaThread) {
+fn init_phase_2(thread: &JavaThread) {
 	let system_class = ClassLoader::Bootstrap.load(sym!(java_lang_System)).unwrap();
 
 	// TODO: Actually set these arguments accordingly
@@ -218,7 +218,7 @@ fn init_phase_2(thread: &mut JavaThread) {
 /// * Initialization of and setting the security manager
 /// * Setting the system class loader
 /// * Setting the thread context class loader
-fn init_phase_3(thread: &mut JavaThread) {
+fn init_phase_3(thread: &JavaThread) {
 	let system_class = ClassLoader::Bootstrap.load(sym!(java_lang_System)).unwrap();
 
 	let init_phase_3 = system_class

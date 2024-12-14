@@ -8,7 +8,7 @@ use crate::reference::{ClassInstanceRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::string_interner::StringInterner;
 
-use std::cell::SyncUnsafeCell;
+use std::cell::{SyncUnsafeCell, UnsafeCell};
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
@@ -21,7 +21,7 @@ use jni::env::JniEnv;
 use symbols::sym;
 
 #[thread_local]
-static CURRENT_JAVA_THREAD: Option<SyncUnsafeCell<JavaThread>> = None;
+static CURRENT_JAVA_THREAD: SyncUnsafeCell<Option<JavaThread>> = SyncUnsafeCell::new(None);
 
 pub struct JVMOptions {
 	pub dry_run: bool,
@@ -44,19 +44,19 @@ impl StackFrame {
 
 #[derive(Debug)]
 pub struct FrameStack {
-	inner: Vec<StackFrame>,
+	inner: UnsafeCell<Vec<StackFrame>>,
 }
 
 impl FrameStack {
 	// TODO
 	fn new() -> Self {
 		FrameStack {
-			inner: Vec::with_capacity(1024),
+			inner: UnsafeCell::new(Vec::with_capacity(1024)),
 		}
 	}
 
-	fn current(&mut self) -> Option<&mut Frame> {
-		let current_frame = self.inner.last_mut();
+	fn current(&self) -> Option<&mut Frame> {
+		let current_frame = self.__inner_mut().last_mut();
 		match current_frame {
 			Some(StackFrame::Real(r)) => Some(r),
 			_ => None,
@@ -64,55 +64,63 @@ impl FrameStack {
 	}
 
 	pub fn depth(&self) -> usize {
-		self.inner.len()
+		self.__inner().len()
 	}
 
 	pub fn iter(&self) -> impl DoubleEndedIterator<Item = &Frame> {
-		self.inner.iter().filter_map(|frame| match frame {
+		self.__inner().iter().filter_map(|frame| match frame {
 			StackFrame::Real(frame) => Some(frame),
 			StackFrame::Fake => None,
 		})
 	}
 
 	pub fn get(&self, position: usize) -> Option<&Frame> {
-		match self.inner.get(position) {
+		match self.__inner().get(position) {
 			Some(StackFrame::Real(frame)) => Some(frame),
 			None => None,
 			_ => unreachable!(),
 		}
 	}
 
-	fn push(&mut self, frame: StackFrame) {
-		self.inner.push(frame);
+	fn push(&self, frame: StackFrame) {
+		self.__inner_mut().push(frame);
 	}
 
-	fn pop(&mut self) -> Option<StackFrame> {
-		self.inner.pop()
+	fn pop(&self) -> Option<StackFrame> {
+		self.__inner_mut().pop()
 	}
 
-	fn pop_real(&mut self) -> Option<Frame> {
-		match self.inner.pop() {
+	fn pop_real(&self) -> Option<Frame> {
+		match self.__inner_mut().pop() {
 			Some(StackFrame::Real(r)) => Some(r),
 			_ => None,
 		}
 	}
 
-	fn pop_dummy(&mut self) {
-		match self.inner.pop() {
+	fn pop_dummy(&self) {
+		match self.__inner_mut().pop() {
 			Some(StackFrame::Fake) => return,
 			_ => panic!("Expected a dummy frame!"),
 		}
 	}
 
-	fn clear(&mut self) {
-		self.inner.clear();
+	fn clear(&self) {
+		self.__inner_mut().clear();
+	}
+
+	fn __inner(&self) -> &mut Vec<StackFrame> {
+		unsafe { &mut *self.inner.get() }
+	}
+
+	fn __inner_mut(&self) -> &mut Vec<StackFrame> {
+		unsafe { &mut *self.inner.get() }
 	}
 }
 
 #[repr(C)]
 pub struct JavaThread {
 	env: JniEnv,
-	obj: Option<Reference>,
+	obj: UnsafeCell<Option<Reference>>,
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
 	// Each Java Virtual Machine thread has its own pc (program counter) register [...]
@@ -120,8 +128,7 @@ pub struct JavaThread {
 	pub pc: AtomicIsize,
 	frame_stack: FrameStack,
 
-	// TODO: HACK!!!!
-	remaining_operand: Option<Operand<Reference>>,
+	remaining_operand: UnsafeCell<Option<Operand<Reference>>>,
 }
 
 impl PartialEq for JavaThread {
@@ -147,11 +154,13 @@ impl JavaThread {
 
 	/// Get a pointer to the current `JavaThread` for this thread
 	pub fn current_ptr() -> *const JavaThread {
-		unsafe {
-			match &CURRENT_JAVA_THREAD {
-				None => std::ptr::null(),
-				Some(thread) => thread.get() as _,
-			}
+		let current = CURRENT_JAVA_THREAD.get();
+
+		// SAFETY: The thread is an `Option`, so it's always initialized with *something*
+		let opt = unsafe { &*current };
+		match opt {
+			None => std::ptr::null(),
+			Some(thread) => thread,
 		}
 	}
 
@@ -169,23 +178,11 @@ impl JavaThread {
 	///
 	/// This will return `None` if there is no `JavaThread` available.
 	pub fn current_opt() -> Option<&'static JavaThread> {
-		unsafe {
-			CURRENT_JAVA_THREAD
-				.as_ref()
-				.map(|thread| core::mem::transmute(thread.get() as *const _))
-		}
-	}
+		let current = CURRENT_JAVA_THREAD.get();
 
-	pub fn current_mut() -> &'static mut JavaThread {
-		Self::current_opt_mut().expect("current JavaThread should be available")
-	}
-
-	pub fn current_opt_mut() -> Option<&'static mut JavaThread> {
-		unsafe {
-			CURRENT_JAVA_THREAD
-				.as_ref()
-				.map(|thread| unsafe { &mut *thread.get() })
-		}
+		// SAFETY: The thread is an `Option`, so it's always initialized with *something*
+		let opt = unsafe { &*current };
+		opt.as_ref()
 	}
 
 	/// Sets the current Java [`JavaThread`]
@@ -194,11 +191,18 @@ impl JavaThread {
 	///
 	/// This will panic if there is already a current thread set
 	pub unsafe fn set_current_thread(thread: JavaThread) {
+		let current = CURRENT_JAVA_THREAD.get();
+
+		// SAFETY: The thread is an `Option`, so it's always initialized with *something*
+		let opt = unsafe { &*current };
 		assert!(
-			CURRENT_JAVA_THREAD.is_none(),
+			opt.is_none(),
 			"attempting to overwrite an existing JavaThread"
 		);
-		CURRENT_JAVA_THREAD = Some(SyncUnsafeCell::new(thread));
+
+		unsafe {
+			*current = Some(thread);
+		}
 	}
 }
 
@@ -272,8 +276,8 @@ impl JavaThread {
 		}
 	}
 
-	fn set_field_holder_field(&mut self, offset: usize, value: Operand<Reference>) {
-		let obj = self.obj.as_ref().map(Reference::clone).unwrap();
+	fn set_field_holder_field(&self, offset: usize, value: Operand<Reference>) {
+		let obj = self.obj().unwrap();
 		let class_instance = obj.extract_class();
 
 		let field_holder_offset = crate::globals::field_offsets::thread_holder_field_offset();
@@ -287,54 +291,30 @@ impl JavaThread {
 			.put_field_value0(offset, value);
 	}
 
-	fn set_priority(&mut self, _priority: s4) {
-		assert!(self.obj.is_some());
+	fn set_priority(&self, _priority: s4) {
+		assert!(self.obj().is_some());
 		todo!()
 	}
 
-	fn set_daemon(&mut self, _daemon: bool) {
-		assert!(self.obj.is_some());
+	fn set_daemon(&self, _daemon: bool) {
+		assert!(self.obj().is_some());
 		todo!()
 	}
 
-	fn set_thread_status(&mut self, thread_status: ThreadStatus) {
-		assert!(self.obj.is_some());
+	fn set_thread_status(&self, thread_status: ThreadStatus) {
+		assert!(self.obj().is_some());
 		let offset = crate::globals::field_offsets::field_holder_thread_status_field_offset();
 		self.set_field_holder_field(offset, Operand::Int(thread_status as s4));
 	}
 }
 
+// Actions for the related `java.lang.Thread` instance
 impl JavaThread {
-	pub fn new() -> Self {
-		Self {
-			env: unsafe { JniEnv::from_raw(new_env()) },
-			obj: None,
-
-			pc: AtomicIsize::new(0),
-			frame_stack: FrameStack::new(),
-			remaining_operand: None,
-		}
-	}
-
-	/// Get a pointer to the associated [`JniEnv`]
-	pub fn env(&self) -> NonNull<JniEnv> {
-		unsafe {
-			NonNull::new_unchecked(
-				std::ptr::from_ref(self).add(core::mem::offset_of!(JavaThread, env)) as _,
-			)
-		}
-	}
-
-	/// Get the frame stack for this thread
-	pub fn frame_stack(&self) -> &FrameStack {
-		&self.frame_stack
-	}
-
 	/// Allocates a new `java.lang.Thread` for this `JavaThread`
 	///
 	/// This is called from the JNI `AttachCurrentThread`/`AttachCurrentThreadAsDaemon`.
-	pub fn attach_thread_obj(&mut self, name: Option<&str>, thread_group: Reference, daemon: bool) {
-		assert!(self.obj.is_none());
+	pub fn attach_thread_obj(&self, name: Option<&str>, thread_group: Reference, daemon: bool) {
+		assert!(self.obj().is_none());
 
 		let thread_class = crate::globals::classes::java_lang_Thread();
 		let thread_instance = ClassInstance::new(thread_class);
@@ -378,10 +358,10 @@ impl JavaThread {
 			unimplemented!("jni::AttachCurrentThreadAsDaemon");
 		}
 
-		self.obj = Some(Reference::class(thread_instance));
+		self.set_obj(Reference::class(thread_instance));
 	}
 
-	pub fn init_obj(&mut self, thread_group: Reference) {
+	pub fn init_obj(&self, thread_group: Reference) {
 		let thread_class = crate::globals::classes::java_lang_Thread();
 		let thread_instance = ClassInstance::new(thread_class);
 
@@ -410,12 +390,68 @@ impl JavaThread {
 		self.set_thread_status(ThreadStatus::Runnable);
 	}
 
-	pub fn set_obj(&mut self, obj: Reference) {
-		self.obj = Some(obj);
+	pub fn set_obj(&self, obj: Reference) {
+		let obj_ptr = self.obj.get();
+
+		// SAFETY: The object is an `Option`, so it's always initialized with *something*
+		let obj_opt = unsafe { &*obj_ptr };
+		assert!(obj_opt.is_none());
+
+		unsafe {
+			*obj_ptr = Some(obj);
+		}
 	}
 
 	pub fn obj(&self) -> Option<Reference> {
-		self.obj.as_ref().map(Reference::clone)
+		let obj_ptr = self.obj.get();
+
+		// SAFETY: The object is an `Option`, so it's always initialized with *something*
+		let obj_opt = unsafe { &*obj_ptr };
+		obj_opt.as_ref().map(Reference::clone)
+	}
+}
+
+impl JavaThread {
+	pub fn new() -> Self {
+		Self {
+			env: unsafe { JniEnv::from_raw(new_env()) },
+			obj: UnsafeCell::new(None),
+
+			pc: AtomicIsize::new(0),
+			frame_stack: FrameStack::new(),
+			remaining_operand: UnsafeCell::new(None),
+		}
+	}
+
+	/// Get a pointer to the associated [`JniEnv`]
+	pub fn env(&self) -> NonNull<JniEnv> {
+		unsafe {
+			NonNull::new_unchecked(
+				std::ptr::from_ref(self).add(core::mem::offset_of!(JavaThread, env)) as _,
+			)
+		}
+	}
+
+	/// Get the frame stack for this thread
+	pub fn frame_stack(&self) -> &FrameStack {
+		&self.frame_stack
+	}
+
+	fn set_remaining_operand(&self, operand: Option<Operand<Reference>>) {
+		let remaining_operand_ptr = self.remaining_operand.get();
+
+		let remaining_operand_opt = unsafe { &*remaining_operand_ptr };
+		assert!(remaining_operand_opt.is_none());
+
+		unsafe {
+			*remaining_operand_ptr = operand;
+		}
+	}
+
+	fn take_remaining_operand(&self) -> Option<Operand<Reference>> {
+		let remaining_operand_ptr = self.remaining_operand.get();
+		let remaining_operand_opt = unsafe { &mut *remaining_operand_ptr };
+		remaining_operand_opt.take()
 	}
 
 	/// Manually invoke a method and get its return value
@@ -423,7 +459,7 @@ impl JavaThread {
 	/// This will run the method on the current thread, separate from normal execution. This is used
 	/// by [`java_call!`](crate::java_call) to allow us to manually invoke methods in the runtime.
 	pub fn invoke_method_scoped(
-		&mut self,
+		&self,
 		method: &'static Method,
 		locals: LocalStack,
 	) -> Option<Operand<Reference>> {
@@ -437,14 +473,14 @@ impl JavaThread {
 		self.invoke_method_with_local_stack(method, locals);
 		self.run();
 
-		let ret = self.remaining_operand.take();
+		let ret = self.take_remaining_operand();
 		// Will pop the dummy frame for us
 		self.drop_to_previous_frame(None);
 
 		ret
 	}
 
-	pub fn invoke_method_with_local_stack(&mut self, method: &'static Method, locals: LocalStack) {
+	pub fn invoke_method_with_local_stack(&self, method: &'static Method, locals: LocalStack) {
 		if method.is_native() {
 			self.invoke_native(method, locals);
 			tracing::debug!(target: "JavaThread", "Native method finished");
@@ -462,7 +498,7 @@ impl JavaThread {
 	}
 
 	// Native methods do not require a stack frame. We just call and leave the stack behind until we return.
-	fn invoke_native(&mut self, method: &Method, locals: LocalStack) {
+	fn invoke_native(&self, method: &Method, locals: LocalStack) {
 		// Try to lookup and set the method prior to calling
 		crate::native::lookup::lookup_native_method(method, self);
 
@@ -476,7 +512,7 @@ impl JavaThread {
 		return;
 	}
 
-	fn stash_and_reset_pc(&mut self) {
+	fn stash_and_reset_pc(&self) {
 		if let Some(current_frame) = self.frame_stack.current() {
 			current_frame.stash_pc()
 		}
@@ -485,7 +521,7 @@ impl JavaThread {
 	}
 
 	/// Return from the current frame and drop to the previous one
-	pub fn drop_to_previous_frame(&mut self, mut return_value: Option<Operand<Reference>>) {
+	pub fn drop_to_previous_frame(&self, return_value: Option<Operand<Reference>>) {
 		let _ = self.frame_stack.pop();
 
 		let Some(current_frame) = self.frame_stack.current() else {
@@ -495,7 +531,8 @@ impl JavaThread {
 			// 2. We've reached the end of the program
 			//
 			// Either way, the remaining operand ends up in the hands of the caller.
-			self.remaining_operand = return_value.take();
+			self.set_remaining_operand(return_value);
+
 			return;
 		};
 
@@ -511,7 +548,7 @@ impl JavaThread {
 		}
 	}
 
-	pub fn run(&mut self) {
+	pub fn run(&self) {
 		while let Some(current_frame) = self.frame_stack.current() {
 			Interpreter::instruction(current_frame);
 		}
@@ -525,7 +562,7 @@ impl JavaThread {
 	///
 	/// This will panic if `object_ref` is non-null, but not a subclass of `java/lang/Throwable`.
 	/// This should never occur post-verification.
-	pub fn throw_exception(&mut self, object_ref: Reference) {
+	pub fn throw_exception(&self, object_ref: Reference) {
 		// https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-6.html#jvms-6.5.athrow
 		// The objectref must be of type reference and must refer to an object that is an instance of class Throwable or of a subclass of Throwable.
 		if object_ref.is_null() {
@@ -553,7 +590,7 @@ impl JavaThread {
 			{
 				// The pc register is reset to that location,the operand stack of the current frame is cleared, objectref
 				// is pushed back onto the operand stack, and execution continues.
-				self.pc = AtomicIsize::new(handler_pc);
+				self.pc.store(handler_pc, Ordering::Relaxed);
 
 				let stack = current_frame.stack_mut();
 				stack.clear();
@@ -586,7 +623,7 @@ impl JavaThread {
 	}
 
 	/// Throw a `NullPointerException` on this thread
-	pub fn throw_npe(&mut self) {
+	pub fn throw_npe(&self) {
 		todo!()
 	}
 }

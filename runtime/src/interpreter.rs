@@ -239,7 +239,7 @@ macro_rules! comparisons {
 
 macro_rules! control_return {
 	($frame:ident, $instruction:ident) => {{
-		let thread = $frame.thread_mut();
+		let thread = $frame.thread();
 		thread.drop_to_previous_frame(None);
 	}};
 	($frame:ident, $instruction:ident, $return_ty:ident) => {{
@@ -255,7 +255,7 @@ macro_rules! control_return {
 			);
 		}
 
-		let thread = $frame.thread_mut();
+		let thread = $frame.thread();
 		thread.drop_to_previous_frame(Some(value));
 	}};
 }
@@ -672,7 +672,7 @@ impl Interpreter {
                 },
                 OpCode::athrow => {
                     let object_ref = frame.stack_mut().pop_reference();
-                    let thread = frame.thread_mut();
+                    let thread = frame.thread();
                     thread.throw_exception(object_ref);
                 },
                 OpCode::instanceof => { Self::instanceof_checkcast(frame, opcode) },
@@ -948,7 +948,7 @@ impl Interpreter {
 
         let ret = class.resolve_field(constant_pool, field_ref_idx);
         if ret.is_some() && is_static {
-            class.initialize(frame.thread_mut());
+            class.initialize(frame.thread());
         }
 
         ret
@@ -960,10 +960,10 @@ impl Interpreter {
         let method = frame.method();
         let class = method.class;
 
-        let ret = class.resolve_method(frame.thread_mut(), method_ref_idx);
+        let ret = class.resolve_method(frame.thread(), method_ref_idx);
         if ret.is_some() && is_static {
             // On successful resolution of the method, the class or interface that declared the resolved method is initialized if that class or interface has not already been initialized
-            class.initialize(frame.thread_mut());
+            class.initialize(frame.thread());
         }
 
         ret
@@ -983,7 +983,7 @@ impl Interpreter {
         }
 
         // On successful resolution of the class, it is initialized if it has not already been initialized
-        class.initialize(frame.thread_mut());
+        class.initialize(frame.thread());
 
         ClassInstance::new(class)
     }

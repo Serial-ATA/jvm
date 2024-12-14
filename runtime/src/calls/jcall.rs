@@ -4,7 +4,7 @@
 ///
 /// # Parameters
 ///
-/// * `thread` - `&mut JavaThread`
+/// * `thread` - `&JavaThread`
 /// * `method` - `&'static Method`
 /// * `arg`(s) - `Operand`
 ///

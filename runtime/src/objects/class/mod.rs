@@ -641,7 +641,7 @@ impl Class {
 	/// Attempt to initialize this class
 	///
 	/// NOTE: If the class is being initialized by another thread, this will block until it is completed.
-	pub fn initialize(&self, thread: &mut JavaThread) {
+	pub fn initialize(&self, thread: &JavaThread) {
 		if self.is_initialized.get() {
 			return;
 		}

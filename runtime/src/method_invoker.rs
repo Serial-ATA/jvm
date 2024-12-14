@@ -23,7 +23,7 @@ impl MethodInvoker {
 	///
 	/// This will not pop anything off of the stack of the current Frame
 	pub fn invoke_with_args(
-		thread: &mut JavaThread,
+		thread: &JavaThread,
 		method: &'static Method,
 		args: Vec<Operand<Reference>>,
 	) {
@@ -106,12 +106,12 @@ impl MethodInvoker {
 			local_stack[0] = this;
 		}
 
-		Self::invoke0_(frame.thread_mut(), method, local_stack);
+		Self::invoke0_(frame.thread(), method, local_stack);
 	}
 
-	fn invoke0_(thread: &mut JavaThread, method: &'static Method, local_stack: LocalStack) {
+	fn invoke0_(thread: &JavaThread, method: &'static Method, local_stack: LocalStack) {
 		trace_method!(method);
-		JavaThread::invoke_method_with_local_stack(thread, method, local_stack);
+		thread.invoke_method_with_local_stack(method, local_stack);
 	}
 
 	fn construct_local_stack(

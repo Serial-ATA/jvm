@@ -22,7 +22,7 @@ pub struct Frame {
     // and a reference to the run-time constant pool (§2.5.5)
 	constant_pool: ConstantPoolRef,
 	method: &'static Method,
-	thread: UnsafeCell<*mut JavaThread>,
+	thread: UnsafeCell<*const JavaThread>,
 	
 	// Used to remember the last pc when we return to a frame after a method invocation
 	cached_pc: AtomicIsize,
@@ -42,7 +42,7 @@ impl Debug for Frame {
 impl Frame {
 	/// Create a new `Frame` for a [`Method`] invocation
 	pub fn new(
-		thread: &mut JavaThread,
+		thread: &JavaThread,
 		locals: LocalStack,
 		max_stack: u2,
 		constant_pool: ConstantPoolRef,
@@ -53,7 +53,7 @@ impl Frame {
 			stack: OperandStack::new(max_stack as usize),
 			constant_pool,
 			method,
-			thread: UnsafeCell::new(&raw mut *thread),
+			thread: UnsafeCell::new(&raw const *thread),
 			cached_pc: AtomicIsize::default(),
 		}
 	}
@@ -65,12 +65,6 @@ impl Frame {
 	#[inline]
 	pub fn thread(&self) -> &JavaThread {
 		unsafe { &**self.thread.get() }
-	}
-
-	/// Get a mutable reference to the associated [`JavaThread`]
-	#[inline]
-	pub fn thread_mut(&self) -> &mut JavaThread {
-		unsafe { &mut **self.thread.get() }
 	}
 
 	/// Get a reference to the constant pool

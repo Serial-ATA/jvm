@@ -185,7 +185,7 @@ impl Class {
 	#[tracing::instrument(skip_all)]
 	pub fn resolve_method<'a>(
 		&'a self,
-		thread: &mut JavaThread,
+		thread: &JavaThread,
 		method_ref_idx: u2,
 	) -> Option<&'static Method> {
 		let descriptor = self.unwrap_class_instance();
@@ -365,7 +365,7 @@ impl Class {
 		reason = "We have no way of checking of the <clinit> executed successfully yet"
 	)]
 	#[tracing::instrument(skip_all)]
-	pub fn initialization(&self, thread: &mut JavaThread) {
+	pub fn initialization(&self, thread: &JavaThread) {
 		// 1. Synchronize on the initialization lock, LC, for C. This involves waiting until the current thread can acquire LC.
 		let init = self.initialization_lock();
 		let mut guard = init.lock();
@@ -527,7 +527,7 @@ impl Class {
 	#[tracing::instrument(skip_all)]
 	pub fn construct(
 		&self,
-		thread: &mut JavaThread,
+		thread: &JavaThread,
 		descriptor: Symbol,
 		args: Vec<Operand<Reference>>,
 	) {
@@ -556,7 +556,7 @@ impl Class {
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.2
     #[rustfmt::skip]
 	#[tracing::instrument(skip_all)]
-	fn clinit(&self, thread: &mut JavaThread) {
+	fn clinit(&self, thread: &JavaThread) {
 		// A class or interface has at most one class or interface initialization method and is initialized
 		// by the Java Virtual Machine invoking that method (§5.5).
 
