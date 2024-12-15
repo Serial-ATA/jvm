@@ -17,14 +17,14 @@ pub trait Instance {
 	fn get_field_value0(&self, field_idx: usize) -> Operand<Reference>;
 	fn put_field_value(&mut self, field: &Field, value: Operand<Reference>);
 	fn put_field_value0(&mut self, field_idx: usize, value: Operand<Reference>);
-	unsafe fn get_field_value_raw(&mut self, field_idx: usize) -> NonNull<Operand<Reference>>;
+	unsafe fn get_field_value_raw(&self, field_idx: usize) -> NonNull<Operand<Reference>>;
 }
 
 #[derive(Debug)]
 pub struct ClassInstance {
 	super_class: Option<ClassInstanceRef>,
 	class: &'static Class,
-	fields: Box<[Operand<Reference>]>,
+	pub fields: Box<[Operand<Reference>]>,
 }
 
 impl Clone for ClassInstance {
@@ -147,9 +147,9 @@ impl Instance for ClassInstance {
 		);
 	}
 
-	unsafe fn get_field_value_raw(&mut self, field_idx: usize) -> NonNull<Operand<Reference>> {
+	unsafe fn get_field_value_raw(&self, field_idx: usize) -> NonNull<Operand<Reference>> {
 		assert!(field_idx < self.fields.len());
-		NonNull::new_unchecked(self.fields.as_mut_ptr().offset(field_idx as isize))
+		NonNull::new_unchecked(self.fields.as_ptr().offset(field_idx as isize) as _)
 	}
 }
 

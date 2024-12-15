@@ -144,9 +144,9 @@ impl Instance for MirrorInstance {
 		self.fields[field_idx] = value;
 	}
 
-	unsafe fn get_field_value_raw(&mut self, field_idx: usize) -> NonNull<Operand<Reference>> {
+	unsafe fn get_field_value_raw(&self, field_idx: usize) -> NonNull<Operand<Reference>> {
 		assert!(field_idx < self.fields.len());
-		NonNull::new_unchecked(self.fields.as_mut_ptr().offset(field_idx as isize))
+		NonNull::new_unchecked(self.fields.as_ptr().offset(field_idx as isize) as _)
 	}
 }
 

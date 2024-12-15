@@ -4,7 +4,7 @@ use crate::java_call;
 use crate::native::jni::invocation_api::main_java_vm;
 use crate::reference::Reference;
 use crate::string_interner::StringInterner;
-use crate::thread::JavaThread;
+use crate::thread::{java_lang_Thread, JavaThread};
 
 use classfile::accessflags::MethodAccessFlags;
 use classfile::FieldType;
@@ -58,7 +58,7 @@ fn initialize_thread(thread: &JavaThread) {
 	}
 
 	// Grab the java.lang.Thread field offsets
-	JavaThread::set_field_offsets();
+	java_lang_Thread::set_field_offsets();
 
 	// Init some important classes
 	initialize_global_classes(thread);

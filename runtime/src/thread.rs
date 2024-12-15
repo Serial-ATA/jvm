@@ -222,7 +222,16 @@ pub enum ThreadStatus {
 }
 
 /// `java.lang.Thread$FieldHolder` accessors
-impl JavaThread {
+pub mod java_lang_Thread {
+	use crate::class_instance::Instance;
+	use crate::reference::Reference;
+	use crate::thread::ThreadStatus;
+	use crate::JavaThread;
+	use common::int_types::s4;
+	use common::traits::PtrType;
+	use instructions::Operand;
+	use symbols::sym;
+
 	pub fn set_field_offsets() {
 		// java.lang.Thread fields
 		{
@@ -255,7 +264,7 @@ impl JavaThread {
 			);
 		}
 
-		Self::set_field_holder_offsets();
+		set_field_holder_offsets();
 	}
 
 	// java.lang.Thread$FieldHolder fields
@@ -289,8 +298,16 @@ impl JavaThread {
 		);
 	}
 
-	fn set_field_holder_field(&self, offset: usize, value: Operand<Reference>) {
-		let obj = self.obj().unwrap();
+	pub(super) fn set_eetop(obj: Reference, eetop: jni::sys::jlong) {
+		let offset = crate::globals::field_offsets::thread_eetop_field_offset();
+
+		let instance = obj.extract_class();
+		instance
+			.get_mut()
+			.put_field_value0(offset, Operand::Long(eetop));
+	}
+
+	fn set_field_holder_field(obj: Reference, offset: usize, value: Operand<Reference>) {
 		let class_instance = obj.extract_class();
 
 		let field_holder_offset = crate::globals::field_offsets::thread_holder_field_offset();
@@ -304,25 +321,41 @@ impl JavaThread {
 			.put_field_value0(offset, value);
 	}
 
-	fn set_priority(&self, _priority: s4) {
-		assert!(self.obj().is_some());
+	pub fn set_priority(obj: Reference, priority: s4) {
+		let offset = crate::globals::field_offsets::field_holder_priority_field_offset();
+		set_field_holder_field(obj, offset, Operand::Int(priority));
+	}
+
+	fn set_daemon(_obj: Reference, _daemon: bool) {
 		todo!()
 	}
 
-	fn set_daemon(&self, _daemon: bool) {
-		assert!(self.obj().is_some());
-		todo!()
-	}
-
-	fn set_thread_status(&self, thread_status: ThreadStatus) {
-		assert!(self.obj().is_some());
+	pub(super) fn set_thread_status(obj: Reference, thread_status: ThreadStatus) {
 		let offset = crate::globals::field_offsets::field_holder_thread_status_field_offset();
-		self.set_field_holder_field(offset, Operand::Int(thread_status as s4));
+		set_field_holder_field(obj, offset, Operand::Int(thread_status as s4));
 	}
 }
 
 // Actions for the related `java.lang.Thread` instance
 impl JavaThread {
+	/// Get the `JavaThread` associated with `obj`
+	///
+	/// # Safety
+	///
+	/// The caller must ensure that `obj` is a `java.lang.Thread` object obtained from [`Self::obj()`]
+	pub unsafe fn for_obj(obj: ClassInstanceRef) -> Option<*mut JavaThread> {
+		let eetop_offset = crate::globals::field_offsets::thread_eetop_field_offset();
+		let field_value_ptr = unsafe { obj.get().get_field_value_raw(eetop_offset) };
+		let field_value = unsafe { field_value_ptr.as_ref() };
+		let eetop = field_value.expect_long();
+		if eetop == 0 {
+			// Thread is not alive
+			return None;
+		}
+
+		Some(eetop as *mut JavaThread)
+	}
+
 	/// Allocates a new `java.lang.Thread` for this `JavaThread`
 	///
 	/// This is called from the JNI `AttachCurrentThread`/`AttachCurrentThreadAsDaemon`.
@@ -380,7 +413,9 @@ impl JavaThread {
 
 		// Set the obj early, since the java.lang.Thread constructor calls Thread#current.
 		self.set_obj(Reference::class(ClassInstanceRef::clone(&thread_instance)));
-		self.set_eetop();
+		let obj = self.obj().unwrap();
+
+		java_lang_Thread::set_eetop(obj.clone(), JavaThread::current_ptr() as jni::sys::jlong);
 
 		let init_method = thread_class
 			.vtable()
@@ -401,7 +436,7 @@ impl JavaThread {
 			Operand::Reference(Reference::class(thread_name)),
 		);
 
-		self.set_thread_status(ThreadStatus::Runnable);
+		java_lang_Thread::set_thread_status(obj, ThreadStatus::Runnable);
 	}
 
 	pub fn set_obj(&self, obj: Reference) {
@@ -422,16 +457,6 @@ impl JavaThread {
 		// SAFETY: The object is an `Option`, so it's always initialized with *something*
 		let obj_opt = unsafe { &*obj_ptr };
 		obj_opt.as_ref().map(Reference::clone)
-	}
-
-	fn set_eetop(&self) {
-		let offset = crate::globals::field_offsets::thread_eetop_field_offset();
-
-		let obj = self.obj().unwrap();
-		obj.extract_class().get_mut().put_field_value0(
-			offset,
-			Operand::Long(JavaThread::current_ptr() as jni::sys::jlong),
-		);
 	}
 }
 

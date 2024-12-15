@@ -201,7 +201,7 @@ impl Instance for Reference {
 		}
 	}
 
-	unsafe fn get_field_value_raw(&mut self, field_idx: usize) -> NonNull<Operand<Reference>> {
+	unsafe fn get_field_value_raw(&self, field_idx: usize) -> NonNull<Operand<Reference>> {
 		match &self.instance {
 			ReferenceInstance::Class(class) => class.get_mut().get_field_value_raw(field_idx),
 			ReferenceInstance::Mirror(mirror) => mirror.get_mut().get_field_value_raw(field_idx),

@@ -1,4 +1,6 @@
+use crate::class_instance::Instance;
 use crate::reference::Reference;
+use crate::thread::java_lang_Thread;
 use crate::JavaThread;
 
 use std::ptr::NonNull;
@@ -6,6 +8,7 @@ use std::sync::atomic::AtomicUsize;
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
+use common::traits::PtrType;
 
 include_generated!("native/java/lang/def/Thread.registerNatives.rs");
 include_generated!("native/java/lang/def/Thread.definitions.rs");
@@ -87,10 +90,19 @@ pub fn getThreads(_env: NonNull<JniEnv>) -> Reference /* []java.lang.Thread */ {
 
 pub fn setPriority0(
 	_env: NonNull<JniEnv>,
-	_this: Reference, // java.lang.Thread
-	_new_priority: jint,
+	this: Reference, // java.lang.Thread
+	new_priority: jint,
 ) {
-	unimplemented!("java.lang.Thread#setPriority0");
+	java_lang_Thread::set_priority(this.clone(), new_priority);
+
+	let java_thread = unsafe { JavaThread::for_obj(this.extract_class()) };
+	let Some(thread) = java_thread else {
+		return;
+	};
+
+	// Thread is alive...
+	let _thread_ref = unsafe { &*thread };
+	todo!("Set priority on JavaThread?")
 }
 
 pub fn interrupt0(_env: NonNull<JniEnv>, _this: Reference /* java.lang.Thread */) {
