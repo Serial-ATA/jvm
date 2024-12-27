@@ -6,7 +6,7 @@ use std::ops::{Index, IndexMut};
 use common::box_slice;
 use instructions::Operand;
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6.1
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.6.1
 #[derive(Clone, PartialEq)]
 pub struct LocalStack {
 	inner: Box<[Operand<Reference>]>,

@@ -7,7 +7,7 @@ use std::io::Read;
 use common::int_types::{u1, u2};
 use common::traits::JavaReadExt;
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.5
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.5
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldInfo {
 	pub access_flags: FieldAccessFlags,
@@ -24,7 +24,7 @@ impl FieldInfo {
 	}
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.3.2
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.3.2
 #[derive(Debug, Clone, PartialEq)]
 pub enum FieldType {
 	Byte,

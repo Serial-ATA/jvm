@@ -138,7 +138,7 @@ pub struct JavaThread {
 	obj: UnsafeCell<Option<Reference>>,
 	os_thread: UnsafeCell<Option<JoinHandle<()>>>,
 
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.5.1
 	// Each Java Virtual Machine thread has its own pc (program counter) register [...]
 	// the pc register contains the address of the Java Virtual Machine instruction currently being executed
 	pub pc: AtomicIsize,

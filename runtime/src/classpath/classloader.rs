@@ -44,7 +44,7 @@ impl ClassLoader {
 		}
 	}
 
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.3.1
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.3.1
 	fn load_bootstrap(name: Symbol) -> Option<&'static Class> {
 		// First, the Java Virtual Machine determines whether the bootstrap class loader has
 		// already been recorded as an initiating loader of a class or interface denoted by N.
@@ -69,7 +69,7 @@ impl ClassLoader {
 	}
 
 	// Deriving a Class from a class File Representation
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.3.5
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.3.5
 	fn load_class_by_name(self, name: Symbol) -> &'static Class {
 		if let Some(class) = Self::lookup_class(name) {
 			return class;
@@ -178,7 +178,7 @@ impl ClassLoader {
 	}
 
 	// Creating array classes
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.3.3
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.3.3
 	fn create_array_class(self, descriptor: Symbol) -> &'static Class {
 		// The following steps are used to create the array class C denoted by the name N in association with the class loader L.
 		// L may be either the bootstrap class loader or a user-defined class loader.

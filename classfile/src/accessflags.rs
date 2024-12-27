@@ -95,7 +95,7 @@ pub struct ClassAccessFlags(u16);
 #[rustfmt::skip]
 impl ClassAccessFlags {
 	// Access flags
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.1-200-E.1
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.1-200-E.1
 
 	/// Declared public; may be accessed from outside its package.
 	pub const ACC_PUBLIC    : ClassAccessFlags = Self(0x0001);
@@ -140,7 +140,7 @@ pub struct MethodAccessFlags(u16);
 #[rustfmt::skip]
 impl MethodAccessFlags {
 	// Access flags
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.6-200-A.1
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.6-200-A.1
 
 	/// Declared public; may be accessed from outside its package.
 	pub const ACC_PUBLIC      : MethodAccessFlags = Self(0x0001);
@@ -195,7 +195,7 @@ pub struct FieldAccessFlags(u16);
 #[rustfmt::skip]
 impl FieldAccessFlags {
 	// Access flags
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.5-200-A.1
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.5-200-A.1
 
 	/// Declared public; may be accessed from outside its package.
 	pub const ACC_PUBLIC   : FieldAccessFlags = Self(0x0001);

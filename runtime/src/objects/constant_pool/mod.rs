@@ -11,7 +11,7 @@ use classfile::ConstantPoolValueInfo;
 use common::box_slice;
 use common::int_types::u2;
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4
 
 /// The runtime constant pool for a class
 ///

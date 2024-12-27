@@ -9,7 +9,7 @@ use crate::parse::error::Result;
 use common::int_types::{u1, u2};
 use common::traits::JavaReadExt;
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.6
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.6
 #[derive(Debug, Clone, PartialEq)]
 pub struct MethodInfo {
 	pub access_flags: MethodAccessFlags,
@@ -63,7 +63,7 @@ impl MethodInfo {
 	}
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.3.3
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.3.3
 #[derive(Debug, Clone, PartialEq)]
 pub struct MethodDescriptor {
 	pub parameters: Box<[FieldType]>,

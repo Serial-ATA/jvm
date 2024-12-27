@@ -4,7 +4,7 @@ use classfile::{FieldType, MethodDescriptor};
 use symbols::sym;
 
 impl Method {
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.3
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.9.3
 	pub fn is_polymorphic(&self) -> bool {
 		let class = self.class;
 		let mut is_polymorphic = false;
@@ -32,7 +32,7 @@ impl Method {
 		is_polymorphic
 	}
 
-	/// Whether this method can override the provided instance method ([§5.4.3.3](https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.5))
+	/// Whether this method can override the provided instance method ([§5.4.3.3](https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.5))
 	pub fn can_override(&self, other: &Method) -> bool {
 		// An instance method mC can override another instance method mA iff all of the following are true:
 

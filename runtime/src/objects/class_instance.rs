@@ -213,7 +213,7 @@ impl ArrayInstance {
 		ArrayInstancePtr::new(Self { class, elements })
 	}
 
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.newarray
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.newarray
 	pub fn new_from_type(type_code: u1, count: s4) -> ArrayInstanceRef {
 		if count.is_negative() {
 			panic!("NegativeArraySizeException"); // TODO
@@ -240,7 +240,7 @@ impl ArrayInstance {
 		})
 	}
 
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.anewarray
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.anewarray
 	pub fn new_reference(count: s4, component_class: &'static Class) -> ArrayInstanceRef {
 		if count.is_negative() {
 			panic!("NegativeArraySizeException"); // TODO

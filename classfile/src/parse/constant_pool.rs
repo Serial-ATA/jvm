@@ -104,7 +104,7 @@ where
 		constant_pool.push(cp_value_info);
 		i += 1;
 
-		// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.5:
+		// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.5:
 		// All 8-byte constants take up two entries in the constant_pool table of the class file.
 		let needs_unusable_entry = matches!(tag, ConstantPoolTag::Long | ConstantPoolTag::Double);
 

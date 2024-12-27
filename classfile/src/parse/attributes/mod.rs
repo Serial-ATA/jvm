@@ -30,7 +30,7 @@ use common::traits::JavaReadExt;
 
 /// The location in which the attribute occurs
 ///
-/// Valid locations are defined here: <https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7-320>
+/// Valid locations are defined here: <https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7-320>
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
 pub enum Location {
 	ClassFile,

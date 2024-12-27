@@ -25,7 +25,7 @@ macro_rules! trace_stack {
 	}};
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6.2
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.6.2
 #[derive(Clone, PartialEq)]
 pub struct OperandStack {
 	inner: Vec<Operand<Reference>>,

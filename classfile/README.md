@@ -1,6 +1,7 @@
 # JVM/classfile
 
-An implementation of the [Java SE 19 class file format](https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html).
+An implementation of
+the [Java SE 23 class file format](https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html).
 
 The current structure is as follows:
 

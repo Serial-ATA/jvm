@@ -13,7 +13,7 @@ use std::sync::atomic::{AtomicIsize, Ordering};
 
 use common::int_types::{s1, s2, s4, u1, u2, u4};
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.6
 #[rustfmt::skip]
 pub struct Frame {
     // Each frame has:
@@ -113,7 +113,7 @@ impl Frame {
 	///
 	/// This will only be set if the current thread needs to execute a method within this frame.
 	///
-	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
+	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.5.1
 	pub fn stashed_pc(&self) -> isize {
 		self.cached_pc.load(Ordering::Relaxed)
 	}
@@ -125,7 +125,7 @@ impl Frame {
 	///
 	/// This is used when a new frame is added to the thread's stack.
 	///
-	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
+	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.5.1
 	pub fn stash_pc(&self) {
 		let current_pc;
 		{
@@ -141,7 +141,7 @@ impl Frame {
 impl Frame {
 	/// Read a byte from the associated method's code at the current [pc]
 	///
-	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
+	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.5.1
 	pub fn read_byte(&self) -> u1 {
 		let pc;
 		{
@@ -154,7 +154,7 @@ impl Frame {
 
 	/// Read 2 bytes from the associated method's code at the current [pc]
 	///
-	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
+	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.5.1
 	pub fn read_byte2(&self) -> u2 {
 		let b1 = u2::from(self.read_byte());
 		let b2 = u2::from(self.read_byte());
@@ -164,7 +164,7 @@ impl Frame {
 
 	/// Read 4 bytes from the associated method's code at the current [pc]
 	///
-	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
+	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.5.1
 	pub fn read_byte4(&self) -> u4 {
 		let b1 = u4::from(self.read_byte());
 		let b2 = u4::from(self.read_byte());

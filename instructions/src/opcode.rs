@@ -66,7 +66,7 @@ macro_rules! define_opcodes {
 }
 
 define_opcodes! {
-	/// A list of all possible instructions, as defined in [Chapter 6. The Java Virtual Machine Instruction Set](https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5).
+	/// A list of all possible instructions, as defined in [Chapter 6. The Java Virtual Machine Instruction Set](https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5).
 	#[repr(u8)]
 	#[derive(Debug, Copy, Clone, PartialEq)]
 	#[allow(non_camel_case_types)]
@@ -317,7 +317,7 @@ define_opcodes! {
 		breakpoint         = 0xca, // Intended to be used by debuggers to implement breakpoints
 		unknown,                   // Covers any other currently unknown opcodes
 
-		// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.2
+		// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.2
 		impdep1            = 0xfe,
 		impdep2            = 0xff,
 	}

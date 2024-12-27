@@ -3,7 +3,7 @@ use std::ops::{Deref, Index};
 
 use common::int_types::{s4, s8, u1, u2, u4};
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4
 
 #[derive(PartialEq, Clone)]
 #[repr(transparent)]
@@ -173,12 +173,12 @@ impl Deref for ConstantPool {
 	}
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4-140
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4-140
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[rustfmt::skip]
 pub enum ConstantPoolTag {
-	Unusable, /* Used when storing longs/doubles (https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.5) */
+	Unusable, /* Used when storing longs/doubles (https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.5) */
 	Utf8               = 1,
 	Integer            = 3,
 	Float              = 4,
@@ -224,11 +224,11 @@ impl From<u1> for ConstantPoolTag {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConstantPoolValueInfo {
 	Unusable,
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.1
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.1
 	Class {
 		name_index: u2,
 	},
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.2
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.2
 	Fieldref {
 		class_index: u2,
 		name_and_type_index: u2,
@@ -241,18 +241,18 @@ pub enum ConstantPoolValueInfo {
 		class_index: u2,
 		name_and_type_index: u2,
 	},
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.3
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.3
 	String {
 		string_index: u2,
 	},
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.4
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.4
 	Integer {
 		bytes: u4,
 	},
 	Float {
 		bytes: u4,
 	},
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.5
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.5
 	Long {
 		high_bytes: u4,
 		low_bytes: u4,
@@ -261,35 +261,35 @@ pub enum ConstantPoolValueInfo {
 		high_bytes: u4,
 		low_bytes: u4,
 	},
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.6
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.6
 	NameAndType {
 		name_index: u2,
 		descriptor_index: u2,
 	},
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.7
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.7
 	Utf8 {
 		length: u2,
 		bytes: Box<[u1]>,
 	},
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.8
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.8
 	MethodHandle {
 		reference_kind: u1,
 		reference_index: u2,
 	},
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.9
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.9
 	MethodType {
 		descriptor_index: u2,
 	},
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.10
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.10
 	InvokeDynamic {
 		bootstrap_method_attr_index: u2,
 		name_and_type_index: u2,
 	},
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.11
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.11
 	Module {
 		name_index: u2,
 	},
-	// // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.12
+	// // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.12
 	Package {
 		name_index: u2,
 	},

@@ -17,7 +17,7 @@ use common::int_types::u2;
 use instructions::Operand;
 use symbols::{sym, Symbol};
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.5
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ClassInitializationState {
 	/// This Class object is verified and prepared but not initialized.
@@ -110,7 +110,7 @@ impl InitializationGuard {
 }
 
 impl Class {
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4
 	fn link(&self) {
 		// Linking a class or interface involves verifying and preparing that class or interface, its direct superclass,
 		// its direct superinterfaces, and its element type (if it is an array type), if necessary.
@@ -118,7 +118,7 @@ impl Class {
 		// not necessarily at the same time as the class or interface is verified and prepared.
 	}
 
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.2
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.2
 	pub fn prepare(&self) {
 		// Preparation involves creating the static fields for a class or interface and initializing such fields
 		// to their default values (§2.3, §2.4). This does not require the execution of any Java Virtual Machine code;
@@ -139,7 +139,7 @@ impl Class {
 		// During preparation of a class or interface C, the Java Virtual Machine also imposes loading constraints (§5.3.4):
 	}
 
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.2
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.3.2
 	#[tracing::instrument(skip_all)]
 	pub fn resolve_field(&self, name: Symbol, descriptor: Symbol) -> Option<&'static Field> {
 		let field_type = FieldType::parse(&mut descriptor.as_bytes()).unwrap(); // TODO: Error handling
@@ -170,7 +170,7 @@ impl Class {
 		panic!("NoSuchFieldError") // TODO
 	}
 
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.3
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.3.3
 	#[tracing::instrument(skip_all)]
 	pub fn resolve_method<'a>(
 		class: &'static Class,
@@ -251,7 +251,7 @@ impl Class {
 		None
 	}
 
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.4
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.3.4
 	fn resolve_interface_method(
 		&self,
 		method_name: Symbol,
@@ -335,7 +335,7 @@ impl Class {
 		None
 	}
 
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.5
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.5
 	#[expect(
 		unreachable_code,
 		reason = "We have no way of checking of the <clinit> executed successfully yet"
@@ -501,7 +501,7 @@ impl Class {
 	}
 
 	// Instance initialization method
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.1
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.9.1
 	#[tracing::instrument(skip_all)]
 	pub fn construct(
 		&self,
@@ -531,7 +531,7 @@ impl Class {
 	}
 
 	// Class initialization method
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.9.2
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.9.2
     #[rustfmt::skip]
 	#[tracing::instrument(skip_all)]
 	fn clinit(&self, thread: &JavaThread) {
@@ -554,7 +554,7 @@ impl Class {
 	/// Find an implementation of an interface method on the target class
 	#[tracing::instrument(skip_all)]
 	pub fn map_interface_method(&self, method: &'static Method) -> &'static Method {
-		// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.6
+		// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.6
 
 		// During execution of an invokeinterface or invokevirtual instruction, a method is
 		// selected with respect to:

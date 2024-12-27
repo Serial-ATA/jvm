@@ -37,7 +37,7 @@ macro_rules! attribute_getter_methods {
 	};
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7
 #[derive(Debug, Clone, PartialEq)]
 pub struct Attribute {
 	/// An index into the constant pool pointing to a `CONSTANT_Utf8_info` entry representing the name of the attribute
@@ -155,68 +155,68 @@ impl From<&[u1]> for AttributeTag {
 	}
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7-300
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7-300
 #[derive(Debug, Clone, PartialEq)]
 pub enum AttributeType {
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.2
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.2
 	ConstantValue(ConstantValue),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.3
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.3
 	Code(Code),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.4
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.4
 	StackMapTable(StackMapTable),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.5
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.5
 	Exceptions(Exceptions),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.6
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.6
 	InnerClasses(InnerClasses),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.7
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.7
 	EnclosingMethod(EnclosingMethod),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.8
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.8
 	Synthetic,
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.9
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.9
 	Signature(Signature),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.10
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.10
 	SourceFile(SourceFile),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.11
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.11
 	SourceDebugExtension(SourceDebugExtension),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.12
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.12
 	LineNumberTable(LineNumberTable),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.13
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.13
 	LocalVariableTable(LocalVariableTable),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.14
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.14
 	LocalVariableTypeTable(LocalVariableTypeTable),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.15
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.15
 	Deprecated,
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.16
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.16
 	RuntimeVisibleAnnotations(RuntimeVisibleAnnotations),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.17
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.17
 	RuntimeInvisibleAnnotations(RuntimeInvisibleAnnotations),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.18
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.18
 	RuntimeVisibleParameterAnnotations(RuntimeVisibleParameterAnnotations),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.19
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.19
 	RuntimeInvisibleParameterAnnotations(RuntimeInvisibleParameterAnnotations),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.20
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.20
 	RuntimeVisibleTypeAnnotations(RuntimeVisibleTypeAnnotations),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.21
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.21
 	RuntimeInvisibleTypeAnnotations(RuntimeInvisibleTypeAnnotations),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.22
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.22
 	AnnotationDefault(AnnotationDefault),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.23
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.23
 	BootstrapMethods(BootstrapMethods),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.24
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.24
 	MethodParameters(MethodParameters),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.25
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.25
 	Module(Module),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.26
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.26
 	ModulePackages(ModulePackages),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.27
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.27
 	ModuleMainClass(ModuleMainClass),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.28
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.28
 	NestHost(NestHost),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.29
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.29
 	NestMembers(NestMembers),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.30
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.30
 	Record(Record),
-	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.31
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.31
 	PermittedSubclasses(PermittedSubclasses),
 }
 
@@ -405,7 +405,7 @@ pub struct PermittedSubclasses {
 	pub classes: Vec<u2>,
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.3
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.3
 #[derive(Debug, Clone, PartialEq)]
 pub struct CodeException {
 	/// The start of the range where the exception handler is active
@@ -420,7 +420,7 @@ pub struct CodeException {
 	pub catch_type: u2,
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.4
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.4
 #[derive(Debug, Clone, PartialEq)]
 pub enum StackMapFrame {
 	SameFrame {
@@ -451,7 +451,7 @@ pub enum StackMapFrame {
 	},
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.4
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.4
 #[derive(Debug, Clone, PartialEq)]
 pub enum VerificationTypeInfo {
 	TopVariableInfo,
@@ -465,7 +465,7 @@ pub enum VerificationTypeInfo {
 	UninitializedVariableInfo { offset: u2 },
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.6
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.6
 #[derive(Debug, Clone, PartialEq)]
 pub struct InnerClass {
 	pub inner_class_info_index: u2,
@@ -474,14 +474,14 @@ pub struct InnerClass {
 	pub inner_class_access_flags: u2,
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.12
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.12
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct LineNumber {
 	pub start_pc: u2,
 	pub line_number: u2,
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.13
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.13
 #[derive(Debug, Clone, PartialEq)]
 pub struct LocalVariable {
 	pub start_pc: u2,
@@ -491,7 +491,7 @@ pub struct LocalVariable {
 	pub index: u2,
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.14
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.14
 #[derive(Debug, Clone, PartialEq)]
 pub struct LocalVariableType {
 	pub start_pc: u2,
@@ -501,28 +501,28 @@ pub struct LocalVariableType {
 	pub index: u2,
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.16
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.16
 #[derive(Debug, Clone, PartialEq)]
 pub struct Annotation {
 	pub type_index: u2,
 	pub element_value_pairs: Vec<ElementValuePair>,
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.16
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.16
 #[derive(Debug, Clone, PartialEq)]
 pub struct ElementValuePair {
 	pub element_name_index: u2,
 	pub value: ElementValue,
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.16.1
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.16.1
 #[derive(Debug, Clone, PartialEq)]
 pub struct ElementValue {
 	pub tag: ElementValueTag,
 	pub ty: ElementValueType,
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.16.1
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.16.1
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ElementValueTag {
 	Byte,
@@ -561,7 +561,7 @@ impl From<u1> for ElementValueTag {
 	}
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.16.1
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.16.1
 #[derive(Debug, Clone, PartialEq)]
 #[rustfmt::skip]
 pub enum ElementValueType {
@@ -589,21 +589,21 @@ pub enum ElementValueType {
     },
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.23
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.23
 #[derive(Debug, Clone, PartialEq)]
 pub struct BootstrapMethod {
 	pub bootstrap_method_ref: u2,
 	pub bootstrap_arguments: Vec<u2>,
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.24
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.24
 #[derive(Debug, Clone, PartialEq)]
 pub struct MethodParameter {
 	pub name_index: u2,
 	pub access_flags: u2,
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.25
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.25
 #[derive(Debug, Clone, PartialEq)]
 pub struct ModuleRequire {
 	pub requires_index: u2,
@@ -631,7 +631,7 @@ pub struct ModuleProvide {
 	pub provides_with_index: Vec<u2>,
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.30
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.30
 #[derive(Debug, Clone, PartialEq)]
 pub struct RecordComponentInfo {
 	pub name_index: u2,

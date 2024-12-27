@@ -10,7 +10,7 @@ use std::io::Read;
 
 use common::int_types::{u1, u2};
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.1
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.1
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassFile {
 	pub minor_version: u2,

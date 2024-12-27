@@ -6,7 +6,7 @@ static USAGE: &str = r"jvm [OPTIONS] <MAIN_CLASS> [ARGS]...    (to execute a cla
 	name = "jvm",
 	author = "Serial-ATA",
 	version,
-	about = "Serial's JVM - An implementation of the Java SE 19 Virtual Machine",
+	about = "Serial's JVM - An implementation of the Java SE 23 Virtual Machine",
 	long_about = None,
 	override_usage = USAGE
 )]

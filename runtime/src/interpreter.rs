@@ -267,7 +267,7 @@ pub struct Interpreter;
 impl Interpreter {
 	pub fn instruction(frame: &mut Frame) {
         // The opcodes are broken into sections as defined here:
-        // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-7.html
+        // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-7.html
 
         let opcode = OpCode::from(frame.read_byte());
 
@@ -741,7 +741,7 @@ impl Interpreter {
         }
     }
 
-    // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.ldc
+    // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.ldc
     fn ldc(frame: &mut Frame, wide: bool) {
         let idx = if wide {
             frame.read_byte2()
@@ -786,7 +786,7 @@ impl Interpreter {
         }
     }
 
-    // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.ldc2_w
+    // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.ldc2_w
     fn ldc2_w(frame: &mut Frame) {
         let idx = frame.read_byte2();
 
@@ -807,7 +807,7 @@ impl Interpreter {
         }
     }
 
-    // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-6.html#jvms-6.5.fcmp_op
+    // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.fcmp_op
     fn fcmp(frame: &mut Frame, ordering: Ordering) {
         let operand_stack = frame.stack_mut();
 

@@ -17,7 +17,7 @@ pub type ClassInstanceRef = Arc<ClassInstancePtr>;
 pub type ArrayInstanceRef = Arc<ArrayInstancePtr>;
 pub type MirrorInstanceRef = Arc<MirrorInstancePtr>;
 
-// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.4
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.4
 #[derive(Debug, Clone)]
 pub struct Reference {
 	instance: ReferenceInstance,
