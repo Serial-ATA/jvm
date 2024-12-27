@@ -6,7 +6,7 @@ mod methodinfo;
 
 use crate::accessflags::ClassAccessFlags;
 use crate::classfile::ClassFile;
-use crate::constant_pool::{ConstantPool, ConstantPoolRef};
+use crate::constant_pool::ConstantPool;
 use crate::parse::attributes::Location;
 use crate::parse::error::Result;
 
@@ -69,7 +69,7 @@ where
 	Ok(ClassFile {
 		minor_version,
 		major_version,
-		constant_pool: ConstantPoolRef::new(constant_pool),
+		constant_pool,
 		access_flags: ClassAccessFlags::from(access_flags),
 		this_class,
 		super_class,

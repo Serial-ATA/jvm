@@ -1,14 +1,21 @@
-use crate::reference::Reference;
+use crate::objects::reference::Reference;
 
+use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
 use common::box_slice;
 use instructions::Operand;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6.1
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct LocalStack {
 	inner: Box<[Operand<Reference>]>,
+}
+
+impl Debug for LocalStack {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_list().entries(self.inner.iter()).finish()
+	}
 }
 
 impl LocalStack {

@@ -241,7 +241,7 @@ fn read_element_value_type<R>(reader: &mut R, tag: ElementValueTag, constant_poo
             let mut values = Vec::with_capacity(num_values as usize);
 
             for _ in 0..num_values {
-                values.push(read_element_value_type(reader, tag, constant_pool)?);
+                values.push(read_elementvalue(reader, constant_pool)?);
             }
 
             Ok(ElementValueType::Array { values })

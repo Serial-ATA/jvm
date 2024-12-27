@@ -1,27 +1,53 @@
 pub mod spec;
 
-use crate::class::Class;
 use crate::classpath::classloader::ClassLoader;
 use crate::native::NativeMethodPtr;
+use crate::objects::class::Class;
+use crate::objects::constant_pool::cp_types;
 
 use std::ffi::c_void;
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, RwLock};
 
 use classfile::accessflags::MethodAccessFlags;
-use classfile::{Code, LineNumber, MethodDescriptor, MethodInfo};
+use classfile::{Annotation, Code, LineNumber, MethodDescriptor, MethodInfo, ResolvedAnnotation};
 use common::int_types::{s4, u1};
 use symbols::Symbol;
 
+#[derive(Default, PartialEq, Eq, Debug)]
+struct ExtraFlags {
+	caller_sensitive: bool,
+	intrinsic: bool,
+}
+
+impl ExtraFlags {
+	fn from_annotations(annotations: impl Iterator<Item = ResolvedAnnotation>) -> Self {
+		const CALLER_SENSITIVE_TYPE: &str = "Ljdk/internal/reflect/CallerSensitive;";
+		const INTRINSIC_CANDIDATE_TYPE: &str = "Ljdk/internal/vm/annotation/IntrinsicCandidate;";
+
+		let mut ret = Self::default();
+
+		for annotation in annotations {
+			match &*annotation.name {
+				CALLER_SENSITIVE_TYPE => ret.caller_sensitive = true,
+				INTRINSIC_CANDIDATE_TYPE => ret.intrinsic = true,
+				_ => {},
+			}
+		}
+
+		ret
+	}
+}
+
 pub struct Method {
-	pub class: &'static Class,
+	class: &'static Class,
 	pub access_flags: MethodAccessFlags,
+	extra_flags: ExtraFlags,
 	pub name: Symbol,
 	pub descriptor: Symbol,
 	pub parameter_count: u1,
 	pub line_number_table: Vec<LineNumber>,
 	pub code: Code,
-	pub is_intrinsic: bool, // TODO: This can be done better
 	native_method: RwLock<*const c_void>,
 }
 
@@ -29,12 +55,12 @@ impl PartialEq for Method {
 	fn eq(&self, other: &Self) -> bool {
 		self.class == other.class
 			&& self.access_flags == other.access_flags
+			&& self.extra_flags == other.extra_flags
 			&& self.name == other.name
 			&& self.descriptor == other.descriptor
 			&& self.parameter_count == other.parameter_count
 			&& self.line_number_table == other.line_number_table
 			&& self.code == other.code
-			&& self.is_intrinsic == other.is_intrinsic
 	}
 }
 
@@ -50,17 +76,27 @@ impl Method {
 	/// NOTE: This will leak the `Method` and return a reference. It is important that this only
 	///       be called once per method. It should never be used outside of class loading.
 	pub(super) fn new(class: &'static Class, method_info: &MethodInfo) -> &'static mut Self {
-		let constant_pool = Arc::clone(&class.unwrap_class_instance().constant_pool);
+		let constant_pool = class.constant_pool().unwrap();
 
 		let access_flags = method_info.access_flags;
 
+		let extra_flags;
+		match method_info.runtime_visible_annotations(constant_pool.raw()) {
+			Some(annotations) => {
+				extra_flags = ExtraFlags::from_annotations(annotations);
+			},
+			None => {
+				extra_flags = ExtraFlags::default();
+			},
+		}
+
 		let name_index = method_info.name_index;
-		let name = constant_pool.get_constant_utf8(name_index);
+		let name = constant_pool.get::<cp_types::ConstantUtf8>(name_index);
 
 		let descriptor_index = method_info.descriptor_index;
-		let descriptor_bytes = constant_pool.get_constant_utf8(descriptor_index);
+		let descriptor = constant_pool.get::<cp_types::ConstantUtf8>(descriptor_index);
 
-		let parameter_count: u1 = MethodDescriptor::parse(&mut &descriptor_bytes[..])
+		let parameter_count: u1 = MethodDescriptor::parse(&mut descriptor.as_bytes())
 			.unwrap() // TODO: Error handling
 			.parameters
 			.len()
@@ -72,17 +108,15 @@ impl Method {
 			.unwrap_or_default();
 		let code = method_info.get_code_attribute().unwrap_or_default();
 
-		let is_intrinsic = method_info.is_intrinsic_candidate(Arc::clone(&constant_pool));
-
 		let method = Self {
 			class,
 			access_flags,
-			name: Symbol::intern_bytes(name),
-			descriptor: Symbol::intern_bytes(&descriptor_bytes),
+			extra_flags,
+			name,
+			descriptor,
 			parameter_count,
 			line_number_table,
 			code,
-			is_intrinsic,
 			native_method: RwLock::new(std::ptr::null()),
 		};
 
@@ -118,14 +152,11 @@ impl Method {
 				return Some(exception_handler.handler_pc as isize);
 			}
 
-			let catch_type_class_name = self
+			let catch_type_class = self
 				.class
 				.unwrap_class_instance()
 				.constant_pool
-				.get_class_name(exception_handler.catch_type);
-			let catch_type_class = ClassLoader::Bootstrap
-				.load(Symbol::intern_bytes(catch_type_class_name))
-				.expect("catch_type should be available");
+				.get::<cp_types::Class>(exception_handler.catch_type);
 
 			if catch_type_class == class || catch_type_class.is_subclass_of(class) {
 				return Some(exception_handler.handler_pc as isize);
@@ -135,6 +166,32 @@ impl Method {
 		None
 	}
 
+	pub fn native_method(&self) -> Option<NativeMethodPtr> {
+		let native_method = self.native_method.read().unwrap();
+		if native_method.is_null() {
+			return None;
+		}
+
+		assert!(self.is_native());
+		Some(unsafe { core::mem::transmute(*native_method) })
+	}
+
+	pub fn set_native_method(&self, func: *const c_void) {
+		let mut lock = self.native_method.write().unwrap();
+		*lock = func;
+	}
+}
+
+// Getters
+impl Method {
+	#[inline]
+	pub fn class(&self) -> &'static Class {
+		self.class
+	}
+}
+
+// Flags
+impl Method {
 	pub fn is_native(&self) -> bool {
 		self.access_flags.is_native()
 	}
@@ -163,18 +220,19 @@ impl Method {
 		self.class.is_interface() && (!self.is_abstract() && !self.is_public())
 	}
 
-	pub fn native_method(&self) -> Option<NativeMethodPtr> {
-		let native_method = self.native_method.read().unwrap();
-		if native_method.is_null() {
-			return None;
-		}
-
-		assert!(self.is_native());
-		Some(unsafe { core::mem::transmute(*native_method) })
+	/// Whether the method has the @CallerSensitive annotation
+	pub fn is_caller_sensitive(&self) -> bool {
+		self.extra_flags.caller_sensitive
 	}
 
-	pub fn set_native_method(&self, func: *const c_void) {
-		let mut lock = self.native_method.write().unwrap();
-		*lock = func;
+	pub fn is_stack_walk_ignored(&self) -> bool {
+		if self
+			.class
+			.is_subclass_of(crate::globals::classes::jdk_internal_reflect_MethodAccessorImpl())
+		{
+			return true;
+		}
+
+		false
 	}
 }

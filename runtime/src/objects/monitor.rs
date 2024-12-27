@@ -1,6 +1,6 @@
-use crate::JavaThread;
-use std::cell::UnsafeCell;
+use crate::thread::JavaThread;
 
+use std::cell::UnsafeCell;
 use std::fmt::Debug;
 use std::mem::MaybeUninit;
 use std::sync::atomic::{AtomicUsize, Ordering};

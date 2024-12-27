@@ -1,5 +1,5 @@
 use crate::include_generated;
-use crate::reference::Reference;
+use crate::objects::reference::Reference;
 
 use std::ptr::NonNull;
 

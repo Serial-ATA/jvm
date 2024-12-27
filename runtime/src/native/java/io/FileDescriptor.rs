@@ -1,25 +1,38 @@
 #![allow(non_upper_case_globals)]
 
 use crate::classpath::classloader::ClassLoader;
-use crate::reference::Reference;
+use crate::native::jni::jfieldid_from_field_ref;
+use crate::objects::class_instance::Instance;
+use crate::objects::reference::Reference;
 
 use std::cell::SyncUnsafeCell;
-use std::ptr::NonNull;
+use std::ptr::{self, NonNull};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
-use ::jni::sys::{jboolean, jint, jlong};
+use ::jni::sys::{jboolean, jfieldID, jint, jlong};
+use common::sync::ForceSync;
 use symbols::sym;
 
 include_generated!("native/java/io/def/FileDescriptor.definitions.rs");
 
 /// `java.io.FileDescriptor#fd` field offset
-static fd: SyncUnsafeCell<usize> = SyncUnsafeCell::new(0);
+static fd: SyncUnsafeCell<ForceSync<jfieldID>> =
+	SyncUnsafeCell::new(ForceSync::new(ptr::null_mut() as _));
+pub fn get_fd(this: &Reference) -> jint {
+	let fd_value = unsafe { &*fd.get() };
+	let field = unsafe { crate::native::jni::field_ref_from_jfieldid(fd_value.0) }
+		.expect("field should always be present");
+	this.get_field_value(field).expect_int()
+}
+
 /// `java.io.FileDescriptor#handle` field offset
 #[cfg(windows)]
-static handle: SyncUnsafeCell<usize> = SyncUnsafeCell::new(0);
+static handle: SyncUnsafeCell<ForceSync<jfieldID>> =
+	SyncUnsafeCell::new(ForceSync::new(ptr::null_mut() as _));
 /// `java.io.FileDescriptor#append` field offset
-static append: SyncUnsafeCell<usize> = SyncUnsafeCell::new(0);
+static append: SyncUnsafeCell<ForceSync<jfieldID>> =
+	SyncUnsafeCell::new(ForceSync::new(ptr::null_mut() as _));
 
 // throws SyncFailedException
 pub fn sync0(_: NonNull<JniEnv>, _this: Reference) {
@@ -42,20 +55,20 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 	}
 
 	let mut fields = 0;
-	for (index, field) in class.fields().enumerate() {
+	for field in class.fields() {
 		match field.name.as_str() {
 			"fd" => unsafe {
 				assert!(fields & 1 << 3 == 0, "Field can only occur once");
-				*fd.get() = index;
+				*fd.get() = ForceSync::new(jfieldid_from_field_ref(field));
 				fields |= 1 << 2;
 			},
 			#[cfg(windows)]
 			"handle" => unsafe {
-				*handle.get() = index;
+				*handle.get() = ForceSync::new(jfieldid_from_field_ref(field));
 				fields |= 1 << 1;
 			},
 			"append" => unsafe {
-				*append.get() = index;
+				*append.get() = ForceSync::new(jfieldid_from_field_ref(field));
 				fields |= 1;
 			},
 			_ => {},

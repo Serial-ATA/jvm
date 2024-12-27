@@ -1,10 +1,10 @@
-use crate::class_instance::ClassInstance;
 use crate::classpath::classloader::ClassLoader;
 use crate::java_call;
 use crate::native::jni::invocation_api::main_java_vm;
-use crate::reference::Reference;
+use crate::objects::class_instance::ClassInstance;
+use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
-use crate::thread::{java_lang_Thread, JavaThread};
+use crate::thread::{java_lang_Thread, JavaThread, JavaThreadBuilder};
 
 use classfile::accessflags::MethodAccessFlags;
 use classfile::FieldType;
@@ -15,7 +15,7 @@ use jni::sys::JavaVMInitArgs;
 use symbols::sym;
 
 pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> JavaVm {
-	let thread = JavaThread::new();
+	let thread = JavaThreadBuilder::new().finish();
 	unsafe {
 		JavaThread::set_current_thread(thread);
 	}
@@ -28,37 +28,7 @@ fn initialize_thread(thread: &JavaThread) {
 	// Load some important classes first
 	load_global_classes();
 
-	// Grab the java.lang.String field offsets
-	{
-		let string_class = crate::globals::classes::java_lang_String();
-		let string_value_field = string_class
-			.fields()
-			.find(|field| {
-				!field.is_static()
-					&& field.name == sym!(value)
-					&& matches!(field.descriptor, FieldType::Array(ref val) if **val == FieldType::Byte)
-			})
-			.expect("java.lang.String should have a value field");
-
-		let string_coder_field = string_class
-			.fields()
-			.find(|field| {
-				field.is_final()
-					&& field.name == sym!(coder)
-					&& matches!(field.descriptor, FieldType::Byte)
-			})
-			.expect("java.lang.String should have a value field");
-
-		unsafe {
-			crate::globals::field_offsets::set_string_field_offsets(
-				string_value_field.idx,
-				string_coder_field.idx,
-			);
-		}
-	}
-
-	// Grab the java.lang.Thread field offsets
-	java_lang_Thread::set_field_offsets();
+	init_field_offsets();
 
 	// Init some important classes
 	initialize_global_classes(thread);
@@ -105,12 +75,27 @@ fn load_global_classes() {
 	ClassLoader::fixup_mirrors();
 
 	load!(
+		java_lang_Module,
 		java_lang_Thread,
 		java_lang_Thread_FieldHolder,
 		java_lang_ThreadGroup,
 		java_lang_Throwable,
 		java_lang_Cloneable,
 		java_lang_ref_Finalizer,
+		jdk_internal_reflect_MethodAccessorImpl,
+	);
+
+	// Primitive types
+	load!(
+		java_lang_Boolean,
+		java_lang_Byte,
+		java_lang_Character,
+		java_lang_Double,
+		java_lang_Float,
+		java_lang_Integer,
+		java_lang_Long,
+		java_lang_Short,
+		java_lang_Void,
 	);
 
 	// Primitive arrays
@@ -124,6 +109,90 @@ fn load_global_classes() {
 		long_array,
 		short_array,
 	)
+}
+
+fn init_field_offsets() {
+	// java.lang.Class
+	{
+		let class_class = crate::globals::classes::java_lang_Class();
+		let class_name_field = class_class
+			.fields()
+			.find(|field| {
+				!field.is_static()
+					&& field.name == sym!(name)
+					&& matches!(field.descriptor, FieldType::Object(ref val) if **val == *b"java/lang/String")
+			})
+			.expect("java.lang.Class should have a name field");
+
+		unsafe {
+			crate::globals::field_offsets::java_lang_Class::set_name_field_offset(
+				class_name_field.idx,
+			);
+		}
+	}
+
+	// java.lang.String
+	{
+		let string_class = crate::globals::classes::java_lang_String();
+		let string_value_field = string_class
+			.fields()
+			.find(|field| {
+				!field.is_static()
+					&& field.name == sym!(value)
+					&& matches!(field.descriptor, FieldType::Array(ref val) if **val == FieldType::Byte)
+			})
+			.expect("java.lang.String should have a value field");
+
+		let string_coder_field = string_class
+			.fields()
+			.find(|field| {
+				field.is_final()
+					&& field.name == sym!(coder)
+					&& matches!(field.descriptor, FieldType::Byte)
+			})
+			.expect("java.lang.String should have a value field");
+
+		unsafe {
+			crate::globals::field_offsets::java_lang_String::set_field_offsets(
+				string_value_field.idx,
+				string_coder_field.idx,
+			);
+		}
+	}
+
+	// java.lang.Module
+	{
+		let module_class = crate::globals::classes::java_lang_Module();
+		let module_name_field = module_class
+			.fields()
+			.find(|field| {
+				!field.is_static()
+					&& field.name == sym!(name)
+					&& matches!(field.descriptor, FieldType::Object(ref val) if **val == *b"java/lang/String")
+			})
+			.expect("java.lang.Module should have a name field");
+
+		let module_loader_field = module_class
+			.fields()
+			.find(|field| {
+				!field.is_static()
+					&& field.name == sym!(loader)
+					&& matches!(field.descriptor, FieldType::Object(ref val) if **val == *b"java/lang/ClassLoader")
+			})
+			.expect("java.lang.Module should have a loader field");
+
+		unsafe {
+			crate::globals::field_offsets::java_lang_Module::set_name_field_offset(
+				module_name_field.idx,
+			);
+			crate::globals::field_offsets::java_lang_Module::set_loader_field_offset(
+				module_loader_field.idx,
+			);
+		}
+	}
+
+	// java.lang.Thread
+	java_lang_Thread::set_field_offsets();
 }
 
 fn initialize_global_classes(thread: &JavaThread) {

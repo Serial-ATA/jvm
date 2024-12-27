@@ -1,12 +1,9 @@
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, Index};
-use std::sync::Arc;
 
 use common::int_types::{s4, s8, u1, u2, u4};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4
-
-pub type ConstantPoolRef = Arc<ConstantPool>;
 
 // TODO: Need to make a cache so we don't need to keep resolving classes and interning strings
 
@@ -27,7 +24,10 @@ impl ConstantPool {
 		self.inner.push(value);
 	}
 
-	// TODO: Should return a Symbol
+	pub fn into_inner(self) -> Vec<ConstantPoolValueInfo> {
+		self.inner
+	}
+
 	pub fn get_class_name(&self, idx: u2) -> &[u1] {
 		let constant = &self[idx];
 

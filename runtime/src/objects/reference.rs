@@ -1,9 +1,9 @@
 use super::field::Field;
-use crate::class::Class;
-use crate::class_instance::{ArrayInstancePtr, ClassInstancePtr, Instance};
-use crate::monitor::Monitor;
+use crate::objects::class::Class;
+use crate::objects::class_instance::{ArrayInstancePtr, ClassInstancePtr, Instance};
 use crate::objects::mirror::MirrorInstancePtr;
-use crate::JavaThread;
+use crate::objects::monitor::Monitor;
+use crate::thread::JavaThread;
 
 use std::ffi::c_void;
 use std::ptr::NonNull;
@@ -101,6 +101,10 @@ impl Reference {
 	pub fn monitor_exit(&self, thread: &'static JavaThread) {
 		self.monitor.exit(thread);
 	}
+
+	pub fn notify_all(&self) {
+		self.monitor.notify_all();
+	}
 }
 
 impl Reference {
@@ -112,7 +116,7 @@ impl Reference {
 		match &self.instance {
 			ReferenceInstance::Class(class_instance) => class_instance.get().class().name,
 			ReferenceInstance::Array(array_instance) => array_instance.get().class.name,
-			ReferenceInstance::Mirror(mirror_instance) => mirror_instance.get().class.name,
+			ReferenceInstance::Mirror(mirror_instance) => mirror_instance.get().target_class().name,
 			ReferenceInstance::Null => panic!("NullPointerException"),
 		}
 	}
@@ -136,7 +140,7 @@ impl Reference {
 	pub fn extract_target_class(&self) -> &'static Class {
 		match &self.instance {
 			ReferenceInstance::Class(class) => class.get().class(),
-			ReferenceInstance::Mirror(mirror) => &mirror.get().class,
+			ReferenceInstance::Mirror(mirror) => &mirror.get().target_class(),
 			ReferenceInstance::Array(arr) => &arr.get().class,
 			ReferenceInstance::Null => panic!("NullPointerException"),
 		}

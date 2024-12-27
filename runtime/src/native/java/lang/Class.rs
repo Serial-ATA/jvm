@@ -1,17 +1,18 @@
-use crate::class_instance::Instance;
 use crate::include_generated;
+use crate::native::jni::safe_jclass_from_classref;
 use crate::native::JniEnv;
+use crate::objects::class_instance::Instance;
 use crate::objects::mirror::MirrorInstance;
-use crate::reference::Reference;
+use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
+use crate::thread::JavaThread;
 
 use std::ptr::NonNull;
 use std::sync::Arc;
 
-use ::jni::sys::jboolean;
+use ::jni::sys::{jboolean, jint};
 use common::traits::PtrType;
 use instructions::Operand;
-use jni::sys::jint;
 use symbols::sym;
 
 include_generated!("native/java/lang/def/Class.registerNatives.rs");
@@ -36,14 +37,27 @@ pub fn isInstance(
 	unimplemented!("Class#isInstance");
 }
 pub fn isAssignableFrom(
-	_env: NonNull<JniEnv>,
-	_this: Reference, // java.lang.Class
-	_cls: Reference,  // java.lang.Class
+	env: NonNull<JniEnv>,
+	this: Reference, // java.lang.Class
+	cls: Reference,  // java.lang.Class
 ) -> jboolean {
-	unimplemented!("Class#isAssignableFrom");
+	if cls.is_null() {
+		let _thread = unsafe { JavaThread::for_env(env.as_ptr()) };
+		panic!("NullPointerException"); // TODO
+	}
+
+	// For clarity
+	let sub = cls.extract_target_class();
+	let super_ = this.extract_target_class();
+
+	let env = unsafe { &(*env.as_ptr()) };
+	env.is_assignable_from(
+		safe_jclass_from_classref(sub),
+		safe_jclass_from_classref(super_),
+	)
 }
-pub fn isInterface(_env: NonNull<JniEnv>, _this: Reference /* java.lang.Class */) -> jboolean {
-	unimplemented!("Class#isInterface");
+pub fn isInterface(_env: NonNull<JniEnv>, this: Reference /* java.lang.Class */) -> jboolean {
+	this.extract_target_class().is_interface()
 }
 pub fn isArray(_env: NonNull<JniEnv>, this: Reference /* java.lang.Class */) -> jboolean {
 	this.extract_mirror().get().is_array()
@@ -57,12 +71,12 @@ pub fn initClassName(
 	this: Reference, // java.lang.Class
 ) -> Reference {
 	let this_mirror = this.extract_mirror();
-	let this_mirror_target = this_mirror.get().expect_class(); // TODO: Support primitive mirrors
+	let this_mirror_target = this_mirror.get().target_class();
 	let this_name = this_mirror_target.name;
 	let name_string = StringInterner::intern_symbol(this_name);
 
 	this_mirror.get_mut().put_field_value0(
-		crate::globals::field_offsets::class_name_field_offset(),
+		crate::globals::field_offsets::java_lang_Class::name_field_offset(),
 		Operand::Reference(Reference::class(Arc::clone(&name_string))),
 	);
 
@@ -214,7 +228,7 @@ pub fn desiredAssertionStatus0(
 	clazz: Reference, // java/lang/Class
 ) -> jboolean {
 	let mirror = clazz.extract_mirror();
-	let _name = &mirror.get().expect_class().name;
+	let _name = &mirror.get().target_class().name;
 
 	false
 }

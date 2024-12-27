@@ -1,20 +1,23 @@
 #![allow(non_upper_case_globals)]
 
 use crate::classpath::classloader::ClassLoader;
-use crate::reference::Reference;
+use crate::native::jni::jfieldid_from_field_ref;
+use crate::objects::reference::Reference;
 
 use std::cell::SyncUnsafeCell;
-use std::ptr::NonNull;
+use std::ptr::{self, NonNull};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
-use ::jni::sys::{jboolean, jint, jlong};
+use ::jni::sys::{jboolean, jfieldID, jint, jlong};
+use common::sync::ForceSync;
 use symbols::sym;
 
 include_generated!("native/java/io/def/FileInputStream.definitions.rs");
 
 /// `java.io.FileInputStream#fd` field offset
-static fd: SyncUnsafeCell<usize> = SyncUnsafeCell::new(0);
+static fd: SyncUnsafeCell<ForceSync<jfieldID>> =
+	SyncUnsafeCell::new(ForceSync::new(ptr::null_mut() as _));
 
 // throws FileNotFoundException
 pub fn open0(_: NonNull<JniEnv>, _this: Reference, _name: Reference /* java.lang.String */) {
@@ -81,10 +84,10 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 	}
 
 	let mut field_set = false;
-	for (index, field) in class.fields().enumerate() {
+	for field in class.fields() {
 		if field.name == sym!(fd) {
 			unsafe {
-				*fd.get() = index;
+				*fd.get() = ForceSync::new(jfieldid_from_field_ref(field));
 			}
 			field_set = true;
 			break;

@@ -1,8 +1,8 @@
-use crate::frame::Frame;
-use crate::method::Method;
-use crate::reference::Reference;
+use crate::objects::method::Method;
+use crate::objects::reference::Reference;
 use crate::stack::local_stack::LocalStack;
-use crate::JavaThread;
+use crate::thread::frame::Frame;
+use crate::thread::JavaThread;
 
 use common::int_types::{u1, u2};
 use instructions::{Operand, StackLike};
@@ -81,7 +81,7 @@ impl MethodInvoker {
 			if this.is_null() {
 				panic!(
 					"NullPointerException - {}#{}",
-					method.class.name.as_str(),
+					method.class().name.as_str(),
 					method.name.as_str()
 				);
 			}

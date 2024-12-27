@@ -1,4 +1,4 @@
-use crate::method::Method;
+use crate::objects::method::Method;
 
 use classfile::{FieldType, MethodDescriptor};
 use symbols::sym;

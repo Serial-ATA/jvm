@@ -1,7 +1,7 @@
 use crate::classpath::classloader::ClassLoader;
 use crate::java_call;
-use crate::method::Method;
-use crate::reference::Reference;
+use crate::objects::method::Method;
+use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
 use crate::thread::JavaThread;
 
@@ -95,7 +95,7 @@ impl<'a> NativeNameConverter<'a> {
 		// Start with the prefix
 		let mut name = String::from("Java_");
 
-		let class_name = self.method.class.name.as_str();
+		let class_name = self.method.class().name.as_str();
 		if !Self::map_escaped_name_on(&mut name, class_name) {
 			return None;
 		}
@@ -202,7 +202,7 @@ fn lookup_style(
 	include_long: bool,
 	os_style: bool,
 ) -> Option<*const c_void> {
-	let class_loader = method.class.loader;
+	let class_loader = method.class().loader;
 	if class_loader == ClassLoader::Bootstrap {
 		if let Some(entry) = crate::native::lookup_method_opt(method) {
 			return Some(entry as _);

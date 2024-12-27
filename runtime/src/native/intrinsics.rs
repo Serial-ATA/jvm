@@ -1,4 +1,4 @@
-use crate::method::Method;
+use crate::objects::method::Method;
 
 use classfile::accessflags::MethodAccessFlags;
 // static REGISTERED_INTRINSICS: Lazy<Mutex<Vec<IntrinsicEntry>>> =

@@ -1,7 +1,7 @@
-use crate::class_instance::{ArrayInstancePtr, ClassInstancePtr};
 use crate::include_generated;
 use crate::native::JniEnv;
-use crate::reference::Reference;
+use crate::objects::class_instance::{ArrayInstancePtr, ClassInstancePtr};
+use crate::objects::reference::Reference;
 
 use std::ptr::NonNull;
 
@@ -47,8 +47,8 @@ pub fn notify(_: NonNull<JniEnv>, _this: Reference /* java.lang.Object */) {
 	unimplemented!("Object#notify")
 }
 
-pub fn notifyAll(_: NonNull<JniEnv>, _this: Reference /* java.lang.Object */) {
-	unimplemented!("Object#notifyAll")
+pub fn notifyAll(_: NonNull<JniEnv>, this: Reference /* java.lang.Object */) {
+	this.notify_all();
 }
 
 pub fn wait0(

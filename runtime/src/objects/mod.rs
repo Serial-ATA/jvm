@@ -1,5 +1,6 @@
 pub mod class;
 pub mod class_instance;
+pub mod constant_pool;
 pub mod field;
 pub mod method;
 pub mod mirror;

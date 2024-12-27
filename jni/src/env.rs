@@ -2,7 +2,7 @@ use crate::error::{JniError, Result};
 use crate::objects::{JClass, JMethodId, JObject, JObjectArray, JString, JValue};
 use crate::string::JCesu8String;
 use crate::version::JniVersion;
-use jni_sys::jsize;
+use jni_sys::{jsize, JNI_TRUE};
 
 /// Safer wrapper around `jni_sys::JNIEnv`
 #[repr(transparent)]
@@ -69,6 +69,31 @@ impl JniEnv {
 		// Native call should've thrown `NoClassDefFoundError`
 		assert!(!ret.is_null());
 		Ok(unsafe { JClass::from_raw(ret) })
+	}
+
+	/// Determines whether an object of `sub` can be safely cast to `sup`.
+	///
+	/// ## PARAMETERS
+	///
+	/// `sub`: the first class argument.
+	///
+	/// `sup`: the second class argument.
+	///
+	/// ## RETURNS
+	///
+	/// Returns `true` if any of the following are true:
+	///
+	/// * `sub` and `sup` refer to the same Java class.
+	/// * `sub` is a subclass of `sup`.
+	/// * `sub` has `sup` as one of its interfaces.
+	pub fn is_assignable_from(&self, sub: JClass, sup: JClass) -> bool {
+		let ret;
+		unsafe {
+			let invoke_interface = self.as_native_interface();
+			ret = ((*invoke_interface).IsAssignableFrom)(self.0 as _, sub.raw(), sup.raw());
+		}
+
+		ret == JNI_TRUE
 	}
 
 	/// Returns the method ID for a static method of a class.

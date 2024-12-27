@@ -1,7 +1,7 @@
-use crate::class_instance::{ArrayInstance, Instance};
 use crate::native::JniEnv;
 use crate::objects::class::ClassInitializationState;
-use crate::reference::Reference;
+use crate::objects::class_instance::{ArrayInstance, Instance};
+use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
 use crate::thread::JavaThread;
 
@@ -100,7 +100,7 @@ where
 		let offset = self.offset;
 		let ptr = offset as *const T;
 		let atomic_ptr: &A = unsafe { &*ptr.cast() };
-		unsafe { atomic_ptr.load(Ordering::Acquire) }
+		atomic_ptr.load(Ordering::Acquire)
 	}
 
 	#[doc(hidden)]
@@ -110,7 +110,12 @@ where
 
 	#[doc(hidden)]
 	unsafe fn __get_field_volatile(&self) -> T {
-		unimplemented!("Volatile field access")
+		let offset = self.offset;
+		let instance = self.object.extract_class();
+		unsafe {
+			let field_value = instance.get_mut().get_field_value_raw(offset).as_ptr();
+			<T as UnsafeOpImpl>::get_field_volatile_impl(field_value)
+		}
 	}
 
 	unsafe fn put(&self, value: T) {
@@ -187,6 +192,7 @@ trait UnsafeOpImpl: Sized {
 	unsafe fn get_array_impl(array: &mut ArrayInstance, offset: usize) -> Self::Output;
 	unsafe fn put_array_impl(array: &mut ArrayInstance, offset: usize, value: Self::Output);
 	unsafe fn get_field_impl(field_value: *mut Operand<Reference>) -> Self::Output;
+	unsafe fn get_field_volatile_impl(field_value: *mut Operand<Reference>) -> Self::Output;
 	unsafe fn put_field_impl(field_value: *mut Operand<Reference>, value: Self::Output);
 }
 
@@ -208,6 +214,13 @@ impl UnsafeOpImpl for jboolean {
 
 	unsafe fn get_field_impl(field_value: *mut Operand<Reference>) -> jboolean {
 		unsafe { (*field_value).expect_int() != 0 }
+	}
+
+	unsafe fn get_field_volatile_impl(field_value: *mut Operand<Reference>) -> Self::Output {
+		let field_value_ptr =
+			unsafe { core::intrinsics::atomic_load_acquire(&raw const field_value) };
+		let field_value = unsafe { &*field_value_ptr };
+		field_value.expect_int() != 0
 	}
 
 	#[allow(dropping_copy_types)]
@@ -249,6 +262,13 @@ macro_rules! unsafe_ops {
 					unsafe {
 						(*field_value).[<expect_ $operand_ty>]() as [<j $ty>]
 					}
+				}
+
+				#[allow(trivial_numeric_casts)]
+				unsafe fn get_field_volatile_impl(field_value: *mut Operand<Reference>) -> Self::Output {
+					let field_value_ptr = unsafe { core::intrinsics::atomic_load_acquire(&raw const field_value) };
+					let field_value = unsafe { &*field_value_ptr };
+					field_value.[<expect_ $operand_ty>]() as [<j $ty>]
 				}
 
 				#[allow(dropping_copy_types)]
@@ -666,7 +686,7 @@ pub fn objectFieldOffset1(
 	let class = class.extract_mirror();
 
 	let name_str = StringInterner::rust_string_from_java_string(name.extract_class());
-	let classref = class.get().expect_class();
+	let classref = class.get().target_class();
 
 	let mut offset = 0;
 	for field in classref.fields() {
@@ -715,7 +735,7 @@ pub fn ensureClassInitialized0(
 	let current_thread = unsafe { &mut *JavaThread::for_env(env.as_ptr() as _) };
 	let mirror = class.extract_mirror();
 
-	let target_class = mirror.get().expect_class();
+	let target_class = mirror.get().target_class();
 	match target_class.initialization_state() {
 		ClassInitializationState::Uninit => target_class.initialize(current_thread),
 		ClassInitializationState::InProgress | ClassInitializationState::Init => {},
@@ -730,7 +750,7 @@ pub fn arrayBaseOffset0(
 ) -> jint {
 	let mirror = array_class.extract_mirror();
 	// TODO: InvalidClassException
-	let _array = mirror.get().expect_class().unwrap_array_instance();
+	let _array = mirror.get().target_class().unwrap_array_instance();
 
 	// TODO: We don't do byte packing like Hotspot
 	0
@@ -742,7 +762,7 @@ pub fn arrayIndexScale0(
 ) -> jint {
 	let mirror = array_class.extract_mirror();
 	// TODO: InvalidClassException
-	let _array = mirror.get().expect_class().unwrap_array_instance();
+	let _array = mirror.get().target_class().unwrap_array_instance();
 
 	// TODO: We don't do byte packing like Hotspot
 	1

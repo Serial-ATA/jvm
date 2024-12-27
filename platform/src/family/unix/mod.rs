@@ -18,5 +18,6 @@ match_cfg_meta! {
 
 // Exports
 
+pub mod io;
 pub mod properties;
 pub(super) mod signals;

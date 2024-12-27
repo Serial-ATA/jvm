@@ -1,4 +1,8 @@
-use crate::method::Method;
+pub mod native;
+pub mod stack;
+
+use crate::objects::constant_pool::ConstantPool;
+use crate::objects::method::Method;
 use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::OperandStack;
 use crate::thread::JavaThread;
@@ -7,7 +11,6 @@ use std::cell::UnsafeCell;
 use std::fmt::{Debug, Formatter};
 use std::sync::atomic::{AtomicIsize, Ordering};
 
-use classfile::ConstantPoolRef;
 use common::int_types::{s1, s2, s4, u1, u2, u4};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6
@@ -20,7 +23,7 @@ pub struct Frame {
     // its own operand stack (§2.6.2)
 	stack: OperandStack,
     // and a reference to the run-time constant pool (§2.5.5)
-	constant_pool: ConstantPoolRef,
+	constant_pool: &'static ConstantPool,
 	method: &'static Method,
 	thread: UnsafeCell<*const JavaThread>,
 	
@@ -45,9 +48,12 @@ impl Frame {
 		thread: &JavaThread,
 		locals: LocalStack,
 		max_stack: u2,
-		constant_pool: ConstantPoolRef,
 		method: &'static Method,
 	) -> Self {
+		let constant_pool = method
+			.class()
+			.constant_pool()
+			.expect("Methods do not exist on array classes");
 		Self {
 			locals,
 			stack: OperandStack::new(max_stack as usize),
@@ -69,8 +75,8 @@ impl Frame {
 
 	/// Get a reference to the constant pool
 	#[inline]
-	pub fn constant_pool(&self) -> ConstantPoolRef {
-		self.constant_pool.clone()
+	pub fn constant_pool(&self) -> &'static ConstantPool {
+		self.constant_pool
 	}
 
 	/// Get a reference to the associated operand stack
@@ -99,7 +105,7 @@ impl Frame {
 
 	/// Get the method associated with this frame
 	#[inline]
-	pub fn method(&self) -> &Method {
+	pub fn method(&self) -> &'static Method {
 		self.method
 	}
 

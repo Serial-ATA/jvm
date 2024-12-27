@@ -1,7 +1,7 @@
-use crate::class_instance::Instance;
-use crate::field::Field;
 use crate::objects::class::Class;
-use crate::reference::{MirrorInstanceRef, Reference};
+use crate::objects::class_instance::Instance;
+use crate::objects::field::Field;
+use crate::objects::reference::{MirrorInstanceRef, Reference};
 
 use std::fmt::{Debug, Formatter};
 use std::ptr::NonNull;
@@ -19,18 +19,34 @@ enum MirrorTarget {
 // TODO: Make fields private
 /// A mirror instance
 ///
-/// A "mirror" is simply an instance of java.lang.Class with an associated [`ClassInstance`].
-/// It contains information about the object it's describing, as well as wrapping up the object itself.
+/// A "mirror" is simply an instance of `java.lang.Class` with an associated target [`Class`].
 ///
-/// [`ClassInstance`]: super::class_instance::ClassInstance
-#[derive(Debug, Clone, PartialEq)]
+/// In the following:
+///
+/// ```java
+/// var c = String.class;
+/// ```
+///
+/// `c` is a mirror instance, with a target of `java.lang.String`.
+#[derive(Clone, PartialEq)]
 pub struct MirrorInstance {
-	pub class: &'static Class,
+	class: &'static Class,
 	pub fields: Box<[Operand<Reference>]>,
 	target: MirrorTarget,
 }
 
+impl Debug for MirrorInstance {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("MirrorInstance")
+			.field("class", &self.class.name.as_str())
+			.field("fields", &self.fields)
+			.field("target", &self.target)
+			.finish()
+	}
+}
+
 impl MirrorInstance {
+	// TODO: Remove the `mirror_class` parameter? It's always `java.lang.Class`
 	pub fn new(mirror_class: &'static Class, target: &'static Class) -> MirrorInstanceRef {
 		let fields = Self::initialize_fields(mirror_class);
 		MirrorInstancePtr::new(Self {
@@ -63,13 +79,6 @@ impl MirrorInstance {
 		})
 	}
 
-	pub fn has_target(&self, class: &'static Class) -> bool {
-		match &self.target {
-			MirrorTarget::Class(target) => *target == class,
-			_ => false,
-		}
-	}
-
 	pub fn is_primitive(&self) -> bool {
 		matches!(&self.target, MirrorTarget::Primitive(_))
 	}
@@ -78,17 +87,47 @@ impl MirrorInstance {
 		matches!(&self.target, MirrorTarget::Class(class) if class.is_array())
 	}
 
-	pub fn expect_class(&self) -> &'static Class {
-		match &self.target {
-			MirrorTarget::Class(class) => *class,
-			_ => panic!("Expected mirror instance to point to class!"),
-		}
+	/// The backing class of this mirror
+	///
+	/// This is always `java.lang.Class`, and is only really useful as a marker.
+	///
+	/// In the following:
+	///
+	/// ```java
+	/// var c = String.class;
+	/// ```
+	///
+	/// `c` is an instance of `Class<?>`, which this represents.
+	///
+	/// To get the class that this mirror is targeting (in this case, `java.lang.String`), use [`MirrorInstance::target_class`].
+	pub fn class(&self) -> &'static Class {
+		self.class
 	}
 
-	pub fn expect_primitive(&self) -> FieldType {
+	/// The class that this mirror is targeting
+	///
+	/// In the following:
+	///
+	/// ```java
+	/// var c = String.class;
+	/// ```
+	///
+	/// `String` (`java.lang.String`) is the target class.
+	pub fn target_class(&self) -> &'static Class {
 		match &self.target {
-			MirrorTarget::Primitive(primitive) => primitive.clone(),
-			_ => panic!("Expected mirror instance to point to primitive!"),
+			MirrorTarget::Class(class) => *class,
+			MirrorTarget::Primitive(field_ty) => match field_ty {
+				FieldType::Byte => crate::globals::classes::java_lang_Byte(),
+				FieldType::Char => crate::globals::classes::java_lang_Character(),
+				FieldType::Double => crate::globals::classes::java_lang_Double(),
+				FieldType::Float => crate::globals::classes::java_lang_Float(),
+				FieldType::Int => crate::globals::classes::java_lang_Integer(),
+				FieldType::Long => crate::globals::classes::java_lang_Long(),
+				FieldType::Short => crate::globals::classes::java_lang_Short(),
+				FieldType::Boolean => crate::globals::classes::java_lang_Boolean(),
+				FieldType::Void => crate::globals::classes::java_lang_Void(),
+				_ => unreachable!("only primitive types should exist within primitive mirrors"),
+			},
 		}
 	}
 

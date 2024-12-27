@@ -1,4 +1,4 @@
-use crate::reference::Reference;
+use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
 use std::ptr::NonNull;
@@ -11,21 +11,39 @@ include_generated!("native/jdk/internal/reflect/def/Reflection.definitions.rs");
 #[expect(clippy::match_same_arms)]
 pub fn getCallerClass(env: NonNull<JniEnv>) -> Reference {
 	let current_thread = unsafe { &*JavaThread::for_env(env.as_ptr() as _) };
+
+	// The call stack at this point looks something like this:
+	//
+	// [0] [ @CallerSensitive public jdk.internal.reflect.Reflection.getCallerClass ]
+	// [1] [ @CallerSensitive API.method                                   ]
+	// [.] [ (skipped intermediate frames)                                 ]
+	// [n] [ caller                                                        ]
 	for (n, frame) in current_thread.frame_stack().iter().rev().enumerate() {
 		let method = frame.method();
-		match n {
-			// TODO:
-			//   https://github.com/openjdk/jdk/blob/6a44120a16d0f06b4ed9f0ebf6b0919da7070287/src/hotspot/share/prims/jvm.cpp#L742-L744
-			//   https://github.com/openjdk/jdk/blob/6a44120a16d0f06b4ed9f0ebf6b0919da7070287/src/java.base/share/classes/java/lang/invoke/MethodHandleNatives.java#L117
-			0 => {},
-			// TODO:
-			//   https://github.com/openjdk/jdk/blob/6a44120a16d0f06b4ed9f0ebf6b0919da7070287/src/hotspot/share/prims/jvm.cpp#L748-L750
-			//   https://github.com/openjdk/jdk/blob/6a44120a16d0f06b4ed9f0ebf6b0919da7070287/src/java.base/share/classes/java/lang/invoke/MethodHandleNatives.java#L117
-			1 => {},
-			_ => {
-				// TODO: https://github.com/openjdk/jdk/blob/6a44120a16d0f06b4ed9f0ebf6b0919da7070287/src/hotspot/share/oops/method.cpp#L1378
-				return Reference::mirror(method.class.mirror());
-			},
+
+		// TODO:
+		//   https://github.com/openjdk/jdk/blob/6a44120a16d0f06b4ed9f0ebf6b0919da7070287/src/hotspot/share/prims/jvm.cpp#L742-L744
+		//   https://github.com/openjdk/jdk/blob/6a44120a16d0f06b4ed9f0ebf6b0919da7070287/src/java.base/share/classes/java/lang/invoke/MethodHandleNatives.java#L117
+		if n == 0 || n == 1 {
+			if n == 0 {
+				// TODO
+				tracing::warn!(
+					"(!!!) UNIMPLEMENTED `getCallerClass` not verifying call from Reflection"
+				);
+			}
+
+			if !method.is_caller_sensitive() {
+				// TODO
+				panic!(
+					"InternalError, `getCallerClass` is not called from a @CallerSensitive method"
+				);
+			}
+
+			continue;
+		}
+
+		if !method.is_stack_walk_ignored() {
+			return Reference::mirror(method.class().mirror());
 		}
 	}
 

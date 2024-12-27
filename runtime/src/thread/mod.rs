@@ -1,27 +1,37 @@
-use crate::class_instance::{ClassInstance, Instance};
-use crate::frame::Frame;
+mod exceptions;
+pub mod frame;
+use frame::stack::{FrameStack, StackFrame};
+#[allow(non_snake_case)]
+pub mod java_lang_Thread;
+pub mod pool;
+
+use crate::classpath::classloader::ClassLoader;
 use crate::interpreter::Interpreter;
 use crate::java_call;
-use crate::method::Method;
 use crate::native::jni::invocation_api::new_env;
-use crate::reference::{ClassInstanceRef, Reference};
+use crate::objects::class_instance::ClassInstance;
+use crate::objects::method::Method;
+use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::string_interner::StringInterner;
+use crate::thread::frame::native::NativeFrame;
+use crate::thread::frame::Frame;
+use crate::thread::pool::ThreadPool;
 
 use std::cell::{SyncUnsafeCell, UnsafeCell};
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
+use std::thread;
+use std::thread::JoinHandle;
 
 use classfile::accessflags::MethodAccessFlags;
-use common::int_types::s4;
-use common::traits::PtrType;
 use instructions::{Operand, StackLike};
 use jni::env::JniEnv;
 use symbols::sym;
 
 #[thread_local]
-static CURRENT_JAVA_THREAD: SyncUnsafeCell<Option<JavaThread>> = SyncUnsafeCell::new(None);
+static CURRENT_JAVA_THREAD: SyncUnsafeCell<Option<&'static JavaThread>> = SyncUnsafeCell::new(None);
 
 pub struct JVMOptions {
 	pub dry_run: bool,
@@ -30,90 +40,95 @@ pub struct JVMOptions {
 	pub show_version: bool,
 }
 
-#[derive(Debug)]
-enum StackFrame {
-	Real(Frame),
-	Fake,
+/// A builder for a `JavaThread`
+///
+/// This is the only way to construct a `JavaThread`, and is responsible for spawning the associated
+/// OS thread, if applicable.
+#[derive(Default)]
+pub struct JavaThreadBuilder {
+	obj: Option<Reference>,
+	entry_point: Option<Box<dyn Fn(&JavaThread) + Send + Sync + 'static>>,
+	stack_size: usize,
 }
 
-impl StackFrame {
-	fn is_fake(&self) -> bool {
-		matches!(self, StackFrame::Fake)
-	}
-}
-
-#[derive(Debug)]
-pub struct FrameStack {
-	inner: UnsafeCell<Vec<StackFrame>>,
-}
-
-impl FrameStack {
-	// TODO
-	fn new() -> Self {
-		FrameStack {
-			inner: UnsafeCell::new(Vec::with_capacity(1024)),
+impl JavaThreadBuilder {
+	/// Create a new `JavaThreadBuilder`
+	///
+	/// This is equivalent to [`Self::default`].
+	pub fn new() -> JavaThreadBuilder {
+		Self {
+			obj: None,
+			entry_point: None,
+			stack_size: 0, // TODO: Default -Xss
 		}
 	}
 
-	fn current(&self) -> Option<&mut Frame> {
-		let current_frame = self.__inner_mut().last_mut();
-		match current_frame {
-			Some(StackFrame::Real(r)) => Some(r),
-			_ => None,
+	// TODO: Unsafe? The object is not verified to be of the correct class.
+	/// Set the `java.lang.Thread` associated with this `JavaThread`
+	///
+	/// It is up to the caller to verify that `obj` is *actually* of the correct type.
+	pub fn obj(mut self, obj: Reference) -> Self {
+		self.obj = Some(obj);
+		self
+	}
+
+	/// Set the entrypoint of this `JavaThread`
+	///
+	/// Setting this will spawn an OS thread to run `entry`. This is really only used with [`JavaThread::default_entry_point`],
+	/// which calls `java.lang.Thread#run` on the associated [`obj`].
+	///
+	/// [`obj`]: Self::obj
+	pub fn entry_point(mut self, entry: impl Fn(&JavaThread) + Send + Sync + 'static) -> Self {
+		self.entry_point = Some(Box::new(entry));
+		self
+	}
+
+	/// Set the stack size of the associated OS thread
+	///
+	/// This will have no effect if there is no [`entry_point`] set.
+	///
+	/// [`entry_point`]: Self::entry_point
+	pub fn stack_size(mut self, size: usize) -> Self {
+		self.stack_size = size;
+		self
+	}
+
+	/// Construct the `JavaThread`
+	///
+	/// This will also spawn an OS thread if applicable.
+	///
+	/// The return type of this depends on whether an OS thread has been spawned. If no [`entry_point`]
+	/// was set, it is safe to unwrap it as [`MaybeArc::Not`].
+	///
+	/// [`entry_point`]: Self::entry_point
+	pub fn finish(self) -> &'static JavaThread {
+		let thread = JavaThread {
+			env: unsafe { JniEnv::from_raw(new_env()) },
+			obj: UnsafeCell::new(self.obj),
+			os_thread: UnsafeCell::new(None),
+
+			pc: AtomicIsize::new(0),
+			frame_stack: FrameStack::new(),
+			remaining_operand: UnsafeCell::new(None),
+		};
+
+		let thread = ThreadPool::push(thread);
+		if let Some(entry_point) = self.entry_point {
+			let mut os_thread = thread::Builder::new();
+			if self.stack_size > 0 {
+				os_thread = os_thread.stack_size(self.stack_size);
+			}
+
+			let os_thread_ptr = thread.os_thread.get();
+
+			// TODO: Error handling
+			let handle = os_thread.spawn(move || entry_point(thread)).unwrap();
+			unsafe {
+				*os_thread_ptr = Some(handle);
+			}
 		}
-	}
 
-	pub fn depth(&self) -> usize {
-		self.__inner().len()
-	}
-
-	pub fn iter(&self) -> impl DoubleEndedIterator<Item = &Frame> {
-		self.__inner().iter().filter_map(|frame| match frame {
-			StackFrame::Real(frame) => Some(frame),
-			StackFrame::Fake => None,
-		})
-	}
-
-	pub fn get(&self, position: usize) -> Option<&Frame> {
-		match self.__inner().get(position) {
-			Some(StackFrame::Real(frame)) => Some(frame),
-			None => None,
-			_ => unreachable!(),
-		}
-	}
-
-	fn push(&self, frame: StackFrame) {
-		self.__inner_mut().push(frame);
-	}
-
-	fn pop(&self) -> Option<StackFrame> {
-		self.__inner_mut().pop()
-	}
-
-	fn pop_real(&self) -> Option<Frame> {
-		match self.__inner_mut().pop() {
-			Some(StackFrame::Real(r)) => Some(r),
-			_ => None,
-		}
-	}
-
-	fn pop_dummy(&self) {
-		match self.__inner_mut().pop() {
-			Some(StackFrame::Fake) => return,
-			_ => panic!("Expected a dummy frame!"),
-		}
-	}
-
-	fn clear(&self) {
-		self.__inner_mut().clear();
-	}
-
-	fn __inner(&self) -> &mut Vec<StackFrame> {
-		unsafe { &mut *self.inner.get() }
-	}
-
-	fn __inner_mut(&self) -> &mut Vec<StackFrame> {
-		unsafe { &mut *self.inner.get() }
+		thread
 	}
 }
 
@@ -121,6 +136,7 @@ impl FrameStack {
 pub struct JavaThread {
 	env: JniEnv,
 	obj: UnsafeCell<Option<Reference>>,
+	os_thread: UnsafeCell<Option<JoinHandle<()>>>,
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.5.1
 	// Each Java Virtual Machine thread has its own pc (program counter) register [...]
@@ -130,6 +146,9 @@ pub struct JavaThread {
 
 	remaining_operand: UnsafeCell<Option<Operand<Reference>>>,
 }
+
+unsafe impl Sync for JavaThread {}
+unsafe impl Send for JavaThread {}
 
 impl PartialEq for JavaThread {
 	fn eq(&self, other: &Self) -> bool {
@@ -158,7 +177,7 @@ impl JavaThread {
 
 		// SAFETY: The thread is an `Option`, so it's always initialized with *something*
 		let opt = unsafe { &*current };
-		match opt {
+		match *opt {
 			None => std::ptr::null(),
 			Some(thread) => thread,
 		}
@@ -182,7 +201,7 @@ impl JavaThread {
 
 		// SAFETY: The thread is an `Option`, so it's always initialized with *something*
 		let opt = unsafe { &*current };
-		opt.as_ref()
+		*opt
 	}
 
 	/// Sets the current Java [`JavaThread`]
@@ -190,7 +209,7 @@ impl JavaThread {
 	/// # Panics
 	///
 	/// This will panic if there is already a current thread set
-	pub unsafe fn set_current_thread(thread: JavaThread) {
+	pub unsafe fn set_current_thread(thread: &'static JavaThread) {
 		let current = CURRENT_JAVA_THREAD.get();
 
 		// SAFETY: The thread is an `Option`, so it's always initialized with *something*
@@ -221,139 +240,23 @@ pub enum ThreadStatus {
 	Terminated = 8,
 }
 
-/// `java.lang.Thread$FieldHolder` accessors
-pub mod java_lang_Thread {
-	use crate::class_instance::Instance;
-	use crate::reference::Reference;
-	use crate::thread::ThreadStatus;
-	use crate::JavaThread;
-	use common::int_types::s4;
-	use common::traits::PtrType;
-	use instructions::Operand;
-	use symbols::sym;
-
-	pub fn set_field_offsets() {
-		// java.lang.Thread fields
-		{
-			let class = crate::globals::classes::java_lang_Thread();
-
-			let mut field_set = 0;
-			for (index, field) in class.instance_fields().enumerate() {
-				if field.name == sym!(holder) {
-					unsafe {
-						crate::globals::field_offsets::set_thread_holder_field_offset(index);
-					}
-
-					field_set |= 1;
-					continue;
-				}
-
-				if field.name == sym!(eetop) {
-					unsafe {
-						crate::globals::field_offsets::set_thread_eetop_field_offset(index);
-					}
-
-					field_set |= 1 << 1;
-					continue;
-				}
-			}
-
-			assert_eq!(
-				field_set, 0b11,
-				"Not all fields were found in java/lang/Thread"
-			);
-		}
-
-		set_field_holder_offsets();
-	}
-
-	// java.lang.Thread$FieldHolder fields
-	fn set_field_holder_offsets() {
-		let class = crate::globals::classes::java_lang_Thread_FieldHolder();
-
-		let mut field_set = 0;
-		for (index, field) in class.fields().enumerate() {
-			match field.name.as_str() {
-				"priority" => unsafe {
-					crate::globals::field_offsets::set_field_holder_priority_field_offset(index);
-					field_set |= 1;
-				},
-				"daemon" => unsafe {
-					crate::globals::field_offsets::set_field_holder_daemon_field_offset(index);
-					field_set |= 1 << 1;
-				},
-				"threadStatus" => unsafe {
-					crate::globals::field_offsets::set_field_holder_thread_status_field_offset(
-						index,
-					);
-					field_set |= 1 << 2;
-				},
-				_ => {},
-			}
-		}
-
-		assert_eq!(
-			field_set, 0b111,
-			"Not all fields were found in java/lang/Thread$FieldHolder"
-		);
-	}
-
-	pub(super) fn set_eetop(obj: Reference, eetop: jni::sys::jlong) {
-		let offset = crate::globals::field_offsets::thread_eetop_field_offset();
-
-		let instance = obj.extract_class();
-		instance
-			.get_mut()
-			.put_field_value0(offset, Operand::Long(eetop));
-	}
-
-	fn set_field_holder_field(obj: Reference, offset: usize, value: Operand<Reference>) {
-		let class_instance = obj.extract_class();
-
-		let field_holder_offset = crate::globals::field_offsets::thread_holder_field_offset();
-		let field_holder_ref = &class_instance
-			.get_mut()
-			.get_field_value0(field_holder_offset);
-
-		let field_holder_instance = field_holder_ref.expect_reference().extract_class();
-		field_holder_instance
-			.get_mut()
-			.put_field_value0(offset, value);
-	}
-
-	pub fn set_priority(obj: Reference, priority: s4) {
-		let offset = crate::globals::field_offsets::field_holder_priority_field_offset();
-		set_field_holder_field(obj, offset, Operand::Int(priority));
-	}
-
-	fn set_daemon(_obj: Reference, _daemon: bool) {
-		todo!()
-	}
-
-	pub(super) fn set_thread_status(obj: Reference, thread_status: ThreadStatus) {
-		let offset = crate::globals::field_offsets::field_holder_thread_status_field_offset();
-		set_field_holder_field(obj, offset, Operand::Int(thread_status as s4));
-	}
-}
-
 // Actions for the related `java.lang.Thread` instance
 impl JavaThread {
-	/// Get the `JavaThread` associated with `obj`
+	/// The default entrypoint for a `java.lang.Thread`
 	///
-	/// # Safety
+	/// This simply calls `java.lang.Thread#run` with the [`obj`] associated with this `JavaThread`.
 	///
-	/// The caller must ensure that `obj` is a `java.lang.Thread` object obtained from [`Self::obj()`]
-	pub unsafe fn for_obj(obj: ClassInstanceRef) -> Option<*mut JavaThread> {
-		let eetop_offset = crate::globals::field_offsets::thread_eetop_field_offset();
-		let field_value_ptr = unsafe { obj.get().get_field_value_raw(eetop_offset) };
-		let field_value = unsafe { field_value_ptr.as_ref() };
-		let eetop = field_value.expect_long();
-		if eetop == 0 {
-			// Thread is not alive
-			return None;
-		}
+	/// [`obj`]: JavaThread::obj
+	pub fn default_entry_point(&self) {
+		let obj = self.obj().expect("entrypoint should exist");
 
-		Some(eetop as *mut JavaThread)
+		let thread_class = ClassLoader::Bootstrap.load(sym!(java_lang_Thread)).unwrap();
+		let run_method = thread_class
+			.resolve_method_step_two(sym!(run_name), sym!(void_method_signature))
+			.unwrap();
+
+		let ret = java_call!(self, run_method, Operand::Reference(obj));
+		assert!(ret.is_none());
 	}
 
 	/// Allocates a new `java.lang.Thread` for this `JavaThread`
@@ -436,7 +339,7 @@ impl JavaThread {
 			Operand::Reference(Reference::class(thread_name)),
 		);
 
-		java_lang_Thread::set_thread_status(obj, ThreadStatus::Runnable);
+		java_lang_Thread::holder::set_thread_status(obj, ThreadStatus::Runnable);
 	}
 
 	pub fn set_obj(&self, obj: Reference) {
@@ -461,17 +364,6 @@ impl JavaThread {
 }
 
 impl JavaThread {
-	pub fn new() -> Self {
-		Self {
-			env: unsafe { JniEnv::from_raw(new_env()) },
-			obj: UnsafeCell::new(None),
-
-			pc: AtomicIsize::new(0),
-			frame_stack: FrameStack::new(),
-			remaining_operand: UnsafeCell::new(None),
-		}
-	}
-
 	/// Get a pointer to the associated [`JniEnv`]
 	pub fn env(&self) -> NonNull<JniEnv> {
 		unsafe {
@@ -538,23 +430,30 @@ impl JavaThread {
 
 		let max_stack = method.code.max_stack;
 
-		let constant_pool = Arc::clone(&method.class.unwrap_class_instance().constant_pool);
-
-		let frame = Frame::new(self, locals, max_stack, constant_pool, method);
+		let frame = Frame::new(self, locals, max_stack, method);
 
 		self.stash_and_reset_pc();
 		self.frame_stack.push(StackFrame::Real(frame));
 	}
 
-	// Native methods do not require a stack frame. We just call and leave the stack behind until we return.
-	fn invoke_native(&self, method: &Method, locals: LocalStack) {
+	fn invoke_native(&self, method: &'static Method, locals: LocalStack) {
 		// Try to lookup and set the method prior to calling
 		crate::native::lookup::lookup_native_method(method, self);
 
 		let fn_ptr = super::native::lookup_method(method);
 
-		// Push the return value onto the frame's stack
-		if let Some(ret) = fn_ptr(self.env(), locals) {
+		// See comments on `NativeFrame`
+		self.frame_stack
+			.push(StackFrame::Native(NativeFrame { method }));
+
+		let ret = fn_ptr(self.env(), locals);
+		assert!(
+			self.frame_stack.pop_native().is_some(),
+			"native frame consumed"
+		);
+
+		// Push the return value onto the previous frame's stack
+		if let Some(ret) = ret {
 			self.frame_stack.current().unwrap().stack_mut().push_op(ret);
 		}
 
@@ -612,67 +511,6 @@ impl JavaThread {
 	/// This will panic if `object_ref` is non-null, but not a subclass of `java/lang/Throwable`.
 	/// This should never occur post-verification.
 	pub fn throw_exception(&self, object_ref: Reference) {
-		// https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-6.html#jvms-6.5.athrow
-		// The objectref must be of type reference and must refer to an object that is an instance of class Throwable or of a subclass of Throwable.
-		if object_ref.is_null() {
-			self.throw_npe();
-			return;
-		}
-
-		let class_instance = object_ref.extract_class();
-
-		let throwable_class = crate::globals::classes::java_lang_Throwable();
-		assert!(
-			class_instance.get().class() == throwable_class
-				|| class_instance.get().is_subclass_of(&throwable_class)
-		);
-
-		// Search each frame for an exception handler
-		self.stash_and_reset_pc();
-		while let Some(current_frame) = self.frame_stack.current() {
-			let current_frame_pc = current_frame.stashed_pc();
-
-			// If an exception handler that matches objectref is found, it contains the location of the code intended to handle this exception.
-			if let Some(handler_pc) = current_frame
-				.method()
-				.find_exception_handler(class_instance.get().class(), current_frame_pc)
-			{
-				// The pc register is reset to that location,the operand stack of the current frame is cleared, objectref
-				// is pushed back onto the operand stack, and execution continues.
-				self.pc.store(handler_pc, Ordering::Relaxed);
-
-				let stack = current_frame.stack_mut();
-				stack.clear();
-				stack.push_reference(object_ref);
-
-				return;
-			}
-
-			let _ = self.frame_stack.pop();
-		}
-
-		// No handler found, we have to print the stack trace and exit
-		self.frame_stack.clear();
-
-		let print_stack_trace = class_instance
-			.get()
-			.class()
-			.vtable()
-			.find(
-				sym!(printStackTrace_name),
-				sym!(void_method_signature),
-				MethodAccessFlags::NONE,
-			)
-			.expect("java/lang/Throwable#printStackTrace should exist");
-
-		let mut locals = LocalStack::new(1);
-		locals[0] = Operand::Reference(object_ref);
-
-		self.invoke_method_with_local_stack(print_stack_trace, locals);
-	}
-
-	/// Throw a `NullPointerException` on this thread
-	pub fn throw_npe(&self) {
-		todo!()
+		exceptions::throw(self, object_ref);
 	}
 }

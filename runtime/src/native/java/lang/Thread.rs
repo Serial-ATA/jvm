@@ -1,14 +1,13 @@
-use crate::class_instance::Instance;
-use crate::reference::Reference;
-use crate::thread::java_lang_Thread;
-use crate::JavaThread;
+use crate::objects::reference::Reference;
+use crate::thread::pool::ThreadPool;
+use crate::thread::{java_lang_Thread, JavaThread, JavaThreadBuilder, ThreadStatus};
 
+use std::cmp;
 use std::ptr::NonNull;
 use std::sync::atomic::AtomicUsize;
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
-use common::traits::PtrType;
 
 include_generated!("native/java/lang/def/Thread.registerNatives.rs");
 include_generated!("native/java/lang/def/Thread.definitions.rs");
@@ -60,8 +59,30 @@ pub fn sleepNanos0(_env: NonNull<JniEnv>, _nanos: jlong) {
 	unimplemented!("java.lang.Thread#sleepNanos0");
 }
 
-pub fn start0(_env: NonNull<JniEnv>, _this: Reference /* java.lang.Thread */) {
-	unimplemented!("java.lang.Thread#start0");
+pub fn start0(_env: NonNull<JniEnv>, this: Reference /* java.lang.Thread */) {
+	{
+		let existing_thread = unsafe { ThreadPool::find_from_obj(this.clone()) };
+		if existing_thread.is_some() {
+			JavaThread::current()
+				.throw_exception(todo!("Throw java.lang.IllegalThreadStateException"))
+		}
+	}
+
+	let stack_size_raw = java_lang_Thread::holder::stack_size(&this);
+
+	let mut thread_builder = JavaThreadBuilder::new()
+		.obj(this)
+		.entry_point(JavaThread::default_entry_point);
+
+	if stack_size_raw > 0 {
+		let stack_size = cmp::min(stack_size_raw as usize, u32::MAX as usize);
+		thread_builder = thread_builder.stack_size(stack_size);
+	}
+
+	let thread = thread_builder.finish();
+
+	let obj = thread.obj().expect("current thread object should exist");
+	java_lang_Thread::holder::set_thread_status(obj, ThreadStatus::Runnable);
 }
 
 pub fn holdsLock(_env: NonNull<JniEnv>, _obj: Reference /* java.lang.Object */) -> jboolean {
@@ -93,9 +114,9 @@ pub fn setPriority0(
 	this: Reference, // java.lang.Thread
 	new_priority: jint,
 ) {
-	java_lang_Thread::set_priority(this.clone(), new_priority);
+	java_lang_Thread::holder::set_priority(this.clone(), new_priority);
 
-	let java_thread = unsafe { JavaThread::for_obj(this.extract_class()) };
+	let java_thread = unsafe { ThreadPool::find_from_obj(this) };
 	let Some(thread) = java_thread else {
 		return;
 	};

@@ -1,13 +1,15 @@
 mod spec;
 pub use spec::ClassInitializationState;
 
+use super::constant_pool::ConstantPool;
 use super::field::Field;
 use super::method::Method;
 use super::mirror::MirrorInstance;
 use super::vtable::VTable;
 use crate::classpath::classloader::ClassLoader;
 use crate::globals::PRIMITIVES;
-use crate::reference::{MirrorInstanceRef, Reference};
+use crate::objects::constant_pool::cp_types;
+use crate::objects::reference::{MirrorInstanceRef, Reference};
 use crate::thread::JavaThread;
 use spec::InitializationLock;
 
@@ -18,7 +20,7 @@ use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
 
 use classfile::accessflags::ClassAccessFlags;
-use classfile::{ClassFile, ConstantPool, ConstantPoolRef, FieldType, MethodInfo};
+use classfile::{ClassFile, FieldType, MethodInfo};
 use common::box_slice;
 use common::int_types::{u1, u2, u4};
 use instructions::Operand;
@@ -119,7 +121,7 @@ pub struct Class {
 	field_container: FieldContainer,
 	vtable: UnsafeCell<MaybeUninit<VTable<'static>>>,
 
-	pub(super) class_ty: ClassType,
+	class_ty: UnsafeCell<MaybeUninit<ClassType>>,
 
 	init_lock: Arc<InitializationLock>,
 
@@ -150,16 +152,15 @@ impl PartialEq for Class {
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ClassType {
 	Instance(ClassDescriptor),
 	Array(ArrayDescriptor),
 }
 
-#[derive(Clone)]
 pub struct ClassDescriptor {
 	pub source_file_index: Option<u2>,
-	pub constant_pool: ConstantPoolRef,
+	pub constant_pool: ConstantPool,
 }
 
 impl Debug for ClassDescriptor {
@@ -167,9 +168,10 @@ impl Debug for ClassDescriptor {
 		let mut debug_struct = f.debug_struct("ClassDescriptor");
 
 		match self.source_file_index {
-			Some(idx) => debug_struct.field("source_file", &unsafe {
-				std::str::from_utf8_unchecked(&self.constant_pool.get_constant_utf8(idx))
-			}),
+			Some(idx) => debug_struct.field(
+				"source_file",
+				&self.constant_pool.get::<cp_types::ConstantUtf8>(idx),
+			),
 			None => debug_struct.field("source_file", &"None"),
 		};
 
@@ -185,12 +187,18 @@ pub struct ArrayDescriptor {
 
 // Getters
 impl Class {
+	fn class_ty(&self) -> &'static ClassType {
+		// SAFETY: The only way to construct a `Class` is via `Class::new()`, which ensures that the
+		//         class type is initialized.
+		unsafe { (&*self.class_ty.get()).assume_init_ref() }
+	}
+
 	/// Get a reference to the constant pool for this class
 	///
 	/// This returns an `Option`, as array classes do not have an associated constant pool. It is
 	/// guaranteed to be present otherwise.
-	pub fn constant_pool(&self) -> Option<&ConstantPool> {
-		match &self.class_ty {
+	pub fn constant_pool(&self) -> Option<&'static ConstantPool> {
+		match self.class_ty() {
 			ClassType::Instance(instance) => Some(&instance.constant_pool),
 			_ => None,
 		}
@@ -371,7 +379,7 @@ impl Class {
 
 	/// Whether the class represents an array
 	pub fn is_array(&self) -> bool {
-		matches!(self.class_ty, ClassType::Array(_))
+		matches!(self.class_ty(), ClassType::Array(_))
 	}
 
 	/// Whether the class is an interface
@@ -501,12 +509,6 @@ impl Class {
 
 		let static_field_slots = box_slice![UnsafeCell::new(Operand::Empty); static_field_count];
 
-		// We need the Class instance to create our methods and fields
-		let class_instance = ClassDescriptor {
-			source_file_index,
-			constant_pool,
-		};
-
 		let class = Self {
 			name,
 			access_flags,
@@ -517,12 +519,24 @@ impl Class {
 			mirror: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			field_container: FieldContainer::new(static_field_slots),
 			vtable: UnsafeCell::new(MaybeUninit::uninit()), // Set later
-			class_ty: ClassType::Instance(class_instance),
+			class_ty: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			init_lock: Arc::new(InitializationLock::new()),
 			is_initialized: Cell::new(false),
 		};
 
 		let class: &'static mut Class = Box::leak(Box::new(class));
+
+		// TODO: Improve?
+		// CIRCULAR DEPENDENCY!
+		//
+		// The `ClassDescriptor` holds a `ConstantPool`, which holds a reference to the `Class`.
+		let class_instance = ClassDescriptor {
+			source_file_index,
+			constant_pool: ConstantPool::new(class, constant_pool),
+		};
+		unsafe {
+			*class.class_ty.get() = MaybeUninit::new(ClassType::Instance(class_instance));
+		}
 
 		// Create our vtable...
 		let vtable = new_vtable(Some(&parsed_file.methods), class);
@@ -611,7 +625,7 @@ impl Class {
 			mirror: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			field_container: FieldContainer::null(),
 			vtable: UnsafeCell::new(MaybeUninit::uninit()), // Set later
-			class_ty: ClassType::Array(array_instance),
+			class_ty: UnsafeCell::new(MaybeUninit::new(ClassType::Array(array_instance))),
 			init_lock: Arc::new(InitializationLock::new()),
 			is_initialized: Cell::new(false),
 		};
@@ -657,7 +671,7 @@ impl Class {
 	/// This is only safe to call *before* the class is in use. It should never be used outside of
 	/// class loading.
 	pub unsafe fn set_mirror(&'static self, mirror_class: &'static Class) {
-		let mirror = match self.class_ty {
+		let mirror = match self.class_ty() {
 			ClassType::Instance(_) => MirrorInstance::new(mirror_class, self),
 			ClassType::Array(_) => MirrorInstance::new_array(mirror_class, self),
 		};
@@ -718,29 +732,15 @@ impl Class {
 	}
 
 	pub fn unwrap_class_instance(&self) -> &ClassDescriptor {
-		match self.class_ty {
-			ClassType::Instance(ref instance) => instance,
-			_ => unreachable!(),
-		}
-	}
-
-	pub fn unwrap_class_instance_mut(&mut self) -> &mut ClassDescriptor {
-		match self.class_ty {
-			ClassType::Instance(ref mut instance) => instance,
+		match self.class_ty() {
+			ClassType::Instance(instance) => instance,
 			_ => unreachable!(),
 		}
 	}
 
 	pub fn unwrap_array_instance(&self) -> &ArrayDescriptor {
-		match self.class_ty {
-			ClassType::Array(ref instance) => instance,
-			_ => unreachable!(),
-		}
-	}
-
-	pub fn unwrap_array_instance_mut(&mut self) -> &mut ArrayDescriptor {
-		match self.class_ty {
-			ClassType::Array(ref mut instance) => instance,
+		match self.class_ty() {
+			ClassType::Array(instance) => instance,
 			_ => unreachable!(),
 		}
 	}

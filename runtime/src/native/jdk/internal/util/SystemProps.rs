@@ -1,8 +1,8 @@
 pub mod Raw {
-	use crate::class_instance::ArrayInstance;
 	use crate::classpath::classloader::ClassLoader;
 	use crate::include_generated;
-	use crate::reference::Reference;
+	use crate::objects::class_instance::ArrayInstance;
+	use crate::objects::reference::Reference;
 	use crate::string_interner::StringInterner;
 
 	use std::ptr::NonNull;

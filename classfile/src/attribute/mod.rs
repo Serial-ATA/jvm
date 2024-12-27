@@ -1,3 +1,5 @@
+pub mod resolved;
+
 use common::int_types::{u1, u2};
 
 macro_rules! attribute_getter_methods {
@@ -145,8 +147,8 @@ impl From<&[u1]> for AttributeTag {
 			b"PermittedSubclasses" => Self::PermittedSubclasses,
 			_ => unsafe {
 				panic!(
-					"Encountered unknown attribute type: {}",
-					std::str::from_utf8_unchecked(bytes)
+					"Encountered unknown attribute type: {:?}",
+					std::str::from_utf8(bytes)
 				);
 			},
 		}
@@ -583,7 +585,7 @@ pub enum ElementValueType {
         annotation: Annotation,
     },
     Array {
-        values: Vec<ElementValueType>
+        values: Vec<ElementValue>
     },
 }
 

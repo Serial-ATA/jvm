@@ -1,9 +1,10 @@
-use crate::class::Class;
 use crate::java_call;
-use crate::method::Method;
 use crate::method_invoker::MethodInvoker;
+use crate::objects::class::Class;
+use crate::objects::constant_pool::{cp_types, ConstantPool};
 use crate::objects::field::Field;
-use crate::reference::Reference;
+use crate::objects::method::Method;
+use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
 use crate::thread::JavaThread;
 
@@ -11,7 +12,7 @@ use std::cell::UnsafeCell;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 use classfile::accessflags::MethodAccessFlags;
-use classfile::{ConstantPoolRef, FieldType};
+use classfile::FieldType;
 use common::int_types::u2;
 use instructions::Operand;
 use symbols::{sym, Symbol};
@@ -140,20 +141,8 @@ impl Class {
 
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.2
 	#[tracing::instrument(skip_all)]
-	pub fn resolve_field(
-		&self,
-		constant_pool: ConstantPoolRef,
-		field_ref_idx: u2,
-	) -> Option<&'static Field> {
-		// TODO: Double constant pool lookup
-		let (_, name_and_type_index) = constant_pool.get_field_ref(field_ref_idx);
-
-		let (name_index, descriptor_index) = constant_pool.get_name_and_type(name_and_type_index);
-
-		let field_name = constant_pool.get_constant_utf8(name_index);
-		let mut descriptor = constant_pool.get_constant_utf8(descriptor_index);
-
-		let field_type = FieldType::parse(&mut descriptor).unwrap(); // TODO: Error handling
+	pub fn resolve_field(&self, name: Symbol, descriptor: Symbol) -> Option<&'static Field> {
+		let field_type = FieldType::parse(&mut descriptor.as_bytes()).unwrap(); // TODO: Error handling
 
 		// When resolving a field reference, field resolution first attempts to look up
 		// the referenced field in C and its superclasses:
@@ -161,7 +150,7 @@ impl Class {
 		// 1. If C declares a field with the name and descriptor specified by the field reference,
 		//    field lookup succeeds. The declared field is the result of the field lookup.
 		for field in self.fields() {
-			if field.name.as_bytes() == field_name && field.descriptor == field_type {
+			if field.name == name && field.descriptor == field_type {
 				return Some(field);
 			}
 		}
@@ -172,7 +161,7 @@ impl Class {
 
 		// 3. Otherwise, if C has a superclass S, field lookup is applied recursively to S.
 		if let Some(super_class) = &self.super_class {
-			if let Some(field) = super_class.resolve_field(constant_pool, field_ref_idx) {
+			if let Some(field) = super_class.resolve_field(name, descriptor) {
 				return Some(field);
 			}
 		}
@@ -184,30 +173,13 @@ impl Class {
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.3
 	#[tracing::instrument(skip_all)]
 	pub fn resolve_method<'a>(
-		&'a self,
-		thread: &JavaThread,
-		method_ref_idx: u2,
+		class: &'static Class,
+		interface_method: bool, // TODO: Should just call `resolve_interface_method` directly
+		name: Symbol,
+		descriptor: Symbol,
 	) -> Option<&'static Method> {
-		let descriptor = self.unwrap_class_instance();
-		let constant_pool = Arc::clone(&descriptor.constant_pool);
-
-		let (interface_method, class_name_index, name_and_type_index) =
-			constant_pool.get_method_ref(method_ref_idx);
-
-		let (method_name_index, method_descriptor_index) =
-			constant_pool.get_name_and_type(name_and_type_index);
-
-		let method_name_raw = constant_pool.get_constant_utf8(method_name_index);
-		let descriptor_raw = constant_pool.get_constant_utf8(method_descriptor_index);
-
-		let method_name = Symbol::intern_bytes(method_name_raw);
-		let descriptor = Symbol::intern_bytes(descriptor_raw);
-
-		let class_name = constant_pool.get_class_name(class_name_index);
-		let class = self.loader.load(Symbol::intern_bytes(class_name)).unwrap();
-
 		if interface_method {
-			return class.resolve_interface_method(thread, method_name, descriptor);
+			return class.resolve_interface_method(name, descriptor);
 		}
 
 		// When resolving a method reference:
@@ -218,18 +190,23 @@ impl Class {
 		}
 
 		//  2. Otherwise, method resolution attempts to locate the referenced method in C and its superclasses:
-		if let ret @ Some(_) = class.resolve_method_step_two(method_name, descriptor) {
+		if let ret @ Some(_) = class.resolve_method_step_two(name, descriptor) {
 			return ret;
 		}
 
-		// TODO: Method resolution in superinterfaces
 		//  3. Otherwise, method resolution attempts to locate the referenced method in the superinterfaces of the specified class C:
 
 		//    3.1. If the maximally-specific superinterface methods of C for the name and descriptor specified by the method reference include
 		//         exactly one method that does not have its ACC_ABSTRACT flag set, then this method is chosen and method lookup succeeds.
+		if let Some(method) = class.resolve_method_in_superinterfaces(name, descriptor, true) {
+			return Some(method);
+		}
 
 		//    3.2. Otherwise, if any superinterface of C declares a method with the name and descriptor specified by the method reference that
 		//         has neither its ACC_PRIVATE flag nor its ACC_STATIC flag set, one of these is arbitrarily chosen and method lookup succeeds.
+		if let Some(method) = class.resolve_method_in_superinterfaces(name, descriptor, false) {
+			return Some(method);
+		}
 
 		//    3.3. Otherwise, method lookup fails.
 		panic!("NoSuchMethodError") // TODO
@@ -277,7 +254,6 @@ impl Class {
 	// https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-5.html#jvms-5.4.3.4
 	fn resolve_interface_method(
 		&self,
-		_thread: &JavaThread,
 		method_name: Symbol,
 		descriptor: Symbol,
 	) -> Option<&'static Method> {
@@ -425,7 +401,7 @@ impl Class {
 				| FieldType::Int => {
 					let constant_value = class_instance
 						.constant_pool
-						.get_integer(constant_value_index);
+						.get::<cp_types::Integer>(constant_value_index);
 					let value = Operand::from(constant_value);
 					unsafe {
 						self.set_static_field(field.idx, value);
@@ -434,23 +410,25 @@ impl Class {
 				FieldType::Double => {
 					let constant_value = class_instance
 						.constant_pool
-						.get_double(constant_value_index);
+						.get::<cp_types::Double>(constant_value_index);
 					let value = Operand::from(constant_value);
 					unsafe {
 						self.set_static_field(field.idx, value);
 					}
 				},
 				FieldType::Float => {
-					let constant_value =
-						class_instance.constant_pool.get_float(constant_value_index);
+					let constant_value = class_instance
+						.constant_pool
+						.get::<cp_types::Float>(constant_value_index);
 					let value = Operand::from(constant_value);
 					unsafe {
 						self.set_static_field(field.idx, value);
 					}
 				},
 				FieldType::Long => {
-					let constant_value =
-						class_instance.constant_pool.get_long(constant_value_index);
+					let constant_value = class_instance
+						.constant_pool
+						.get::<cp_types::Long>(constant_value_index);
 					let value = Operand::from(constant_value);
 					unsafe {
 						self.set_static_field(field.idx, value);
@@ -459,8 +437,8 @@ impl Class {
 				FieldType::Object(ref obj) if &**obj == b"java/lang/String" => {
 					let raw_string = class_instance
 						.constant_pool
-						.get_string(constant_value_index);
-					let string_instance = StringInterner::intern_bytes(raw_string);
+						.get::<cp_types::String>(constant_value_index);
+					let string_instance = StringInterner::intern_symbol(raw_string);
 					let value = Operand::Reference(Reference::class(string_instance));
 					unsafe {
 						self.set_static_field(field.idx, value);

@@ -1,10 +1,11 @@
 use super::reference::Reference;
-use crate::class::Class;
+use crate::objects::class::Class;
+use crate::objects::constant_pool::{cp_types, ConstantPool};
 
 use std::fmt::{Debug, Formatter};
 
 use classfile::accessflags::FieldAccessFlags;
-use classfile::{ConstantPool, FieldInfo, FieldType};
+use classfile::{FieldInfo, FieldType};
 use common::int_types::u2;
 use instructions::Operand;
 use symbols::Symbol;
@@ -61,13 +62,12 @@ impl Field {
 		let access_flags = field_info.access_flags;
 
 		let name_index = field_info.name_index;
-		let name_bytes = constant_pool.get_constant_utf8(name_index);
-		let name = Symbol::intern_bytes(name_bytes);
+		let name = constant_pool.get::<cp_types::ConstantUtf8>(name_index);
 
 		let descriptor_index = field_info.descriptor_index;
-		let mut descriptor_bytes = constant_pool.get_constant_utf8(descriptor_index);
+		let descriptor = constant_pool.get::<cp_types::ConstantUtf8>(descriptor_index);
 
-		let descriptor = FieldType::parse(&mut descriptor_bytes).unwrap(); // TODO: Error handling
+		let descriptor = FieldType::parse(&mut descriptor.as_bytes()).unwrap(); // TODO: Error handling
 		let constant_value_index = field_info
 			.get_constant_value_attribute()
 			.map(|constant_value| constant_value.constantvalue_index);

@@ -1,5 +1,5 @@
 use crate::native::JniEnv;
-use crate::reference::Reference;
+use crate::objects::reference::Reference;
 
 use std::ptr::NonNull;
 

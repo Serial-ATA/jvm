@@ -1,7 +1,8 @@
-use crate::reference::Reference;
+use crate::objects::reference::Reference;
+
+use std::fmt::Debug;
 
 use common::int_types::{s4, s8};
-
 use instructions::{ConstOperandType, Operand, StackLike};
 
 macro_rules! trace_stack {
@@ -25,9 +26,15 @@ macro_rules! trace_stack {
 }
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-2.html#jvms-2.6.2
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct OperandStack {
 	inner: Vec<Operand<Reference>>,
+}
+
+impl Debug for OperandStack {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_list().entries(self.inner.iter()).finish()
+	}
 }
 
 impl OperandStack {

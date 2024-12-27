@@ -1,6 +1,6 @@
 use crate::accessflags::ClassAccessFlags;
 use crate::attribute::{Attribute, SourceFile};
-use crate::constant_pool::ConstantPoolRef;
+use crate::constant_pool::ConstantPool;
 use crate::fieldinfo::FieldInfo;
 use crate::methodinfo::MethodInfo;
 use crate::parse::error::Result;
@@ -15,7 +15,7 @@ use common::int_types::{u1, u2};
 pub struct ClassFile {
 	pub minor_version: u2,
 	pub major_version: u2,
-	pub constant_pool: ConstantPoolRef,
+	pub constant_pool: ConstantPool,
 	pub access_flags: ClassAccessFlags,
 	pub this_class: u2,
 	pub super_class: u2,

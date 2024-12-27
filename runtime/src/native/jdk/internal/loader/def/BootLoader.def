@@ -1,0 +1,17 @@
+import java.lang.String;
+import java.lang.Module;
+
+public class BootLoader {
+    // Returns an array of the binary name of the packages defined by
+    // the boot loader, in VM internal form (forward slashes instead of dot).
+    private static native String[] getSystemPackageNames();
+
+    // Returns the location of the package of the given name, if
+    // defined by the boot loader; otherwise {@code null} is returned.
+    //
+    // The location may be a module from the runtime image or exploded image,
+    // or from the boot class append path (i.e. -Xbootclasspath/a or
+    // BOOT-CLASS-PATH attribute specified in java agent).
+    private static native String getSystemPackageLocation(String name);
+    private static native void setBootLoaderUnnamedModule0(Module module);
+}

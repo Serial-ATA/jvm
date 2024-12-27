@@ -2,14 +2,17 @@
 //!
 //! Vendors can deliver Java-enabled applications without having to link with the Java VM source code.
 
-use crate::{initialization, JavaThread};
+use crate::initialization;
+use crate::thread::{JavaThread, JavaThreadBuilder};
+
 use core::ffi::c_void;
+use std::ffi::CStr;
+
 use jni::java_vm::JavaVm;
 use jni::sys::{
 	jint, jsize, JNIInvokeInterface_, JNINativeInterface_, JavaVM, JNI_EVERSION, JNI_OK,
 };
 use jni::version::JniVersion;
-use std::ffi::CStr;
 
 pub mod library;
 
@@ -116,7 +119,7 @@ fn attach_current_thread_impl(
 		group = Some(todo!("crate::globals::threads::main_thread_group()"));
 	}
 
-	let thread = JavaThread::new();
+	let thread = JavaThreadBuilder::new().finish();
 
 	todo!()
 }

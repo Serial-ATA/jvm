@@ -4,8 +4,8 @@ pub mod intrinsics;
 pub mod jni;
 pub mod lookup;
 
-use crate::method::Method;
-use crate::reference::Reference;
+use crate::objects::method::Method;
+use crate::objects::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 
 use std::collections::HashMap;
@@ -65,7 +65,7 @@ pub fn lookup_method(method: &Method) -> NativeMethodPtr {
 /// Lookup the native method defintion for `method`, or return `None`
 pub fn lookup_method_opt(method: &Method) -> Option<NativeMethodPtr> {
 	let native_method = NativeMethodDef {
-		class: method.class.name,
+		class: method.class().name,
 		name: method.name,
 		descriptor: method.descriptor,
 	};
@@ -98,6 +98,7 @@ pub(crate) mod jdk {
 		}
 		pub(crate) mod loader {
 			pub(crate) mod NativeLibraries;
+			pub(crate) mod BootLoader;
 		}
 		pub(crate) mod reflect {
 			pub(crate) mod Reflection;
@@ -108,6 +109,7 @@ pub(crate) mod jdk {
 pub(crate) mod java {
 	pub(crate) mod io {
 		pub(crate) mod FileInputStream;
+		pub(crate) mod UnixFileSystem;
 		pub(crate) mod FileDescriptor;
 		pub(crate) mod FileOutputStream;
 	}

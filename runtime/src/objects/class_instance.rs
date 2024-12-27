@@ -1,7 +1,7 @@
-use crate::class::Class;
 use crate::classpath::classloader::ClassLoader;
-use crate::field::Field;
-use crate::reference::{ArrayInstanceRef, ClassInstanceRef, Reference};
+use crate::objects::class::Class;
+use crate::objects::field::Field;
+use crate::objects::reference::{ArrayInstanceRef, ClassInstanceRef, Reference};
 
 use std::fmt::{Debug, Formatter};
 use std::ptr::NonNull;

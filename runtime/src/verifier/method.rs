@@ -1,8 +1,9 @@
 use super::accessors::MethodAccessorExt;
 use super::error::{Error, Result};
 use super::type_system::{types, IsAssignable, VerificationType};
-use crate::class::Class;
-use crate::method::Method;
+use crate::objects::class::Class;
+use crate::objects::constant_pool::cp_types;
+use crate::objects::method::Method;
 
 use classfile::{Attribute, CodeException, StackMapTable};
 use common::int_types::{u1, u2};
@@ -51,7 +52,7 @@ impl MethodTypeCheckExt for Method {
 			return Err(Error::FinalMethodOverridden);
 		}
 
-		code_is_type_safe(&self.class, self)
+		code_is_type_safe(&self.class(), self)
 	}
 
 	fn does_not_override_final_method(&self) -> bool {
@@ -153,9 +154,8 @@ impl Environment<'_> {
 				.class
 				.constant_pool()
 				.unwrap()
-				.get_constant_utf8(handler.catch_type);
+				.get::<cp_types::ClassName>(handler.catch_type);
 
-			let exception_class_name = Symbol::intern_bytes(exception_class_name);
 			let exception_class = types::Class(exception_class_name);
 			if !exception_class.is_assignable(types::Class(sym!(java_lang_Throwable))) {
 				return Err(Error::HandlerNotThrowable);

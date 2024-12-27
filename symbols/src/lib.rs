@@ -140,12 +140,27 @@ macro_rules! sym {
 //       Other generators may inject into this macro, take note of the marker comments below
 vm_symbols::define_symbols! {
 	// Classes
+
+	// Primitive
+	java_lang_Boolean: "java/lang/Boolean",
+	java_lang_Byte: "java/lang/Byte",
+	java_lang_Character: "java/lang/Character",
+	java_lang_Double: "java/lang/Double",
+	java_lang_Float: "java/lang/Float",
+	java_lang_Integer: "java/lang/Integer",
+	java_lang_Long: "java/lang/Long",
+	java_lang_Short: "java/lang/Short",
+	java_lang_Void: "java/lang/Void",
+
 	java_lang_Class: "java/lang/Class",
 	java_lang_Object: "java/lang/Object",
 	java_lang_String: "java/lang/String",
+	java_lang_Module: "java/lang/Module",
 	java_lang_System: "java/lang/System",
 	java_lang_Cloneable: "java/lang/Cloneable",
 	java_io_Serializable: "java/io/Serializable",
+	java_io_File: "java/io/File",
+	jdk_internal_reflect_MethodAccessorImpl: "jdk/internal/reflect/MethodAccessorImpl",
 	java_lang_StackTraceElement: "java/lang/StackTraceElement",
 	java_lang_invoke_MethodHandle: "java/lang/invoke/MethodHandle",
 	java_lang_invoke_VarHandle: "java/lang/invoke/VarHandle",
@@ -198,14 +213,18 @@ vm_symbols::define_symbols! {
 
 	printStackTrace_name: "printStackTrace",
 	findNative_name: "findNative",
+	run_name: "run",
 	// -- GENERATED METHOD NAME MARKER, DO NOT DELETE --
 
 	// Fields
+	name: "name",
+	loader: "loader",
 	holder: "holder",
 	eetop: "eetop",
 	value: "value",
 	coder: "coder",
 	fd: "fd",
+	path: "path",
 	r#in: "in",
 	out: "out",
 	err: "err",

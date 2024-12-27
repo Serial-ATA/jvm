@@ -1,9 +1,9 @@
 //! (§4.10.1.1) Accessors for Java Virtual Machine Artifacts
 
 use super::type_system::VerificationType;
-use crate::class::Class;
-use crate::method::Method;
-use crate::vtable::VTable;
+use crate::objects::class::Class;
+use crate::objects::method::Method;
+use crate::objects::vtable::VTable;
 
 use classfile::accessflags::MethodAccessFlags;
 use classfile::{Attribute, MethodDescriptor};

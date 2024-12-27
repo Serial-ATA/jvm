@@ -1,5 +1,6 @@
 use crate::classpath::classloader::ClassLoader;
-use crate::reference::Reference;
+use crate::objects::reference::Reference;
+use crate::thread::JavaThread;
 
 use std::ptr::NonNull;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -52,7 +53,7 @@ pub fn nanoTime(_env: NonNull<JniEnv>) -> jlong {
 }
 
 pub fn arraycopy(
-	_env: NonNull<JniEnv>,
+	env: NonNull<JniEnv>,
 	src: Reference, // java.lang.Object
 	src_pos: jint,
 	dest: Reference, // java.lang.Object
@@ -60,8 +61,8 @@ pub fn arraycopy(
 	length: jint,
 ) {
 	if src.is_null() || dest.is_null() {
-		// TODO
-		panic!("NullPointerException")
+		let _thread = unsafe { &*JavaThread::for_env(env.as_ptr()) };
+		todo!("NullPointerException")
 	}
 
 	let src_array = src.extract_array();
@@ -89,8 +90,8 @@ pub fn arraycopy(
 	);
 }
 
-pub fn identityHashCode(_env: NonNull<JniEnv>, _x: Reference /* java.lang.Object */) -> jlong {
-	unimplemented!("System#identityHashCode")
+pub fn identityHashCode(env: NonNull<JniEnv>, x: Reference /* java.lang.Object */) -> jint {
+	crate::native::java::lang::Object::hashCode(env, x)
 }
 
 pub fn mapLibraryName(_env: NonNull<JniEnv>, _libname: Reference) -> Reference {

@@ -1,21 +1,21 @@
 #![allow(unused_imports)] // Intellij-Rust doesn't like this file much, the imports used in macros are not recognized
 
-use crate::class::{Class, ClassInitializationState};
-use crate::class_instance::{ArrayInstance, ClassInstance};
 use crate::classpath::classloader::ClassLoader;
-use crate::frame::Frame;
-use crate::method::Method;
 use crate::method_invoker::MethodInvoker;
-use crate::objects::class_instance::Instance;
-use crate::reference::{ClassInstanceRef, Reference};
+use crate::objects::class::{Class, ClassInitializationState};
+use crate::objects::class_instance::{ArrayInstance, ClassInstance, Instance};
+use crate::objects::constant_pool::cp_types::{self, Entry};
+use crate::objects::field::Field;
+use crate::objects::method::Method;
+use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::string_interner::StringInterner;
+use crate::thread::frame::Frame;
 use crate::thread::JavaThread;
 
 use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
 use std::sync::Arc;
 
-use crate::field::Field;
 use classfile::ConstantPoolValueInfo;
 use common::int_types::{s2, s4, s8, u2};
 use common::traits::PtrType;
@@ -564,75 +564,67 @@ impl Interpreter {
                 //       invokedynamic
                 CATEGORY: references
                 OpCode::getstatic => {
-                    if let Some(field) = Self::fetch_field(frame, true) {
-                        frame.stack_mut().push_op(field.get_static_value());
-                    }
+                    let field = Self::fetch_field(frame, true);
+                    frame.stack_mut().push_op(field.get_static_value());
                 },
                 OpCode::putstatic => {
-                    if let Some(field) = Self::fetch_field(frame, true) {
-                        let value = frame.stack_mut().pop();
+                    let field = Self::fetch_field(frame, true);
+                    let value = frame.stack_mut().pop();
 
-                        field.set_static_value(value);
-                    }
+                    field.set_static_value(value);
                 },
                 OpCode::getfield => {
-                    if let Some(field) = Self::fetch_field(frame, false) {
-                        if field.is_static() {
-                            panic!("IncompatibleClassChangeError"); // TODO
-                        }
-
-                        let stack = frame.stack_mut();
-
-                        let object_ref = stack.pop_reference();
-
-                        let field_value = object_ref.get_field_value(field);
-                        stack.push_op(field_value);
+                    let field = Self::fetch_field(frame, false);
+                    if field.is_static() {
+                        panic!("IncompatibleClassChangeError"); // TODO
                     }
+
+                    let stack = frame.stack_mut();
+
+                    let object_ref = stack.pop_reference();
+
+                    let field_value = object_ref.get_field_value(field);
+                    stack.push_op(field_value);
                 },
                 OpCode::putfield => {
-                    if let Some(field) = Self::fetch_field(frame, false) {
-                        if field.is_static() {
-                            panic!("IncompatibleClassChangeError"); // TODO
-                        }
-
-                        // TODO: if the resolved field is final, it must be declared in the current class,
-                        //       and the instruction must occur in an instance initialization method of the current class.
-                        //       Otherwise, an IllegalAccessError is thrown.
-
-                        let stack = frame.stack_mut();
-
-                        let value = stack.pop();
-                        let mut object_ref = stack.pop_reference();
-
-                        object_ref.put_field_value(field, value);
+                    let field = Self::fetch_field(frame, false);
+                    if field.is_static() {
+                        panic!("IncompatibleClassChangeError"); // TODO
                     }
+
+                    // TODO: if the resolved field is final, it must be declared in the current class,
+                    //       and the instruction must occur in an instance initialization method of the current class.
+                    //       Otherwise, an IllegalAccessError is thrown.
+
+                    let stack = frame.stack_mut();
+
+                    let value = stack.pop();
+                    let mut object_ref = stack.pop_reference();
+
+                    object_ref.put_field_value(field, value);
                 },
                 OpCode::invokevirtual => {
-                    if let Some(method) = Self::fetch_method(frame, false) {
-                        MethodInvoker::invoke_virtual(frame, method);
-                    }
+                    let method = Self::fetch_method(frame, false);
+                    MethodInvoker::invoke_virtual(frame, method);
                 },
                 OpCode::invokespecial => {
-                    if let Some(method) = Self::fetch_method(frame, false) {
-                        MethodInvoker::invoke(frame, method);
-                    }
+                    let method = Self::fetch_method(frame, false);
+                    MethodInvoker::invoke(frame, method);
                 },
                 OpCode::invokestatic => {
-                    if let Some(method) = Self::fetch_method(frame, true) {
-                        MethodInvoker::invoke(frame, method);
-                    }
+                    let method = Self::fetch_method(frame, true);
+                    MethodInvoker::invoke(frame, method);
                 },
                 OpCode::invokeinterface => {
-                    if let Some(method) = Self::fetch_method(frame, false) {
-                        // The count operand is an unsigned byte that must not be zero.
-                        let count = frame.read_byte();
-                        assert!(count > 0);
+                    let method = Self::fetch_method(frame, false);
+                    // The count operand is an unsigned byte that must not be zero.
+                    let count = frame.read_byte();
+                    assert!(count > 0);
 
-                        // The value of the fourth operand byte must always be zero.
-                        assert_eq!(frame.read_byte(), 0);
+                    // The value of the fourth operand byte must always be zero.
+                    assert_eq!(frame.read_byte(), 0);
 
-                        MethodInvoker::invoke_interface(frame, method);
-                    }
+                    MethodInvoker::invoke_interface(frame, method);
                 },
                 OpCode::new => {
                     let new_class_instance = Self::new(frame);
@@ -650,15 +642,12 @@ impl Interpreter {
                 OpCode::anewarray => {
                     let index = frame.read_byte2();
 
-                    let method = frame.method();
-
-                    let constant_pool = &method.class.unwrap_class_instance().constant_pool;
-                    let array_class_name = constant_pool.get_class_name(index);
+                    let constant_pool = frame.constant_pool();
+                    let array_class = constant_pool.get::<cp_types::Class>(index);
 
                     let stack = frame.stack_mut();
                     let count = stack.pop_int();
-                    
-                    let array_class = ClassLoader::Bootstrap.load(Symbol::intern_bytes(array_class_name)).unwrap();
+
                     let array_ref = ArrayInstance::new_reference(count, array_class);
                     stack.push_reference(Reference::array(array_ref));
                 },
@@ -761,45 +750,38 @@ impl Interpreter {
         };
 
         let constant_pool = frame.constant_pool();
-        let constant = &constant_pool[idx];
+        let constant = constant_pool.get_any(idx);
 
         // The run-time constant pool entry at index must be loadable (§5.1),
         match constant {
             // and not any of the following:
-            ConstantPoolValueInfo::Long { .. }
-            | ConstantPoolValueInfo::Double { .. } => panic!("ldc called with index to long/double"),
+            Entry::Long { .. }
+            | Entry::Double { .. } => panic!("ldc called with index to long/double"),
 
             // If the run-time constant pool entry is a numeric constant of type int or float,
             // then the value of that numeric constant is pushed onto the operand stack as an int or float, respectively.
-            ConstantPoolValueInfo::Integer { bytes } => frame.stack_mut().push_int((*bytes) as s4),
-            ConstantPoolValueInfo::Float { bytes } => frame.stack_mut().push_float(f32::from_be_bytes(bytes.to_be_bytes())),
+            Entry::Integer(int) => frame.stack_mut().push_int(int),
+            Entry::Float(float) => frame.stack_mut().push_float(float),
 
             // Otherwise, if the run-time constant pool entry is a string constant, that is,
             // a reference to an instance of class String, then value, a reference to that instance, is pushed onto the operand stack.
-            ConstantPoolValueInfo::String { string_index } => {
-                let bytes = constant_pool.get_constant_utf8(*string_index);
-                let interned_string = StringInterner::intern_bytes(bytes);
-
+            Entry::String(string) => {
+                let interned_string = StringInterner::intern_symbol(string);
                 frame.stack_mut().push_reference(Reference::class(interned_string));
             },
 
             // Otherwise, if the run-time constant pool entry is a symbolic reference to a class or interface,
             // then the named class or interface is resolved (§5.4.3.1) and value, a reference to the Class object
             // representing that class or interface, is pushed onto the operand stack.
-            ConstantPoolValueInfo::Class { name_index } => {
-                let class = frame.method().class;
-
-                let class_name = constant_pool.get_constant_utf8(*name_index);
-                let classref = class.loader.load(Symbol::intern_bytes(class_name)).unwrap();
-
-                frame.stack_mut().push_reference(Reference::mirror(classref.mirror()));
+            Entry::Class(class) => {
+                frame.stack_mut().push_reference(Reference::mirror(class.mirror()));
             },
 
             // Otherwise, the run-time constant pool entry is a symbolic reference to a method type, a method handle,
             // or a dynamically-computed constant. The symbolic reference is resolved (§5.4.3.5, §5.4.3.6) and value,
             // the result of resolution, is pushed onto the operand stack.
-            ConstantPoolValueInfo::MethodHandle { .. } => unimplemented!("MethodHandle in ldc"),
-            ConstantPoolValueInfo::MethodType { .. } => unimplemented!("MethodType in ldc"),
+            Entry::MethodHandle { .. } => unimplemented!("MethodHandle in ldc"),
+            Entry::MethodType { .. } => unimplemented!("MethodType in ldc"),
             _ => unreachable!()
         }
     }
@@ -809,21 +791,16 @@ impl Interpreter {
         let idx = frame.read_byte2();
 
         let constant_pool = frame.constant_pool();
-        let constant = &constant_pool[idx];
+        let constant = constant_pool.get_any(idx);
 
         // The run-time constant pool entry at index must be loadable (§5.1),
         match constant {
             // and not any of the following:
-            ConstantPoolValueInfo::Long { high_bytes, low_bytes } => {
-                frame.stack_mut().push_long((s8::from(*high_bytes) << 32) + s8::from(*low_bytes))
+            Entry::Long(long) => {
+                frame.stack_mut().push_long(long)
             },
-            ConstantPoolValueInfo::Double { high_bytes, low_bytes } => {
-                let high = high_bytes.to_be_bytes();
-                let low = low_bytes.to_be_bytes();
-
-                frame.stack_mut().push_double(f64::from_be_bytes([
-                    high[0], high[1], high[2], high[3], low[0], low[1], low[2], low[3],
-                ]))
+            Entry::Double(double) => {
+                frame.stack_mut().push_double(double)
             },
 
             _ => panic!("ldc2_w called with index to non long/double constant")
@@ -907,15 +884,11 @@ impl Interpreter {
             }
         }
 
-        let method = frame.method();
-        let class_ref = &method.class;
-
-        let constant_pool = &class_ref.unwrap_class_instance().constant_pool;
-        let class_name = constant_pool.get_class_name(index);
-        let resolved_class = class_ref.loader.load(Symbol::intern_bytes(class_name)).unwrap();
+        let constant_pool = frame.constant_pool();
+        let class = constant_pool.get::<cp_types::Class>(index);
 
         let stack = frame.stack_mut();
-        if objectref.is_instance_of(resolved_class) {
+        if objectref.is_instance_of(class) {
             match opcode {
                 // If objectref is an instance of the resolved class or array type, or implements the resolved interface,
                 // the instanceof instruction pushes an int result of 1 as an int onto the operand stack
@@ -935,33 +908,28 @@ impl Interpreter {
         }
     }
 
-    fn fetch_field(frame: &mut Frame, is_static: bool) -> Option<&'static Field> {
+    fn fetch_field(frame: &mut Frame, is_static: bool) -> &'static Field {
         let field_ref_idx = frame.read_byte2();
 
+        let class = frame.method().class();
         let constant_pool = frame.constant_pool();
-        let (class_name_index, _) = constant_pool.get_field_ref(field_ref_idx);
 
-        let class_name = constant_pool.get_class_name(class_name_index);
-		let class = ClassLoader::Bootstrap
-			.load(Symbol::intern_bytes(class_name))
-			.unwrap();
-
-        let ret = class.resolve_field(constant_pool, field_ref_idx);
-        if ret.is_some() && is_static {
+        let ret = constant_pool.get::<cp_types::FieldRef>(field_ref_idx);
+        if is_static {
             class.initialize(frame.thread());
         }
 
         ret
     }
     
-    fn fetch_method(frame: &mut Frame, is_static: bool) -> Option<&'static Method> {
+    fn fetch_method(frame: &mut Frame, is_static: bool) -> &'static Method {
         let method_ref_idx = frame.read_byte2();
 
-        let method = frame.method();
-        let class = method.class;
+        let class = frame.method().class();
+        let constant_pool = frame.constant_pool();
 
-        let ret = class.resolve_method(frame.thread(), method_ref_idx);
-        if ret.is_some() && is_static {
+        let ret = constant_pool.get::<cp_types::MethodRef>(method_ref_idx);
+        if is_static {
             // On successful resolution of the method, the class or interface that declared the resolved method is initialized if that class or interface has not already been initialized
             class.initialize(frame.thread());
         }
@@ -972,12 +940,9 @@ impl Interpreter {
     fn new(frame: &mut Frame) -> ClassInstanceRef {
         let index = frame.read_byte2();
 
-        let class = &frame.method().class;
         let constant_pool = frame.constant_pool();
 
-        let class_name = constant_pool.get_class_name(index);
-        let class = class.loader.load(Symbol::intern_bytes(class_name)).unwrap();
-
+        let class = constant_pool.get::<cp_types::Class>(index);
         if class.is_interface() || class.is_abstract() {
             panic!("InstantiationError") // TODO
         }

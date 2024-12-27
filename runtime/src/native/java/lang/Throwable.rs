@@ -1,7 +1,7 @@
-use crate::class_instance::{ArrayContent, ArrayInstance, Instance};
 use crate::classpath::classloader::ClassLoader;
-use crate::reference::Reference;
-use crate::JavaThread;
+use crate::objects::class_instance::{ArrayContent, ArrayInstance, Instance};
+use crate::objects::reference::Reference;
+use crate::thread::JavaThread;
 
 use std::ptr::NonNull;
 
@@ -15,11 +15,12 @@ use symbols::sym;
 
 #[allow(non_upper_case_globals)]
 mod stacktrace_element {
-	use crate::class::Class;
-	use crate::class_instance::{ClassInstance, Instance};
-	use crate::frame::Frame;
-	use crate::reference::Reference;
+	use crate::objects::class::Class;
+	use crate::objects::class_instance::{ClassInstance, Instance};
+	use crate::objects::constant_pool::cp_types;
+	use crate::objects::reference::Reference;
 	use crate::string_interner::StringInterner;
+	use crate::thread::frame::stack::VisibleStackFrame;
 
 	use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -103,13 +104,16 @@ mod stacktrace_element {
 		);
 	}
 
-	pub fn from_stack_frame(stacktrace_element_class: &'static Class, frame: &Frame) -> Reference {
+	pub fn from_stack_frame(
+		stacktrace_element_class: &'static Class,
+		frame: VisibleStackFrame<'_>,
+	) -> Reference {
 		unsafe {
 			initialize(stacktrace_element_class);
 		}
 
 		let method = frame.method();
-		let method_class = method.class.unwrap_class_instance();
+		let method_class = method.class().unwrap_class_instance();
 
 		unsafe {
 			let stacktrace_element = ClassInstance::new(stacktrace_element_class);
@@ -117,7 +121,7 @@ mod stacktrace_element {
 			// TODO: classLoaderName
 			// TODO: moduleName
 			// TODO: moduleVersion
-			let declaring_class = StringInterner::intern_symbol(method.class.name);
+			let declaring_class = StringInterner::intern_symbol(method.class().name);
 			stacktrace_element.get_mut().put_field_value0(
 				StackTraceElement_declaringClass_FIELD_OFFSET,
 				Operand::Reference(Reference::class(declaring_class)),
@@ -131,8 +135,10 @@ mod stacktrace_element {
 
 			match method_class.source_file_index {
 				Some(idx) => {
-					let file_name = StringInterner::intern_bytes(
-						method_class.constant_pool.get_constant_utf8(idx),
+					let file_name = StringInterner::intern_symbol(
+						method_class
+							.constant_pool
+							.get::<cp_types::ConstantUtf8>(idx),
 					);
 					stacktrace_element.get_mut().put_field_value0(
 						StackTraceElement_fileName_FIELD_OFFSET,
@@ -147,12 +153,14 @@ mod stacktrace_element {
 				},
 			}
 
-			let pc = frame.thread().pc.load(Ordering::Relaxed) - 1;
-			let line_number = method.get_line_number(pc);
-			stacktrace_element.get_mut().put_field_value0(
-				StackTraceElement_lineNumber_FIELD_OFFSET,
-				Operand::Int(line_number),
-			);
+			if let VisibleStackFrame::Regular(frame) = frame {
+				let pc = frame.thread().pc.load(Ordering::Relaxed) - 1;
+				let line_number = method.get_line_number(pc);
+				stacktrace_element.get_mut().put_field_value0(
+					StackTraceElement_lineNumber_FIELD_OFFSET,
+					Operand::Int(line_number),
+				);
+			}
 
 			Reference::class(stacktrace_element)
 		}

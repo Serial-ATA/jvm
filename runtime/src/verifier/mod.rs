@@ -3,7 +3,7 @@ mod error;
 mod method;
 mod type_system;
 
-use crate::class::Class;
+use crate::objects::class::Class;
 use crate::verifier::accessors::ClassAccessorExt;
 use crate::verifier::method::MethodTypeCheckExt;
 use error::{Error, Result};

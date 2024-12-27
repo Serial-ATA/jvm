@@ -1,10 +1,10 @@
 use crate::accessflags::MethodAccessFlags;
-use crate::attribute::{Attribute, AttributeType, Code, LineNumberTable};
-use crate::constant_pool::ConstantPoolRef;
+use crate::attribute::resolved::ResolvedAnnotation;
+use crate::attribute::{Attribute, AttributeType, Code, LineNumber, LineNumberTable};
+use crate::constant_pool::ConstantPool;
 use crate::error::ClassFileParseError;
 use crate::fieldinfo::FieldType;
 use crate::parse::error::Result;
-use crate::LineNumber;
 
 use common::int_types::{u1, u2};
 use common::traits::JavaReadExt;
@@ -42,20 +42,24 @@ impl MethodInfo {
 		None
 	}
 
-	pub fn is_intrinsic_candidate(&self, constant_pool: ConstantPoolRef) -> bool {
-		const INTRINSIC_CANDIDATE_TYPE: &[u1] = b"Ljdk/internal/vm/annotation/IntrinsicCandidate;";
-
+	pub fn runtime_visible_annotations<'a>(
+		&'a self,
+		constant_pool: &'a ConstantPool,
+	) -> Option<impl Iterator<Item = ResolvedAnnotation> + 'a> {
 		for attr in &self.attributes {
-			if let Some(anno) = attr.runtime_visible_annotations() {
-				if anno.annotations.iter().any(|anno| {
-					constant_pool.get_constant_utf8(anno.type_index) == INTRINSIC_CANDIDATE_TYPE
-				}) {
-					return true;
-				}
-			}
+			let Some(raw_annotations) = attr.runtime_visible_annotations() else {
+				continue;
+			};
+
+			let iter = raw_annotations
+				.annotations
+				.iter()
+				.map(move |anno| ResolvedAnnotation::resolve_from(anno, constant_pool));
+
+			return Some(iter);
 		}
 
-		false
+		None
 	}
 }
 
