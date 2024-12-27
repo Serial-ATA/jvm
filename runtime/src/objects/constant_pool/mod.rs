@@ -13,6 +13,18 @@ use common::int_types::u2;
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4
 
+/// The runtime constant pool for a class
+///
+/// This provides two things:
+///
+/// * A type-safe interface to the constant pool
+/// * A cache of resolved constant pool entries
+///
+/// The cache will ensure that each entry is only resolved once, and that the same instance is
+/// returned each time.
+///
+/// This is important for types like `Class` which are loaded once and then shared between all
+/// instances of the class.
 pub struct ConstantPool {
 	class: &'static Class,
 	entries: Box<[entry::ConstantPoolEntry]>,
@@ -28,6 +40,9 @@ impl ConstantPool {
 		}
 	}
 
+	/// Get a constant pool entry of a specific type
+	///
+	/// See [`ConstantPool`] for notes on resolution.
 	pub fn get<T: cp_types::EntryType>(&self, index: u2) -> T::Resolved {
 		let entry = &self.entries[index as usize];
 		if let Some(resolved) = entry.resolved::<T>() {
@@ -37,6 +52,9 @@ impl ConstantPool {
 		entry.resolve::<T>(self.class, &self, index)
 	}
 
+	/// Get a constant pool entry of any type
+	///
+	/// See [`ConstantPool`] for notes on resolution.
 	pub fn get_any(&self, index: u2) -> Entry {
 		let raw = &self.raw[index as usize];
 		match raw {

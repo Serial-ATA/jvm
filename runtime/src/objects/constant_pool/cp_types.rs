@@ -6,6 +6,7 @@ use crate::objects::method::Method;
 use common::int_types::{s4, s8, u2};
 use symbols::Symbol;
 
+/// A constant pool entry of any type
 pub enum Entry {
 	Class(<Class as EntryType>::Resolved),
 	Integer(<Integer as EntryType>::Resolved),
@@ -23,8 +24,10 @@ pub enum Entry {
 
 /// A trait for types that can be stored in the constant pool.
 pub trait EntryType: sealed::Sealed {
+	/// The final type an entry will resolve to.
 	type Resolved;
 
+	/// Convert the `ResolvedEntry` to the final type.
 	#[doc(hidden)]
 	fn resolved_entry(entry: ResolvedEntry) -> Self::Resolved;
 

@@ -5,8 +5,6 @@ use common::int_types::{s4, s8, u1, u2, u4};
 
 // https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4
 
-// TODO: Need to make a cache so we don't need to keep resolving classes and interning strings
-
 #[derive(PartialEq, Clone)]
 #[repr(transparent)]
 pub struct ConstantPool {
