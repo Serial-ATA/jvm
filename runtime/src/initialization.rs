@@ -200,6 +200,8 @@ fn initialize_global_classes(thread: &JavaThread) {
 	crate::globals::classes::java_lang_Class().initialize(thread);
 	crate::globals::classes::java_lang_String().initialize(thread);
 
+	crate::globals::classes::java_lang_Character().initialize(thread);
+
 	crate::globals::classes::java_lang_Thread().initialize(thread);
 	crate::globals::classes::java_lang_ThreadGroup().initialize(thread);
 	crate::globals::classes::java_lang_ref_Finalizer().initialize(thread);

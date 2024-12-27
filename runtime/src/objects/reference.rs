@@ -109,7 +109,7 @@ impl Reference {
 
 impl Reference {
 	pub fn is_instance_of(&self, other: &'static Class) -> bool {
-		self.extract_target_class().can_cast_to(other)
+		self.extract_instance_class().can_cast_to(other)
 	}
 
 	pub fn class_name(&self) -> Symbol {
@@ -137,10 +137,43 @@ impl Reference {
 		}
 	}
 
+	/// Get the class that this reference targets
+	///
+	/// This has a subtle difference from [`Reference::extract_instance_class`] in the case of `mirror` instances.
+	/// This will return the class that `mirror` instance is targeting, while `extract_instance_class` will return
+	/// `java.lang.Class`.
+	///
+	/// This is a very important distinction to make when dealing with things such as method resolution.
+	///
+	/// See also:
+	/// * [`Reference::extract_instance_class`]
+	/// * [`MirrorInstance::target_class`]
+	///
+	/// For references other than `mirror`, this will return the same as `extract_instance_class`.
+	///
+	/// [`MirrorInstance::target_class`]: crate::objects::mirror::MirrorInstance::target_class
 	pub fn extract_target_class(&self) -> &'static Class {
 		match &self.instance {
 			ReferenceInstance::Class(class) => class.get().class(),
 			ReferenceInstance::Mirror(mirror) => &mirror.get().target_class(),
+			ReferenceInstance::Array(arr) => &arr.get().class,
+			ReferenceInstance::Null => panic!("NullPointerException"),
+		}
+	}
+
+	/// Get the class of the instance
+	///
+	/// This has a subtle difference from [`Reference::extract_target_class`] in the case of `mirror` instances.
+	/// This will return `java.lang.Class` for `mirror` instances, while `extract_target_class` will return the class
+	/// the mirror is targeting.
+	///
+	/// This is a very important distinction to make when dealing with things such as method resolution.
+	///
+	/// For references other than `mirror`, this will return the same as `extract_target_class`.
+	pub fn extract_instance_class(&self) -> &'static Class {
+		match &self.instance {
+			ReferenceInstance::Class(class) => class.get().class(),
+			ReferenceInstance::Mirror(mirror) => &mirror.get().class(),
 			ReferenceInstance::Array(arr) => &arr.get().class,
 			ReferenceInstance::Null => panic!("NullPointerException"),
 		}

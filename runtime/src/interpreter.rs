@@ -911,12 +911,11 @@ impl Interpreter {
     fn fetch_field(frame: &mut Frame, is_static: bool) -> &'static Field {
         let field_ref_idx = frame.read_byte2();
 
-        let class = frame.method().class();
         let constant_pool = frame.constant_pool();
 
         let ret = constant_pool.get::<cp_types::FieldRef>(field_ref_idx);
         if is_static {
-            class.initialize(frame.thread());
+            ret.class.initialize(frame.thread());
         }
 
         ret
@@ -925,13 +924,12 @@ impl Interpreter {
     fn fetch_method(frame: &mut Frame, is_static: bool) -> &'static Method {
         let method_ref_idx = frame.read_byte2();
 
-        let class = frame.method().class();
         let constant_pool = frame.constant_pool();
 
         let ret = constant_pool.get::<cp_types::MethodRef>(method_ref_idx);
         if is_static {
             // On successful resolution of the method, the class or interface that declared the resolved method is initialized if that class or interface has not already been initialized
-            class.initialize(frame.thread());
+            ret.class().initialize(frame.thread());
         }
 
         ret

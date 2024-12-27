@@ -442,6 +442,8 @@ impl JavaThread {
 
 		let fn_ptr = super::native::lookup_method(method);
 
+		self.stash_and_reset_pc();
+
 		// See comments on `NativeFrame`
 		self.frame_stack
 			.push(StackFrame::Native(NativeFrame { method }));
@@ -457,6 +459,8 @@ impl JavaThread {
 			self.frame_stack.current().unwrap().stack_mut().push_op(ret);
 		}
 
+		self.restore_pc();
+
 		return;
 	}
 
@@ -466,6 +470,13 @@ impl JavaThread {
 		}
 
 		self.pc.store(0, Ordering::Relaxed);
+	}
+
+	fn restore_pc(&self) {
+		if let Some(current_frame) = self.frame_stack.current() {
+			let pc = current_frame.stashed_pc();
+			self.pc.store(pc, Ordering::Relaxed);
+		}
 	}
 
 	/// Return from the current frame and drop to the previous one
@@ -487,8 +498,7 @@ impl JavaThread {
 		tracing::debug!(target: "JavaThread", "Dropping back to frame for method `{:?}`", current_frame.method());
 
 		// Restore the pc of the frame
-		let previous_pc = current_frame.stashed_pc();
-		self.pc.store(previous_pc, Ordering::Relaxed);
+		self.restore_pc();
 
 		// Push the return value of the previous frame if there is one
 		if let Some(return_value) = return_value {

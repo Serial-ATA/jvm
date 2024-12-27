@@ -503,12 +503,32 @@ pub fn getReference(
 
 pub fn putReference(
 	_env: NonNull<JniEnv>,
-	_this: Reference,   // jdk.internal.misc.Unsafe
-	_object: Reference, // Object
-	_offset: jlong,
-	_value: Reference, // Object
-) -> Reference /* Object */ {
-	unimplemented!("jdk.internal.misc.Unsafe#putReference")
+	_this: Reference,  // jdk.internal.misc.Unsafe
+	object: Reference, // Object
+	offset: jlong,
+	value: Reference, // Object
+) {
+	if object.is_array() {
+		let instance = object.extract_array();
+		unsafe {
+			let array_mut = instance.get_mut();
+			let mut current_field_value = array_mut
+				.get_content_mut()
+				.get_reference_raw(offset as usize);
+			*current_field_value.as_mut() = Reference::clone(&value);
+		}
+
+		return;
+	}
+
+	let instance = object.extract_class();
+	unsafe {
+		let field_value = instance
+			.get_mut()
+			.get_field_value_raw(offset as usize)
+			.as_ptr();
+		*field_value = Operand::Reference(Reference::clone(&value));
+	}
 }
 
 pub fn getReferenceVolatile(
@@ -523,12 +543,13 @@ pub fn getReferenceVolatile(
 
 pub fn putReferenceVolatile(
 	_env: NonNull<JniEnv>,
-	_this: Reference,   // jdk.internal.misc.Unsafe
-	_object: Reference, // java.lang.Object
-	_offset: jlong,
-	_value: Reference, // java.lang.Object
-) -> Reference /* java.lang.Object */ {
-	unimplemented!("jdk.internal.misc.Unsafe#putReferenceVolatile")
+	_this: Reference,  // jdk.internal.misc.Unsafe
+	object: Reference, // java.lang.Object
+	offset: jlong,
+	value: Reference, // java.lang.Object
+) {
+	tracing::warn!("(!!!) Unsafe#putReferenceVolatile not actually volatile");
+	putReference(_env, _this, object, offset, value)
 }
 
 /// Creates the many `{get, put}Ty` and `{get, put}TyVolatile` methods

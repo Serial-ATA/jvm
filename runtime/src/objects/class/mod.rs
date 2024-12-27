@@ -670,10 +670,10 @@ impl Class {
 	///
 	/// This is only safe to call *before* the class is in use. It should never be used outside of
 	/// class loading.
-	pub unsafe fn set_mirror(&'static self, mirror_class: &'static Class) {
+	pub unsafe fn set_mirror(&'static self) {
 		let mirror = match self.class_ty() {
-			ClassType::Instance(_) => MirrorInstance::new(mirror_class, self),
-			ClassType::Array(_) => MirrorInstance::new_array(mirror_class, self),
+			ClassType::Instance(_) => MirrorInstance::new(self),
+			ClassType::Array(_) => MirrorInstance::new_array(self),
 		};
 
 		unsafe {

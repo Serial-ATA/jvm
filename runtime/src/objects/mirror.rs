@@ -46,8 +46,8 @@ impl Debug for MirrorInstance {
 }
 
 impl MirrorInstance {
-	// TODO: Remove the `mirror_class` parameter? It's always `java.lang.Class`
-	pub fn new(mirror_class: &'static Class, target: &'static Class) -> MirrorInstanceRef {
+	pub fn new(target: &'static Class) -> MirrorInstanceRef {
+		let mirror_class = crate::globals::classes::java_lang_Class();
 		let fields = Self::initialize_fields(mirror_class);
 		MirrorInstancePtr::new(Self {
 			class: mirror_class,
@@ -56,7 +56,8 @@ impl MirrorInstance {
 		})
 	}
 
-	pub fn new_array(mirror_class: &'static Class, target: &'static Class) -> MirrorInstanceRef {
+	pub fn new_array(target: &'static Class) -> MirrorInstanceRef {
+		let mirror_class = crate::globals::classes::java_lang_Class();
 		let fields = Self::initialize_fields(mirror_class);
 		MirrorInstancePtr::new(Self {
 			class: mirror_class,
@@ -65,12 +66,13 @@ impl MirrorInstance {
 		})
 	}
 
-	pub fn new_primitive(mirror_class: &'static Class, target: FieldType) -> MirrorInstanceRef {
+	pub fn new_primitive(target: FieldType) -> MirrorInstanceRef {
 		assert!(
 			!matches!(target, FieldType::Array(_) | FieldType::Object(_)),
 			"`Array` and `Object` field types are incompatible with the primitive mirror"
 		);
 
+		let mirror_class = crate::globals::classes::java_lang_Class();
 		let fields = Self::initialize_fields(mirror_class);
 		MirrorInstancePtr::new(Self {
 			class: mirror_class,

@@ -133,11 +133,11 @@ impl ClassLoader {
 		// "Preparation may occur at any time following creation but must be completed prior to initialization."
 		class.prepare();
 
-		// Set the mirror
-		if let Some(mirror_class) = Self::lookup_class(sym!(java_lang_Class)) {
+		// Set the mirror if `java.lang.Class` is loaded
+		if Self::lookup_class(sym!(java_lang_Class)).is_some() {
 			// SAFETY: The only condition of `set_mirror` is that the class isn't in use yet.
 			unsafe {
-				class.set_mirror(mirror_class);
+				class.set_mirror();
 			}
 		}
 
@@ -231,11 +231,11 @@ impl ClassLoader {
 		//     If the component type is a reference type, the accessibility of the array class is determined by the accessibility of its component type (§5.4.4).
 		//     Otherwise, the array class is accessible to all classes and interfaces.
 
-		// Set the mirror
-		if let Some(mirror_class) = Self::lookup_class(sym!(java_lang_Class)) {
+		// Set the mirror if `java.lang.Class` is loaded
+		if Self::lookup_class(sym!(java_lang_Class)).is_some() {
 			// SAFETY: The only condition of `set_mirror` is that the class isn't in use yet.
 			unsafe {
-				array_class.set_mirror(mirror_class);
+				array_class.set_mirror();
 			}
 		}
 
@@ -245,11 +245,10 @@ impl ClassLoader {
 
 	/// Recreate mirrors for all loaded classes
 	pub fn fixup_mirrors() {
-		let java_lang_class = crate::globals::classes::java_lang_Class();
 		for (_, class) in BOOTSTRAP_LOADED_CLASSES.lock().unwrap().iter() {
 			// SAFETY: The only condition of `set_mirror` is that the class isn't in use yet.
 			unsafe {
-				class.set_mirror(java_lang_class);
+				class.set_mirror();
 			}
 		}
 	}

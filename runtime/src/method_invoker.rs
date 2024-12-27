@@ -87,7 +87,7 @@ impl MethodInvoker {
 			}
 
 			if reresolve_method {
-				let class = this.extract_target_class();
+				let class = this.extract_instance_class();
 				method = class.map_interface_method(method);
 				max_locals = method.code.max_locals;
 			}

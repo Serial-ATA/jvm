@@ -85,10 +85,41 @@ pub fn initClassName(
 
 pub fn getSuperclass(
 	_env: NonNull<JniEnv>,
-	_this: Reference, // java.lang.Class
+	this: Reference, // java.lang.Class
 ) -> Reference /* Class<? super T> */
 {
-	unimplemented!("Class#getSuperclass");
+	// Comments from https://github.com/openjdk/jdk/blob/6c59185475eeca83153f085eba27cc0b3acf9bb4/src/java.base/share/classes/java/lang/Class.java#L1034-L1044
+
+	let this = this.extract_mirror();
+
+	let instance = this.get();
+	let target_class = instance.target_class();
+
+	// If this `Class` represents either:
+	// * the `Object` class
+	if target_class == crate::globals::classes::java_lang_Object()
+		// * an interface
+		|| target_class.is_interface()
+		// * a primitive type, or void
+		|| instance.is_primitive()
+	{
+		// then null is returned
+		return Reference::null();
+	}
+
+	// If this `Class` object represents an array class
+	if instance.is_array() {
+		// then the `Class` object representing the `Object` class is returned
+		return Reference::mirror(MirrorInstance::new(
+			crate::globals::classes::java_lang_Object(),
+		));
+	}
+
+	if let Some(super_class) = target_class.super_class {
+		return Reference::mirror(MirrorInstance::new(super_class));
+	}
+
+	Reference::null()
 }
 pub fn getInterfaces0(
 	_env: NonNull<JniEnv>,
@@ -146,8 +177,7 @@ pub fn getPrimitiveClass(_env: NonNull<JniEnv>, name: Reference /* String */) ->
 
 	for (name, ty) in crate::globals::TYPES {
 		if &name_string == name {
-			let java_lang_class = crate::globals::classes::java_lang_Class();
-			return Reference::mirror(MirrorInstance::new_primitive(java_lang_class, ty.clone()));
+			return Reference::mirror(MirrorInstance::new_primitive(ty.clone()));
 		}
 	}
 

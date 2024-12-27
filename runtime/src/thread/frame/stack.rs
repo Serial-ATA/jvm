@@ -3,12 +3,28 @@ use super::Frame;
 use crate::objects::method::Method;
 
 use std::cell::UnsafeCell;
+use std::fmt::Debug;
 
-#[derive(Debug)]
 pub enum StackFrame {
 	Real(Frame),
 	Native(NativeFrame),
 	Fake,
+}
+
+impl Debug for StackFrame {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			StackFrame::Real(frame) => write!(
+				f,
+				"(Real) {:?} (code len: {}, cached pc: {})",
+				frame.method(),
+				frame.method().code.code.len(),
+				frame.cached_pc.load(std::sync::atomic::Ordering::Acquire)
+			),
+			StackFrame::Native(frame) => write!(f, "(Native) {:?}", frame.method()),
+			StackFrame::Fake => write!(f, "Fake"),
+		}
+	}
 }
 
 impl StackFrame {
@@ -43,9 +59,14 @@ impl<'a> From<&'a NativeFrame> for VisibleStackFrame<'a> {
 	}
 }
 
-#[derive(Debug)]
 pub struct FrameStack {
 	inner: UnsafeCell<Vec<StackFrame>>,
+}
+
+impl Debug for FrameStack {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_list().entries(self.__inner().iter()).finish()
+	}
 }
 
 impl FrameStack {
