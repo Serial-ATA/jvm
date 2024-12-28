@@ -1,6 +1,9 @@
 mod exceptions;
 pub mod frame;
 use frame::stack::{FrameStack, StackFrame};
+mod builder;
+pub use builder::JavaThreadBuilder;
+mod hash;
 #[allow(non_snake_case)]
 pub mod java_lang_Thread;
 pub mod pool;
@@ -18,7 +21,7 @@ use crate::thread::frame::native::NativeFrame;
 use crate::thread::frame::Frame;
 use crate::thread::pool::ThreadPool;
 
-use std::cell::{SyncUnsafeCell, UnsafeCell};
+use std::cell::{Cell, SyncUnsafeCell, UnsafeCell};
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
@@ -27,6 +30,7 @@ use std::thread::JoinHandle;
 
 use classfile::accessflags::MethodAccessFlags;
 use instructions::{Operand, StackLike};
+use java_lang_Thread::ThreadStatus;
 use jni::env::JniEnv;
 use symbols::sym;
 
@@ -40,103 +44,13 @@ pub struct JVMOptions {
 	pub show_version: bool,
 }
 
-/// A builder for a `JavaThread`
-///
-/// This is the only way to construct a `JavaThread`, and is responsible for spawning the associated
-/// OS thread, if applicable.
-#[derive(Default)]
-pub struct JavaThreadBuilder {
-	obj: Option<Reference>,
-	entry_point: Option<Box<dyn Fn(&JavaThread) + Send + Sync + 'static>>,
-	stack_size: usize,
-}
-
-impl JavaThreadBuilder {
-	/// Create a new `JavaThreadBuilder`
-	///
-	/// This is equivalent to [`Self::default`].
-	pub fn new() -> JavaThreadBuilder {
-		Self {
-			obj: None,
-			entry_point: None,
-			stack_size: 0, // TODO: Default -Xss
-		}
-	}
-
-	// TODO: Unsafe? The object is not verified to be of the correct class.
-	/// Set the `java.lang.Thread` associated with this `JavaThread`
-	///
-	/// It is up to the caller to verify that `obj` is *actually* of the correct type.
-	pub fn obj(mut self, obj: Reference) -> Self {
-		self.obj = Some(obj);
-		self
-	}
-
-	/// Set the entrypoint of this `JavaThread`
-	///
-	/// Setting this will spawn an OS thread to run `entry`. This is really only used with [`JavaThread::default_entry_point`],
-	/// which calls `java.lang.Thread#run` on the associated [`obj`].
-	///
-	/// [`obj`]: Self::obj
-	pub fn entry_point(mut self, entry: impl Fn(&JavaThread) + Send + Sync + 'static) -> Self {
-		self.entry_point = Some(Box::new(entry));
-		self
-	}
-
-	/// Set the stack size of the associated OS thread
-	///
-	/// This will have no effect if there is no [`entry_point`] set.
-	///
-	/// [`entry_point`]: Self::entry_point
-	pub fn stack_size(mut self, size: usize) -> Self {
-		self.stack_size = size;
-		self
-	}
-
-	/// Construct the `JavaThread`
-	///
-	/// This will also spawn an OS thread if applicable.
-	///
-	/// The return type of this depends on whether an OS thread has been spawned. If no [`entry_point`]
-	/// was set, it is safe to unwrap it as [`MaybeArc::Not`].
-	///
-	/// [`entry_point`]: Self::entry_point
-	pub fn finish(self) -> &'static JavaThread {
-		let thread = JavaThread {
-			env: unsafe { JniEnv::from_raw(new_env()) },
-			obj: UnsafeCell::new(self.obj),
-			os_thread: UnsafeCell::new(None),
-
-			pc: AtomicIsize::new(0),
-			frame_stack: FrameStack::new(),
-			remaining_operand: UnsafeCell::new(None),
-		};
-
-		let thread = ThreadPool::push(thread);
-		if let Some(entry_point) = self.entry_point {
-			let mut os_thread = thread::Builder::new();
-			if self.stack_size > 0 {
-				os_thread = os_thread.stack_size(self.stack_size);
-			}
-
-			let os_thread_ptr = thread.os_thread.get();
-
-			// TODO: Error handling
-			let handle = os_thread.spawn(move || entry_point(thread)).unwrap();
-			unsafe {
-				*os_thread_ptr = Some(handle);
-			}
-		}
-
-		thread
-	}
-}
-
 #[repr(C)]
 pub struct JavaThread {
 	env: JniEnv,
 	obj: UnsafeCell<Option<Reference>>,
 	os_thread: UnsafeCell<Option<JoinHandle<()>>>,
+
+	hash_state: Cell<hash::HashState>,
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.5.1
 	// Each Java Virtual Machine thread has its own pc (program counter) register [...]
@@ -158,6 +72,22 @@ impl PartialEq for JavaThread {
 
 /// Global accessors
 impl JavaThread {
+	// Used in `JavaThreadBuilder::finish`
+	fn new(obj: Option<Reference>) -> Self {
+		let seed = 1;
+		JavaThread {
+			env: unsafe { JniEnv::from_raw(new_env()) },
+			obj: UnsafeCell::new(obj),
+			os_thread: UnsafeCell::new(None),
+
+			hash_state: Cell::new(hash::HashState::new(seed)),
+
+			pc: AtomicIsize::new(0),
+			frame_stack: FrameStack::new(),
+			remaining_operand: UnsafeCell::new(None),
+		}
+	}
+
 	/// Get the `JavaThread` associated with `env`
 	///
 	/// # Safety
@@ -223,21 +153,6 @@ impl JavaThread {
 			*current = Some(thread);
 		}
 	}
-}
-
-/// Value for the `java.lang.Thread$FieldHolder#status` field
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[repr(i32)]
-pub enum ThreadStatus {
-	New = 0,
-	Runnable = 1,
-	Sleeping = 2,
-	InObjectWait = 3,
-	InObjectWaitTimed = 4,
-	Parked = 5,
-	ParkedTimed = 6,
-	BlockedOnMonitorEnter = 7,
-	Terminated = 8,
 }
 
 // Actions for the related `java.lang.Thread` instance

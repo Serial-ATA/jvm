@@ -1,5 +1,5 @@
+use super::instance::{Header, Instance};
 use crate::objects::class::Class;
-use crate::objects::class_instance::Instance;
 use crate::objects::field::Field;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
 
@@ -28,8 +28,9 @@ enum MirrorTarget {
 /// ```
 ///
 /// `c` is a mirror instance, with a target of `java.lang.String`.
-#[derive(Clone, PartialEq)]
+#[derive(PartialEq)]
 pub struct MirrorInstance {
+	header: Header,
 	class: &'static Class,
 	pub fields: Box<[Operand<Reference>]>,
 	target: MirrorTarget,
@@ -50,6 +51,7 @@ impl MirrorInstance {
 		let mirror_class = crate::globals::classes::java_lang_Class();
 		let fields = Self::initialize_fields(mirror_class);
 		MirrorInstancePtr::new(Self {
+			header: Header::new(),
 			class: mirror_class,
 			fields,
 			target: MirrorTarget::Class(target),
@@ -60,6 +62,7 @@ impl MirrorInstance {
 		let mirror_class = crate::globals::classes::java_lang_Class();
 		let fields = Self::initialize_fields(mirror_class);
 		MirrorInstancePtr::new(Self {
+			header: Header::new(),
 			class: mirror_class,
 			fields,
 			target: MirrorTarget::Class(target),
@@ -75,6 +78,7 @@ impl MirrorInstance {
 		let mirror_class = crate::globals::classes::java_lang_Class();
 		let fields = Self::initialize_fields(mirror_class);
 		MirrorInstancePtr::new(Self {
+			header: Header::new(),
 			class: mirror_class,
 			fields,
 			target: MirrorTarget::Primitive(target),
@@ -147,6 +151,10 @@ impl MirrorInstance {
 }
 
 impl Instance for MirrorInstance {
+	fn header(&self) -> &Header {
+		&self.header
+	}
+
 	fn get_field_value(&self, field: &Field) -> Operand<Reference> {
 		self.get_field_value0(field.idx)
 	}

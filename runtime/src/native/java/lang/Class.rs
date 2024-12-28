@@ -1,7 +1,7 @@
 use crate::include_generated;
-use crate::native::jni::safe_jclass_from_classref;
+use crate::native::jni::{classref_from_jclass, safe_classref_from_jclass, IntoJni};
 use crate::native::JniEnv;
-use crate::objects::class_instance::Instance;
+use crate::objects::instance::Instance;
 use crate::objects::mirror::MirrorInstance;
 use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
@@ -51,10 +51,7 @@ pub fn isAssignableFrom(
 	let super_ = this.extract_target_class();
 
 	let env = unsafe { &(*env.as_ptr()) };
-	env.is_assignable_from(
-		safe_jclass_from_classref(sub),
-		safe_jclass_from_classref(super_),
-	)
+	env.is_assignable_from(sub.into_jni_safe(), super_.into_jni_safe())
 }
 pub fn isInterface(_env: NonNull<JniEnv>, this: Reference /* java.lang.Class */) -> jboolean {
 	this.extract_target_class().is_interface()
@@ -84,42 +81,19 @@ pub fn initClassName(
 }
 
 pub fn getSuperclass(
-	_env: NonNull<JniEnv>,
+	env: NonNull<JniEnv>,
 	this: Reference, // java.lang.Class
 ) -> Reference /* Class<? super T> */
 {
-	// Comments from https://github.com/openjdk/jdk/blob/6c59185475eeca83153f085eba27cc0b3acf9bb4/src/java.base/share/classes/java/lang/Class.java#L1034-L1044
+	let env = unsafe { &*env.as_ptr() };
 
-	let this = this.extract_mirror();
-
-	let instance = this.get();
-	let target_class = instance.target_class();
-
-	// If this `Class` represents either:
-	// * the `Object` class
-	if target_class == crate::globals::classes::java_lang_Object()
-		// * an interface
-		|| target_class.is_interface()
-		// * a primitive type, or void
-		|| instance.is_primitive()
-	{
-		// then null is returned
+	let target_class = this.extract_target_class();
+	let Some(super_class_raw) = env.get_super_class(target_class.into_jni_safe()) else {
 		return Reference::null();
-	}
+	};
 
-	// If this `Class` object represents an array class
-	if instance.is_array() {
-		// then the `Class` object representing the `Object` class is returned
-		return Reference::mirror(MirrorInstance::new(
-			crate::globals::classes::java_lang_Object(),
-		));
-	}
-
-	if let Some(super_class) = target_class.super_class {
-		return Reference::mirror(MirrorInstance::new(super_class));
-	}
-
-	Reference::null()
+	let super_class = safe_classref_from_jclass(super_class_raw);
+	Reference::mirror(super_class.mirror())
 }
 pub fn getInterfaces0(
 	_env: NonNull<JniEnv>,

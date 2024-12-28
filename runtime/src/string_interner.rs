@@ -1,5 +1,7 @@
 use crate::classpath::classloader::ClassLoader;
-use crate::objects::class_instance::{ArrayContent, ArrayInstance, ClassInstance, Instance};
+use crate::objects::array::{ArrayContent, ArrayInstance};
+use crate::objects::class_instance::ClassInstance;
+use crate::objects::instance::Instance;
 use crate::objects::reference::{ClassInstanceRef, Reference};
 
 use std::collections::HashMap;

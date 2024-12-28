@@ -1,0 +1,18 @@
+import java.lang.Object;
+
+public abstract class Reference {
+    // Atomically get and clear (set to null) the VM's pending-Reference list.
+    private static native Reference<?> getAndClearReferencePendingList();
+
+    // Test whether the VM's pending-Reference list contains any entries.
+    private static native boolean hasReferencePendingList();
+
+    // Wait until the VM's pending-Reference list may be non-null.
+    private static native void waitForReferencePendingList();
+
+    @IntrinsicCandidate
+    private native boolean refersTo0(Object o);
+
+    @IntrinsicCandidate
+    private native void clear0();
+}

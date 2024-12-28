@@ -2,10 +2,12 @@
 
 use crate::classpath::classloader::ClassLoader;
 use crate::method_invoker::MethodInvoker;
+use crate::objects::array::ArrayInstance;
 use crate::objects::class::{Class, ClassInitializationState};
-use crate::objects::class_instance::{ArrayInstance, ClassInstance, Instance};
+use crate::objects::class_instance::ClassInstance;
 use crate::objects::constant_pool::cp_types::{self, Entry};
 use crate::objects::field::Field;
+use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::string_interner::StringInterner;

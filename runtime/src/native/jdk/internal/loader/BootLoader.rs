@@ -1,4 +1,4 @@
-use crate::objects::class_instance::Instance;
+use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 

@@ -26,19 +26,62 @@ pub mod version;
 pub mod vm;
 pub mod weak;
 
-/// Create a `JFieldId` from a `Field`
-#[allow(trivial_casts)]
-pub fn safe_jfieldid_from_field_ref(field: &'static Field) -> JFieldId {
-	let raw = jfieldid_from_field_ref(field);
+pub trait IntoJni {
+	type RawJniTy;
+	type SafeJniTy;
 
-	// SAFETY: We know that the `jclass` is valid because it was created from a `Class`
-	unsafe { JFieldId::from_raw(raw) }
+	/// Convert this type into its raw JNI counterpart
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// let class = crate::globals::classes::java_lang_Object();
+	/// let class_jni: jni::sys::jclass = class.into_jni();
+	/// ```
+	fn into_jni(self) -> Self::RawJniTy;
+	/// Convert this type into its safe JNI counterpart
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// let class = crate::globals::classes::java_lang_Object();
+	/// let class_jni_safe: jni::objects::JClass = class.into_jni_safe();
+	/// ```
+	fn into_jni_safe(self) -> Self::SafeJniTy;
 }
 
-/// Create a `jfieldID` from a `Field`
-#[allow(trivial_casts)]
-pub fn jfieldid_from_field_ref(field: &'static Field) -> jfieldID {
-	field as *const _ as jfieldID
+impl IntoJni for &'static Class {
+	type RawJniTy = jclass;
+	type SafeJniTy = JClass;
+
+	#[allow(trivial_casts)]
+	fn into_jni(self) -> Self::RawJniTy {
+		self as *const _ as jclass
+	}
+
+	fn into_jni_safe(self) -> Self::SafeJniTy {
+		let raw = self.into_jni();
+
+		// SAFETY: We know that the `jclass` is valid because it was created from a `Class`
+		unsafe { JClass::from_raw(raw) }
+	}
+}
+
+impl IntoJni for &'static Field {
+	type RawJniTy = jfieldID;
+	type SafeJniTy = JFieldId;
+
+	#[allow(trivial_casts)]
+	fn into_jni(self) -> Self::RawJniTy {
+		self as *const _ as jfieldID
+	}
+
+	fn into_jni_safe(self) -> Self::SafeJniTy {
+		let raw = self.into_jni();
+
+		// SAFETY: We know that the `jclass` is valid because it was created from a `Class`
+		unsafe { JFieldId::from_raw(raw) }
+	}
 }
 
 /// Create a `Field` from a `jfieldID`
@@ -53,19 +96,16 @@ pub unsafe fn field_ref_from_jfieldid(field: jfieldID) -> Option<&'static Field>
 	}
 }
 
-/// Create a `JClass` from a `Class`
+/// Create a `Class` from a `JClass`
 #[allow(trivial_casts)]
-pub fn safe_jclass_from_classref(class: &'static Class) -> JClass {
-	let raw = jclass_from_classref(class);
+pub fn safe_classref_from_jclass(class: JClass) -> &'static Class {
+	debug_assert!(!class.raw().is_null());
 
-	// SAFETY: We know that the `jclass` is valid because it was created from a `Class`
-	unsafe { JClass::from_raw(raw) }
-}
-
-/// Create a `jclass` from a `Class`
-#[allow(trivial_casts)]
-pub fn jclass_from_classref(class: &'static Class) -> jclass {
-	class as *const _ as jclass
+	// SAFETY: We assume that a `JClass`, being from the safe API, was created in a valid way
+	unsafe {
+		let class_ptr = core::mem::transmute::<jclass, *const Class>(class.raw());
+		&*class_ptr
+	}
 }
 
 /// Create a `ClassRef` from a `jclass`

@@ -1,8 +1,8 @@
 #![allow(non_upper_case_globals)]
 
 use crate::classpath::classloader::ClassLoader;
-use crate::native::jni::jfieldid_from_field_ref;
-use crate::objects::class_instance::Instance;
+use crate::native::jni::IntoJni;
+use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 
 use std::cell::SyncUnsafeCell;
@@ -59,16 +59,16 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 		match field.name.as_str() {
 			"fd" => unsafe {
 				assert!(fields & 1 << 3 == 0, "Field can only occur once");
-				*fd.get() = ForceSync::new(jfieldid_from_field_ref(field));
+				*fd.get() = ForceSync::new(field.into_jni());
 				fields |= 1 << 2;
 			},
 			#[cfg(windows)]
 			"handle" => unsafe {
-				*handle.get() = ForceSync::new(jfieldid_from_field_ref(field));
+				*handle.get() = ForceSync::new(field.into_jni());
 				fields |= 1 << 1;
 			},
 			"append" => unsafe {
-				*append.get() = ForceSync::new(jfieldid_from_field_ref(field));
+				*append.get() = ForceSync::new(field.into_jni());
 				fields |= 1;
 			},
 			_ => {},

@@ -1,11 +1,26 @@
-//! Methods for interacting with `java.lang.Thread` instances
+//! Utilities for interacting with `java.lang.Thread` instances
 
-use crate::objects::class_instance::Instance;
+use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 
 use common::traits::PtrType;
 use instructions::Operand;
 use symbols::sym;
+
+/// Value for the `java.lang.Thread$FieldHolder#status` field
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(i32)]
+pub enum ThreadStatus {
+	New = 0,
+	Runnable = 1,
+	Sleeping = 2,
+	InObjectWait = 3,
+	InObjectWaitTimed = 4,
+	Parked = 5,
+	ParkedTimed = 6,
+	BlockedOnMonitorEnter = 7,
+	Terminated = 8,
+}
 
 pub fn set_field_offsets() {
 	// java.lang.Thread fields
@@ -53,9 +68,9 @@ pub(super) fn set_eetop(obj: Reference, eetop: jni::sys::jlong) {
 
 /// java.lang.Thread$FieldHolder accessors
 pub mod holder {
-	use crate::objects::class_instance::Instance;
+	use crate::objects::instance::Instance;
 	use crate::objects::reference::Reference;
-	use crate::thread::ThreadStatus;
+	use crate::thread::java_lang_Thread::ThreadStatus;
 
 	use common::int_types::s4;
 	use common::traits::PtrType;

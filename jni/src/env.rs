@@ -71,6 +71,31 @@ impl JniEnv {
 		Ok(unsafe { JClass::from_raw(ret) })
 	}
 
+	/// Returns the superclass of the class specified by `class`.
+	///
+	/// If `class` specifies the class `Object`, or class represents an interface, this function returns `None`.
+	///
+	/// ## PARAMETERS
+	///
+	/// `class`: a Java class object.
+	///
+	/// ## RETURNS
+	///
+	/// Returns the superclass of the class represented by `class`, or `None`.
+	pub fn get_super_class(&self, sub: JClass) -> Option<JClass> {
+		let ret;
+		unsafe {
+			let invoke_interface = self.as_native_interface();
+			ret = ((*invoke_interface).GetSuperclass)(self.0 as _, sub.raw());
+		}
+
+		if ret.is_null() {
+			return None;
+		}
+
+		Some(unsafe { JClass::from_raw(ret) })
+	}
+
 	/// Determines whether an object of `sub` can be safely cast to `sup`.
 	///
 	/// ## PARAMETERS

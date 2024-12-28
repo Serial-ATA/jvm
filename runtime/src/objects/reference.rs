@@ -1,14 +1,19 @@
+use super::array::ArrayInstancePtr;
+use super::class::Class;
+use super::class_instance::ClassInstancePtr;
 use super::field::Field;
-use crate::objects::class::Class;
-use crate::objects::class_instance::{ArrayInstancePtr, ClassInstancePtr, Instance};
-use crate::objects::mirror::MirrorInstancePtr;
-use crate::objects::monitor::Monitor;
+use super::instance::{Header, Instance};
+use super::mirror::MirrorInstancePtr;
+use super::monitor::Monitor;
 use crate::thread::JavaThread;
 
+use std::cell::Cell;
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
+use ::jni::sys::jint;
 use common::traits::PtrType;
 use instructions::Operand;
 use symbols::Symbol;
@@ -18,6 +23,16 @@ pub type ArrayInstanceRef = Arc<ArrayInstancePtr>;
 pub type MirrorInstanceRef = Arc<MirrorInstancePtr>;
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.4
+
+/// A reference to an object
+///
+/// It is important to note that calling [`clone()`](Clone::clone) on this will **not** clone the
+/// object. It will simply clone the *reference*, as well as a reference to the [`Monitor`].
+///
+/// In order to clone objects, see the [`CloneableInstance::clone`] impl on each respective instance
+/// type.
+///
+/// [`CloneableInstance::clone`]: super::instance::CloneableInstance::clone
 #[derive(Debug, Clone)]
 pub struct Reference {
 	instance: ReferenceInstance,
@@ -83,6 +98,27 @@ impl Reference {
 }
 
 impl Reference {
+	pub fn hash(&self) -> Option<jint> {
+		// Null references are always 0
+		if self.is_null() {
+			return Some(0);
+		}
+
+		self.header().hash()
+	}
+
+	/// Generate a new hash for this object
+	///
+	/// In the event that another thread is already generating a hash, this thread will spin until it finishes.
+	pub fn generate_hash(&self, thread: &JavaThread) -> jint {
+		// Null references are always 0
+		if self.is_null() {
+			return 0;
+		}
+
+		self.header().generate_hash(thread)
+	}
+
 	pub fn ptr(&self) -> *const c_void {
 		match &self.instance {
 			ReferenceInstance::Class(val) => val.as_raw() as _,
@@ -200,6 +236,17 @@ impl Reference {
 
 // TODO: Can this also handle Reference::Array in the future? Doing many manual checks in jdk.internal.misc.Unsafe
 impl Instance for Reference {
+	fn header(&self) -> &Header {
+		match &self.instance {
+			ReferenceInstance::Class(instance) => instance.get().header(),
+			ReferenceInstance::Array(instance) => instance.get().header(),
+			ReferenceInstance::Mirror(instance) => instance.get().header(),
+			ReferenceInstance::Null => {
+				unreachable!("Should never attempt to retrieve the header of a null object")
+			},
+		}
+	}
+
 	fn get_field_value(&self, field: &Field) -> Operand<Reference> {
 		match &self.instance {
 			ReferenceInstance::Class(class) => class.get().get_field_value(field),

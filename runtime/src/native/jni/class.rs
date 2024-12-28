@@ -1,4 +1,4 @@
-use super::{classref_from_jclass, jclass_from_classref};
+use super::{classref_from_jclass, IntoJni};
 use crate::classpath::classloader::ClassLoader;
 use crate::objects::class::Class;
 
@@ -24,7 +24,7 @@ pub unsafe extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -
 	let name = unsafe { CStr::from_ptr(name) };
 
 	if let Some(class) = ClassLoader::lookup_class(Symbol::intern_bytes(name.to_bytes())) {
-		return jclass_from_classref(class);
+		return class.into_jni();
 	}
 
 	return core::ptr::null::<&'static Class>() as jclass;
@@ -32,10 +32,32 @@ pub unsafe extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -
 
 #[no_mangle]
 pub unsafe extern "system" fn GetSuperclass(env: *mut JNIEnv, sub: jclass) -> jclass {
-	if let Some(class) = unsafe { classref_from_jclass(sub) } {
-		if let Some(super_class) = class.super_class {
-			return jclass_from_classref(super_class);
-		}
+	// Comments from https://github.com/openjdk/jdk/blob/6c59185475eeca83153f085eba27cc0b3acf9bb4/src/java.base/share/classes/java/lang/Class.java#L1034-L1044
+
+	let Some(sub) = (unsafe { classref_from_jclass(sub) }) else {
+		panic!("Invalid arguments to `GetSuperclass`");
+	};
+
+	// If this `Class` represents either:
+	// * the `Object` class
+	if sub == crate::globals::classes::java_lang_Object()
+        // * an interface
+        || sub.is_interface()
+        // * a primitive type, or void
+        || sub.mirror().get().is_primitive()
+	{
+		// then null is returned
+		return core::ptr::null::<&'static Class>() as jclass;
+	}
+
+	// If this `Class` object represents an array class
+	if sub.is_array() {
+		// then the `Class` object representing the `Object` class is returned
+		return crate::globals::classes::java_lang_Object().into_jni();
+	}
+
+	if let Some(super_class) = sub.super_class {
+		return super_class.into_jni();
 	}
 
 	return core::ptr::null::<&'static Class>() as jclass;

@@ -1,7 +1,10 @@
 use crate::include_generated;
 use crate::native::JniEnv;
-use crate::objects::class_instance::{ArrayInstancePtr, ClassInstancePtr};
+use crate::objects::array::ArrayInstancePtr;
+use crate::objects::class_instance::ClassInstancePtr;
+use crate::objects::instance::CloneableInstance;
 use crate::objects::reference::Reference;
+use crate::thread::JavaThread;
 
 use std::ptr::NonNull;
 
@@ -15,13 +18,15 @@ pub fn getClass(_: NonNull<JniEnv>, this: Reference /* java.lang.Object */) -> R
 	Reference::mirror(this.extract_class_mirror())
 }
 
-pub fn hashCode(_: NonNull<JniEnv>, this: Reference /* java.lang.Object */) -> jint {
-	let ptr = this.ptr();
-	if ptr.is_null() {
-		return 0;
+pub fn hashCode(env: NonNull<JniEnv>, this: Reference /* java.lang.Object */) -> jint {
+	// Hash already generated, nothing to do
+	if let Some(hash) = this.hash() {
+		return hash;
 	}
 
-	ptr as jint
+	// We need to generate a hash, this will update the object for future calls
+	let thread = unsafe { &*JavaThread::for_env(env.as_ptr()) };
+	this.generate_hash(thread)
 }
 
 // throws CloneNotSupportedException
@@ -30,7 +35,9 @@ pub fn clone(_: NonNull<JniEnv>, this: Reference /* java.lang.Object */) -> Refe
 	// An array is always cloneable
 	if this.is_array() {
 		let array = this.extract_array();
-		return Reference::array(ArrayInstancePtr::new(array.get().clone()));
+		let instance = array.get();
+		let cloned = unsafe { instance.clone() };
+		return Reference::array(cloned);
 	}
 
 	let instance_ref = this.extract_class();
@@ -40,7 +47,8 @@ pub fn clone(_: NonNull<JniEnv>, this: Reference /* java.lang.Object */) -> Refe
 		panic!("CloneNotSupportedException");
 	}
 
-	Reference::class(ClassInstancePtr::new(instance.clone()))
+	let cloned = unsafe { instance.clone() };
+	Reference::class(cloned)
 }
 
 pub fn notify(_: NonNull<JniEnv>, _this: Reference /* java.lang.Object */) {

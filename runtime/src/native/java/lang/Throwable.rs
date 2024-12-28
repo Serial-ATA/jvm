@@ -1,5 +1,6 @@
 use crate::classpath::classloader::ClassLoader;
-use crate::objects::class_instance::{ArrayContent, ArrayInstance, Instance};
+use crate::objects::array::{ArrayContent, ArrayInstance};
+use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
@@ -16,8 +17,9 @@ use symbols::sym;
 #[allow(non_upper_case_globals)]
 mod stacktrace_element {
 	use crate::objects::class::Class;
-	use crate::objects::class_instance::{ClassInstance, Instance};
+	use crate::objects::class_instance::ClassInstance;
 	use crate::objects::constant_pool::cp_types;
+	use crate::objects::instance::Instance;
 	use crate::objects::reference::Reference;
 	use crate::string_interner::StringInterner;
 	use crate::thread::frame::stack::VisibleStackFrame;

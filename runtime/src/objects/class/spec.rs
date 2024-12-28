@@ -1,7 +1,7 @@
 use crate::java_call;
 use crate::method_invoker::MethodInvoker;
 use crate::objects::class::Class;
-use crate::objects::constant_pool::{cp_types, ConstantPool};
+use crate::objects::constant_pool::cp_types;
 use crate::objects::field::Field;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
@@ -9,11 +9,10 @@ use crate::string_interner::StringInterner;
 use crate::thread::JavaThread;
 
 use std::cell::UnsafeCell;
-use std::sync::{Arc, Condvar, Mutex, MutexGuard};
+use std::sync::{Condvar, Mutex, MutexGuard};
 
 use classfile::accessflags::MethodAccessFlags;
 use classfile::FieldType;
-use common::int_types::u2;
 use instructions::Operand;
 use symbols::{sym, Symbol};
 

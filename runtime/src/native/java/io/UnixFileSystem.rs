@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use crate::classpath::classloader::ClassLoader;
-use crate::native::jni::jfieldid_from_field_ref;
+use crate::native::jni::IntoJni;
 use crate::objects::reference::Reference;
 
 use std::cell::SyncUnsafeCell;
@@ -165,7 +165,7 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 	for field in class.fields() {
 		if field.name == sym!(path) {
 			unsafe {
-				*path.get() = ForceSync::new(jfieldid_from_field_ref(field));
+				*path.get() = ForceSync::new(field.into_jni());
 			}
 			field_set = true;
 			break;

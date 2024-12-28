@@ -1,11 +1,12 @@
 use crate::objects::reference::Reference;
 use crate::thread::pool::ThreadPool;
-use crate::thread::{java_lang_Thread, JavaThread, JavaThreadBuilder, ThreadStatus};
+use crate::thread::{java_lang_Thread, JavaThread, JavaThreadBuilder};
 
 use std::cmp;
 use std::ptr::NonNull;
 use std::sync::atomic::AtomicUsize;
 
+use crate::thread::java_lang_Thread::ThreadStatus;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
 

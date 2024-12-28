@@ -1,5 +1,5 @@
 use super::JavaThread;
-use crate::objects::class_instance::Instance;
+use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 
 use std::sync::RwLock;

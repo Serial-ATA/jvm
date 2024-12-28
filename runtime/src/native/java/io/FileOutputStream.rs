@@ -1,7 +1,7 @@
 use crate::classpath::classloader::ClassLoader;
-use crate::native::jni::{field_ref_from_jfieldid, jfieldid_from_field_ref};
+use crate::native::jni::{field_ref_from_jfieldid, IntoJni};
 use crate::native::Reference;
-use crate::objects::class_instance::Instance;
+use crate::objects::instance::Instance;
 use crate::thread::JavaThread;
 
 use std::cell::SyncUnsafeCell;
@@ -115,7 +115,7 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 	for field in class.fields() {
 		if field.name == sym!(fd) {
 			unsafe {
-				*fd.get() = ForceSync::new(jfieldid_from_field_ref(field));
+				*fd.get() = ForceSync::new(field.into_jni());
 			}
 			field_set = true;
 			break;
