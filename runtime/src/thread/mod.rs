@@ -8,7 +8,6 @@ mod hash;
 pub mod java_lang_Thread;
 pub mod pool;
 
-use crate::classpath::classloader::ClassLoader;
 use crate::interpreter::Interpreter;
 use crate::java_call;
 use crate::native::jni::invocation_api::new_env;
@@ -19,13 +18,10 @@ use crate::stack::local_stack::LocalStack;
 use crate::string_interner::StringInterner;
 use crate::thread::frame::native::NativeFrame;
 use crate::thread::frame::Frame;
-use crate::thread::pool::ThreadPool;
 
 use std::cell::{Cell, SyncUnsafeCell, UnsafeCell};
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicIsize, Ordering};
-use std::sync::Arc;
-use std::thread;
 use std::thread::JoinHandle;
 
 use classfile::accessflags::MethodAccessFlags;
@@ -165,7 +161,7 @@ impl JavaThread {
 	pub fn default_entry_point(&self) {
 		let obj = self.obj().expect("entrypoint should exist");
 
-		let thread_class = ClassLoader::Bootstrap.load(sym!(java_lang_Thread)).unwrap();
+		let thread_class = crate::globals::classes::java_lang_Thread();
 		let run_method = thread_class
 			.resolve_method_step_two(sym!(run_name), sym!(void_method_signature))
 			.unwrap();

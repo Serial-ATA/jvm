@@ -1,16 +1,15 @@
 pub mod spec;
 
-use crate::classpath::classloader::ClassLoader;
 use crate::native::NativeMethodPtr;
 use crate::objects::class::Class;
 use crate::objects::constant_pool::cp_types;
 
 use std::ffi::c_void;
 use std::fmt::{Debug, Formatter};
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 
 use classfile::accessflags::MethodAccessFlags;
-use classfile::{Annotation, Code, LineNumber, MethodDescriptor, MethodInfo, ResolvedAnnotation};
+use classfile::{Code, LineNumber, MethodDescriptor, MethodInfo, ResolvedAnnotation};
 use common::int_types::{s4, u1};
 use symbols::Symbol;
 

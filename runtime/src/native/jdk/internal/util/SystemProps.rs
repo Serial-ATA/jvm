@@ -15,13 +15,19 @@ pub mod Raw {
 	include_generated!("native/jdk/internal/util/def/SystemProps$Raw.constants.rs");
 	include_generated!("native/jdk/internal/util/def/SystemProps.definitions.rs");
 
+	const JAVA_VERSION: &str = env!("SYSTEM_PROPS_JAVA_VERSION");
+	const VM_SPECIFICATION_NAME: &str = env!("SYSTEM_PROPS_VM_SPECIFICATION_NAME");
+	const VM_NAME: &str = env!("SYSTEM_PROPS_VM_NAME");
+	const VM_VERSION: &str = env!("CARGO_PKG_VERSION");
+	const VM_VENDOR: &str = env!("SYSTEM_PROPS_VM_VENDOR");
+
 	pub fn vmProperties(_env: NonNull<JniEnv>) -> Reference /* [Ljava/lang/String; */ {
 		macro_rules! store_properties {
 			($prop_array:ident; $($key:literal => $value:expr),+ $(,)?) => {
 				let mut index = 0;
 				$(
 					let interned_key_string = StringInterner::intern_str($key);
-					let interned_value_string = StringInterner::intern_string($value);
+					let interned_value_string = StringInterner::intern_string(String::from($value));
 					$prop_array.store(index, Operand::Reference(Reference::class(interned_key_string)));
 					index += 1;
 					$prop_array.store(index, Operand::Reference(Reference::class(interned_value_string)));
@@ -31,14 +37,22 @@ pub mod Raw {
 			};
 		}
 
-		let string_array_class = ClassLoader::Bootstrap.load(sym!(object_array)).unwrap();
+		let string_array_class = crate::globals::classes::string_array();
 		let prop_array = ArrayInstance::new_reference(FIXED_LENGTH, string_array_class);
 
 		let prop_array_mut = prop_array.get_mut();
 		store_properties!(prop_array_mut;
-			// TODO: Something more ideal
-			"java.home" => std::env::var("JAVA_HOME").unwrap(),
 			// TODO: Set more properties
+			"java.version" => JAVA_VERSION,
+
+			"java.vm.specification.name" => VM_SPECIFICATION_NAME,
+
+			"java.vm.name" => VM_NAME,
+			"java.vm.version" => VM_VERSION,
+			"java.vm.vendor" => VM_VENDOR,
+
+			// TODO: This isn't entirely accurate, there are more steps to determining java home.
+			"java.home" => std::env::var("JAVA_HOME").unwrap(),
 		);
 
 		Reference::array(prop_array)
@@ -56,7 +70,7 @@ pub mod Raw {
 			};
 		}
 
-		let string_array_class = ClassLoader::Bootstrap.load(sym!(string_array)).unwrap();
+		let string_array_class = crate::globals::classes::string_array();
 		let prop_array = ArrayInstance::new_reference(FIXED_LENGTH, string_array_class);
 
 		let prop_array_mut = prop_array.get_mut();

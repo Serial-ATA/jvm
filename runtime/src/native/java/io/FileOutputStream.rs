@@ -1,3 +1,5 @@
+#![allow(non_upper_case_globals)]
+
 use crate::classpath::classloader::ClassLoader;
 use crate::native::jni::{field_ref_from_jfieldid, IntoJni};
 use crate::native::Reference;

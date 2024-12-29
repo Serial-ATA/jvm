@@ -1,5 +1,5 @@
 use super::class::Class;
-use super::instance::{CloneableInstance, Header, Instance};
+use super::instance::{CloneableInstance, Header};
 use super::reference::{ArrayInstanceRef, Reference};
 use crate::classpath::classloader::ClassLoader;
 
@@ -166,10 +166,8 @@ macro_rules! unsafe_getters {
 		$(
 		paste::paste! {
 			pub unsafe fn [<get_ $name _raw>](&mut self, field_offset: usize) -> NonNull<$ty> {
-				match self {
-					ArrayContent::$pat(bytes) => unsafe { NonNull::new_unchecked(bytes.as_mut_ptr().offset(field_offset as isize) as *mut $ty) },
-					_ => panic!("InternalError"), // TODO
-				}
+				let ptr = self.base_content_ptr() as *mut $ty;
+				unsafe { NonNull::new_unchecked(ptr.offset(field_offset as isize)) }
 			}
 		}
 		)+
@@ -256,6 +254,20 @@ impl ArrayContent {
 			| ArrayContent::Float,   (float)
 			| ArrayContent::Double,  (double)
 			| ArrayContent::Long,    (long)
+		}
+	}
+
+	fn base_content_ptr(&self) -> *mut u8 {
+		match self {
+			ArrayContent::Byte(val) => val.as_ptr() as _,
+			ArrayContent::Boolean(val) => val.as_ptr() as _,
+			ArrayContent::Short(val) => val.as_ptr() as _,
+			ArrayContent::Char(val) => val.as_ptr() as _,
+			ArrayContent::Int(val) => val.as_ptr() as _,
+			ArrayContent::Float(val) => val.as_ptr() as _,
+			ArrayContent::Double(val) => val.as_ptr() as _,
+			ArrayContent::Long(val) => val.as_ptr() as _,
+			ArrayContent::Reference(val) => val.as_ptr() as _,
 		}
 	}
 

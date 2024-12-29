@@ -20,5 +20,6 @@ match_cfg_meta! {
 
 pub mod io;
 pub(crate) mod locale;
+pub mod mem;
 pub mod properties;
 pub(super) mod signals;

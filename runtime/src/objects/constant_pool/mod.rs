@@ -5,7 +5,6 @@ use crate::objects::class::Class;
 use cp_types::Entry;
 
 use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
 
 use classfile::ConstantPoolValueInfo;
 use common::box_slice;

@@ -1,12 +1,15 @@
+use crate::objects::JObject;
+use crate::sys::jint;
 use crate::version::JniVersion;
-use jni_sys::jint;
+
 use std::borrow::Cow;
 use std::ffi::{c_char, c_void};
+use std::ptr;
 
 pub struct VmAttachArgs {
 	version: JniVersion,
 	name: Option<String>,
-	group: Option<u32>,
+	group: Option<JObject>,
 }
 
 impl VmAttachArgs {
@@ -23,7 +26,7 @@ impl VmAttachArgs {
 		self
 	}
 
-	pub fn group(mut self, group: u32) -> Self {
+	pub fn group(mut self, group: JObject) -> Self {
 		self.group = Some(group);
 		self
 	}
@@ -35,28 +38,33 @@ impl VmAttachArgs {
 			group,
 		} = self;
 
-		let mut __name: Option<Cow<'_, [u8]>> = None;
+		let mut __name = None;
 
-		let mut name_ptr = core::ptr::null_mut();
-		if let Some(mut name) = name {
-			match cesu8::to_java_cesu8(&*name) {
+		let mut name_ptr = ptr::null();
+		if let Some(name) = name {
+			match cesu8::to_java_cesu8(name.as_str()) {
 				// If owned, we need to replace `__name` with the new allocation
-				c @ Cow::Owned(_) => {
-					name_ptr = c.as_ptr() as _;
-					__name = Some(c);
+				Cow::Owned(value) => {
+					name_ptr = value.as_ptr();
+					__name = Some(value);
 				},
 				// If borrowed, `__name` needs to point to the original allocation
 				Cow::Borrowed(_) => {
-					name_ptr = name.as_mut_ptr();
-					__name = Some(Cow::Owned(name.into_bytes()));
+					name_ptr = name.as_ptr();
+					__name = Some(name.into_bytes());
 				},
 			}
 		}
 
+		let group = match group {
+			None => ptr::null_mut(),
+			Some(group) => group.raw(),
+		};
+
 		FinalizedJavaVMAttachArgs {
 			version: version.into(),
 			name: name_ptr as _,
-			group: todo!(),
+			group,
 			__name,
 		}
 	}
@@ -73,12 +81,13 @@ impl VmAttachArgs {
 ///     jobject group; /* global ref of a ThreadGroup object, or NULL */
 /// } JavaVMAttachArgs
 /// ```
+#[expect(dead_code)]
 pub(super) struct FinalizedJavaVMAttachArgs {
 	version: jint,
 	name: *const c_char,
 	group: jni_sys::jobject,
 
-	__name: Option<Cow<'static, [u8]>>,
+	__name: Option<Vec<u8>>,
 }
 
 impl FinalizedJavaVMAttachArgs {

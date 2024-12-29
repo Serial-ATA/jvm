@@ -1,7 +1,5 @@
 use crate::include_generated;
 use crate::native::JniEnv;
-use crate::objects::array::ArrayInstancePtr;
-use crate::objects::class_instance::ClassInstancePtr;
 use crate::objects::instance::CloneableInstance;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;

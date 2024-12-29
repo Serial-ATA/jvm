@@ -6,6 +6,7 @@ pub const CPU_ENDIAN: &str = if cfg!(target_endian = "big") { "big" } else { "li
 
 // TODO: Document
 // TODO: Probably make all fields `Option`, to avoid setting empty values at runtime
+#[allow(non_snake_case)]
 pub struct PropertySet {
     pub display_country: String,
     pub display_language: String,

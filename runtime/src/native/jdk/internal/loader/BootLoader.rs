@@ -41,7 +41,7 @@ pub fn setBootLoaderUnnamedModule0(
 	}
 
 	let name = module
-		.get_field_value0(crate::globals::field_offsets::java_lang_Module::name_field_offset())
+		.get_field_value0(crate::globals::fields::java_lang_Module::name_field_offset())
 		.expect_reference();
 	if !name.is_null() {
 		let _thread = unsafe { JavaThread::for_env(env.as_ptr()) };
@@ -49,7 +49,7 @@ pub fn setBootLoaderUnnamedModule0(
 	}
 
 	let loader = module
-		.get_field_value0(crate::globals::field_offsets::java_lang_Module::loader_field_offset())
+		.get_field_value0(crate::globals::fields::java_lang_Module::loader_field_offset())
 		.expect_reference();
 	if !loader.is_null() {
 		let _thread = unsafe { JavaThread::for_env(env.as_ptr()) };

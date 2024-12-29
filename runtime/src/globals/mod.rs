@@ -1,5 +1,5 @@
 pub mod classes;
-pub mod field_offsets;
+pub mod fields;
 pub mod modules;
 pub mod threads;
 

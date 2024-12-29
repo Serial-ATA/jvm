@@ -1,4 +1,3 @@
-use crate::classpath::classloader::ClassLoader;
 use crate::objects::array::{ArrayContent, ArrayInstance};
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
@@ -9,10 +8,10 @@ use std::ptr::slice_from_raw_parts;
 use std::sync::{Arc, LazyLock, RwLock};
 
 use byte_slice_cast::AsSliceOf;
-use common::int_types::{s1, s4, u1, u2};
+use common::int_types::{s1, s4, u2};
 use common::traits::PtrType;
 use instructions::Operand;
-use symbols::{sym, Symbol};
+use symbols::Symbol;
 
 // Possible coders for Strings
 const CODER_LATIN1: s4 = 0;
@@ -28,12 +27,6 @@ pub struct StringInterner;
 
 // TODO: Need to wipe the string pool when the instances fall out of scope
 impl StringInterner {
-	pub fn intern_bytes(bytes: &[u1]) -> ClassInstanceRef {
-		// TODO: Actual error handling
-		let string = String::from_utf8(bytes.to_vec()).expect("valid UTF-8");
-		Self::intern_string(string)
-	}
-
 	pub fn intern_str(string: &'static str) -> ClassInstanceRef {
 		let symbol = Symbol::intern(string);
 		Self::intern_symbol(symbol)
@@ -51,7 +44,7 @@ impl StringInterner {
 
 		// TODO: Error handling
 		let java_string_class = crate::globals::classes::java_lang_String();
-		let byte_array_class = ClassLoader::Bootstrap.load(sym!(byte_array)).unwrap();
+		let byte_array_class = crate::globals::classes::byte_array();
 
 		let symbol_str = symbol.as_str();
 
@@ -76,14 +69,14 @@ impl StringInterner {
 
 		// Set `private byte[] value`
 		new_java_string_instance.get_mut().put_field_value0(
-			crate::globals::field_offsets::java_lang_String::value_field_offset(),
+			crate::globals::fields::java_lang_String::value_field_offset(),
 			reference_to_byte_array,
 		);
 
 		// Set `private final byte coder`
 		let coder = if is_latin1 { CODER_LATIN1 } else { CODER_UTF16 };
 		new_java_string_instance.get_mut().put_field_value0(
-			crate::globals::field_offsets::java_lang_String::coder_field_offset(),
+			crate::globals::fields::java_lang_String::coder_field_offset(),
 			Operand::Int(coder),
 		);
 
@@ -97,12 +90,12 @@ impl StringInterner {
 	}
 
 	pub fn rust_string_from_java_string(class: ClassInstanceRef) -> String {
-		let string_value_field = class.get().get_field_value0(
-			crate::globals::field_offsets::java_lang_String::value_field_offset(),
-		);
+		let string_value_field = class
+			.get()
+			.get_field_value0(crate::globals::fields::java_lang_String::value_field_offset());
 		let string_coder_field = class
 			.get()
-			.get_field_value0(crate::globals::field_offsets::java_lang_String::coder_field_offset())
+			.get_field_value0(crate::globals::fields::java_lang_String::coder_field_offset())
 			.expect_int();
 
 		let char_array = string_value_field.expect_reference().extract_array();

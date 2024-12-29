@@ -160,6 +160,7 @@ vm_symbols::define_symbols! {
 	java_lang_Cloneable: "java/lang/Cloneable",
 	java_io_Serializable: "java/io/Serializable",
 	java_io_File: "java/io/File",
+	jdk_internal_misc_UnsafeConstants: "jdk/internal/misc/UnsafeConstants",
 	jdk_internal_reflect_MethodAccessorImpl: "jdk/internal/reflect/MethodAccessorImpl",
 	java_lang_StackTraceElement: "java/lang/StackTraceElement",
 	java_lang_invoke_MethodHandle: "java/lang/invoke/MethodHandle",
@@ -217,6 +218,11 @@ vm_symbols::define_symbols! {
 	// -- GENERATED METHOD NAME MARKER, DO NOT DELETE --
 
 	// Fields
+	ADDRESS_SIZE0: "ADDRESS_SIZE0",
+	PAGE_SIZE: "PAGE_SIZE",
+	BIG_ENDIAN: "BIG_ENDIAN",
+	UNALIGNED_ACCESS: "UNALIGNED_ACCESS",
+	DATA_CACHE_LINE_FLUSH_SIZE: "DATA_CACHE_LINE_FLUSH_SIZE",
 	name: "name",
 	referent: "referent",
 	loader: "loader",

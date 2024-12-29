@@ -41,6 +41,7 @@ define_classes!(
 	java_lang_Class,
 	java_lang_String,
 	java_lang_ClassLoader,
+	java_lang_System,
 	java_lang_Thread,
 	java_lang_Thread_FieldHolder,
 	java_lang_ThreadGroup,
@@ -53,6 +54,7 @@ define_classes!(
 	java_io_FileInputStream,
 	java_io_FileOutputStream,
 	java_io_File,
+	jdk_internal_misc_UnsafeConstants,
 	jdk_internal_reflect_MethodAccessorImpl,
 	// Primitive types
 	java_lang_Boolean,
@@ -73,4 +75,5 @@ define_classes!(
 	int_array,
 	long_array,
 	short_array,
+	string_array,
 );

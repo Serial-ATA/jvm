@@ -7,10 +7,8 @@ use super::mirror::MirrorInstancePtr;
 use super::monitor::Monitor;
 use crate::thread::JavaThread;
 
-use std::cell::Cell;
 use std::ffi::c_void;
 use std::ptr::NonNull;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use ::jni::sys::jint;

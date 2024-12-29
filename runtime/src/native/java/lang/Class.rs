@@ -1,5 +1,5 @@
 use crate::include_generated;
-use crate::native::jni::{classref_from_jclass, safe_classref_from_jclass, IntoJni};
+use crate::native::jni::{safe_classref_from_jclass, IntoJni};
 use crate::native::JniEnv;
 use crate::objects::instance::Instance;
 use crate::objects::mirror::MirrorInstance;
@@ -73,7 +73,7 @@ pub fn initClassName(
 	let name_string = StringInterner::intern_symbol(this_name);
 
 	this_mirror.get_mut().put_field_value0(
-		crate::globals::field_offsets::java_lang_Class::name_field_offset(),
+		crate::globals::fields::java_lang_Class::name_field_offset(),
 		Operand::Reference(Reference::class(Arc::clone(&name_string))),
 	);
 

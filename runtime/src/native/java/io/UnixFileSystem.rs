@@ -7,7 +7,6 @@ use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
 
 use std::cell::SyncUnsafeCell;
-use std::mem::MaybeUninit;
 use std::ptr::{self, NonNull};
 use std::sync::atomic::{AtomicBool, Ordering};
 

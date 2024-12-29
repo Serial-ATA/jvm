@@ -36,7 +36,7 @@ impl ThreadPool {
 	/// counterparts. However, if the associated [`JavaThread`] is *not* in this pool, this method will
 	/// not be able to find it.
 	pub fn find_from_obj(obj: Reference) -> Option<&'static JavaThread> {
-		let eetop_offset = crate::globals::field_offsets::java_lang_Thread::eetop_field_offset();
+		let eetop_offset = crate::globals::fields::java_lang_Thread::eetop_field_offset();
 		let field_value_ptr = unsafe { obj.get_field_value_raw(eetop_offset) };
 		let field_value = unsafe { field_value_ptr.as_ref() };
 		let eetop = field_value.expect_long();

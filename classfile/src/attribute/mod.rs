@@ -145,12 +145,10 @@ impl From<&[u1]> for AttributeTag {
 			b"NestMembers" => Self::NestMembers,
 			b"Record" => Self::Record,
 			b"PermittedSubclasses" => Self::PermittedSubclasses,
-			_ => unsafe {
-				panic!(
-					"Encountered unknown attribute type: {:?}",
-					std::str::from_utf8(bytes)
-				);
-			},
+			_ => panic!(
+				"Encountered unknown attribute type: {:?}",
+				std::str::from_utf8(bytes)
+			),
 		}
 	}
 }

@@ -23,6 +23,7 @@ pub enum Entry {
 }
 
 /// A trait for types that can be stored in the constant pool.
+#[expect(private_interfaces)]
 pub trait EntryType: sealed::Sealed {
 	/// The final type an entry will resolve to.
 	type Resolved;
@@ -43,6 +44,7 @@ pub trait EntryType: sealed::Sealed {
 
 pub struct Class;
 
+#[expect(private_interfaces)]
 impl EntryType for Class {
 	type Resolved = &'static ClassObj;
 
@@ -62,6 +64,7 @@ impl EntryType for Class {
 
 pub struct Integer;
 
+#[expect(private_interfaces)]
 impl EntryType for Integer {
 	type Resolved = s4;
 
@@ -78,6 +81,7 @@ impl EntryType for Integer {
 
 pub struct Double;
 
+#[expect(private_interfaces)]
 impl EntryType for Double {
 	type Resolved = f64;
 
@@ -94,6 +98,7 @@ impl EntryType for Double {
 
 pub struct Float;
 
+#[expect(private_interfaces)]
 impl EntryType for Float {
 	type Resolved = f32;
 
@@ -110,6 +115,7 @@ impl EntryType for Float {
 
 pub struct Long;
 
+#[expect(private_interfaces)]
 impl EntryType for Long {
 	type Resolved = s8;
 
@@ -126,6 +132,7 @@ impl EntryType for Long {
 
 pub struct ClassName;
 
+#[expect(private_interfaces)]
 impl EntryType for ClassName {
 	type Resolved = Symbol;
 
@@ -144,6 +151,7 @@ impl EntryType for ClassName {
 
 pub struct ConstantUtf8;
 
+#[expect(private_interfaces)]
 impl EntryType for ConstantUtf8 {
 	type Resolved = Symbol;
 
@@ -164,6 +172,7 @@ impl EntryType for ConstantUtf8 {
 
 pub struct FieldRef;
 
+#[expect(private_interfaces)]
 impl EntryType for FieldRef {
 	type Resolved = &'static Field;
 
@@ -193,6 +202,7 @@ impl EntryType for FieldRef {
 
 pub struct MethodRef;
 
+#[expect(private_interfaces)]
 impl EntryType for MethodRef {
 	type Resolved = &'static Method;
 
@@ -222,6 +232,7 @@ impl EntryType for MethodRef {
 
 pub struct String;
 
+#[expect(private_interfaces)]
 impl EntryType for String {
 	type Resolved = Symbol;
 

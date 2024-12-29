@@ -62,7 +62,7 @@ pub fn sleepNanos0(_env: NonNull<JniEnv>, _nanos: jlong) {
 
 pub fn start0(_env: NonNull<JniEnv>, this: Reference /* java.lang.Thread */) {
 	{
-		let existing_thread = unsafe { ThreadPool::find_from_obj(this.clone()) };
+		let existing_thread = ThreadPool::find_from_obj(this.clone());
 		if existing_thread.is_some() {
 			JavaThread::current()
 				.throw_exception(todo!("Throw java.lang.IllegalThreadStateException"))
@@ -117,13 +117,12 @@ pub fn setPriority0(
 ) {
 	java_lang_Thread::holder::set_priority(this.clone(), new_priority);
 
-	let java_thread = unsafe { ThreadPool::find_from_obj(this) };
-	let Some(thread) = java_thread else {
+	let java_thread = ThreadPool::find_from_obj(this);
+	let Some(_thread) = java_thread else {
 		return;
 	};
 
 	// Thread is alive...
-	let _thread_ref = unsafe { &*thread };
 	todo!("Set priority on JavaThread?")
 }
 

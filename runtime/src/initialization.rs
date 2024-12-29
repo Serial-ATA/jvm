@@ -35,7 +35,10 @@ fn initialize_thread(thread: &JavaThread) {
 
 	create_thread_object(thread);
 
-	// TODO: Set jdk/internal/misc/UnsafeConstants
+	// SAFETY: Preconditions filled in `init_field_offsets` & `initialize_global_classes`
+	unsafe {
+		crate::globals::fields::jdk_internal_misc_UnsafeConstants::init();
+	}
 
 	// https://github.com/openjdk/jdk/blob/04591595374e84cfbfe38d92bff4409105b28009/src/hotspot/share/runtime/threads.cpp#L408
 
@@ -75,6 +78,8 @@ fn load_global_classes() {
 	ClassLoader::fixup_mirrors();
 
 	load!(
+		jdk_internal_misc_UnsafeConstants,
+		java_lang_System,
 		java_lang_Module,
 		java_lang_Thread,
 		java_lang_Thread_FieldHolder,
@@ -109,110 +114,40 @@ fn load_global_classes() {
 		int_array,
 		long_array,
 		short_array,
+		string_array,
 	)
 }
 
 fn init_field_offsets() {
 	// java.lang.Class
-	{
-		let class_class = crate::globals::classes::java_lang_Class();
-		let class_name_field = class_class
-			.fields()
-			.find(|field| {
-				!field.is_static()
-					&& field.name == sym!(name)
-					&& matches!(field.descriptor, FieldType::Object(ref val) if **val == *b"java/lang/String")
-			})
-			.expect("java.lang.Class should have a name field");
-
-		unsafe {
-			crate::globals::field_offsets::java_lang_Class::set_name_field_offset(
-				class_name_field.idx,
-			);
-		}
+	unsafe {
+		crate::globals::fields::java_lang_Class::init_offsets();
 	}
 
 	// java.lang.String
-	{
-		let string_class = crate::globals::classes::java_lang_String();
-		let string_value_field = string_class
-			.fields()
-			.find(|field| {
-				!field.is_static()
-					&& field.name == sym!(value)
-					&& matches!(field.descriptor, FieldType::Array(ref val) if **val == FieldType::Byte)
-			})
-			.expect("java.lang.String should have a value field");
-
-		let string_coder_field = string_class
-			.fields()
-			.find(|field| {
-				field.is_final()
-					&& field.name == sym!(coder)
-					&& matches!(field.descriptor, FieldType::Byte)
-			})
-			.expect("java.lang.String should have a value field");
-
-		unsafe {
-			crate::globals::field_offsets::java_lang_String::set_field_offsets(
-				string_value_field.idx,
-				string_coder_field.idx,
-			);
-		}
+	unsafe {
+		crate::globals::fields::java_lang_String::init_offsets();
 	}
 
 	// java.lang.Module
-	{
-		let module_class = crate::globals::classes::java_lang_Module();
-		let module_name_field = module_class
-			.fields()
-			.find(|field| {
-				!field.is_static()
-					&& field.name == sym!(name)
-					&& matches!(field.descriptor, FieldType::Object(ref val) if **val == *b"java/lang/String")
-			})
-			.expect("java.lang.Module should have a name field");
-
-		let module_loader_field = module_class
-			.fields()
-			.find(|field| {
-				!field.is_static()
-					&& field.name == sym!(loader)
-					&& matches!(field.descriptor, FieldType::Object(ref val) if **val == *b"java/lang/ClassLoader")
-			})
-			.expect("java.lang.Module should have a loader field");
-
-		unsafe {
-			crate::globals::field_offsets::java_lang_Module::set_name_field_offset(
-				module_name_field.idx,
-			);
-			crate::globals::field_offsets::java_lang_Module::set_loader_field_offset(
-				module_loader_field.idx,
-			);
-		}
+	unsafe {
+		crate::globals::fields::java_lang_Module::init_offsets();
 	}
 
 	// java.lang.ref.Reference
-	{
-		let reference_class = crate::globals::classes::java_lang_ref_Reference();
-		let reference_referent_field = reference_class
-			.fields()
-			.find(|field| {
-				!field.is_static()
-					&& field.name == sym!(referent)
-					&& matches!(field.descriptor, FieldType::Object(_))
-			})
-			.expect("java.lang.ref.Reference should have a referent field");
+	unsafe {
+		crate::globals::fields::java_lang_ref_Reference::init_offsets();
+	}
 
-		unsafe {
-			crate::globals::field_offsets::java_lang_ref_Reference::set_referent_field_offset(
-				reference_referent_field.idx,
-			);
-		}
+	// jdk.internal.misc.UnsafeConstants
+	unsafe {
+		crate::globals::fields::jdk_internal_misc_UnsafeConstants::init_offsets();
 	}
 
 	// java.lang.Thread
-	java_lang_Thread::set_field_offsets();
+	unsafe {
+		crate::globals::fields::java_lang_Thread::init_offsets();
+	}
 }
 
 fn initialize_global_classes(thread: &JavaThread) {
@@ -225,6 +160,9 @@ fn initialize_global_classes(thread: &JavaThread) {
 	crate::globals::classes::java_lang_Thread().initialize(thread);
 	crate::globals::classes::java_lang_ThreadGroup().initialize(thread);
 	crate::globals::classes::java_lang_ref_Finalizer().initialize(thread);
+
+	crate::globals::classes::jdk_internal_misc_UnsafeConstants().initialize(thread);
+	crate::globals::classes::java_lang_Module().initialize(thread);
 }
 
 fn create_thread_object(thread: &JavaThread) {
@@ -266,7 +204,7 @@ fn create_thread_object(thread: &JavaThread) {
 /// * OS-specific system settings
 /// * Thread group of the main thread
 fn init_phase_1(thread: &JavaThread) {
-	let system_class = ClassLoader::Bootstrap.load(sym!(java_lang_System)).unwrap();
+	let system_class = crate::globals::classes::java_lang_System();
 	let init_phase_1 = system_class
 		.resolve_method_step_two(sym!(initPhase1_name), sym!(void_method_signature))
 		.unwrap();
@@ -279,7 +217,7 @@ fn init_phase_1(thread: &JavaThread) {
 /// This is responsible for initializing the module system. Prior to this point, the only module
 /// available to us is `java.base`.
 fn init_phase_2(thread: &JavaThread) {
-	let system_class = ClassLoader::Bootstrap.load(sym!(java_lang_System)).unwrap();
+	let system_class = crate::globals::classes::java_lang_System();
 
 	// TODO: Actually set these arguments accordingly
 	let display_vm_output_to_stderr = false;
@@ -310,7 +248,7 @@ fn init_phase_2(thread: &JavaThread) {
 /// * Setting the system class loader
 /// * Setting the thread context class loader
 fn init_phase_3(thread: &JavaThread) {
-	let system_class = ClassLoader::Bootstrap.load(sym!(java_lang_System)).unwrap();
+	let system_class = crate::globals::classes::java_lang_System();
 
 	let init_phase_3 = system_class
 		.resolve_method_step_two(sym!(initPhase3_name), sym!(void_method_signature))

@@ -1,10 +1,12 @@
 use crate::error::Result;
+
+use std::ops::Deref;
+
 use jni::env::JniEnv;
 use jni::java_vm::{JavaVm, JavaVmBuilder, VmInitArgs};
 use jni::objects::{JClass, JObjectArray};
 use jni::sys::jsize;
 use jni::version::JniVersion;
-use std::ops::Deref;
 
 const MAIN_METHOD_SIGNATURE: &str = "([Ljava/lang/String;)V";
 
