@@ -1,5 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
-
 // TODO
 
 use std::ptr::NonNull;
@@ -38,8 +36,10 @@ pub const SUN_JNU_ENCODING: &str = "UTF-8";
 //         @Native private static final int _user_home_NDX = 1 + _user_dir_NDX;
 //         @Native private static final int _user_name_NDX = 1 + _user_home_NDX;
 
-pub fn fill_properties_impl(props: &mut crate::properties::PropertySet) -> Result<(), crate::properties::Error> {
-    props.os_name = OS_NAME;
-    props.sun_jnu_encoding = SUN_JNU_ENCODING;
-    unimplemented!("macOS property set");
+pub fn fill_properties_impl(
+	props: &mut crate::properties::PropertySet,
+) -> Result<(), crate::properties::Error> {
+	props.os_name = OS_NAME;
+	props.sun_jnu_encoding = SUN_JNU_ENCODING;
+	unimplemented!("macOS property set");
 }

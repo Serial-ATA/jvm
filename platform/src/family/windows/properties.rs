@@ -1,7 +1,5 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
-
-use std::ptr::NonNull;
 use crate::macros::match_cfg_meta;
+use std::ptr::NonNull;
 
 // TODO
 
@@ -18,21 +16,16 @@ pub const FILE_SEPARATOR: &str = "\\";
 //         @Native private static final int _java_io_tmpdir_NDX = 1 + _https_proxyPort_NDX;
 pub const LINE_SEPARATOR: &str = "\r\n";
 // https://github.com/openjdk/jdk/blob/19373b2ff0cd795afa262c17dcb3388fd6a5be59/src/java.base/windows/native/libjava/java_props_md.c#L580-L588
-match_cfg_meta! {
-    match cfg(target_arch) {
-        "x86_64" => {
-            pub const OS_ARCH: &str = "amd64";
-        },
-        "x86" => {
-            pub const OS_ARCH: &str = "x86";
-        },
-        "aarch64" => {
-            pub const OS_ARCH: &str = "aarch64";
-        },
-        _ => {
-            pub const OS_ARCH: &str = "unknown";
-        }
-    }
+cfg_if::cfg_if! {
+	if #[(target_arch = "x86_64")] {
+		pub const OS_ARCH: &str = "amd64";
+	} else if #[cfg(target_arch = "x86")] {
+		pub const OS_ARCH: &str = "x86";
+	} else if #[cfg(target_arch = "aarch64")] {
+		pub const OS_ARCH: &str = "aarch64";
+	} else {
+		pub const OS_ARCH: &str = "unknown";
+	}
 }
 //         @Native private static final int _os_name_NDX = 1 + _os_arch_NDX;
 //         @Native private static final int _os_version_NDX = 1 + _os_name_NDX;
@@ -49,6 +42,8 @@ pub const UNICODE_ENCODING: &str = "UnicodeLittle";
 //         @Native private static final int _user_home_NDX = 1 + _user_dir_NDX;
 //         @Native private static final int _user_name_NDX = 1 + _user_home_NDX;
 
-pub fn fill_properties_impl(props: &mut crate::properties::PropertySet) -> Result<(), crate::properties::Error> {
-    unimplemented!("Windows property set");
+pub fn fill_properties_impl(
+	props: &mut crate::properties::PropertySet,
+) -> Result<(), crate::properties::Error> {
+	unimplemented!("Windows property set");
 }

@@ -1,5 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
-
 #[inline(always)]
 unsafe fn compiler_barrier() {
 	// Create a compiler barrier to prevent instruction reordering
@@ -7,22 +5,34 @@ unsafe fn compiler_barrier() {
 }
 
 #[inline(always)]
-pub fn loadload() { unsafe { compiler_barrier() } }
+pub fn loadload() {
+	unsafe { compiler_barrier() }
+}
 
 #[inline(always)]
-pub fn storestore() { unsafe { compiler_barrier() } }
+pub fn storestore() {
+	unsafe { compiler_barrier() }
+}
 
 #[inline(always)]
-pub fn loadstore() { unsafe { compiler_barrier() } }
+pub fn loadstore() {
+	unsafe { compiler_barrier() }
+}
 
 #[inline(always)]
-pub fn storeload() { fence() }
+pub fn storeload() {
+	fence()
+}
 
 #[inline(always)]
-pub fn acquire() { unsafe { compiler_barrier() } }
+pub fn acquire() {
+	unsafe { compiler_barrier() }
+}
 
 #[inline(always)]
-pub fn release() { unsafe { compiler_barrier() } }
+pub fn release() {
+	unsafe { compiler_barrier() }
+}
 
 #[cfg(target_arch = "x86")]
 #[inline(always)]
@@ -48,7 +58,7 @@ pub fn fence() {
 			options(nomem, preserves_flags, att_syntax)
 		)
 	}
-	
+
 	unsafe { compiler_barrier() }
 }
 
