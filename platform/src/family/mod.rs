@@ -1,6 +1,8 @@
 mod signals;
 pub use signals::*;
 
+pub mod properties;
+
 use crate::macros::match_cfg_meta;
 
 // `target_family` specific exports

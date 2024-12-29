@@ -19,5 +19,6 @@ match_cfg_meta! {
 // Exports
 
 pub mod io;
+pub(crate) mod locale;
 pub mod properties;
 pub(super) mod signals;

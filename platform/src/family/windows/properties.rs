@@ -1,5 +1,6 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
+use std::ptr::NonNull;
 use crate::macros::match_cfg_meta;
 
 // TODO
@@ -48,3 +49,6 @@ pub const UNICODE_ENCODING: &str = "UnicodeLittle";
 //         @Native private static final int _user_home_NDX = 1 + _user_dir_NDX;
 //         @Native private static final int _user_name_NDX = 1 + _user_home_NDX;
 
+pub fn fill_properties_impl(props: &mut crate::properties::PropertySet) -> Result<(), crate::properties::Error> {
+    unimplemented!("Windows property set");
+}

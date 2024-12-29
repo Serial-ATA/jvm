@@ -2,6 +2,8 @@
 
 // TODO
 
+use std::ptr::NonNull;
+
 //         @Native private static final int _display_country_NDX = 0;
 //         @Native private static final int _display_language_NDX = 1 + _display_country_NDX;
 //         @Native private static final int _display_script_NDX = 1 + _display_language_NDX;
@@ -30,8 +32,14 @@ pub const OS_NAME: &str = "Mac OS X";
 //         @Native private static final int _sun_arch_abi_NDX = 1 + _stdout_encoding_NDX;
 //         @Native private static final int _sun_arch_data_model_NDX = 1 + _sun_arch_abi_NDX;
 //         @Native private static final int _sun_cpu_isalist_NDX = 1 + _sun_cpu_endian_NDX;
-//         @Native private static final int _sun_jnu_encoding_NDX = 1 + _sun_io_unicode_encoding_NDX;
+pub const SUN_JNU_ENCODING: &str = "UTF-8";
 //         @Native private static final int _sun_os_patch_level_NDX = 1 + _sun_jnu_encoding_NDX;
 //         @Native private static final int _user_dir_NDX = 1 + _sun_os_patch_level_NDX;
 //         @Native private static final int _user_home_NDX = 1 + _user_dir_NDX;
 //         @Native private static final int _user_name_NDX = 1 + _user_home_NDX;
+
+pub fn fill_properties_impl(props: &mut crate::properties::PropertySet) -> Result<(), crate::properties::Error> {
+    props.os_name = OS_NAME;
+    props.sun_jnu_encoding = SUN_JNU_ENCODING;
+    unimplemented!("macOS property set");
+}

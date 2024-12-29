@@ -1,3 +1,4 @@
+use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 
 use std::ptr::NonNull;
@@ -22,10 +23,14 @@ pub fn waitForReferencePendingList(_: NonNull<JniEnv>) {
 
 pub fn refersTo0(
 	_: NonNull<JniEnv>,
-	_this: Reference, // java.lang.ref.Reference
-	_o: Reference,    // java.lang.Object
+	this: Reference, // java.lang.ref.Reference
+	o: Reference,    // java.lang.Object
 ) -> jboolean {
-	unimplemented!("java.lang.ref.Reference#refersTo0")
+	let referent_field_offset =
+		crate::globals::field_offsets::java_lang_ref_Reference::referent_field_offset();
+	let referent = this.get_field_value0(referent_field_offset);
+
+	referent.expect_reference() == o
 }
 
 pub fn clear0(_: NonNull<JniEnv>, _this: Reference /* java.lang.ref.Reference */) {

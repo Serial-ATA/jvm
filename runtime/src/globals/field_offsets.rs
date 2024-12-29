@@ -72,6 +72,23 @@ pub mod java_lang_Module {
 	}
 }
 
+pub mod java_lang_ref_Reference {
+	static mut REFERENT_FIELD_OFFSET: usize = 0;
+
+	/// `java.lang.ref.Reference#referent` field offset
+	///
+	/// This will not change for the lifetime of the program.
+	///
+	/// Expected type: `Reference`
+	pub fn referent_field_offset() -> usize {
+		unsafe { REFERENT_FIELD_OFFSET }
+	}
+
+	pub unsafe fn set_referent_field_offset(value: usize) {
+		REFERENT_FIELD_OFFSET = value;
+	}
+}
+
 pub mod java_lang_Thread {
 	static mut THREAD_EETOP_FIELD_OFFSET: usize = 0;
 	static mut THREAD_HOLDER_FIELD_OFFSET: usize = 0;

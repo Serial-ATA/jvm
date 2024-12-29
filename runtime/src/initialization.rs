@@ -81,6 +81,7 @@ fn load_global_classes() {
 		java_lang_ThreadGroup,
 		java_lang_Throwable,
 		java_lang_Cloneable,
+		java_lang_ref_Reference,
 		java_lang_ref_Finalizer,
 		jdk_internal_reflect_MethodAccessorImpl,
 	);
@@ -187,6 +188,25 @@ fn init_field_offsets() {
 			);
 			crate::globals::field_offsets::java_lang_Module::set_loader_field_offset(
 				module_loader_field.idx,
+			);
+		}
+	}
+
+	// java.lang.ref.Reference
+	{
+		let reference_class = crate::globals::classes::java_lang_ref_Reference();
+		let reference_referent_field = reference_class
+			.fields()
+			.find(|field| {
+				!field.is_static()
+					&& field.name == sym!(referent)
+					&& matches!(field.descriptor, FieldType::Object(_))
+			})
+			.expect("java.lang.ref.Reference should have a referent field");
+
+		unsafe {
+			crate::globals::field_offsets::java_lang_ref_Reference::set_referent_field_offset(
+				reference_referent_field.idx,
 			);
 		}
 	}

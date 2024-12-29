@@ -86,27 +86,28 @@ pub(self) fn insert_method((def, ptr): (NativeMethodDef, NativeMethodPtr)) {
 
 pub(crate) mod java {
 	pub(crate) mod io {
-		pub(crate) mod FileDescriptor;
 		pub(crate) mod FileInputStream;
-		pub(crate) mod FileOutputStream;
 		pub(crate) mod UnixFileSystem;
+		pub(crate) mod FileDescriptor;
+		pub(crate) mod FileSystem;
+		pub(crate) mod FileOutputStream;
 	}
 	pub(crate) mod lang {
 		pub(crate) mod r#ref {
-			pub(crate) mod Finalizer;
 			pub(crate) mod Reference;
+			pub(crate) mod Finalizer;
 		}
-		pub(crate) mod Class;
-		pub(crate) mod ClassLoader;
-		pub(crate) mod Double;
-		pub(crate) mod Float;
-		pub(crate) mod Object;
-		pub(crate) mod Runtime;
 		pub(crate) mod StringBuilder;
+		pub(crate) mod Runtime;
 		pub(crate) mod StringUTF16;
 		pub(crate) mod System;
-		pub(crate) mod Thread;
+		pub(crate) mod Float;
+		pub(crate) mod ClassLoader;
+		pub(crate) mod Double;
 		pub(crate) mod Throwable;
+		pub(crate) mod Thread;
+		pub(crate) mod Object;
+		pub(crate) mod Class;
 	}
 	pub(crate) mod security {
 		pub(crate) mod AccessController;
@@ -116,21 +117,22 @@ pub(crate) mod java {
 pub(crate) mod jdk {
 	pub(crate) mod internal {
 		pub(crate) mod misc {
-			pub(crate) mod CDS;
 			pub(crate) mod ScopedMemoryAccess;
-			pub(crate) mod Signal;
-			pub(crate) mod Unsafe;
+			pub(crate) mod CDS;
 			pub(crate) mod VM;
+			pub(crate) mod Unsafe;
+			pub(crate) mod Signal;
 		}
 		pub(crate) mod util {
 			pub(crate) mod SystemProps;
 		}
 		pub(crate) mod loader {
-			pub(crate) mod BootLoader;
 			pub(crate) mod NativeLibraries;
+			pub(crate) mod BootLoader;
 		}
 		pub(crate) mod reflect {
 			pub(crate) mod Reflection;
 		}
 	}
 }
+

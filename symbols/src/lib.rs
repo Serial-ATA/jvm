@@ -218,6 +218,7 @@ vm_symbols::define_symbols! {
 
 	// Fields
 	name: "name",
+	referent: "referent",
 	loader: "loader",
 	holder: "holder",
 	eetop: "eetop",

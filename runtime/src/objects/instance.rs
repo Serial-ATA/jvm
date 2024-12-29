@@ -60,7 +60,7 @@ impl Header {
 	// https://github.com/openjdk/jdk/blob/807f6f7fb868240cba5ba117c7059216f69a53f9/src/hotspot/share/runtime/synchronizer.cpp#L935
 	pub fn generate_hash(&self, thread: &JavaThread) -> jint {
 		if let Some(hash) = self.hash() {
-			return dbg!(hash);
+			return hash;
 		}
 
 		let hash = thread.marsaglia_xor_shift_hash() as jint;
