@@ -1,12 +1,18 @@
 use crate::classpath::classloader::ClassLoader;
 use crate::objects::array::{ArrayContent, ArrayInstance};
+use crate::objects::class::Class;
 use crate::objects::instance::Instance;
+use crate::objects::method::Method;
 use crate::objects::reference::Reference;
+use crate::thread::frame::stack::VisibleStackFrame;
 use crate::thread::JavaThread;
 
 use std::ptr::NonNull;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Once;
 
 use ::jni::env::JniEnv;
+use ::jni::sys::{jint, jlong};
 use classfile::FieldType;
 use common::box_slice;
 use common::int_types::s4;
@@ -16,6 +22,7 @@ use symbols::sym;
 
 #[allow(non_upper_case_globals)]
 mod stacktrace_element {
+	use crate::classpath::classloader::ClassLoader;
 	use crate::objects::class::Class;
 	use crate::objects::class_instance::ClassInstance;
 	use crate::objects::constant_pool::cp_types;
@@ -30,14 +37,6 @@ mod stacktrace_element {
 	use instructions::Operand;
 	use symbols::sym;
 
-	static mut StackTraceElement_classLoaderName_FIELD_OFFSET: usize = 0;
-	static mut StackTraceElement_moduleName_FIELD_OFFSET: usize = 0;
-	static mut StackTraceElement_moduleVersion_FIELD_OFFSET: usize = 0;
-	static mut StackTraceElement_declaringClass_FIELD_OFFSET: usize = 0;
-	static mut StackTraceElement_methodName_FIELD_OFFSET: usize = 0;
-	static mut StackTraceElement_fileName_FIELD_OFFSET: usize = 0;
-	static mut StackTraceElement_lineNumber_FIELD_OFFSET: usize = 0;
-
 	unsafe fn initialize(class: &'static Class) {
 		static ONCE: AtomicBool = AtomicBool::new(false);
 		if ONCE
@@ -48,62 +47,14 @@ mod stacktrace_element {
 			return;
 		}
 
-		let mut field_set = 0;
-		for field in class.fields() {
-			if field.name == sym!(classLoaderName) {
-				assert!(field.descriptor.is_class(b"java/lang/String"));
-				StackTraceElement_classLoaderName_FIELD_OFFSET = field.idx;
-				field_set |= 1;
-				continue;
-			}
+		let stack_trace_element_class = ClassLoader::Bootstrap
+			.load(sym!(java_lang_StackTraceElement))
+			.unwrap();
 
-			if field.name == sym!(moduleName) {
-				assert!(field.descriptor.is_class(b"java/lang/String"));
-				StackTraceElement_moduleName_FIELD_OFFSET = field.idx;
-				field_set |= 1 << 1;
-				continue;
-			}
-
-			if field.name == sym!(moduleVersion) {
-				assert!(field.descriptor.is_class(b"java/lang/String"));
-				StackTraceElement_moduleVersion_FIELD_OFFSET = field.idx;
-				field_set |= 1 << 2;
-				continue;
-			}
-
-			if field.name == sym!(declaringClass) {
-				assert!(field.descriptor.is_class(b"java/lang/String"));
-				StackTraceElement_declaringClass_FIELD_OFFSET = field.idx;
-				field_set |= 1 << 3;
-				continue;
-			}
-
-			if field.name == sym!(methodName) {
-				assert!(field.descriptor.is_class(b"java/lang/String"));
-				StackTraceElement_methodName_FIELD_OFFSET = field.idx;
-				field_set |= 1 << 4;
-				continue;
-			}
-
-			if field.name == sym!(fileName) {
-				assert!(field.descriptor.is_class(b"java/lang/String"));
-				StackTraceElement_fileName_FIELD_OFFSET = field.idx;
-				field_set |= 1 << 5;
-				continue;
-			}
-
-			if field.name == sym!(lineNumber) {
-				assert!(field.descriptor.is_int());
-				StackTraceElement_lineNumber_FIELD_OFFSET = field.idx;
-				field_set |= 1 << 6;
-				continue;
-			}
+		unsafe {
+			crate::globals::classes::set_java_lang_StackTraceElement(stack_trace_element_class);
+			crate::globals::fields::java_lang_StackTraceElement::init_offsets();
 		}
-
-		assert_eq!(
-			field_set, 0b1111111,
-			"Not all fields were found in java/lang/StackTraceElement"
-		);
 	}
 
 	pub fn from_stack_frame(
@@ -123,18 +74,24 @@ mod stacktrace_element {
 			// TODO: classLoaderName
 			// TODO: moduleName
 			// TODO: moduleVersion
+			let declaring_class_field_offset =
+				crate::globals::fields::java_lang_StackTraceElement::declaringClass_field_offset();
 			let declaring_class = StringInterner::intern_symbol(method.class().name);
 			stacktrace_element.get_mut().put_field_value0(
-				StackTraceElement_declaringClass_FIELD_OFFSET,
+				declaring_class_field_offset,
 				Operand::Reference(Reference::class(declaring_class)),
 			);
 
+			let method_name_field_offset =
+				crate::globals::fields::java_lang_StackTraceElement::methodName_field_offset();
 			let method_name = StringInterner::intern_symbol(method.name);
 			stacktrace_element.get_mut().put_field_value0(
-				StackTraceElement_methodName_FIELD_OFFSET,
+				method_name_field_offset,
 				Operand::Reference(Reference::class(method_name)),
 			);
 
+			let file_name_field_offset =
+				crate::globals::fields::java_lang_StackTraceElement::fileName_field_offset();
 			match method_class.source_file_index {
 				Some(idx) => {
 					let file_name = StringInterner::intern_symbol(
@@ -143,25 +100,26 @@ mod stacktrace_element {
 							.get::<cp_types::ConstantUtf8>(idx),
 					);
 					stacktrace_element.get_mut().put_field_value0(
-						StackTraceElement_fileName_FIELD_OFFSET,
+						file_name_field_offset,
 						Operand::Reference(Reference::class(file_name)),
 					);
 				},
 				None => {
 					stacktrace_element.get_mut().put_field_value0(
-						StackTraceElement_fileName_FIELD_OFFSET,
+						file_name_field_offset,
 						Operand::Reference(Reference::null()),
 					);
 				},
 			}
 
+			let line_number_field_offset =
+				crate::globals::fields::java_lang_StackTraceElement::lineNumber_field_offset();
 			if let VisibleStackFrame::Regular(frame) = frame {
 				let pc = frame.thread().pc.load(Ordering::Relaxed) - 1;
 				let line_number = method.get_line_number(pc);
-				stacktrace_element.get_mut().put_field_value0(
-					StackTraceElement_lineNumber_FIELD_OFFSET,
-					Operand::Int(line_number),
-				);
+				stacktrace_element
+					.get_mut()
+					.put_field_value0(line_number_field_offset, Operand::Int(line_number));
 			}
 
 			Reference::class(stacktrace_element)
@@ -171,20 +129,96 @@ mod stacktrace_element {
 
 include_generated!("native/java/lang/def/Throwable.definitions.rs");
 
+/// A wrapper for backtrace (`java.lang.Throwable#backtrace`) creation
+///
+/// The field in Java is defined as:
+///
+/// ```java
+/// private transient Object backtrace;
+/// ```
+///
+/// So we're given free rein to define the format of our backtrace.
+///
+/// The format is the following struct:
+///
+/// ```
+/// struct BackTrace {
+/// 	method: &Method as jlong,
+/// 	pc: jlong,
+/// }
+/// ```
+///
+/// Flattened into an `long[]`:
+///
+/// ```
+/// ["java/lang/Foo#foo", 2, "java/lang/Foo#bar", 5]
+/// ```
+struct BackTrace {
+	inner: Vec<jlong>,
+}
+
+impl BackTrace {
+	const NUMBER_OF_FIELDS: usize = 2;
+
+	/// Create a new `BackTrace`
+	///
+	/// `depth` is the number of methods in the backtrace
+	fn new(mut depth: usize) -> Self {
+		depth *= Self::NUMBER_OF_FIELDS;
+
+		BackTrace {
+			inner: Vec::with_capacity(depth),
+		}
+	}
+
+	#[allow(trivial_casts)]
+	fn push(&mut self, frame: VisibleStackFrame<'_>) {
+		let method = frame.method();
+		let pc = match frame {
+			VisibleStackFrame::Regular(frame) => frame.thread().pc.load(Ordering::Relaxed) - 1,
+			_ => -1,
+		};
+
+		self.inner.push(method as *const Method as jlong);
+		self.inner.push(pc as jlong);
+	}
+
+	fn into_obj(self) -> Reference {
+		let content = ArrayContent::Long(self.inner.into_boxed_slice());
+
+		let long_array_class = crate::globals::classes::long_array();
+		let array = ArrayInstance::new(long_array_class, content);
+		Reference::array(array)
+	}
+}
+
+// Initialize the java.lang.Throwable field offsets
+unsafe fn initialize() {
+	static ONCE: Once = Once::new();
+	ONCE.call_once(|| unsafe {
+		crate::globals::fields::java_lang_Throwable::init_offsets();
+	});
+}
+
 pub fn fillInStackTrace(
 	env: NonNull<JniEnv>,
 	mut this: Reference, // java.lang.Throwable
 	_dummy: s4,
 ) -> Reference /* java.lang.Throwable */
 {
+	unsafe { initialize() };
+
+	// Reset the current fields
+	let backtrace_offset = crate::globals::fields::java_lang_Throwable::backtrace_field_offset();
+	this.put_field_value0(backtrace_offset, Operand::Reference(Reference::null()));
+
+	let stack_trace_offset = crate::globals::fields::java_lang_Throwable::stackTrace_field_offset();
+	this.put_field_value0(stack_trace_offset, Operand::Reference(Reference::null()));
+
 	let current_thread = unsafe { &*JavaThread::for_env(env.as_ptr() as _) };
 
 	let this_class_instance = this.extract_class();
 	let this_class = this_class_instance.get().class();
-	// TODO: Make global field
-	let stacktrace_field = this_class.fields().find(|field| {
-		field.name.as_str() == "stackTrace" && matches!(&field.descriptor, FieldType::Array(value) if value.is_class(b"java/lang/StackTraceElement"))
-	}).expect("Throwable should have a stackTrace field");
 
 	let stack_depth = current_thread.frame_stack().depth();
 
@@ -215,34 +249,24 @@ pub fn fillInStackTrace(
 
 	assert!(frames_to_skip < stack_depth);
 
-	let stacktrace_element_class = ClassLoader::Bootstrap
-		.load(sym!(java_lang_StackTraceElement))
-		.expect("StackTraceElement should be available");
-
-	let stacktrace_element_array_class = ClassLoader::Bootstrap
-		.load(sym!(StackTraceElement_array))
-		.expect("[Ljava/lang/StackTraceElement; should be available");
-
-	// Create the StackTraceElement array
-	let mut stacktrace_elements = box_slice![Reference::null(); stack_depth - frames_to_skip];
+	// Create the backtrace
+	let backtrace_depth = stack_depth - frames_to_skip;
+	let mut backtrace = BackTrace::new(backtrace_depth);
 	for (idx, frame) in current_thread
 		.frame_stack()
 		.iter()
-		.take(stack_depth - frames_to_skip)
+		.skip(frames_to_skip)
+		.take(backtrace_depth)
 		.enumerate()
 	{
-		stacktrace_elements[idx] =
-			stacktrace_element::from_stack_frame(stacktrace_element_class, frame);
+		backtrace.push(frame);
 	}
 
-	let array = ArrayInstance::new(
-		stacktrace_element_array_class,
-		ArrayContent::Reference(stacktrace_elements),
-	);
-	this.put_field_value0(
-		stacktrace_field.idx,
-		Operand::Reference(Reference::array(array)),
-	);
+	let backtrace_offset = crate::globals::fields::java_lang_Throwable::backtrace_field_offset();
+	this.put_field_value0(backtrace_offset, Operand::Reference(backtrace.into_obj()));
+
+	let depth_field_offset = crate::globals::fields::java_lang_Throwable::depth_field_offset();
+	this.put_field_value0(depth_field_offset, Operand::Int(backtrace_depth as jint));
 
 	this
 }

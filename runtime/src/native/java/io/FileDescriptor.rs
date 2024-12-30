@@ -39,6 +39,7 @@ pub fn sync0(_: NonNull<JniEnv>, _this: Reference) {
 	unimplemented!("java.io.FileDescriptor#sync0");
 }
 
+// TODO: Move logic to globals
 pub fn initIDs(_: NonNull<JniEnv>) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE
@@ -54,31 +55,37 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 		crate::globals::classes::set_java_io_FileDescriptor(class);
 	}
 
-	let mut fields = 0;
+	let mut field_set = 0;
 	for field in class.fields() {
 		match field.name.as_str() {
 			"fd" => unsafe {
-				assert!(fields & 1 << 3 == 0, "Field can only occur once");
+				assert!(field_set & 1 << 3 == 0, "Field can only occur once");
 				*fd.get() = ForceSync::new(field.into_jni());
-				fields |= 1 << 2;
+				field_set |= 1 << 2;
 			},
 			#[cfg(windows)]
 			"handle" => unsafe {
 				*handle.get() = ForceSync::new(field.into_jni());
-				fields |= 1 << 1;
+				field_set |= 1 << 1;
 			},
 			"append" => unsafe {
 				*append.get() = ForceSync::new(field.into_jni());
-				fields |= 1;
+				field_set |= 1;
 			},
 			_ => {},
 		}
 	}
 
 	if cfg!(windows) {
-		assert_eq!(fields, 0b111, "All fields must be present");
+		assert_eq!(
+			field_set, 0b111,
+			"Not all fields found in java/io/FileDescriptor"
+		);
 	} else {
-		assert_eq!(fields, 0b101, "All fields must be present");
+		assert_eq!(
+			field_set, 0b101,
+			"Not all fields found in java/io/FileDescriptor"
+		);
 	}
 }
 

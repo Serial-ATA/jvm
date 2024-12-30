@@ -8,6 +8,13 @@ pub const CPU_ENDIAN: &str = if cfg!(target_endian = "big") {
 	"little"
 };
 
+// Export family specific properties
+
+#[cfg(target_family = "unix")]
+pub use super::unix::properties::*;
+#[cfg(target_family = "windows")]
+pub use super::windows::properties::*;
+
 // TODO: Document
 // TODO: Probably make all fields `Option`, to avoid setting empty values at runtime
 #[allow(non_snake_case)]
@@ -62,7 +69,7 @@ impl PropertySet {
 impl Default for PropertySet {
 	fn default() -> Self {
 		PropertySet {
-			// Set the constant properties, exported below
+			// Set the constant properties, exported above
 			file_separator: FILE_SEPARATOR.into(),
 			line_separator: LINE_SEPARATOR.into(),
 			os_arch: OS_ARCH.into(),
@@ -122,10 +129,3 @@ impl Display for Error {
 }
 
 impl core::error::Error for Error {}
-
-// Export family specific properties
-
-#[cfg(target_family = "unix")]
-pub use super::unix::properties::*;
-#[cfg(target_family = "windows")]
-pub use super::windows::properties::*;

@@ -55,7 +55,7 @@ pub mod holder {
 	}
 
 	pub fn stack_size(obj: &Reference) -> jlong {
-		let offset = crate::globals::fields::java_lang_Thread::holder::stack_size_field_offset();
+		let offset = crate::globals::fields::java_lang_Thread::holder::stackSize_field_offset();
 		get_field_holder_field(obj, offset).expect_long()
 	}
 
@@ -74,7 +74,7 @@ pub mod holder {
 	}
 
 	pub fn set_stack_size(obj: Reference, stack_size: jlong) {
-		let offset = crate::globals::fields::java_lang_Thread::holder::stack_size_field_offset();
+		let offset = crate::globals::fields::java_lang_Thread::holder::stackSize_field_offset();
 		set_field_holder_field(obj, offset, Operand::Long(stack_size));
 	}
 
@@ -88,7 +88,7 @@ pub mod holder {
 	}
 
 	pub fn set_thread_status(obj: Reference, thread_status: ThreadStatus) {
-		let offset = crate::globals::fields::java_lang_Thread::holder::thread_status_field_offset();
+		let offset = crate::globals::fields::java_lang_Thread::holder::threadStatus_field_offset();
 		set_field_holder_field(obj, offset, Operand::Int(thread_status as s4));
 	}
 }

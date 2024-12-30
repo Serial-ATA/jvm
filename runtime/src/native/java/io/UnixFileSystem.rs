@@ -202,6 +202,7 @@ pub fn getNameMax0(
 	unimplemented!("java.io.UnixFileSystem#getNameMax0");
 }
 
+// TODO: Move logic to globals
 pub fn initIDs(_: NonNull<JniEnv>) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE

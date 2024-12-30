@@ -45,6 +45,7 @@ define_classes!(
 	java_lang_Thread,
 	java_lang_Thread_FieldHolder,
 	java_lang_ThreadGroup,
+	java_lang_StackTraceElement,
 	java_lang_Throwable,
 	java_lang_Cloneable,
 	java_lang_Module,

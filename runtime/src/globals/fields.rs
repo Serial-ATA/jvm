@@ -2,535 +2,261 @@
 
 //! Various offsets for fields of frequently accessed classes
 
-pub mod java_lang_Class {
-	use classfile::FieldType;
-	use symbols::sym;
-
-	static mut CLASS_NAME_FIELD_OFFSET: usize = 0;
-
-	pub fn name_field_offset() -> usize {
-		unsafe { CLASS_NAME_FIELD_OFFSET }
-	}
-
-	unsafe fn set_name_field_offset(value: usize) {
-		CLASS_NAME_FIELD_OFFSET = value;
-	}
-
-	/// Initialize the field offsets for `java.lang.Class`
-	///
-	/// # Safety
-	///
-	/// This **requires** that:
-	/// * `java.lang.Class` is loaded
-	pub unsafe fn init_offsets() {
-		let class_class = crate::globals::classes::java_lang_Class();
-		let class_name_field = class_class
-			.fields()
-			.find(|field| {
-				!field.is_static()
-					&& field.name == sym!(name)
-					&& matches!(field.descriptor, FieldType::Object(ref val) if **val == *b"java/lang/String")
-			})
-			.expect("java.lang.Class should have a `name` field");
-
-		unsafe {
-			set_name_field_offset(class_name_field.idx);
+// TODO: Document
+macro_rules! field_module {
+	(
+	@CLASS $class_name:ident;
+	$(
+		$(#[$meta:meta])*
+		@FIELD $field_name:ident: $matcher:pat $(if $guard:expr)?,
+	)+
+	$(
+		mod $inner_mod:ident {
+			$($inner_mod_tt:tt)*
 		}
-	}
-}
+	)?
+	) => {
+		paste::paste! {
+			$(
+				static mut [<__ $field_name:snake:upper _FIELD_OFFSET>]: usize = 0;
 
-pub mod java_lang_String {
-	use classfile::FieldType;
-	use symbols::sym;
-
-	static mut STRING_VALUE_FIELD_OFFSET: usize = 0;
-	static mut STRING_CODER_FIELD_OFFSET: usize = 0;
-
-	/// `java.lang.String#value` field offset
-	///
-	/// This will not change for the lifetime of the program.
-	///
-	/// Expected type: `jByteArray`
-	pub fn value_field_offset() -> usize {
-		unsafe { STRING_VALUE_FIELD_OFFSET }
-	}
-
-	unsafe fn set_value_field_offset(value: usize) {
-		unsafe { STRING_VALUE_FIELD_OFFSET = value }
-	}
-
-	/// `java.lang.String#coder` field offset
-	///
-	/// This will not change for the lifetime of the program.
-	///
-	/// Expected type: `jint`
-	pub fn coder_field_offset() -> usize {
-		unsafe { STRING_CODER_FIELD_OFFSET }
-	}
-
-	unsafe fn set_coder_field_offset(value: usize) {
-		unsafe { STRING_CODER_FIELD_OFFSET = value }
-	}
-
-	/// Initialize the field offsets for `java.lang.String`
-	///
-	/// # Safety
-	///
-	/// This **requires** that:
-	/// * `java.lang.String` is loaded
-	pub unsafe fn init_offsets() {
-		let string_class = crate::globals::classes::java_lang_String();
-
-		let mut field_set = 0;
-		for field in string_class.instance_fields() {
-			if field.name == sym!(value)
-				&& matches!(field.descriptor, FieldType::Array(ref val) if **val == FieldType::Byte)
-			{
-				field_set |= 1;
-				unsafe {
-					set_value_field_offset(field.idx);
+				$(#[$meta])*
+				/// This will not change for the lifetime of the program.
+				pub fn [<$field_name _field_offset>]() -> usize {
+					unsafe { [<__ $field_name:snake:upper _FIELD_OFFSET>] }
 				}
-				continue;
-			}
 
-			if field.is_final()
-				&& field.name == sym!(coder)
-				&& matches!(field.descriptor, FieldType::Byte)
-			{
-				field_set |= 1 << 1;
-				unsafe {
-					set_coder_field_offset(field.idx);
+				unsafe fn [<set_ $field_name _field_offset>](value: usize) {
+					[<__ $field_name:snake:upper _FIELD_OFFSET>] = value;
 				}
-				continue;
+			)+
+
+			/// Initialize the field offsets
+			///
+			/// # Safety
+			///
+			/// This **requires** that the target class is loaded
+			pub unsafe fn init_offsets() {
+				const EXPECTED_FIELD_SET: usize = (1 << ${count($field_name)}) - 1;
+				let class = crate::globals::classes::$class_name();
+
+				let mut field_set = 0;
+				for field in class.fields() {
+					$(
+						if field.name == symbols::sym!($field_name) && matches!(&field.descriptor, $matcher $(if $guard)?) {
+							field_set |= 1 << ${index()};
+							unsafe { [<set_ $field_name _field_offset>](field.idx); }
+							continue;
+						}
+					)+
+				}
+
+				assert_eq!(field_set, EXPECTED_FIELD_SET, "Not all fields found in {}", stringify!($class_name));
+
+				$(
+					unsafe {
+						$inner_mod::init_offsets();
+					}
+				)?
 			}
 		}
 
-		assert_eq!(field_set, 0b11, "Not all fields found in java/lang/String");
-	}
-}
+		$(
+			pub mod $inner_mod {
+				use super::*;
 
-pub mod java_lang_Module {
-	use classfile::FieldType;
-	use symbols::sym;
-
-	static mut MODULE_NAME_FIELD_OFFSET: usize = 0;
-	static mut MODULE_LOADER_FIELD_OFFSET: usize = 0;
-
-	/// `java.lang.Module#name` field offset
-	///
-	/// This will not change for the lifetime of the program.
-	///
-	/// Expected type: `Reference` to `java.lang.String`
-	pub fn name_field_offset() -> usize {
-		unsafe { MODULE_NAME_FIELD_OFFSET }
-	}
-
-	unsafe fn set_name_field_offset(value: usize) {
-		MODULE_NAME_FIELD_OFFSET = value;
-	}
-
-	/// `java.lang.Module#loader` field offset
-	///
-	/// This will not change for the lifetime of the program.
-	///
-	/// Expected type: `Reference` to `java.lang.ClassLoader`
-	pub fn loader_field_offset() -> usize {
-		unsafe { MODULE_LOADER_FIELD_OFFSET }
-	}
-
-	unsafe fn set_loader_field_offset(value: usize) {
-		MODULE_LOADER_FIELD_OFFSET = value;
-	}
-
-	/// Initialize the field offsets for `java.lang.Module`
-	///
-	/// # Safety
-	///
-	/// This **requires** that:
-	/// * `java.lang.Module` is loaded
-	pub unsafe fn init_offsets() {
-		let module_class = crate::globals::classes::java_lang_Module();
-
-		let mut field_set = 0;
-		for field in module_class.instance_fields() {
-			if field.name == sym!(name)
-				&& matches!(field.descriptor, FieldType::Object(ref val) if **val == *b"java/lang/String")
-			{
-				field_set |= 1;
-				set_name_field_offset(field.idx);
-				continue;
+				field_module!(
+					$($inner_mod_tt)*
+				);
 			}
-
-			if field.name == sym!(loader)
-				&& matches!(field.descriptor, FieldType::Object(ref val) if **val == *b"java/lang/ClassLoader")
-			{
-				field_set |= 1 << 1;
-				set_loader_field_offset(field.idx);
-				continue;
-			}
-		}
-
-		assert_eq!(field_set, 0b11, "Not all fields found in java/lang/Module");
+		)?
 	}
 }
 
 pub mod java_lang_ref_Reference {
 	use classfile::FieldType;
-	use symbols::sym;
 
-	static mut REFERENT_FIELD_OFFSET: usize = 0;
+	field_module! {
+		@CLASS java_lang_ref_Reference;
 
-	/// `java.lang.ref.Reference#referent` field offset
-	///
-	/// This will not change for the lifetime of the program.
-	///
-	/// Expected type: `Reference`
-	pub fn referent_field_offset() -> usize {
-		unsafe { REFERENT_FIELD_OFFSET }
+		/// `java.lang.ref.Reference#referent` field offset
+		///
+		/// Expected type: `Reference`
+		@FIELD referent: FieldType::Object(_),
 	}
+}
 
-	unsafe fn set_referent_field_offset(value: usize) {
-		REFERENT_FIELD_OFFSET = value;
+pub mod java_lang_Class {
+	use classfile::FieldType;
+
+	field_module! {
+		@CLASS java_lang_Class;
+
+		/// `java.lang.Class#name` field offset
+		///
+		/// Expected type: `Reference` to `java.lang.String`
+		@FIELD name: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
 	}
+}
 
-	/// Initialize the field offsets for `java.lang.ref.Reference`
-	///
-	/// # Safety
-	///
-	/// This **requires** that:
-	/// * `java.lang.ref.Reference` is loaded
-	pub unsafe fn init_offsets() {
-		let reference_class = crate::globals::classes::java_lang_ref_Reference();
-		let reference_referent_field = reference_class
-			.instance_fields()
-			.find(|field| {
-				field.name == sym!(referent) && matches!(field.descriptor, FieldType::Object(_))
-			})
-			.expect("java.lang.ref.Reference should have a `referent` field");
+pub mod java_lang_String {
+	use classfile::FieldType;
 
-		unsafe {
-			set_referent_field_offset(reference_referent_field.idx);
-		}
+	field_module! {
+		@CLASS java_lang_String;
+
+		/// `java.lang.String#value` field offset
+		///
+		/// Expected type: `jByteArray`
+		@FIELD value: FieldType::Array(ref val) if **val == FieldType::Byte,
+		/// `java.lang.String#coder` field offset
+		///
+		/// Expected type: `jint`
+		@FIELD coder: FieldType::Byte,
+	}
+}
+
+pub mod java_lang_Module {
+	use classfile::FieldType;
+
+	field_module! {
+		@CLASS java_lang_Module;
+
+		/// `java.lang.Module#name` field offset
+		///
+		/// Expected type: `Reference` to `java.lang.String`
+		@FIELD name: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
+		/// `java.lang.Module#loader` field offset
+		///
+		/// Expected type: `Reference` to `java.lang.ClassLoader`
+		@FIELD loader: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/ClassLoader"),
 	}
 }
 
 pub mod java_lang_Thread {
-	use symbols::sym;
+	use classfile::FieldType;
 
-	static mut THREAD_EETOP_FIELD_OFFSET: usize = 0;
-	static mut THREAD_HOLDER_FIELD_OFFSET: usize = 0;
+	field_module! {
+		@CLASS java_lang_Thread;
 
-	/// `java.lang.Thread#eetop` field offset
-	///
-	/// This will not change for the lifetime of the program.
-	///
-	/// Expected type: `jlong`
-	pub fn eetop_field_offset() -> usize {
-		unsafe { THREAD_EETOP_FIELD_OFFSET }
-	}
-
-	unsafe fn set_eetop_field_offset(value: usize) {
-		THREAD_EETOP_FIELD_OFFSET = value;
-	}
-
-	/// `java.lang.Thread#holder` field offset
-	///
-	/// This will not change for the lifetime of the program.
-	///
-	/// Expected type: `java.lang.Thread$FieldHolder` reference
-	pub fn holder_field_offset() -> usize {
-		unsafe { THREAD_HOLDER_FIELD_OFFSET }
-	}
-
-	unsafe fn set_holder_field_offset(value: usize) {
-		THREAD_HOLDER_FIELD_OFFSET = value;
-	}
-
-	/// Initialize the field offsets for `java.lang.Thread`
-	///
-	/// **NOTE: This also sets the offsets for java.lang.Thread$FieldHolder**
-	///
-	/// # Safety
-	///
-	/// This **requires** that:
-	/// * `java.lang.Thread` is loaded
-	/// * `java.lang.Thread$FieldHolder` is loaded
-	pub unsafe fn init_offsets() {
-		let class = crate::globals::classes::java_lang_Thread();
-
-		let mut field_set = 0;
-		for (index, field) in class.instance_fields().enumerate() {
-			if field.name == sym!(holder) {
-				unsafe {
-					set_holder_field_offset(index);
-				}
-
-				field_set |= 1;
-				continue;
-			}
-
-			if field.name == sym!(eetop) {
-				unsafe {
-					set_eetop_field_offset(index);
-				}
-
-				field_set |= 1 << 1;
-				continue;
-			}
-		}
-
-		assert_eq!(
-			field_set, 0b11,
-			"Not all fields were found in java/lang/Thread"
-		);
-
-		unsafe {
-			holder::init_offsets();
-		}
-	}
-
-	pub mod holder {
-		static mut FIELDHOLDER_STACK_SIZE_FIELD_OFFSET: usize = 0;
-		static mut FIELDHOLDER_PRIORITY_FIELD_OFFSET: usize = 0;
-		static mut FIELDHOLDER_DAEMON_FIELD_OFFSET: usize = 0;
-		static mut FIELDHOLDER_THREAD_STATUS_FIELD_OFFSET: usize = 0;
-
-		/// `java.lang.Thread$FieldHolder#stackSize` field offset
+		/// `java.lang.Thread#eetop` field offset
 		///
-		/// This will not change for the lifetime of the program.
+		/// Expected type: `jlong`
+		@FIELD eetop: FieldType::Long,
+		/// `java.lang.Thread#holder` field offset
 		///
-		/// Expected field type: `jint`
-		pub fn stack_size_field_offset() -> usize {
-			unsafe { FIELDHOLDER_STACK_SIZE_FIELD_OFFSET }
-		}
+		/// Expected type: `Reference` to `java.lang.Thread$FieldHolder`
+		@FIELD holder: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/Thread$FieldHolder"),
 
-		unsafe fn set_stack_size_field_offset(value: usize) {
-			FIELDHOLDER_STACK_SIZE_FIELD_OFFSET = value;
-		}
+		mod holder {
+			@CLASS java_lang_Thread_FieldHolder;
 
-		/// `java.lang.Thread$FieldHolder#priority` field offset
-		///
-		/// This will not change for the lifetime of the program.
-		///
-		/// Expected field type: `jint`
-		pub fn priority_field_offset() -> usize {
-			unsafe { FIELDHOLDER_PRIORITY_FIELD_OFFSET }
-		}
-
-		unsafe fn set_priority_field_offset(value: usize) {
-			FIELDHOLDER_PRIORITY_FIELD_OFFSET = value;
-		}
-
-		/// `java.lang.Thread$FieldHolder#daemon` field offset
-		///
-		/// **THIS IS A STATIC FIELD**
-		///
-		/// This will not change for the lifetime of the program.
-		///
-		/// Expected field type: `jboolean`
-		pub fn daemon_field_offset() -> usize {
-			unsafe { FIELDHOLDER_DAEMON_FIELD_OFFSET }
-		}
-
-		unsafe fn set_daemon_field_offset(value: usize) {
-			FIELDHOLDER_DAEMON_FIELD_OFFSET = value;
-		}
-
-		/// `java.lang.Thread$FieldHolder#threadStatus` field offset
-		///
-		/// **THIS IS A STATIC FIELD**
-		///
-		/// This will not change for the lifetime of the program.
-		///
-		/// Expected field type: `jint`
-		pub fn thread_status_field_offset() -> usize {
-			unsafe { FIELDHOLDER_THREAD_STATUS_FIELD_OFFSET }
-		}
-
-		unsafe fn set_thread_status_field_offset(value: usize) {
-			FIELDHOLDER_THREAD_STATUS_FIELD_OFFSET = value;
-		}
-
-		/// Initialize the field offsets for `java.lang.Thread$FieldHolder`
-		///
-		/// # Safety
-		///
-		/// This **requires** that:
-		/// * `java.lang.Thread$FieldHolder` is loaded
-		pub(super) unsafe fn init_offsets() {
-			let class = crate::globals::classes::java_lang_Thread_FieldHolder();
-
-			let mut field_set = 0;
-			for field in class.fields() {
-				match field.name.as_str() {
-					"stackSize" => {
-						unsafe {
-							set_stack_size_field_offset(field.idx);
-						}
-						field_set |= 1;
-					},
-					"priority" => {
-						unsafe {
-							set_priority_field_offset(field.idx);
-						}
-						field_set |= 1 << 1;
-					},
-					"daemon" => {
-						unsafe {
-							set_daemon_field_offset(field.idx);
-						}
-						field_set |= 1 << 2;
-					},
-					"threadStatus" => {
-						unsafe {
-							set_thread_status_field_offset(field.idx);
-						}
-						field_set |= 1 << 3;
-					},
-					_ => {},
-				}
-			}
-
-			assert_eq!(
-				field_set, 0b1111,
-				"Not all fields were found in java/lang/Thread$FieldHolder"
-			);
+			/// `java.lang.Thread$FieldHolder#stackSize` field offset
+			///
+			/// Expected field type: `jlong`
+			@FIELD stackSize: FieldType::Long,
+			/// `java.lang.Thread$FieldHolder#priority` field offset
+			///
+			/// Expected field type: `jint`
+			@FIELD priority: FieldType::Int,
+			/// `java.lang.Thread$FieldHolder#daemon` field offset
+			///
+			/// Expected field type: `jboolean`
+			@FIELD daemon: FieldType::Boolean,
+			/// `java.lang.Thread$FieldHolder#threadStatus` field offset
+			///
+			/// Expected field type: `jint`
+			@FIELD threadStatus: FieldType::Int,
 		}
 	}
 }
 
+pub mod java_lang_StackTraceElement {
+	use classfile::FieldType;
+
+	field_module! {
+		@CLASS java_lang_StackTraceElement;
+
+		/// `java.lang.StackTraceElement#classLoaderName` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.String`
+		@FIELD classLoaderName: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
+		/// `java.lang.StackTraceElement#moduleName` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.String`
+		@FIELD moduleName: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
+		/// `java.lang.StackTraceElement#moduleVersion` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.String`
+		@FIELD moduleVersion: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
+		/// `java.lang.StackTraceElement#declaringClass` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.String`
+		@FIELD declaringClass: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
+		/// `java.lang.StackTraceElement#methodName` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.String`
+		@FIELD methodName: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
+		/// `java.lang.StackTraceElement#fileName` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.String`
+		@FIELD fileName: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
+		/// `java.lang.StackTraceElement#lineNumber` field offset
+		///
+		/// Expected field type: `jint`
+		@FIELD lineNumber: FieldType::Int,
+	}
+}
+
+pub mod java_lang_Throwable {
+	use classfile::FieldType;
+
+	field_module! {
+		@CLASS java_lang_Throwable;
+
+		/// `java.lang.Throwable#stackTrace` field offset
+		///
+		/// Expected field type: `Reference` to `StackTraceElement[]`
+		@FIELD stackTrace: FieldType::Array(ref val) if val.is_class(b"java/lang/StackTraceElement"),
+		/// `java.lang.Throwable#backtrace` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.Object`
+		@FIELD backtrace: ty @ FieldType::Object(_),
+		/// `java.lang.Throwable#depth` field offset
+		///
+		/// Expected field type: `jint`
+		@FIELD depth: FieldType::Int,
+	}
+}
+
 pub mod jdk_internal_misc_UnsafeConstants {
+	use classfile::FieldType;
 	use instructions::Operand;
 	use jni::sys::jint;
-	use symbols::sym;
 
-	static mut ADDRESS_SIZE0_FIELD_OFFSET: usize = 0;
-	static mut PAGE_SIZE_FIELD_OFFSET: usize = 0;
-	static mut BIG_ENDIAN_FIELD_OFFSET: usize = 0;
-	static mut UNALIGNED_ACCESS_FIELD_OFFSET: usize = 0;
-	static mut DATA_CACHE_LINE_FLUSH_SIZE_FIELD_OFFSET: usize = 0;
+	field_module! {
+		@CLASS jdk_internal_misc_UnsafeConstants;
 
-	/// `jdk.internal.misc.UnsafeConstants#ADDRESS_SIZE0` field offset
-	///
-	/// This will not change for the lifetime of the program.
-	///
-	/// Expected field type: `jint`
-	pub fn address_size0_field_offset() -> usize {
-		unsafe { ADDRESS_SIZE0_FIELD_OFFSET }
-	}
-
-	unsafe fn set_address_size0_field_offset(value: usize) {
-		ADDRESS_SIZE0_FIELD_OFFSET = value;
-	}
-
-	/// `jdk.internal.misc.UnsafeConstants#PAGE_SIZE` field offset
-	///
-	/// This will not change for the lifetime of the program.
-	///
-	/// Expected field type: `jint`
-	pub fn page_size_field_offset() -> usize {
-		unsafe { PAGE_SIZE_FIELD_OFFSET }
-	}
-
-	unsafe fn set_page_size_field_offset(value: usize) {
-		PAGE_SIZE_FIELD_OFFSET = value;
-	}
-
-	/// `jdk.internal.misc.UnsafeConstants#BIG_ENDIAN` field offset
-	///
-	/// This will not change for the lifetime of the program.
-	///
-	/// Expected field type: `jboolean`
-	pub fn big_endian_field_offset() -> usize {
-		unsafe { BIG_ENDIAN_FIELD_OFFSET }
-	}
-
-	unsafe fn set_big_endian_field_offset(value: usize) {
-		BIG_ENDIAN_FIELD_OFFSET = value;
-	}
-
-	/// `jdk.internal.misc.UnsafeConstants#UNALIGNED_ACCESS` field offset
-	///
-	/// This will not change for the lifetime of the program.
-	///
-	/// Expected field type: `jboolean`
-	pub fn unaligned_access_field_offset() -> usize {
-		unsafe { UNALIGNED_ACCESS_FIELD_OFFSET }
-	}
-
-	unsafe fn set_unaligned_access_field_offset(value: usize) {
-		UNALIGNED_ACCESS_FIELD_OFFSET = value;
-	}
-
-	/// `jdk.internal.misc.UnsafeConstants#DATA_CACHE_LINE_FLUSH_SIZE` field offset
-	///
-	/// This will not change for the lifetime of the program.
-	///
-	/// Expected field type: `jint`
-	pub fn data_cache_line_flush_size_field_offset() -> usize {
-		unsafe { DATA_CACHE_LINE_FLUSH_SIZE_FIELD_OFFSET }
-	}
-
-	unsafe fn set_data_cache_line_flush_size_field_offset(value: usize) {
-		DATA_CACHE_LINE_FLUSH_SIZE_FIELD_OFFSET = value;
-	}
-
-	/// Initialize the field offsets for `jdk.internal.misc.UnsafeConstants`
-	///
-	/// # Safety
-	///
-	/// This **requires** that:
-	/// * `jdk.internal.misc.UnsafeConstants` is loaded
-	pub unsafe fn init_offsets() {
-		let class = crate::globals::classes::jdk_internal_misc_UnsafeConstants();
-
-		let mut field_set = 0;
-		for field in class.static_fields() {
-			if field.name == sym!(ADDRESS_SIZE0) {
-				field_set |= 1;
-				unsafe {
-					set_address_size0_field_offset(field.idx);
-				}
-				continue;
-			}
-
-			if field.name == sym!(PAGE_SIZE) {
-				field_set |= 1 << 1;
-				unsafe {
-					set_page_size_field_offset(field.idx);
-				}
-				continue;
-			}
-
-			if field.name == sym!(BIG_ENDIAN) {
-				field_set |= 1 << 2;
-				unsafe {
-					set_big_endian_field_offset(field.idx);
-				}
-				continue;
-			}
-
-			if field.name == sym!(UNALIGNED_ACCESS) {
-				field_set |= 1 << 3;
-				unsafe {
-					set_unaligned_access_field_offset(field.idx);
-				}
-				continue;
-			}
-
-			if field.name == sym!(DATA_CACHE_LINE_FLUSH_SIZE) {
-				field_set |= 1 << 4;
-				unsafe {
-					set_data_cache_line_flush_size_field_offset(field.idx);
-				}
-				continue;
-			}
-		}
-
-		assert_eq!(
-			field_set, 0b11111,
-			"Not all fields were found in jdk/internal/misc/UnsafeConstants"
-		);
+		/// `jdk.internal.misc.UnsafeConstants#ADDRESS_SIZE0` field offset
+		///
+		/// Expected field type: `jint`
+		@FIELD ADDRESS_SIZE0: FieldType::Int,
+		/// `jdk.internal.misc.UnsafeConstants#PAGE_SIZE` field offset
+		///
+		/// Expected field type: `jint`
+		@FIELD PAGE_SIZE: FieldType::Int,
+		/// `jdk.internal.misc.UnsafeConstants#BIG_ENDIAN` field offset
+		///
+		/// Expected field type: `jboolean`
+		@FIELD BIG_ENDIAN: FieldType::Boolean,
+		/// `jdk.internal.misc.UnsafeConstants#UNALIGNED_ACCESS` field offset
+		///
+		/// Expected field type: `jboolean`
+		@FIELD UNALIGNED_ACCESS: FieldType::Boolean,
+		/// `jdk.internal.misc.UnsafeConstants#DATA_CACHE_LINE_FLUSH_SIZE` field offset
+		///
+		/// Expected field type: `jint`
+		@FIELD DATA_CACHE_LINE_FLUSH_SIZE: FieldType::Int,
 	}
 
 	/// Initialize the static fields for `jdk.internal.misc.UnsafeConstants`
@@ -545,15 +271,15 @@ pub mod jdk_internal_misc_UnsafeConstants {
 
 		// NOTE: The fields are already default initialized to 0
 		class.set_static_field(
-			address_size0_field_offset(),
+			ADDRESS_SIZE0_field_offset(),
 			Operand::from(size_of::<usize>() as jint),
 		);
 		class.set_static_field(
-			page_size_field_offset(),
+			PAGE_SIZE_field_offset(),
 			Operand::from(platform::mem::get_page_size() as jint),
 		);
 		class.set_static_field(
-			big_endian_field_offset(),
+			BIG_ENDIAN_field_offset(),
 			Operand::from(cfg!(target_endian = "big") as jint),
 		);
 		// TODO: class.set_static_field(unaligned_access_field_offset(), /* ... */);
