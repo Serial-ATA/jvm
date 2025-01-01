@@ -57,7 +57,7 @@ impl EntryType for Class {
 		let entry = ClassName::resolve(class, cp, index);
 		let name = ClassName::resolved_entry(entry);
 
-		let class = class.loader.load(name).unwrap();
+		let class = class.loader().load(name).unwrap();
 		ResolvedEntry { class }
 	}
 }

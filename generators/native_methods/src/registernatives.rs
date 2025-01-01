@@ -12,7 +12,7 @@ macro_rules! native_method_table_file_header {
 static NATIVES_REGISTERED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 #[allow(trivial_casts, unused_imports)]
-pub fn registerNatives(_: std::ptr::NonNull<JniEnv>) {{
+pub fn registerNatives(_: std::ptr::NonNull<JniEnv>, _: &'static crate::objects::class::Class) {{
 	use symbols::sym;
 	
 	if NATIVES_REGISTERED.compare_exchange(false, true, std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::Acquire) != Ok(false) {{

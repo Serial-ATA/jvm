@@ -1,5 +1,5 @@
-use crate::classpath::classloader::ClassLoader;
 use crate::java_call;
+use crate::native::NativeMethodPtr;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
@@ -201,17 +201,16 @@ fn lookup_style(
 	num_args: usize,
 	include_long: bool,
 	os_style: bool,
-) -> Option<*const c_void> {
-	let class_loader = method.class().loader;
-	if class_loader == ClassLoader::Bootstrap {
+) -> Option<NativeMethodPtr> {
+	let class_loader = method.class().loader();
+	if class_loader.is_bootstrap() {
 		if let Some(entry) = crate::native::lookup_method_opt(method) {
-			return Some(entry as _);
+			return Some(entry);
 		}
 	}
 
-	assert_eq!(
-		class_loader,
-		ClassLoader::Bootstrap,
+	assert!(
+		class_loader.is_bootstrap(),
 		"Custom classloaders are not implemented yet"
 	);
 
@@ -242,10 +241,10 @@ fn lookup_style(
 	}
 
 	let entry = address as usize as *const c_void;
-	Some(entry)
+	Some(unsafe { NativeMethodPtr::from_raw(entry) })
 }
 
-fn lookup_entry(method: &Method, thread: &JavaThread) -> Option<*const c_void> {
+fn lookup_entry(method: &Method, thread: &JavaThread) -> Option<NativeMethodPtr> {
 	let mut name_converter = NativeNameConverter::new(method);
 
 	// Compute pure name
@@ -315,11 +314,11 @@ fn lookup_entry(method: &Method, thread: &JavaThread) -> Option<*const c_void> {
 }
 
 /// Check if there are any JVM TI prefixes which have been applied to the native method name.
-fn lookup_entry_prefixed(_method: &Method, _thread: &JavaThread) -> Option<*const c_void> {
+fn lookup_entry_prefixed(_method: &Method, _thread: &JavaThread) -> Option<NativeMethodPtr> {
 	todo!()
 }
 
-fn lookup_base(method: &Method, thread: &JavaThread) -> *const c_void {
+fn lookup_base(method: &Method, thread: &JavaThread) -> NativeMethodPtr {
 	if let Some(entry) = lookup_entry(method, thread) {
 		return entry;
 	}

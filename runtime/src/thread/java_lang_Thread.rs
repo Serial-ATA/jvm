@@ -5,7 +5,6 @@ use crate::objects::reference::Reference;
 
 use common::traits::PtrType;
 use instructions::Operand;
-use symbols::sym;
 
 /// Value for the `java.lang.Thread$FieldHolder#status` field
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -21,7 +20,6 @@ pub enum ThreadStatus {
 	BlockedOnMonitorEnter = 7,
 	Terminated = 8,
 }
-
 pub(super) fn set_eetop(obj: Reference, eetop: jni::sys::jlong) {
 	let offset = crate::globals::fields::java_lang_Thread::eetop_field_offset();
 
@@ -41,7 +39,6 @@ pub mod holder {
 	use common::traits::PtrType;
 	use instructions::Operand;
 	use jni::sys::jlong;
-
 	fn get_field_holder_field(obj: &Reference, offset: usize) -> Operand<Reference> {
 		let class_instance = obj.extract_class();
 

@@ -1,8 +1,8 @@
 #![allow(non_upper_case_globals)]
 
-use crate::classpath::classloader::ClassLoader;
 use crate::native::jni::{field_ref_from_jfieldid, IntoJni};
 use crate::native::Reference;
+use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::thread::JavaThread;
 
@@ -99,7 +99,7 @@ pub fn writeBytes(
 }
 
 // TODO: Move logic to globals
-pub fn initIDs(_: NonNull<JniEnv>) {
+pub fn initIDs(_: NonNull<JniEnv>, class: &'static Class) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE
 		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -109,7 +109,6 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 		panic!("java.io.FileOutputStream#initIDs: attempt to initialize more than once.");
 	}
 
-	let class = ClassLoader::lookup_class(sym!(java_io_FileOutputStream)).unwrap();
 	unsafe {
 		crate::globals::classes::set_java_io_FileOutputStream(class);
 	}

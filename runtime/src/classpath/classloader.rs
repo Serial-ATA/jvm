@@ -1,12 +1,17 @@
 use crate::error::{Result, RuntimeError};
+use crate::modules::{Module, Package};
 use crate::objects::class::Class;
+use crate::objects::reference::Reference;
 
+use std::cell::SyncUnsafeCell;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::ops::RangeInclusive;
 use std::sync::{LazyLock, Mutex};
 
 use classfile::{ClassFile, FieldType};
 use common::int_types::u1;
+use common::traits::PtrType;
 use symbols::{sym, Symbol};
 
 const SUPPORTED_MAJOR_LOWER_BOUND: u1 = 45;
@@ -14,48 +19,112 @@ const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 67;
 const SUPPORTED_MAJOR_VERSION_RANGE: RangeInclusive<u1> =
 	SUPPORTED_MAJOR_LOWER_BOUND..=SUPPORTED_MAJOR_UPPER_BOUND;
 
-static BOOTSTRAP_LOADED_CLASSES: LazyLock<Mutex<HashMap<Symbol, &'static Class>>> =
-	LazyLock::new(|| Mutex::new(HashMap::new()));
+#[derive(Copy, Clone, Debug)]
+struct ClassLoaderFlags {
+	is_bootstrap: bool,
+}
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum ClassLoader {
-	Bootstrap,
-	UserDefined,
+pub struct ClassLoader {
+	flags: ClassLoaderFlags,
+	obj: Reference,
+
+	unnamed_module: SyncUnsafeCell<Option<Module>>,
+	classes: Mutex<HashMap<Symbol, &'static Class>>,
+	modules: Mutex<HashMap<Symbol, &'static Module>>,
+	packages: Mutex<HashMap<Symbol, &'static Package>>,
+}
+
+impl PartialEq for ClassLoader {
+	fn eq(&self, other: &Self) -> bool {
+		self.obj == other.obj
+	}
+}
+
+impl Debug for ClassLoader {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("ClassLoader")
+			.field("flags", &self.flags)
+			.field("obj", &self.obj)
+			.finish()
+	}
 }
 
 impl ClassLoader {
-	pub(crate) fn lookup_class(name: Symbol) -> Option<&'static Class> {
-		let loaded_classes = BOOTSTRAP_LOADED_CLASSES.lock().unwrap();
+	/// Stores a copy of the `jdk.internal.loader.BootLoader#UNNAMED_MODULE` field
+	///
+	/// This is called from `jdk.internal.loader.BootLoader#setBootLoaderUnnamedModule0`, and can
+	/// only be set once.
+	pub fn set_bootloader_unnamed_module(entry: Module) {
+		let bootloader = ClassLoader::bootstrap();
 
-		loaded_classes.get(&name).map(|&class| class)
-	}
+		let ptr = bootloader.unnamed_module.get();
+		assert!(
+			unsafe { (*ptr).is_none() },
+			"Attempt to set unnamed module for bootloader twice"
+		);
 
-	fn insert_bootstrapped_class(name: Symbol, classref: &'static Class) {
-		let mut loaded_classes = BOOTSTRAP_LOADED_CLASSES.lock().unwrap();
-		loaded_classes.insert(name, classref);
-	}
-}
-
-impl ClassLoader {
-	pub fn load(&self, name: Symbol) -> Option<&'static Class> {
-		match self {
-			ClassLoader::Bootstrap => Self::load_bootstrap(name),
-			ClassLoader::UserDefined => unimplemented!("User defined loader"),
+		unsafe {
+			*ptr = Some(entry);
 		}
 	}
 
+	pub fn bootstrap() -> &'static Self {
+		static BOOTSTRAP_LOADER: LazyLock<SyncUnsafeCell<ClassLoader>> = LazyLock::new(|| {
+			let loader = ClassLoader {
+				flags: ClassLoaderFlags { is_bootstrap: true },
+				obj: Reference::null(),
+
+				unnamed_module: SyncUnsafeCell::new(None),
+				classes: Mutex::new(HashMap::new()),
+				modules: Mutex::new(HashMap::new()),
+				packages: Mutex::new(HashMap::new()),
+			};
+
+			SyncUnsafeCell::new(loader)
+		});
+
+		unsafe { &*BOOTSTRAP_LOADER.get() }
+	}
+}
+
+impl ClassLoader {
+	pub fn is_bootstrap(&self) -> bool {
+		self.flags.is_bootstrap
+	}
+}
+
+impl ClassLoader {
+	pub(crate) fn lookup_class(&self, name: Symbol) -> Option<&'static Class> {
+		let loaded_classes = self.classes.lock().unwrap();
+		loaded_classes.get(&name).map(|&class| class)
+	}
+}
+
+impl ClassLoader {
+	pub fn obj(&self) -> Reference {
+		self.obj.clone()
+	}
+
+	pub fn load(&'static self, name: Symbol) -> Option<&'static Class> {
+		if self.flags.is_bootstrap {
+			return self.load_bootstrap(name);
+		}
+
+		unimplemented!("User-defined class loaders")
+	}
+
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.3.1
-	fn load_bootstrap(name: Symbol) -> Option<&'static Class> {
+	fn load_bootstrap(&'static self, name: Symbol) -> Option<&'static Class> {
 		// First, the Java Virtual Machine determines whether the bootstrap class loader has
 		// already been recorded as an initiating loader of a class or interface denoted by N.
 		// If so, this class or interface is C, and no class loading or creation is necessary.
-		if let ret @ Some(_) = Self::lookup_class(name) {
+		if let ret @ Some(_) = self.lookup_class(name) {
 			return ret;
 		}
 
 		// Otherwise, the Java Virtual Machine passes the argument N to an invocation of a method on
 		// the bootstrap class loader [...] and then [...] create C, via the algorithm of §5.3.5.
-		let classref = ClassLoader::Bootstrap.load_class_by_name(name);
+		let classref = self.load_class_by_name(name);
 
 		// TODO:
 		// If no purported representation of C is found, the bootstrap class loader throws a ClassNotFoundException.
@@ -70,8 +139,8 @@ impl ClassLoader {
 
 	// Deriving a Class from a class File Representation
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.3.5
-	fn load_class_by_name(self, name: Symbol) -> &'static Class {
-		if let Some(class) = Self::lookup_class(name) {
+	fn load_class_by_name(&'static self, name: Symbol) -> &'static Class {
+		if let Some(class) = self.lookup_class(name) {
 			return class;
 		}
 
@@ -87,14 +156,14 @@ impl ClassLoader {
 
 		// 2. Otherwise, the Java Virtual Machine attempts to parse the purported representation.
 		let classfile_bytes = super::find_classpath_entry(name);
-		let classfile = ClassFile::read_from(&mut &classfile_bytes[..]).unwrap(); // TODO: handle errors
 
 		//    The purported representation may not in fact be a valid representation of C, so
 		//    derivation must detect the following problems:
-
-		// TODO:
-		//  2.1. If the purported representation is not a ClassFile structure (§4.1, §4.8), derivation
-		//       throws a ClassFormatError.
+		let Ok(classfile) = ClassFile::read_from(&mut &classfile_bytes[..]) else {
+			//  2.1. If the purported representation is not a ClassFile structure (§4.1, §4.8), derivation
+			//       throws a ClassFormatError.
+			panic!("ClassFormatError") // TODO
+		};
 
 		//  2.2. Otherwise, if the purported representation is not of a supported major or
 		//       minor version (§4.1), derivation throws an UnsupportedClassVersionError.
@@ -103,18 +172,20 @@ impl ClassLoader {
 			"UnsupportedClassVersionError"
 		);
 
-		// TODO:
 		//  2.3. Otherwise, if the purported representation does not actually represent a class or
 		//       interface named N, derivation throws a NoClassDefFoundError. This occurs when the
 		//       purported representation has either a this_class item which specifies a name other
 		//       than N, or an access_flags item which has the ACC_MODULE flag set.
+		let specified_class_name = classfile.constant_pool.get_class_name(classfile.this_class);
+		if name_str.as_bytes() != specified_class_name || classfile.access_flags.is_module() {
+			panic!("NoClassDefFoundError") // TODO
+		}
 
 		//  3. If C has a direct superclass, the symbolic reference from C to its direct
 		//     superclass is resolved using the algorithm of §5.4.3.1. Note that if C is an interface
 		//     it must have Object as its direct superclass, which must already have been loaded.
 		//     Only Object has no direct superclass.
 		let mut super_class = None;
-
 		if let Some(super_class_name) = classfile.get_super_class() {
 			super_class = Some(self.resolve_super_class(Symbol::intern_bytes(super_class_name)));
 		}
@@ -133,20 +204,13 @@ impl ClassLoader {
 		// "Preparation may occur at any time following creation but must be completed prior to initialization."
 		class.prepare();
 
-		// Set the mirror if `java.lang.Class` is loaded
-		if Self::lookup_class(sym!(java_lang_Class)).is_some() {
-			// SAFETY: The only condition of `set_mirror` is that the class isn't in use yet.
-			unsafe {
-				class.set_mirror();
-			}
-		}
+		init_mirror(class);
 
-		Self::insert_bootstrapped_class(name, class);
-
+		self.classes.lock().unwrap().insert(name, class);
 		class
 	}
 
-	fn resolve_super_class(self, super_class_name: Symbol) -> &'static Class {
+	fn resolve_super_class(&'static self, super_class_name: Symbol) -> &'static Class {
 		// Any exception that can be thrown as a result of failure of class or interface resolution
 		// can be thrown as a result of derivation. In addition, derivation must detect the following problems:
 
@@ -179,13 +243,13 @@ impl ClassLoader {
 
 	// Creating array classes
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.3.3
-	fn create_array_class(self, descriptor: Symbol) -> &'static Class {
+	fn create_array_class(&'static self, descriptor: Symbol) -> &'static Class {
 		// The following steps are used to create the array class C denoted by the name N in association with the class loader L.
 		// L may be either the bootstrap class loader or a user-defined class loader.
 
 		// First, the Java Virtual Machine determines whether L has already been recorded as an initiating loader of an array class with
 		// the same component type as N. If so, this class is C, and no array class creation is necessary.
-		if let Some(ret) = Self::lookup_class(descriptor) {
+		if let Some(ret) = self.lookup_class(descriptor) {
 			return ret;
 		}
 
@@ -231,26 +295,10 @@ impl ClassLoader {
 		//     If the component type is a reference type, the accessibility of the array class is determined by the accessibility of its component type (§5.4.4).
 		//     Otherwise, the array class is accessible to all classes and interfaces.
 
-		// Set the mirror if `java.lang.Class` is loaded
-		if Self::lookup_class(sym!(java_lang_Class)).is_some() {
-			// SAFETY: The only condition of `set_mirror` is that the class isn't in use yet.
-			unsafe {
-				array_class.set_mirror();
-			}
-		}
+		init_mirror(array_class);
 
-		Self::insert_bootstrapped_class(descriptor, array_class);
+		self.classes.lock().unwrap().insert(descriptor, array_class);
 		array_class
-	}
-
-	/// Recreate mirrors for all loaded classes
-	pub fn fixup_mirrors() {
-		for (_, class) in BOOTSTRAP_LOADED_CLASSES.lock().unwrap().iter() {
-			// SAFETY: The only condition of `set_mirror` is that the class isn't in use yet.
-			unsafe {
-				class.set_mirror();
-			}
-		}
 	}
 
 	/// Get the package name from a fully qualified class name
@@ -283,4 +331,67 @@ impl ClassLoader {
 
 		return Ok(Some(&name_str[start_index..end]));
 	}
+
+	/// Recreate mirrors for all loaded classes
+	pub fn fixup_mirrors() {
+		let bootstrap_loader = ClassLoader::bootstrap();
+		for class in bootstrap_loader.classes.lock().unwrap().values() {
+			// SAFETY: The only condition of `set_mirror` is that the class isn't in use yet.
+			unsafe {
+				class.set_mirror();
+			}
+		}
+	}
+
+	/// Sets all currently loaded classes to be members of `java.base`
+	pub fn fixup_modules() {
+		let bootstrap_loader = ClassLoader::bootstrap();
+		let java_base = crate::modules::java_base();
+		for class in bootstrap_loader.classes.lock().unwrap().values() {
+			class.mirror().get().set_module(java_base.obj());
+		}
+	}
+}
+
+fn init_mirror(class: &'static Class) {
+	let bootstrap_loader = ClassLoader::bootstrap();
+
+	// Set the mirror if `java.lang.Class` is loaded
+	let class_loaded = bootstrap_loader
+		.lookup_class(sym!(java_lang_Class))
+		.is_some();
+	if !class_loaded {
+		// We cannot do anything to this class until a mirror is available.
+		return;
+	}
+
+	// SAFETY: The only condition of `set_mirror` is that the class isn't in use yet.
+	unsafe {
+		class.set_mirror();
+	}
+
+	// Set the module
+	let module;
+	let java_base = crate::modules::java_base();
+	if !java_base.has_obj() {
+		// Assume we are early in VM initialization, where `java.base` isn't a real module yet.
+		// In this case, we can assume that the intended module is `java.base`.
+		module = java_base;
+	} else {
+		todo!()
+	}
+
+	if !module.has_obj() {
+		assert_eq!(
+			module.name(),
+			Some(sym!(java_base)),
+			"only java.base can have no associated object"
+		);
+
+		// `java.base` isn't a real module yet. Will need to fix this up later.
+		class.mirror().get().set_module(Reference::null());
+		return;
+	}
+
+	class.mirror().get().set_module(module.obj());
 }

@@ -6,17 +6,31 @@ use std::path::{Component, Path};
 
 /// Create a `NativeMethodDef` for a method
 pub(crate) fn method_table_entry(module: &str, class: &Class, method: &Method) -> String {
+	let ptr = if method.is_static() {
+		format!(
+			"NativeMethodPtr::new_static(crate::native::{}{}::definitions::_{})",
+			escape_module_name(module).replace('/', "::"),
+			class.class_name.replace('$', "::"),
+			method.name()
+		)
+	} else {
+		format!(
+			"NativeMethodPtr::new_non_static(crate::native::{}{}::definitions::_{})",
+			escape_module_name(module).replace('/', "::"),
+			class.class_name.replace('$', "::"),
+			method.name()
+		)
+	};
+
 	format!(
-		"NativeMethodDef {{ class: sym!({}), name: sym!({}), descriptor: sym!({}) }}, \
-		 crate::native::{}{}::definitions::_{} as NativeMethodPtr",
+		"NativeMethodDef {{ class: sym!({}), name: sym!({}), descriptor: sym!({}), is_static: {} \
+		 }}, {ptr}",
 		format!("{}{}", module, class.class_name)
 			.replace('/', "_")
 			.replace('$', "_"),
 		method.name_symbol(),
 		method.signature_symbol_name(),
-		escape_module_name(module).replace('/', "::"),
-		class.class_name.replace('$', "::"),
-		method.name()
+		method.is_static(),
 	)
 }
 

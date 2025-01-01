@@ -113,7 +113,7 @@ impl FieldContainer {
 pub struct Class {
 	pub name: Symbol,
 	pub access_flags: ClassAccessFlags,
-	pub loader: ClassLoader,
+	loader: &'static ClassLoader,
 	pub super_class: Option<&'static Class>,
 	pub interfaces: Vec<&'static Class>,
 	misc_cache: UnsafeCell<MiscCache>,
@@ -191,6 +191,11 @@ impl Class {
 		// SAFETY: The only way to construct a `Class` is via `Class::new()`, which ensures that the
 		//         class type is initialized.
 		unsafe { (&*self.class_ty.get()).assume_init_ref() }
+	}
+
+	/// Get a reference to the `ClassLoader` that loaded this class
+	pub fn loader(&self) -> &ClassLoader {
+		self.loader
 	}
 
 	/// Get a reference to the constant pool for this class
@@ -455,8 +460,8 @@ impl Class {
 			//         TC and SC are reference types, and type SC can be cast to TC by these run-time rules.
 
 			// It's impossible to get a reference to an unloaded class
-			let S_class = ClassLoader::lookup_class(source_component).unwrap();
-			let T_class = ClassLoader::lookup_class(dest_component).unwrap();
+			let S_class = S_class.loader().lookup_class(source_component).unwrap();
+			let T_class = T_class.loader().lookup_class(dest_component).unwrap();
 			return S_class.can_cast_to(T_class);
 		}
 
@@ -474,7 +479,7 @@ impl Class {
 	pub unsafe fn new(
 		parsed_file: ClassFile,
 		super_class: Option<&'static Class>,
-		loader: ClassLoader,
+		loader: &'static ClassLoader,
 	) -> &'static Class {
 		let access_flags = parsed_file.access_flags;
 		let class_name_index = parsed_file.this_class;
@@ -594,7 +599,7 @@ impl Class {
 	pub unsafe fn new_array(
 		name: Symbol,
 		component: FieldType,
-		loader: ClassLoader,
+		loader: &'static ClassLoader,
 	) -> &'static Class {
 		let dimensions = name
 			.as_str()
@@ -614,12 +619,8 @@ impl Class {
 			super_class: Some(crate::globals::classes::java_lang_Object()),
 			// https://docs.oracle.com/javase/specs/jls/se19/html/jls-4.html#jls-4.10.3
 			interfaces: vec![
-				ClassLoader::Bootstrap
-					.load(sym!(java_lang_Cloneable))
-					.unwrap(),
-				ClassLoader::Bootstrap
-					.load(sym!(java_io_Serializable))
-					.unwrap(),
+				crate::globals::classes::java_lang_Cloneable(),
+				crate::globals::classes::java_io_Serializable(),
 			],
 			misc_cache: UnsafeCell::new(MiscCache::default()),
 			mirror: UnsafeCell::new(MaybeUninit::uninit()), // Set later

@@ -47,7 +47,7 @@ pub struct Method {
 	pub parameter_count: u1,
 	pub line_number_table: Vec<LineNumber>,
 	pub code: Code,
-	native_method: RwLock<*const c_void>,
+	native_method: RwLock<Option<NativeMethodPtr>>,
 }
 
 impl PartialEq for Method {
@@ -116,7 +116,7 @@ impl Method {
 			parameter_count,
 			line_number_table,
 			code,
-			native_method: RwLock::new(std::ptr::null()),
+			native_method: RwLock::new(None),
 		};
 
 		Box::leak(Box::new(method))
@@ -166,18 +166,14 @@ impl Method {
 	}
 
 	pub fn native_method(&self) -> Option<NativeMethodPtr> {
-		let native_method = self.native_method.read().unwrap();
-		if native_method.is_null() {
-			return None;
-		}
-
 		assert!(self.is_native());
-		Some(unsafe { core::mem::transmute(*native_method) })
+		let native_method = self.native_method.read().unwrap();
+		*native_method
 	}
 
-	pub fn set_native_method(&self, func: *const c_void) {
+	pub fn set_native_method(&self, func: NativeMethodPtr) {
 		let mut lock = self.native_method.write().unwrap();
-		*lock = func;
+		*lock = Some(func);
 	}
 }
 

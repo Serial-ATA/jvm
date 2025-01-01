@@ -1,3 +1,4 @@
+use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
@@ -9,7 +10,7 @@ use ::jni::sys::{jboolean, jint};
 include_generated!("native/jdk/internal/reflect/def/Reflection.definitions.rs");
 
 #[expect(clippy::match_same_arms)]
-pub fn getCallerClass(env: NonNull<JniEnv>) -> Reference {
+pub fn getCallerClass(env: NonNull<JniEnv>, _class: &'static Class) -> Reference {
 	let current_thread = unsafe { &*JavaThread::for_env(env.as_ptr() as _) };
 
 	// The call stack at this point looks something like this:
@@ -50,12 +51,17 @@ pub fn getCallerClass(env: NonNull<JniEnv>) -> Reference {
 	Reference::null()
 }
 
-pub fn getClassAccessFlags(_env: NonNull<JniEnv>, _class: Reference) -> jint {
+pub fn getClassAccessFlags(
+	_env: NonNull<JniEnv>,
+	_this_class: &'static Class,
+	_class: Reference,
+) -> jint {
 	unimplemented!("jdk.internal.reflect.Reflection#getClassAccessFlags")
 }
 
 pub fn areNestMates(
 	_env: NonNull<JniEnv>,
+	_class: &'static Class,
 	_current_class: Reference,
 	_member_class: Reference,
 ) -> jboolean {

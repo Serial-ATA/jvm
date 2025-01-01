@@ -1,3 +1,4 @@
+use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 
 use std::ptr::NonNull;
@@ -9,6 +10,7 @@ include_generated!("native/jdk/internal/loader/def/NativeLibraries.definitions.r
 
 pub fn load(
 	_env: NonNull<JniEnv>,
+	_class: &'static Class,
 	_impl_: Reference, // jdk.internal.loader.NativeLibraries$NativeLibraryImpl
 	_name: Reference,  // java.lang.String
 	_is_builtin: jboolean,
@@ -19,6 +21,7 @@ pub fn load(
 
 pub fn unload(
 	_env: NonNull<JniEnv>,
+	_class: &'static Class,
 	_name: Reference, // java.lang.String
 	_is_builtin: jboolean,
 	_handle: jlong,
@@ -28,6 +31,7 @@ pub fn unload(
 
 pub fn findBuiltinLib(
 	_env: NonNull<JniEnv>,
+	_class: &'static Class,
 	_name: Reference, // java.lang.String
 ) -> Reference /* java.lang.String */
 {

@@ -1,8 +1,10 @@
 use super::instance::{Header, Instance};
+use crate::modules::Module;
 use crate::objects::class::Class;
 use crate::objects::field::Field;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
 
+use std::cell::UnsafeCell;
 use std::fmt::{Debug, Formatter};
 use std::ptr::NonNull;
 
@@ -28,11 +30,10 @@ enum MirrorTarget {
 /// ```
 ///
 /// `c` is a mirror instance, with a target of `java.lang.String`.
-#[derive(PartialEq)]
 pub struct MirrorInstance {
 	header: Header,
 	class: &'static Class,
-	pub fields: Box<[Operand<Reference>]>,
+	fields: Box<[UnsafeCell<Operand<Reference>>]>,
 	target: MirrorTarget,
 }
 
@@ -49,7 +50,7 @@ impl Debug for MirrorInstance {
 impl MirrorInstance {
 	pub fn new(target: &'static Class) -> MirrorInstanceRef {
 		let mirror_class = crate::globals::classes::java_lang_Class();
-		let fields = Self::initialize_fields(mirror_class);
+		let fields = Self::initialize_fields(mirror_class, target);
 		MirrorInstancePtr::new(Self {
 			header: Header::new(),
 			class: mirror_class,
@@ -60,7 +61,7 @@ impl MirrorInstance {
 
 	pub fn new_array(target: &'static Class) -> MirrorInstanceRef {
 		let mirror_class = crate::globals::classes::java_lang_Class();
-		let fields = Self::initialize_fields(mirror_class);
+		let fields = Self::initialize_fields(mirror_class, target);
 		MirrorInstancePtr::new(Self {
 			header: Header::new(),
 			class: mirror_class,
@@ -76,7 +77,9 @@ impl MirrorInstance {
 		);
 
 		let mirror_class = crate::globals::classes::java_lang_Class();
-		let fields = Self::initialize_fields(mirror_class);
+		let target_class = Self::target_for_primitive(&target);
+
+		let fields = Self::initialize_fields(mirror_class, target_class);
 		MirrorInstancePtr::new(Self {
 			header: Header::new(),
 			class: mirror_class,
@@ -122,28 +125,55 @@ impl MirrorInstance {
 	pub fn target_class(&self) -> &'static Class {
 		match &self.target {
 			MirrorTarget::Class(class) => *class,
-			MirrorTarget::Primitive(field_ty) => match field_ty {
-				FieldType::Byte => crate::globals::classes::java_lang_Byte(),
-				FieldType::Char => crate::globals::classes::java_lang_Character(),
-				FieldType::Double => crate::globals::classes::java_lang_Double(),
-				FieldType::Float => crate::globals::classes::java_lang_Float(),
-				FieldType::Int => crate::globals::classes::java_lang_Integer(),
-				FieldType::Long => crate::globals::classes::java_lang_Long(),
-				FieldType::Short => crate::globals::classes::java_lang_Short(),
-				FieldType::Boolean => crate::globals::classes::java_lang_Boolean(),
-				FieldType::Void => crate::globals::classes::java_lang_Void(),
-				_ => unreachable!("only primitive types should exist within primitive mirrors"),
-			},
+			MirrorTarget::Primitive(field_ty) => Self::target_for_primitive(field_ty),
 		}
 	}
 
-	fn initialize_fields(mirror_class: &'static Class) -> Box<[Operand<Reference>]> {
+	pub fn set_module(&self, module: Reference) {
+		let module_offset = crate::globals::fields::java_lang_Class::module_field_offset();
+		let ptr = self.fields[module_offset].get();
+		unsafe {
+			assert!(
+				(&*ptr).expect_reference().is_null(),
+				"Attempt to set a module twice"
+			);
+			*ptr = Operand::Reference(module);
+		}
+	}
+
+	fn target_for_primitive(primitive: &FieldType) -> &'static Class {
+		match primitive {
+			FieldType::Byte => crate::globals::classes::java_lang_Byte(),
+			FieldType::Char => crate::globals::classes::java_lang_Character(),
+			FieldType::Double => crate::globals::classes::java_lang_Double(),
+			FieldType::Float => crate::globals::classes::java_lang_Float(),
+			FieldType::Int => crate::globals::classes::java_lang_Integer(),
+			FieldType::Long => crate::globals::classes::java_lang_Long(),
+			FieldType::Short => crate::globals::classes::java_lang_Short(),
+			FieldType::Boolean => crate::globals::classes::java_lang_Boolean(),
+			FieldType::Void => crate::globals::classes::java_lang_Void(),
+			_ => unreachable!("only primitive types should exist within primitive mirrors"),
+		}
+	}
+
+	fn initialize_fields(
+		mirror_class: &'static Class,
+		target_class: &'static Class,
+	) -> Box<[UnsafeCell<Operand<Reference>>]> {
 		let instance_field_count = mirror_class.instance_field_count();
 
 		// Set the default values for our non-static fields
 		let mut fields = Vec::with_capacity(instance_field_count);
-		for field in mirror_class.fields().filter(|field| !field.is_static()) {
-			fields.push(Field::default_value_for_ty(&field.descriptor))
+		for field in mirror_class.instance_fields() {
+			fields.push(UnsafeCell::new(Field::default_value_for_ty(
+				&field.descriptor,
+			)))
+		}
+
+		let class_loader_offset =
+			crate::globals::fields::java_lang_Class::classLoader_field_offset();
+		unsafe {
+			*fields[class_loader_offset].get() = Operand::Reference(target_class.loader().obj());
 		}
 
 		fields.into_boxed_slice()
@@ -167,7 +197,9 @@ impl Instance for MirrorInstance {
 			);
 		}
 
-		self.fields[field_idx].clone()
+		let ptr = self.fields[field_idx].get();
+		let value = unsafe { &*ptr };
+		value.clone()
 	}
 
 	fn put_field_value(&mut self, field: &Field, value: Operand<Reference>) {
@@ -182,7 +214,8 @@ impl Instance for MirrorInstance {
 			);
 		}
 
-		let current = &self.fields[field_idx];
+		let ptr = self.fields[field_idx].get();
+		let current = unsafe { &*ptr };
 		assert!(
 			current.is_compatible_with(&value),
 			"Expected type compatible with: {:?}, found: {:?}",
@@ -190,7 +223,9 @@ impl Instance for MirrorInstance {
 			value
 		);
 
-		self.fields[field_idx] = value;
+		unsafe {
+			*ptr = value;
+		}
 	}
 
 	unsafe fn get_field_value_raw(&self, field_idx: usize) -> NonNull<Operand<Reference>> {

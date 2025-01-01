@@ -49,19 +49,33 @@ pub fn generate_definitions_for_class(def_path: &Path, class: &Class) {
 	writeln!(definitions_file, "}}").unwrap();
 }
 
+macro_rules! non_static_signature {
+	() => {
+		"\tpub fn _{}(env: std::ptr::NonNull<::jni::env::JniEnv>, locals: \
+		 crate::stack::local_stack::LocalStack) -> crate::native::NativeReturn {{"
+	};
+}
+
+macro_rules! static_signature {
+	() => {
+		"\tpub fn _{}(env: std::ptr::NonNull<::jni::env::JniEnv>, class: &'static \
+		 crate::objects::class::Class, locals: crate::stack::local_stack::LocalStack) -> \
+		 crate::native::NativeReturn {{"
+	};
+}
+const STATIC_SIGNATURE: &str = "pub fn ";
+
 fn generate_methods_for_class(class: &Class, definitions_file: &mut File) {
 	for method in class.methods().filter(|method| {
 		method.name.is_some() && method.modifiers.contains(AccessFlags::ACC_NATIVE)
 	}) {
-		writeln!(
-			definitions_file,
-			"\tpub fn _{}(env: std::ptr::NonNull<::jni::env::JniEnv>, locals: \
-			 crate::stack::local_stack::LocalStack) -> crate::native::NativeReturn {{",
-			method.name()
-		)
-		.unwrap();
+		if method.is_static() {
+			writeln!(definitions_file, static_signature!(), method.name()).unwrap();
+		} else {
+			writeln!(definitions_file, non_static_signature!(), method.name()).unwrap();
+		}
 
-		let is_static = method.modifiers.contains(AccessFlags::ACC_STATIC);
+		let is_static = method.is_static();
 		if !is_static {
 			writeln!(
 				definitions_file,
@@ -95,13 +109,12 @@ fn generate_methods_for_class(class: &Class, definitions_file: &mut File) {
 			}
 		}
 
-		// TODO: static methods should have a `class` argument
 		let mut method_call = String::new();
 		write!(
 			method_call,
 			"super::{}(env,{}",
 			method.name(),
-			if is_static { "" } else { "this," }
+			if is_static { "class," } else { "this," }
 		)
 		.unwrap();
 

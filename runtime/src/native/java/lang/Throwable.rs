@@ -1,6 +1,4 @@
-use crate::classpath::classloader::ClassLoader;
 use crate::objects::array::{ArrayContent, ArrayInstance};
-use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
@@ -8,13 +6,11 @@ use crate::thread::frame::stack::VisibleStackFrame;
 use crate::thread::JavaThread;
 
 use std::ptr::NonNull;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
 use std::sync::Once;
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jint, jlong};
-use classfile::FieldType;
-use common::box_slice;
 use common::int_types::s4;
 use common::traits::PtrType;
 use instructions::Operand;
@@ -22,7 +18,6 @@ use symbols::sym;
 
 #[allow(non_upper_case_globals)]
 mod stacktrace_element {
-	use crate::classpath::classloader::ClassLoader;
 	use crate::objects::class::Class;
 	use crate::objects::class_instance::ClassInstance;
 	use crate::objects::constant_pool::cp_types;
@@ -35,7 +30,6 @@ mod stacktrace_element {
 
 	use common::traits::PtrType;
 	use instructions::Operand;
-	use symbols::sym;
 
 	unsafe fn initialize(class: &'static Class) {
 		static ONCE: AtomicBool = AtomicBool::new(false);
@@ -47,12 +41,8 @@ mod stacktrace_element {
 			return;
 		}
 
-		let stack_trace_element_class = ClassLoader::Bootstrap
-			.load(sym!(java_lang_StackTraceElement))
-			.unwrap();
-
 		unsafe {
-			crate::globals::classes::set_java_lang_StackTraceElement(stack_trace_element_class);
+			crate::globals::classes::set_java_lang_StackTraceElement(class);
 			crate::globals::fields::java_lang_StackTraceElement::init_offsets();
 		}
 	}
@@ -252,12 +242,11 @@ pub fn fillInStackTrace(
 	// Create the backtrace
 	let backtrace_depth = stack_depth - frames_to_skip;
 	let mut backtrace = BackTrace::new(backtrace_depth);
-	for (idx, frame) in current_thread
+	for frame in current_thread
 		.frame_stack()
 		.iter()
 		.skip(frames_to_skip)
 		.take(backtrace_depth)
-		.enumerate()
 	{
 		backtrace.push(frame);
 	}

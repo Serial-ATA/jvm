@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
-use crate::classpath::classloader::ClassLoader;
 use crate::native::jni::{field_ref_from_jfieldid, IntoJni};
+use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
@@ -203,7 +203,7 @@ pub fn getNameMax0(
 }
 
 // TODO: Move logic to globals
-pub fn initIDs(_: NonNull<JniEnv>) {
+pub fn initIDs(_: NonNull<JniEnv>, class: &'static Class) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE
 		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -213,13 +213,13 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 		panic!("java.io.UnixFileSystem#initIDs: attempt to initialize more than once.");
 	}
 
-	let class = ClassLoader::lookup_class(sym!(java_io_File)).unwrap();
+	let file_class = class.loader().load(sym!(java_io_File)).unwrap();
 	unsafe {
-		crate::globals::classes::set_java_io_File(class);
+		crate::globals::classes::set_java_io_File(file_class);
 	}
 
 	let mut field_set = false;
-	for field in class.fields() {
+	for field in file_class.fields() {
 		if field.name == sym!(path) {
 			unsafe {
 				*java_io_file_path_field.get() = ForceSync::new(field.into_jni());

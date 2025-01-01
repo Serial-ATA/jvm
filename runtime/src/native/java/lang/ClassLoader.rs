@@ -1,4 +1,5 @@
 use crate::native::JniEnv;
+use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 
 use std::ptr::NonNull;
@@ -10,6 +11,7 @@ include_generated!("native/java/lang/def/ClassLoader.definitions.rs");
 
 pub fn defineClass1(
 	_env: NonNull<JniEnv>,
+	_class: &'static Class,
 	_loader: Reference, // java.lang.ClassLoader
 	_name: Reference,   // java.lang.String
 	_b: Reference,      // byte[],
@@ -19,11 +21,12 @@ pub fn defineClass1(
 	_source: Reference, // java.lang.String
 ) -> Reference // java.lang.Class
 {
-	unimplemented!("java.lang.Class#defineClass1")
+	unimplemented!("java.lang.ClassLoader#defineClass1")
 }
 
 pub fn defineClass2(
 	_env: NonNull<JniEnv>,
+	_class: &'static Class,
 	_loader: Reference, // java.lang.ClassLoader
 	_name: Reference,   // java.lang.String
 	_b: Reference,      // java.nio.ByteBuffer,
@@ -33,11 +36,12 @@ pub fn defineClass2(
 	_source: Reference, // java.lang.String
 ) -> Reference // java.lang.Class
 {
-	unimplemented!("java.lang.Class#defineClass2")
+	unimplemented!("java.lang.ClassLoader#defineClass2")
 }
 
 pub fn defineClass0(
 	_env: NonNull<JniEnv>,
+	_class: &'static Class,
 	_loader: Reference, // java.lang.ClassLoader
 	_lookup: Reference, // java.lang.Class
 	_name: Reference,   // java.lang.String
@@ -50,15 +54,16 @@ pub fn defineClass0(
 	_source: Reference, // java.lang.String
 ) -> Reference // java.lang.Class
 {
-	unimplemented!("java.lang.Class#defineClass0")
+	unimplemented!("java.lang.ClassLoader#defineClass0")
 }
 
 pub fn findBootstrapClass(
 	_env: NonNull<JniEnv>,
+	_class: &'static Class,
 	_name: Reference, // java.lang.String
 ) -> Reference // java.lang.Class
 {
-	unimplemented!("java.lang.Class#findBootstrapClass")
+	unimplemented!("java.lang.ClassLoader#findBootstrapClass")
 }
 
 pub fn findLoadedClass0(
@@ -67,10 +72,10 @@ pub fn findLoadedClass0(
 	_name: Reference, // java.lang.String
 ) -> Reference // java.lang.Class
 {
-	unimplemented!("java.lang.Class#findLoadedClass0")
+	unimplemented!("java.lang.ClassLoader#findLoadedClass0")
 }
 
-pub fn retrieveDirectives(_env: NonNull<JniEnv>) -> Reference // AssertionStatusDirectives
+pub fn retrieveDirectives(_env: NonNull<JniEnv>, _class: &'static Class) -> Reference // AssertionStatusDirectives
 {
-	unimplemented!("java.lang.Class#retrieveDirectives")
+	unimplemented!("java.lang.ClassLoader#retrieveDirectives")
 }

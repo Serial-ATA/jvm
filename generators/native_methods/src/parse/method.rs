@@ -25,6 +25,10 @@ impl Method {
 		}
 	}
 
+	pub fn is_static(&self) -> bool {
+		self.modifiers.contains(AccessFlags::ACC_STATIC)
+	}
+
 	/// The symbol for the class name + method name
 	///
 	/// For example, `java.lang.Object#hashCode` would become `Object_hashCode`.

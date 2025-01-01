@@ -57,7 +57,7 @@ impl ArrayInstance {
 			_ => panic!("Invalid array type code: {}", type_code),
 		};
 
-		let array_class = ClassLoader::Bootstrap.load(array_signature).unwrap();
+		let array_class = ClassLoader::bootstrap().load(array_signature).unwrap();
 		let elements = ArrayContent::default_initialize(type_code, count);
 
 		ArrayInstancePtr::new(Self {
@@ -74,7 +74,7 @@ impl ArrayInstance {
 		}
 
 		let array_class_name = component_class.array_class_name();
-		let array_class = ClassLoader::Bootstrap.load(array_class_name).unwrap();
+		let array_class = component_class.loader().load(array_class_name).unwrap();
 
 		let elements = box_slice![Reference::null(); count as usize];
 		ArrayInstancePtr::new(Self {

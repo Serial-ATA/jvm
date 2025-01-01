@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
-use crate::classpath::classloader::ClassLoader;
 use crate::native::jni::IntoJni;
+use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 
@@ -12,7 +12,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jfieldID, jint, jlong};
 use common::sync::ForceSync;
-use symbols::sym;
 
 include_generated!("native/java/io/def/FileDescriptor.definitions.rs");
 
@@ -40,7 +39,7 @@ pub fn sync0(_: NonNull<JniEnv>, _this: Reference) {
 }
 
 // TODO: Move logic to globals
-pub fn initIDs(_: NonNull<JniEnv>) {
+pub fn initIDs(_: NonNull<JniEnv>, class: &'static Class) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE
 		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -50,7 +49,6 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 		panic!("java.io.FileDescriptor#initIDs: attempt to initialize more than once.");
 	}
 
-	let class = ClassLoader::lookup_class(sym!(java_io_FileDescriptor)).unwrap();
 	unsafe {
 		crate::globals::classes::set_java_io_FileDescriptor(class);
 	}
@@ -90,23 +88,23 @@ pub fn initIDs(_: NonNull<JniEnv>) {
 }
 
 #[cfg(windows)]
-pub fn getHandle(_: NonNull<JniEnv>, _d: jint) -> jlong {
+pub fn getHandle(_: NonNull<JniEnv>, _class: &'static Class, _d: jint) -> jlong {
 	unimplemented!("java.io.FileDescriptor#getHandle");
 }
 
 // Only windows uses the `handle` field.
 #[cfg(unix)]
-pub fn getHandle(_: NonNull<JniEnv>, _d: jint) -> jlong {
+pub fn getHandle(_: NonNull<JniEnv>, _class: &'static Class, _d: jint) -> jlong {
 	-1
 }
 
 #[cfg(windows)]
-pub fn getAppend(_: NonNull<JniEnv>, _fd: jint) -> jboolean {
+pub fn getAppend(_: NonNull<JniEnv>, _class: &'static Class, _fd: jint) -> jboolean {
 	unimplemented!("java.io.FileDescriptor#getAppend");
 }
 
 #[cfg(unix)]
-pub fn getAppend(_: NonNull<JniEnv>, fd_: jint) -> jboolean {
+pub fn getAppend(_: NonNull<JniEnv>, _class: &'static Class, fd_: jint) -> jboolean {
 	use libc::{F_GETFL, O_APPEND};
 
 	let flags = unsafe { libc::fcntl(fd_, F_GETFL) };

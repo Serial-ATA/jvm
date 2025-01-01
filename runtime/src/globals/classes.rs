@@ -48,6 +48,7 @@ define_classes!(
 	java_lang_StackTraceElement,
 	java_lang_Throwable,
 	java_lang_Cloneable,
+	java_io_Serializable,
 	java_lang_Module,
 	java_lang_ref_Reference,
 	java_lang_ref_Finalizer,

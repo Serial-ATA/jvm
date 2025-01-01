@@ -1,6 +1,7 @@
 use crate::include_generated;
 use crate::native::jni::{safe_classref_from_jclass, IntoJni};
 use crate::native::JniEnv;
+use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::mirror::MirrorInstance;
 use crate::objects::reference::Reference;
@@ -21,6 +22,7 @@ include_generated!("native/java/lang/def/Class.definitions.rs");
 // throws ClassNotFoundException
 pub fn forName0(
 	_env: NonNull<JniEnv>,
+	_class: &'static Class,
 	_name: Reference, // java.lang.String
 	_initialize: jboolean,
 	_loader: Reference, // java.lang.ClassLoader
@@ -144,7 +146,11 @@ pub fn getProtectionDomain0(
 {
 	unimplemented!("Class#getProtectionDomain0");
 }
-pub fn getPrimitiveClass(_env: NonNull<JniEnv>, name: Reference /* String */) -> Reference /* Class */
+pub fn getPrimitiveClass(
+	_env: NonNull<JniEnv>,
+	_class: &'static Class,
+	name: Reference, // String
+) -> Reference /* Class */
 {
 	let string_class = name.extract_class();
 	let name_string = StringInterner::rust_string_from_java_string(string_class);
@@ -229,6 +235,7 @@ pub fn isRecord0(_env: NonNull<JniEnv>, _this: Reference /* java.lang.Class */) 
 #[allow(clippy::unnecessary_wraps, clippy::no_effect_underscore_binding)]
 pub fn desiredAssertionStatus0(
 	_env: NonNull<JniEnv>,
+	_class: &'static Class,
 	clazz: Reference, // java/lang/Class
 ) -> jboolean {
 	let mirror = clazz.extract_mirror();

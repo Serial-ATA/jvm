@@ -359,7 +359,16 @@ impl JavaThread {
 		self.frame_stack
 			.push(StackFrame::Native(NativeFrame { method }));
 
-		let ret = fn_ptr(self.env(), locals);
+		// TODO: Exception check
+		let ret;
+		if method.is_static() {
+			let fn_ptr = unsafe { fn_ptr.as_static() };
+			ret = fn_ptr(self.env(), method.class(), locals);
+		} else {
+			let fn_ptr = unsafe { fn_ptr.as_non_static() };
+			ret = fn_ptr(self.env(), locals);
+		}
+
 		assert!(
 			self.frame_stack.pop_native().is_some(),
 			"native frame consumed"

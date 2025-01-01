@@ -4,10 +4,9 @@ use crate::native::jni::invocation_api::main_java_vm;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
-use crate::thread::{java_lang_Thread, JavaThread, JavaThreadBuilder};
+use crate::thread::{JavaThread, JavaThreadBuilder};
 
 use classfile::accessflags::MethodAccessFlags;
-use classfile::FieldType;
 use common::int_types::s4;
 use instructions::Operand;
 use jni::java_vm::JavaVm;
@@ -24,10 +23,26 @@ pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> JavaVm {
 	unsafe { main_java_vm() }
 }
 
+/// The entire initialization stage of the VM
+///
+/// The bulk of initialization is handled in the `java.lang.System#initPhase{1,2,3}` methods, but there
+/// is some work we need to do before that point.
+///
+/// The order of operations is very important:
+///
+/// 1. Create a dummy `java.base` module
+///     * This is needed for class loading. The module is fixed up later when `java.lang.Module` is
+///       initialized. For now, it will be in an invalid state. See [`create_java_base()`].
+/// 2. Load important classes & store their field offsets.
+/// 3. *Initialize* some of the classes that were loaded.
+/// 4. Create the initial `java.lang.Thread` for the current thread.
+///
+/// [`create_java_base()`]: crate::modules::create_java_base()
 fn initialize_thread(thread: &JavaThread) {
-	// Load some important classes first
-	load_global_classes();
+	crate::modules::create_java_base();
 
+	// Load some important classes
+	load_global_classes();
 	init_field_offsets();
 
 	// Init some important classes
@@ -60,7 +75,7 @@ fn load_global_classes() {
 		($($name:ident),+ $(,)?) => {{
 			paste::paste! {
 				$(
-				let class = ClassLoader::Bootstrap.load(sym!($name)).unwrap();
+				let class = ClassLoader::bootstrap().load(sym!($name)).unwrap();
 				unsafe { $crate::globals::classes::[<set_ $name>](class); }
 				)+
 			}
@@ -77,6 +92,9 @@ fn load_global_classes() {
 	// Fixup mirrors, as we have classes that were loaded before java.lang.Class
 	ClassLoader::fixup_mirrors();
 
+	// Fixup modules, as they rely on class mirrors
+	ClassLoader::fixup_modules();
+
 	load!(
 		jdk_internal_misc_UnsafeConstants,
 		java_lang_System,
@@ -86,6 +104,7 @@ fn load_global_classes() {
 		java_lang_ThreadGroup,
 		java_lang_Throwable,
 		java_lang_Cloneable,
+		java_io_Serializable,
 		java_lang_ref_Reference,
 		java_lang_ref_Finalizer,
 		jdk_internal_reflect_MethodAccessorImpl,

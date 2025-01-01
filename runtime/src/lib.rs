@@ -15,6 +15,7 @@ pub mod globals;
 mod initialization;
 mod interpreter;
 mod method_invoker;
+pub mod modules;
 pub mod native;
 pub mod objects;
 pub mod stack;

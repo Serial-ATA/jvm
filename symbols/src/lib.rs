@@ -217,6 +217,9 @@ vm_symbols::define_symbols! {
 	run_name: "run",
 	// -- GENERATED METHOD NAME MARKER, DO NOT DELETE --
 
+	// Modules
+	java_base: "java.base",
+
 	// Fields
 	ADDRESS_SIZE0: "ADDRESS_SIZE0",
 	PAGE_SIZE: "PAGE_SIZE",
@@ -224,6 +227,8 @@ vm_symbols::define_symbols! {
 	UNALIGNED_ACCESS: "UNALIGNED_ACCESS",
 	DATA_CACHE_LINE_FLUSH_SIZE: "DATA_CACHE_LINE_FLUSH_SIZE",
 	name: "name",
+	module: "module",
+	classLoader: "classLoader",
 	referent: "referent",
 	loader: "loader",
 	holder: "holder",

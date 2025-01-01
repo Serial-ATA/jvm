@@ -96,6 +96,14 @@ pub mod java_lang_Class {
 		///
 		/// Expected type: `Reference` to `java.lang.String`
 		@FIELD name: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
+		/// `java.lang.Class#module` field offset
+		///
+		/// Expected type: `Reference` to `java.lang.Module`
+		@FIELD module: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/Module"),
+		/// `java.lang.Class#classLoader` field offset
+		///
+		/// Expected type: `Reference` to `java.lang.ClassLoader`
+		@FIELD classLoader: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/ClassLoader"),
 	}
 }
 
@@ -221,7 +229,7 @@ pub mod java_lang_Throwable {
 		/// `java.lang.Throwable#backtrace` field offset
 		///
 		/// Expected field type: `Reference` to `java.lang.Object`
-		@FIELD backtrace: ty @ FieldType::Object(_),
+		@FIELD backtrace: FieldType::Object(_),
 		/// `java.lang.Throwable#depth` field offset
 		///
 		/// Expected field type: `jint`

@@ -1,4 +1,4 @@
-use crate::classpath::classloader::ClassLoader;
+use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
@@ -14,24 +14,33 @@ use symbols::sym;
 include_generated!("native/java/lang/def/System.registerNatives.rs");
 include_generated!("native/java/lang/def/System.definitions.rs");
 
-pub fn setIn0(_: NonNull<JniEnv>, in_: Reference /* java.io.InputStream */) {
-	let class = ClassLoader::lookup_class(sym!(java_lang_System)).unwrap();
+pub fn setIn0(
+	_: NonNull<JniEnv>,
+	class: &'static Class,
+	in_: Reference, // java.io.InputStream
+) {
 	let field = class
 		.fields()
 		.find(|field| field.name == sym!(r#in) && field.descriptor.is_class(b"java/io/InputStream"))
 		.expect("java/lang/System#in field should exist");
 	field.set_static_value(Operand::Reference(in_));
 }
-pub fn setOut0(_env: NonNull<JniEnv>, out: Reference /* java.io.PrintStream */) {
-	let class = ClassLoader::lookup_class(sym!(java_lang_System)).unwrap();
+pub fn setOut0(
+	_env: NonNull<JniEnv>,
+	class: &'static Class,
+	out: Reference, // java.io.PrintStream
+) {
 	let field = class
 		.fields()
 		.find(|field| field.name == sym!(out) && field.descriptor.is_class(b"java/io/PrintStream"))
 		.expect("java/lang/System#out field should exist");
 	field.set_static_value(Operand::Reference(out));
 }
-pub fn setErr0(_env: NonNull<JniEnv>, err: Reference /* java.io.PrintStream */) {
-	let class = ClassLoader::lookup_class(sym!(java_lang_System)).unwrap();
+pub fn setErr0(
+	_env: NonNull<JniEnv>,
+	class: &'static Class,
+	err: Reference, // java.io.PrintStream
+) {
 	let field = class
 		.fields()
 		.find(|field| field.name == sym!(err) && field.descriptor.is_class(b"java/io/PrintStream"))
@@ -39,11 +48,11 @@ pub fn setErr0(_env: NonNull<JniEnv>, err: Reference /* java.io.PrintStream */) 
 	field.set_static_value(Operand::Reference(err));
 }
 
-pub fn currentTimeMillis(_env: NonNull<JniEnv>) -> jlong {
+pub fn currentTimeMillis(_env: NonNull<JniEnv>, _class: &'static Class) -> jlong {
 	unimplemented!("System#currentTimeMillis")
 }
 
-pub fn nanoTime(_env: NonNull<JniEnv>) -> jlong {
+pub fn nanoTime(_env: NonNull<JniEnv>, _class: &'static Class) -> jlong {
 	let time_nanos = SystemTime::now()
 		.duration_since(UNIX_EPOCH)
 		.expect("current system time should not be before the UNIX epoch")
@@ -54,6 +63,7 @@ pub fn nanoTime(_env: NonNull<JniEnv>) -> jlong {
 
 pub fn arraycopy(
 	env: NonNull<JniEnv>,
+	_class: &'static Class,
 	src: Reference, // java.lang.Object
 	src_pos: jint,
 	dest: Reference, // java.lang.Object
@@ -90,10 +100,18 @@ pub fn arraycopy(
 	);
 }
 
-pub fn identityHashCode(env: NonNull<JniEnv>, x: Reference /* java.lang.Object */) -> jint {
+pub fn identityHashCode(
+	env: NonNull<JniEnv>,
+	_class: &'static Class,
+	x: Reference, // java.lang.Object
+) -> jint {
 	crate::native::java::lang::Object::hashCode(env, x)
 }
 
-pub fn mapLibraryName(_env: NonNull<JniEnv>, _libname: Reference) -> Reference {
+pub fn mapLibraryName(
+	_env: NonNull<JniEnv>,
+	_class: &'static Class,
+	_libname: Reference,
+) -> Reference {
 	unimplemented!("System#mapLibraryName")
 }

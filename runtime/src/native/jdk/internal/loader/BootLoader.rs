@@ -1,3 +1,6 @@
+use crate::classpath::classloader::ClassLoader;
+use crate::modules::Module;
+use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
@@ -10,7 +13,8 @@ include_generated!("native/jdk/internal/loader/def/BootLoader.definitions.rs");
 
 /// Returns an array of the binary name of the packages defined by the boot loader, in VM
 /// internal form (forward slashes instead of dot).
-pub fn getSystemPackageNames(_env: NonNull<JniEnv>) -> Reference /* String[] */ {
+pub fn getSystemPackageNames(_env: NonNull<JniEnv>, _class: &'static Class) -> Reference /* String[] */
+{
 	unimplemented!("jdk.internal.loader.BootLoader#getSystemPackageNames")
 }
 
@@ -21,13 +25,21 @@ pub fn getSystemPackageNames(_env: NonNull<JniEnv>) -> Reference /* String[] */ 
 /// append path (i.e. -Xbootclasspath/a or BOOT-CLASS-PATH attribute specified in java agent).
 pub fn getSystemPackageLocation(
 	_env: NonNull<JniEnv>,
+	_class: &'static Class,
 	_name: Reference, // java.lang.String
 ) -> Reference /* java.lang.String */ {
 	unimplemented!("jdk.internal.loader.BootLoader#getSystemPackageLocation")
 }
 
+/// # Throws
+///
+/// `IllegalArgumentException` is thrown if:
+/// * Module is named
+/// * Module is not an instance or subclass of j.l.r.Module
+/// * Module is not loaded by the bootLoader
 pub fn setBootLoaderUnnamedModule0(
 	env: NonNull<JniEnv>,
+	_class: &'static Class,
 	module: Reference, // java.lang.Module
 ) {
 	if module.is_null() {
@@ -56,5 +68,6 @@ pub fn setBootLoaderUnnamedModule0(
 		panic!("IllegalArgumentException"); // TODO
 	}
 
-	tracing::warn!("(!!!) UNIMPLEMENTED jdk.internal.loader.BootLoader#setBootLoaderUnnamedModule0")
+	let module = Module::unnamed(module);
+	ClassLoader::set_bootloader_unnamed_module(module);
 }

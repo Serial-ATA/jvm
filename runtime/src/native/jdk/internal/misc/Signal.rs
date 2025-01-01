@@ -1,4 +1,5 @@
 use crate::native::Reference;
+use crate::objects::class::Class;
 use crate::string_interner::StringInterner;
 
 use std::ptr::NonNull;
@@ -8,7 +9,11 @@ use ::jni::sys::{jint, jlong};
 
 include_generated!("native/jdk/internal/misc/def/Signal.definitions.rs");
 
-pub fn findSignal0(_: NonNull<JniEnv>, sig_name: Reference /* java.lang.String */) -> jint {
+pub fn findSignal0(
+	_: NonNull<JniEnv>,
+	_class: &'static Class,
+	sig_name: Reference, // java.lang.String
+) -> jint {
 	let sig_name_string = sig_name.extract_class();
 	let sig_name = StringInterner::rust_string_from_java_string(sig_name_string);
 
@@ -18,7 +23,7 @@ pub fn findSignal0(_: NonNull<JniEnv>, sig_name: Reference /* java.lang.String *
 	}
 }
 
-pub fn handle0(_: NonNull<JniEnv>, sig: jint, native_h: jlong) -> jlong {
+pub fn handle0(_: NonNull<JniEnv>, _class: &'static Class, sig: jint, native_h: jlong) -> jlong {
 	let signal = platform::Signal::from(sig);
 
 	if !signal.registration_allowed() {
@@ -43,6 +48,6 @@ pub fn handle0(_: NonNull<JniEnv>, sig: jint, native_h: jlong) -> jlong {
 	old.as_usize() as jlong
 }
 
-pub fn raise0(_: NonNull<JniEnv>, _sig: jint) {
+pub fn raise0(_: NonNull<JniEnv>, _class: &'static Class, _sig: jint) {
 	unimplemented!("jdk.internal.misc.Signal#raise0");
 }

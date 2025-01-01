@@ -6,7 +6,6 @@ pub mod field;
 pub mod instance;
 pub mod method;
 pub mod mirror;
-pub mod module;
 pub mod monitor;
 pub mod reference;
 pub mod vtable;

@@ -1,3 +1,4 @@
+use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 
@@ -8,16 +9,16 @@ use jni::sys::jboolean;
 
 include_generated!("native/java/lang/ref/def/Reference.definitions.rs");
 
-pub fn getAndClearReferencePendingList(_: NonNull<JniEnv>) -> Reference /* java.lang.ref.Reference */
+pub fn getAndClearReferencePendingList(_: NonNull<JniEnv>, _class: &'static Class) -> Reference /* java.lang.ref.Reference */
 {
 	unimplemented!("java.lang.ref.Reference#getAndClearReferencePendingList")
 }
 
-pub fn hasReferencePendingList(_: NonNull<JniEnv>) -> jboolean {
+pub fn hasReferencePendingList(_: NonNull<JniEnv>, _class: &'static Class) -> jboolean {
 	unimplemented!("java.lang.ref.Reference#hasReferencePendingList")
 }
 
-pub fn waitForReferencePendingList(_: NonNull<JniEnv>) {
+pub fn waitForReferencePendingList(_: NonNull<JniEnv>, _class: &'static Class) {
 	unimplemented!("java.lang.ref.Reference#waitForReferencePendingList")
 }
 
