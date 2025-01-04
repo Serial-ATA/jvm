@@ -5,33 +5,18 @@ use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 
-use std::cell::SyncUnsafeCell;
-use std::ptr::{self, NonNull};
+use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
-use ::jni::sys::{jboolean, jfieldID, jint, jlong};
-use common::sync::ForceSync;
+use ::jni::sys::{jboolean, jint, jlong};
 
 include_generated!("native/java/io/def/FileDescriptor.definitions.rs");
 
-/// `java.io.FileDescriptor#fd` field offset
-static fd: SyncUnsafeCell<ForceSync<jfieldID>> =
-	SyncUnsafeCell::new(ForceSync::new(ptr::null_mut() as _));
 pub fn get_fd(this: &Reference) -> jint {
-	let fd_value = unsafe { &*fd.get() };
-	let field = unsafe { crate::native::jni::field_ref_from_jfieldid(fd_value.0) }
-		.expect("field should always be present");
-	this.get_field_value(field).expect_int()
+	let fd_field_offset = crate::globals::fields::java_io_FileDescriptor::fd_field_offset();
+	this.get_field_value0(fd_field_offset).expect_int()
 }
-
-/// `java.io.FileDescriptor#handle` field offset
-#[cfg(windows)]
-static handle: SyncUnsafeCell<ForceSync<jfieldID>> =
-	SyncUnsafeCell::new(ForceSync::new(ptr::null_mut() as _));
-/// `java.io.FileDescriptor#append` field offset
-static append: SyncUnsafeCell<ForceSync<jfieldID>> =
-	SyncUnsafeCell::new(ForceSync::new(ptr::null_mut() as _));
 
 // throws SyncFailedException
 pub fn sync0(_: NonNull<JniEnv>, _this: Reference) {
@@ -51,39 +36,7 @@ pub fn initIDs(_: NonNull<JniEnv>, class: &'static Class) {
 
 	unsafe {
 		crate::globals::classes::set_java_io_FileDescriptor(class);
-	}
-
-	let mut field_set = 0;
-	for field in class.fields() {
-		match field.name.as_str() {
-			"fd" => unsafe {
-				assert!(field_set & 1 << 3 == 0, "Field can only occur once");
-				*fd.get() = ForceSync::new(field.into_jni());
-				field_set |= 1 << 2;
-			},
-			#[cfg(windows)]
-			"handle" => unsafe {
-				*handle.get() = ForceSync::new(field.into_jni());
-				field_set |= 1 << 1;
-			},
-			"append" => unsafe {
-				*append.get() = ForceSync::new(field.into_jni());
-				field_set |= 1;
-			},
-			_ => {},
-		}
-	}
-
-	if cfg!(windows) {
-		assert_eq!(
-			field_set, 0b111,
-			"Not all fields found in java/io/FileDescriptor"
-		);
-	} else {
-		assert_eq!(
-			field_set, 0b101,
-			"Not all fields found in java/io/FileDescriptor"
-		);
+		crate::globals::fields::java_io_FileDescriptor::init_offsets();
 	}
 }
 

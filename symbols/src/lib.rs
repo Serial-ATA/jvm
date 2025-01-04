@@ -36,15 +36,14 @@ impl SymbolInterner {
 	#[allow(trivial_casts)]
 	fn intern(&mut self, string: &[u8]) -> Symbol {
 		if let Some(symbol_idx) = self.set.get_index_of(string) {
+			assert!(symbol_idx < self.set.len());
 			return Symbol::new(symbol_idx as u32);
 		}
 
 		// We extend the lifetime of the string to `'static`, which is safe,
 		// as we only use the strings while the arena is alive
 		let string: &'static [u8] = unsafe { &*(*self.arena.alloc(string) as *const [u8]) };
-
-		let (index, _) = self.set.insert_full(string);
-		Symbol::new(index as u32)
+		self.intern_static(string)
 	}
 
 	fn intern_static(&mut self, bytes: &'static [u8]) -> Symbol {

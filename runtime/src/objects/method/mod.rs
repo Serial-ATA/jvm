@@ -4,7 +4,6 @@ use crate::native::NativeMethodPtr;
 use crate::objects::class::Class;
 use crate::objects::constant_pool::cp_types;
 
-use std::ffi::c_void;
 use std::fmt::{Debug, Formatter};
 use std::sync::RwLock;
 

@@ -131,6 +131,28 @@ pub(self) fn insert_method((def, ptr): (NativeMethodDef, NativeMethodPtr)) {
 
 // Module marker, do not remove
 
+pub(crate) mod jdk {
+	pub(crate) mod internal {
+		pub(crate) mod misc {
+			pub(crate) mod ScopedMemoryAccess;
+			pub(crate) mod CDS;
+			pub(crate) mod VM;
+			pub(crate) mod Unsafe;
+			pub(crate) mod Signal;
+		}
+		pub(crate) mod util {
+			pub(crate) mod SystemProps;
+		}
+		pub(crate) mod loader {
+			pub(crate) mod NativeLibraries;
+			pub(crate) mod BootLoader;
+		}
+		pub(crate) mod reflect {
+			pub(crate) mod Reflection;
+		}
+	}
+}
+
 pub(crate) mod java {
 	pub(crate) mod io {
 		pub(crate) mod FileInputStream;
@@ -158,28 +180,6 @@ pub(crate) mod java {
 	}
 	pub(crate) mod security {
 		pub(crate) mod AccessController;
-	}
-}
-
-pub(crate) mod jdk {
-	pub(crate) mod internal {
-		pub(crate) mod misc {
-			pub(crate) mod ScopedMemoryAccess;
-			pub(crate) mod CDS;
-			pub(crate) mod VM;
-			pub(crate) mod Unsafe;
-			pub(crate) mod Signal;
-		}
-		pub(crate) mod util {
-			pub(crate) mod SystemProps;
-		}
-		pub(crate) mod loader {
-			pub(crate) mod NativeLibraries;
-			pub(crate) mod BootLoader;
-		}
-		pub(crate) mod reflect {
-			pub(crate) mod Reflection;
-		}
 	}
 }
 

@@ -1,33 +1,27 @@
 #![allow(non_upper_case_globals)]
 
-use crate::native::jni::{field_ref_from_jfieldid, IntoJni};
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
 
-use std::cell::SyncUnsafeCell;
-use std::ptr::{self, NonNull};
+use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
-use ::jni::sys::{jboolean, jfieldID, jint, jlong};
-use common::sync::ForceSync;
+use ::jni::sys::{jboolean, jint, jlong};
 use common::traits::PtrType;
 use symbols::sym;
 
 include_generated!("native/java/io/def/UnixFileSystem.definitions.rs");
 
-/// `java.io.File#path` field offset
-static java_io_file_path_field: SyncUnsafeCell<ForceSync<jfieldID>> =
-	SyncUnsafeCell::new(ForceSync::new(ptr::null_mut() as _));
 fn get_file_path(file: Reference) -> String {
-	let field_raw = unsafe { &*java_io_file_path_field.get() };
-	let field =
-		unsafe { field_ref_from_jfieldid(field_raw.0) }.expect("field should always be present");
-
+	let path_field_offset = crate::globals::fields::java_io_File::path_field_offset();
 	let f = file.extract_class();
-	let value = f.get().get_field_value(field).expect_reference();
+	let value = f
+		.get()
+		.get_field_value0(path_field_offset)
+		.expect_reference();
 
 	StringInterner::rust_string_from_java_string(value.extract_class())
 }
@@ -202,7 +196,6 @@ pub fn getNameMax0(
 	unimplemented!("java.io.UnixFileSystem#getNameMax0");
 }
 
-// TODO: Move logic to globals
 pub fn initIDs(_: NonNull<JniEnv>, class: &'static Class) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE
@@ -216,18 +209,6 @@ pub fn initIDs(_: NonNull<JniEnv>, class: &'static Class) {
 	let file_class = class.loader().load(sym!(java_io_File)).unwrap();
 	unsafe {
 		crate::globals::classes::set_java_io_File(file_class);
+		crate::globals::fields::java_io_File::init_offsets();
 	}
-
-	let mut field_set = false;
-	for field in file_class.fields() {
-		if field.name == sym!(path) {
-			unsafe {
-				*java_io_file_path_field.get() = ForceSync::new(field.into_jni());
-			}
-			field_set = true;
-			break;
-		}
-	}
-
-	assert!(field_set, "Field must be present");
 }

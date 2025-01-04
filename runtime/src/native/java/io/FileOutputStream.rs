@@ -1,34 +1,26 @@
 #![allow(non_upper_case_globals)]
 
-use crate::native::jni::{field_ref_from_jfieldid, IntoJni};
 use crate::native::Reference;
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::thread::JavaThread;
 
-use std::cell::SyncUnsafeCell;
 use std::io::Write;
 use std::os::fd::{FromRawFd, RawFd};
-use std::ptr::{self, NonNull};
+use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
-use ::jni::sys::{jboolean, jfieldID, jint};
-use common::sync::ForceSync;
+use ::jni::sys::{jboolean, jint};
 use common::traits::PtrType;
 use symbols::sym;
 
 include_generated!("native/java/io/def/FileOutputStream.definitions.rs");
 
-/// `java.io.FileOutputStream#fd` field offset
-static fd: SyncUnsafeCell<ForceSync<jfieldID>> =
-	SyncUnsafeCell::new(ForceSync::new(ptr::null_mut() as _));
 fn get_fd(this: &Reference) -> jint {
 	// `fd` is a reference to a `java.io.FileDescriptor`
-	let fd_value = unsafe { &*fd.get() };
-	let field =
-		unsafe { field_ref_from_jfieldid(fd_value.0) }.expect("field should always be present");
-	let file_descriptor_ref = this.get_field_value(field).expect_reference();
+	let fd_field_offset = crate::globals::fields::java_io_FileOutputStream::fd_field_offset();
+	let file_descriptor_ref = this.get_field_value0(fd_field_offset).expect_reference();
 
 	super::FileDescriptor::get_fd(&file_descriptor_ref)
 }
@@ -98,7 +90,6 @@ pub fn writeBytes(
 	}
 }
 
-// TODO: Move logic to globals
 pub fn initIDs(_: NonNull<JniEnv>, class: &'static Class) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE
@@ -111,18 +102,6 @@ pub fn initIDs(_: NonNull<JniEnv>, class: &'static Class) {
 
 	unsafe {
 		crate::globals::classes::set_java_io_FileOutputStream(class);
+		crate::globals::fields::java_io_FileOutputStream::init_offsets();
 	}
-
-	let mut field_set = false;
-	for field in class.fields() {
-		if field.name == sym!(fd) {
-			unsafe {
-				*fd.get() = ForceSync::new(field.into_jni());
-			}
-			field_set = true;
-			break;
-		}
-	}
-
-	assert!(field_set, "Field must be present");
 }

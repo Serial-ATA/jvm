@@ -2,12 +2,22 @@
 
 //! Various offsets for fields of frequently accessed classes
 
+macro_rules! get_sym {
+	($specified_sym_name:ident $_fallback:ident) => {
+		symbols::sym!($specified_sym_name)
+	};
+	($fallback:ident) => {
+		symbols::sym!($fallback)
+	};
+}
+
 // TODO: Document
 macro_rules! field_module {
 	(
 	@CLASS $class_name:ident;
 	$(
 		$(#[$meta:meta])*
+		$([sym: $specified_sym_name:ident])?
 		@FIELD $field_name:ident: $matcher:pat $(if $guard:expr)?,
 	)+
 	$(
@@ -43,7 +53,7 @@ macro_rules! field_module {
 				let mut field_set = 0;
 				for field in class.fields() {
 					$(
-						if field.name == symbols::sym!($field_name) && matches!(&field.descriptor, $matcher $(if $guard)?) {
+						if field.name == get_sym!($($specified_sym_name)? $field_name) && matches!(&field.descriptor, $matcher $(if $guard)?) {
 							field_set |= 1 << ${index()};
 							unsafe { [<set_ $field_name _field_offset>](field.idx); }
 							continue;
@@ -234,6 +244,81 @@ pub mod java_lang_Throwable {
 		///
 		/// Expected field type: `jint`
 		@FIELD depth: FieldType::Int,
+	}
+}
+
+pub mod java_io_File {
+	use classfile::FieldType;
+
+	field_module! {
+		@CLASS java_io_File;
+
+		/// `java.io.File#path` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.String`
+		@FIELD path: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
+	}
+}
+
+pub mod java_io_FileDescriptor {
+	use classfile::FieldType;
+
+	#[cfg(unix)]
+	field_module! {
+		@CLASS java_io_FileDescriptor;
+
+		/// `java.io.FileDescriptor#fd` field offset
+		///
+		/// Expected field type: `jint`
+		@FIELD fd: FieldType::Int,
+		/// `java.io.FileDescriptor#append` field offset
+		///
+		/// Expected field type: `jboolean`
+		[sym: append_name] @FIELD append: FieldType::Boolean,
+	}
+
+	#[cfg(windows)]
+	field_module! {
+		@CLASS java_io_FileDescriptor;
+
+		/// `java.io.FileDescriptor#fd` field offset
+		///
+		/// Expected field type: `jint`
+		@FIELD fd: FieldType::Int,
+		/// `java.io.FileDescriptor#handle` field offset
+		///
+		/// Expected field type: `jlong`
+		@FIELD handle: FieldType::Long,
+		/// `java.io.FileDescriptor#append` field offset
+		///
+		/// Expected field type: `jboolean`
+		[sym: append_name] @FIELD append: FieldType::Boolean,
+	}
+}
+
+pub mod java_io_FileInputStream {
+	use classfile::FieldType;
+
+	field_module! {
+		@CLASS java_io_FileInputStream;
+
+		/// `java.io.FileInputStream#fd` field offset
+		///
+		/// Expected field type: `Reference` to `java.io.FileDescriptor`
+		@FIELD fd: ty @ FieldType::Object(_) if ty.is_class(b"java/io/FileDescriptor"),
+	}
+}
+
+pub mod java_io_FileOutputStream {
+	use classfile::FieldType;
+
+	field_module! {
+		@CLASS java_io_FileOutputStream;
+
+		/// `java.io.FileOutputStream#fd` field offset
+		///
+		/// Expected field type: `Reference` to `java.io.FileDescriptor`
+		@FIELD fd: ty @ FieldType::Object(_) if ty.is_class(b"java/io/FileDescriptor"),
 	}
 }
 

@@ -15,10 +15,6 @@ use symbols::sym;
 
 include_generated!("native/java/io/def/FileInputStream.definitions.rs");
 
-/// `java.io.FileInputStream#fd` field offset
-static fd: SyncUnsafeCell<ForceSync<jfieldID>> =
-	SyncUnsafeCell::new(ForceSync::new(ptr::null_mut() as _));
-
 // throws FileNotFoundException
 pub fn open0(_: NonNull<JniEnv>, _this: Reference, _name: Reference /* java.lang.String */) {
 	unimplemented!("java.io.FileInputStream#open0");
@@ -68,7 +64,6 @@ pub fn isRegularFile0(
 	unimplemented!("java.io.FileInputStream#isRegularFile0");
 }
 
-// TODO: Move logic to globals
 pub fn initIDs(_: NonNull<JniEnv>, class: &'static Class) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE
@@ -81,18 +76,6 @@ pub fn initIDs(_: NonNull<JniEnv>, class: &'static Class) {
 
 	unsafe {
 		crate::globals::classes::set_java_io_FileInputStream(class);
+		crate::globals::fields::java_io_FileInputStream::init_offsets();
 	}
-
-	let mut field_set = false;
-	for field in class.fields() {
-		if field.name == sym!(fd) {
-			unsafe {
-				*fd.get() = ForceSync::new(field.into_jni());
-			}
-			field_set = true;
-			break;
-		}
-	}
-
-	assert!(field_set, "Field must be present");
 }

@@ -28,4 +28,3 @@ Cargo.lock
 # Submodules
 generators/asm_specs/x86/xed
 generators/asm_specs/x86/mbuild
-

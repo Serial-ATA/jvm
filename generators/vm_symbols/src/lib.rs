@@ -1,16 +1,17 @@
-use std::path::PathBuf;
-use std::str::FromStr;
 use std::collections::HashSet;
 use std::hash::Hash;
+use std::path::PathBuf;
+use std::str::FromStr;
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{Ident, LitStr, LitByteStr, Token};
+use syn::{Ident, LitByteStr, LitStr, Token};
 
 /// A symbol, as defined in runtime/src/symbols
+#[derive(Clone)]
 struct SymbolDefinition {
 	/// The enum variant name
 	variant_name: Ident,
@@ -18,15 +19,44 @@ struct SymbolDefinition {
 	value: Option<LitStr>,
 }
 
+impl SymbolDefinition {
+	fn bstr(&self) -> LitByteStr {
+		let value_str = self.str();
+
+		match &self.value {
+			Some(value) => LitByteStr::new(value_str.as_bytes(), value.span()),
+			None => LitByteStr::new(value_str.as_bytes(), self.variant_name.span()),
+		}
+	}
+
+	fn str(&self) -> String {
+		match &self.value {
+			Some(value) => value.value(),
+			None => self.variant_name.to_string(),
+		}
+	}
+}
+
 impl Hash for SymbolDefinition {
 	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-		self.variant_name.hash(state);
+		match &self.value {
+			Some(value) => value.hash(state),
+			None => self.variant_name.hash(state),
+		}
 	}
 }
 
 impl PartialEq for SymbolDefinition {
 	fn eq(&self, other: &Self) -> bool {
-		self.variant_name == other.variant_name
+		match (&self.value, &other.value) {
+			(Some(value), Some(other_value)) => value.value().eq(&other_value.value()),
+			(Some(value), None) => value.value().eq(&other.variant_name.to_string()),
+			(None, Some(other_value)) => other_value.value().eq(&self.variant_name.to_string()),
+			(None, None) => self
+				.variant_name
+				.to_string()
+				.eq(&other.variant_name.to_string()),
+		}
 	}
 }
 
@@ -61,76 +91,104 @@ const CRATE_ROOT: &str = env!("CARGO_MANIFEST_DIR");
 fn get_generated_dir() -> syn::Result<PathBuf> {
 	let project_root = PathBuf::from(CRATE_ROOT);
 	let Some(workspace_root) = project_root.ancestors().nth(2) else {
-		return Err(syn::Error::new(Span::call_site(), "Failed to find workspace root"));
+		return Err(syn::Error::new(
+			Span::call_site(),
+			"Failed to find workspace root",
+		));
 	};
 
-	Ok(workspace_root.join("generated").join("native").to_path_buf())
+	Ok(workspace_root
+		.join("generated")
+		.join("native")
+		.to_path_buf())
 }
 
-fn collect_symbols_from_files(input: &mut TokenStream) -> syn::Result<()> {
+fn collect_symbols_from_files() -> syn::Result<TokenStream> {
 	let generated_dir = get_generated_dir()?;
 	if !generated_dir.exists() {
-		return Err(syn::Error::new(Span::call_site(), format!("Generated directory `{}` does not exist", generated_dir.display())));
+		return Err(syn::Error::new(
+			Span::call_site(),
+			format!(
+				"Generated directory `{}` does not exist",
+				generated_dir.display()
+			),
+		));
 	}
 
 	let entries = match std::fs::read_dir(&generated_dir) {
 		Ok(entries) => entries,
-		Err(e) => return Err(syn::Error::new(Span::call_site(), format!("Unable to read symbols from `{}`: {e}", generated_dir.display())))
+		Err(e) => {
+			return Err(syn::Error::new(
+				Span::call_site(),
+				format!(
+					"Unable to read symbols from `{}`: {e}",
+					generated_dir.display()
+				),
+			))
+		},
 	};
 
-	let symbols_files = entries
-		.into_iter()
-		.map(Result::unwrap)
-		.filter(|entry| {
-			entry.file_type().unwrap().is_file()
-				&& entry.path().extension().map(std::ffi::OsStr::to_str) == Some(Some("symbols"))
-		});
+	let symbols_files = entries.into_iter().map(Result::unwrap).filter(|entry| {
+		entry.file_type().unwrap().is_file()
+			&& entry.path().extension().map(std::ffi::OsStr::to_str) == Some(Some("symbols"))
+	});
 
+	let mut tokenstream = TokenStream::new();
 	for file in symbols_files {
 		let content = match std::fs::read_to_string(file.path()) {
 			Ok(content) => content,
-			Err(e) => return Err(syn::Error::new(Span::call_site(), format!("Unable to read symbols from `{}`: {e}", file.path().display()))),
+			Err(e) => {
+				return Err(syn::Error::new(
+					Span::call_site(),
+					format!(
+						"Unable to read symbols from `{}`: {e}",
+						file.path().display()
+					),
+				))
+			},
 		};
 
-		input.extend(TokenStream::from_str(
-			&content,
-		))
+		tokenstream.extend(TokenStream::from_str(&content))
 	}
 
-	Ok(())
+	Ok(tokenstream)
+}
+
+fn collect_merged_symbols(predefined_symbols: TokenStream) -> syn::Result<Symbols> {
+	let mut symbols: Symbols = syn::parse2(predefined_symbols.into())?;
+
+	let generated_symbols_stream = collect_symbols_from_files()?;
+	let generated_symbols: Symbols = syn::parse2(generated_symbols_stream.into())?;
+
+	for generated_symbol in generated_symbols.0.into_iter() {
+		assert!(
+			symbols.0.insert(generated_symbol.clone()),
+			"Unable to insert generated symbol (name: `{}`, value: `{:?}`), collides with a \
+			 predefined symbol",
+			generated_symbol.variant_name.to_string(),
+			generated_symbol.value.map(|v| v.value())
+		);
+	}
+
+	Ok(symbols)
 }
 
 #[proc_macro]
-pub fn define_symbols(mut input: TokenStream) -> TokenStream {
-	if let Err(err) = collect_symbols_from_files(&mut input) {
-		return err.to_compile_error().into();
+pub fn define_symbols(input: TokenStream) -> TokenStream {
+	let symbols;
+	match collect_merged_symbols(input) {
+		Ok(s) => symbols = s,
+		Err(e) => return e.to_compile_error().into(),
 	}
-
-	let symbols: Symbols = match syn::parse2(input.into()) {
-		Ok(input) => input,
-		Err(e) => {
-			return e.to_compile_error().into();
-		},
-	};
 
 	let mut index = 0u32;
 
 	let mut symbol_value_stream = quote! {};
 	let mut symbol_const_stream = quote! {};
 	for symbol in symbols.0 {
-		let name = symbol.variant_name;
-		let value_bstr;
-		let value_str;
-		match symbol.value {
-			Some(value) => {
-				value_str = value.value();
-				value_bstr = LitByteStr::new(value_str.as_bytes(), value.span());
-			},
-			None => {
-				value_str = name.to_string();
-				value_bstr = LitByteStr::new(value_str.as_bytes(), name.span())
-			}
-		}
+		let name = symbol.variant_name.clone();
+		let value_bstr = symbol.bstr();
+		let value_str = symbol.str();
 
 		symbol_value_stream.extend(quote! {
 			&#value_bstr[..],
@@ -144,7 +202,7 @@ pub fn define_symbols(mut input: TokenStream) -> TokenStream {
 		index += 1;
 	}
 
-	quote! {
+	let r = quote! {
 		const PREINTERED_SYMBOLS_COUNT: u32 = #index;
 
 		#[allow(non_upper_case_globals)]
@@ -161,6 +219,16 @@ pub fn define_symbols(mut input: TokenStream) -> TokenStream {
 				]);
 			}
 		}
-	}
-	.into()
+	};
+
+	let mut f = std::fs::OpenOptions::new()
+		.write(true)
+		.create(true)
+		.truncate(true)
+		.open("/home/alex/foo.rs")
+		.unwrap();
+	use std::io::Write as _;
+	f.write_all(r.to_string().as_bytes()).unwrap();
+
+	r.into()
 }
