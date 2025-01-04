@@ -1,5 +1,4 @@
 use super::instance::{Header, Instance};
-use crate::modules::Module;
 use crate::objects::class::Class;
 use crate::objects::field::Field;
 use crate::objects::reference::{MirrorInstanceRef, Reference};

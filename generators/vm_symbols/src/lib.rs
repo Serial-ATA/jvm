@@ -160,6 +160,15 @@ fn collect_merged_symbols(predefined_symbols: TokenStream) -> syn::Result<Symbol
 	let generated_symbols_stream = collect_symbols_from_files()?;
 	let generated_symbols: Symbols = syn::parse2(generated_symbols_stream.into())?;
 
+	// TODO: Ideally, just create an alias so that:
+	//
+	// collides: "collides",
+	// otherCollides: "collides",
+	//
+	// become:
+	//
+	// const collides: Symbol = Symbol(0);
+	// const otherCollides: Symbol = collides;
 	for generated_symbol in generated_symbols.0.into_iter() {
 		assert!(
 			symbols.0.insert(generated_symbol.clone()),

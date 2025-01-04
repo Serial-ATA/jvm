@@ -27,7 +27,7 @@ impl JavaThread {
 	pub fn marsaglia_xor_shift_hash(&self) -> u32 {
 		let hash_state = self.hash_state.get();
 		let mut t = hash_state.state_x;
-		t ^= (t << 11);
+		t ^= t << 11;
 
 		let mut v = hash_state.state_w;
 		v = (v ^ (v >> 19)) ^ (t ^ (t >> 8));

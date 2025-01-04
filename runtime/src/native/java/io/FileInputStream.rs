@@ -1,17 +1,13 @@
 #![allow(non_upper_case_globals)]
 
-use crate::native::jni::IntoJni;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 
-use std::cell::SyncUnsafeCell;
-use std::ptr::{self, NonNull};
+use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
-use ::jni::sys::{jboolean, jfieldID, jint, jlong};
-use common::sync::ForceSync;
-use symbols::sym;
+use ::jni::sys::{jboolean, jint, jlong};
 
 include_generated!("native/java/io/def/FileInputStream.definitions.rs");
 

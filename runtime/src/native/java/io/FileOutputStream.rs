@@ -13,7 +13,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint};
 use common::traits::PtrType;
-use symbols::sym;
 
 include_generated!("native/java/io/def/FileOutputStream.definitions.rs");
 

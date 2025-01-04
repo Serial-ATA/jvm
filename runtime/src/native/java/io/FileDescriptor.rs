@@ -1,6 +1,5 @@
 #![allow(non_upper_case_globals)]
 
-use crate::native::jni::IntoJni;
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
