@@ -7,6 +7,7 @@
 #![feature(sync_unsafe_cell)]
 #![feature(core_intrinsics)]
 #![feature(try_with_capacity)]
+#![feature(array_chunks)]
 
 pub mod calls;
 pub mod classpath;

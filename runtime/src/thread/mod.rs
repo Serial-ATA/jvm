@@ -415,7 +415,7 @@ impl JavaThread {
 			return;
 		};
 
-		// tracing::debug!(target: "JavaThread", "Dropping back to frame for method `{:?}`", current_frame.method());
+		tracing::debug!(target: "JavaThread", "Dropping back to frame for method `{:?}`", current_frame.method());
 
 		// Restore the pc of the frame
 		self.restore_pc();

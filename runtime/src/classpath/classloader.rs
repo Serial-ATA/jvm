@@ -15,7 +15,7 @@ use common::traits::PtrType;
 use symbols::{sym, Symbol};
 
 const SUPPORTED_MAJOR_LOWER_BOUND: u1 = 45;
-const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 67;
+const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 69;
 const SUPPORTED_MAJOR_VERSION_RANGE: RangeInclusive<u1> =
 	SUPPORTED_MAJOR_LOWER_BOUND..=SUPPORTED_MAJOR_UPPER_BOUND;
 
@@ -371,27 +371,12 @@ fn init_mirror(class: &'static Class) {
 	}
 
 	// Set the module
-	let module;
-	let java_base = crate::modules::java_base();
-	if !java_base.has_obj() {
+	if !crate::modules::java_base().has_obj() {
 		// Assume we are early in VM initialization, where `java.base` isn't a real module yet.
 		// In this case, we can assume that the intended module is `java.base`.
-		module = java_base;
-	} else {
-		todo!()
-	}
-
-	if !module.has_obj() {
-		assert_eq!(
-			module.name(),
-			Some(sym!(java_base)),
-			"only java.base can have no associated object"
-		);
-
-		// `java.base` isn't a real module yet. Will need to fix this up later.
 		class.mirror().get().set_module(Reference::null());
 		return;
 	}
 
-	class.mirror().get().set_module(module.obj());
+	todo!("Setting modules other than java.base");
 }

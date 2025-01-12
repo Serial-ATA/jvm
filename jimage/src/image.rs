@@ -47,7 +47,7 @@ impl JImage {
 	}
 
 	// TODO: https://github.com/openjdk/jdk/blob/62a033ecd7058f4a4354ebdcd667b3d7991e1f3d/src/java.base/share/native/libjimage/jimage.cpp#L102
-	pub fn find_resource(&self, module_name: &str, name: &str, size: &mut u8) -> Option<u4> {
+	pub fn find_resource(&self, module_name: &str, name: &str) -> Option<(u4, u8)> {
 		// TBD: assert!(module_name.len() > 0, "module name must be non-empty");
 		if name.is_empty() {
 			// `name` must be non-empty
@@ -57,7 +57,7 @@ impl JImage {
 		}
 
 		let fullpath = format!("/{}/{}", module_name, name);
-		self.find_location_index(&fullpath, size)
+		self.find_location_index(&fullpath)
 	}
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L523
@@ -173,7 +173,7 @@ impl JImage {
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L464
 	/// Find the location index and size associated with the path.
 	/// Returns the location index and size if the location is found, `None` otherwise.
-	fn find_location_index(&self, path: &str, size: &mut u8) -> Option<u4> {
+	fn find_location_index(&self, path: &str) -> Option<(u4, u8)> {
 		// Locate the entry in the index perfect hash table.
 		let index = ImageStrings::find(self.endian, path, self.index.redirects_table());
 
@@ -188,8 +188,8 @@ impl JImage {
 
 			// Make sure result is not a false positive.
 			if self.verify_location(&location, path) {
-				*size = location.get_uncompressed_size();
-				return Some(offset);
+				let size = location.get_uncompressed_size();
+				return Some((offset, size));
 			}
 		}
 

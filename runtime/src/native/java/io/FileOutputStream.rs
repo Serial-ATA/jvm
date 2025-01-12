@@ -6,6 +6,7 @@ use crate::objects::instance::Instance;
 use crate::thread::JavaThread;
 
 use std::io::Write;
+use std::mem::ManuallyDrop;
 use std::os::fd::{FromRawFd, RawFd};
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -76,7 +77,9 @@ pub fn writeBytes(
 			panic!("IOException, stream closed"); // TODO
 		}
 
-		let mut file = unsafe { std::fs::File::from_raw_fd(current_fd as RawFd) };
+		// Wrap in `ManuallyDrop` so the file descriptor doesn't get closed
+		let mut file =
+			ManuallyDrop::new(unsafe { std::fs::File::from_raw_fd(current_fd as RawFd) });
 
 		let Ok(n) = file.write(&window[offset..]) else {
 			let _thread = unsafe { JavaThread::for_env(env.as_ptr()) };

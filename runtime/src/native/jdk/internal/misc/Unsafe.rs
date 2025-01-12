@@ -359,7 +359,7 @@ pub fn compareAndSetInt(
 	expected: jint,
 	value: jint,
 ) -> jboolean {
-	compareAndExchangeInt(env, this, object, offset, expected, value) == value
+	compareAndExchangeInt(env, this, object, offset, expected, value) == expected
 }
 
 pub fn compareAndExchangeInt(
@@ -375,7 +375,7 @@ pub fn compareAndExchangeInt(
 		let current_field_value = op.get();
 		if current_field_value == expected {
 			op.put(value);
-			return value;
+			return expected;
 		}
 
 		current_field_value
@@ -390,7 +390,7 @@ pub fn compareAndSetLong(
 	expected: jlong,
 	value: jlong,
 ) -> jboolean {
-	compareAndExchangeLong(env, this, object, offset, expected, value) == value
+	compareAndExchangeLong(env, this, object, offset, expected, value) == expected
 }
 
 pub fn compareAndExchangeLong(
@@ -407,7 +407,7 @@ pub fn compareAndExchangeLong(
 		let current_field_value = op.get();
 		if current_field_value == expected {
 			op.put(value);
-			return value;
+			return expected;
 		}
 
 		current_field_value
@@ -449,7 +449,7 @@ pub fn compareAndExchangeReference(
 				.get_reference_raw(offset as usize);
 			if current_field_value.as_ref() == &expected {
 				*current_field_value.as_mut() = Reference::clone(&value);
-				return value;
+				return expected;
 			}
 
 			return Reference::clone(current_field_value.as_ref());

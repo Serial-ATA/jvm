@@ -211,7 +211,7 @@ pub fn define_symbols(input: TokenStream) -> TokenStream {
 		index += 1;
 	}
 
-	let r = quote! {
+	quote! {
 		const PREINTERED_SYMBOLS_COUNT: u32 = #index;
 
 		#[allow(non_upper_case_globals)]
@@ -228,16 +228,5 @@ pub fn define_symbols(input: TokenStream) -> TokenStream {
 				]);
 			}
 		}
-	};
-
-	let mut f = std::fs::OpenOptions::new()
-		.write(true)
-		.create(true)
-		.truncate(true)
-		.open("/home/alex/foo.rs")
-		.unwrap();
-	use std::io::Write as _;
-	f.write_all(r.to_string().as_bytes()).unwrap();
-
-	r.into()
+	}.into()
 }

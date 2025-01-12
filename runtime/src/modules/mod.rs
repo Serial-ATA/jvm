@@ -36,7 +36,7 @@ pub fn create_java_base() {
 	// Don't use the constructors, since they do validation.
 	let java_base_module = Module {
 		name: Some(sym!(java_base)),
-		open: true,
+		open: false,
 		obj: Reference::null(),
 		version: None,
 		location: None,

@@ -195,6 +195,10 @@ pub mod java_lang_StackTraceElement {
 	field_module! {
 		@CLASS java_lang_StackTraceElement;
 
+		/// `java.lang.StackTraceElement#declaringClassObject` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.Class`
+		@FIELD declaringClassObject: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/Class"),
 		/// `java.lang.StackTraceElement#classLoaderName` field offset
 		///
 		/// Expected field type: `Reference` to `java.lang.String`

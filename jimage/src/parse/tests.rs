@@ -16,8 +16,8 @@ const CLASSES: &[&str] = &[
 ];
 
 fn image_file() -> Option<File> {
-	const JAVA_HOME: &str = env!("JAVA_HOME");
-	File::open(Path::new(JAVA_HOME).join("lib").join("modules")).ok()
+	let java_home = std::env::var("JAVA_HOME").expect("JAVA_HOME not set");
+	File::open(Path::new(&java_home).join("lib").join("modules")).ok()
 }
 
 #[test]

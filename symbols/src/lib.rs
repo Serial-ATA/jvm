@@ -246,6 +246,7 @@ vm_symbols::define_symbols! {
 	stackTrace: "stackTrace",
 	backtrace: "backtrace",
 	depth: "depth",
+	declaringClassObject: "declaringClassObject",
 	classLoaderName: "classLoaderName",
 	moduleName: "moduleName",
 	moduleVersion: "moduleVersion",

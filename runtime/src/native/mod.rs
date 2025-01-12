@@ -105,7 +105,11 @@ pub(self) static NATIVE_METHOD_TABLE: LazyLock<RwLock<HashMap<NativeMethodDef, N
 ///
 /// This will panic if a definition is not found, see [`lookup_method_opt`].
 pub fn lookup_method(method: &Method) -> NativeMethodPtr {
-	lookup_method_opt(method).expect("native method should be present")
+	let Some(method) = lookup_method_opt(method) else {
+		panic!("Native method `{:?}` should be present", method)
+	};
+
+	method
 }
 
 /// Lookup the native method defintion for `method`, or return `None`
@@ -171,10 +175,12 @@ pub(crate) mod java {
 		pub(crate) mod StringUTF16;
 		pub(crate) mod System;
 		pub(crate) mod Float;
+		pub(crate) mod Module;
 		pub(crate) mod ClassLoader;
 		pub(crate) mod Double;
 		pub(crate) mod Throwable;
 		pub(crate) mod Thread;
+		pub(crate) mod StackTraceElement;
 		pub(crate) mod Object;
 		pub(crate) mod Class;
 	}

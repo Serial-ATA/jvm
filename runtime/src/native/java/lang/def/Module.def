@@ -1,0 +1,18 @@
+import java.lang.Object;
+import java.lang.String;
+
+public class Module {
+    private static native void defineModule0(Module module,
+                                             boolean isOpen,
+                                             String version,
+                                             String location,
+                                             Object[] pns);
+
+    private static native void addReads0(Module from, Module to);
+
+    private static native void addExports0(Module from, String pn, Module to);
+
+    private static native void addExportsToAll0(Module from, String pn);
+
+    private static native void addExportsToAllUnnamed0(Module from, String pn);
+}

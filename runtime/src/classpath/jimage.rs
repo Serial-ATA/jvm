@@ -13,9 +13,7 @@ pub fn initialized() -> bool {
 
 pub fn lookup_vm_resource(path: &str) -> Option<Vec<u1>> {
 	if let Some(file) = unsafe { &*JIMAGE_FILE.get() } {
-		let mut size = 0;
-
-		if let Some(location_offset) = file.find_resource("java.base", path, &mut size) {
+		if let Some((location_offset, size)) = file.find_resource("java.base", path) {
 			let mut uncompressed_data = vec![0; size as usize];
 			file.get_resource(location_offset, &mut uncompressed_data);
 
@@ -32,7 +30,7 @@ pub fn lookup_vm_options() -> Option<Vec<u1>> {
 		"Attempt to lookup vm options twice!"
 	);
 
-	let java_home = env!("JAVA_HOME");
+	let java_home = std::env::var("JAVA_HOME").expect("JAVA_HOME not set");
 
 	let modules_path_len = java_home.len()
 		+ 1 // Separator
