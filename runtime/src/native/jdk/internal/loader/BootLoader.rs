@@ -3,6 +3,7 @@ use crate::modules::Module;
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
+use crate::thread::exceptions::{handle_exception, throw};
 use crate::thread::JavaThread;
 
 use std::ptr::NonNull;
@@ -42,32 +43,21 @@ pub fn setBootLoaderUnnamedModule0(
 	_class: &'static Class,
 	module: Reference, // java.lang.Module
 ) {
-	if module.is_null() {
-		let _thread = unsafe { JavaThread::for_env(env.as_ptr()) };
-		panic!("NullPointerException"); // TODO
-	}
+	let thread = unsafe { &*JavaThread::for_env(env.as_ptr()) };
 
-	if !module.is_instance_of(crate::globals::classes::java_lang_Module()) {
-		let _thread = unsafe { JavaThread::for_env(env.as_ptr()) };
-		panic!("IllegalArgumentException"); // TODO
-	}
-
-	let name = module
-		.get_field_value0(crate::globals::fields::java_lang_Module::name_field_offset())
-		.expect_reference();
-	if !name.is_null() {
-		let _thread = unsafe { JavaThread::for_env(env.as_ptr()) };
-		panic!("IllegalArgumentException"); // TODO
-	}
+	let module_entry_result = Module::unnamed(module.clone());
+	let module_entry = handle_exception!(thread, module_entry_result);
 
 	let loader = module
 		.get_field_value0(crate::globals::fields::java_lang_Module::loader_field_offset())
 		.expect_reference();
 	if !loader.is_null() {
-		let _thread = unsafe { JavaThread::for_env(env.as_ptr()) };
-		panic!("IllegalArgumentException"); // TODO
+		throw!(
+			thread,
+			IllegalArgumentException,
+			"Class loader must be the boot class loader"
+		);
 	}
 
-	let module = Module::unnamed(module);
-	ClassLoader::set_bootloader_unnamed_module(module);
+	ClassLoader::set_bootloader_unnamed_module(module_entry);
 }

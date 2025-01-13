@@ -1,5 +1,6 @@
 mod spec;
 pub use spec::ClassInitializationState;
+use spec::InitializationLock;
 
 use super::constant_pool::ConstantPool;
 use super::field::Field;
@@ -7,11 +8,11 @@ use super::method::Method;
 use super::mirror::MirrorInstance;
 use super::vtable::VTable;
 use crate::classpath::classloader::ClassLoader;
+use crate::error::RuntimeError;
 use crate::globals::PRIMITIVES;
 use crate::objects::constant_pool::cp_types;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
 use crate::thread::JavaThread;
-use spec::InitializationLock;
 
 use std::cell::{Cell, UnsafeCell};
 use std::fmt::{Debug, Formatter};
@@ -19,10 +20,12 @@ use std::mem::MaybeUninit;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
 
+use crate::modules::{Module, Package};
 use classfile::accessflags::ClassAccessFlags;
 use classfile::{ClassFile, FieldType, MethodInfo};
 use common::box_slice;
 use common::int_types::{u1, u2, u4};
+use common::traits::PtrType;
 use instructions::Operand;
 use symbols::{sym, Symbol};
 
@@ -31,6 +34,7 @@ use symbols::{sym, Symbol};
 struct MiscCache {
 	array_class_name: Option<Symbol>,
 	array_component_name: Option<Symbol>,
+	package_name: Option<Option<Symbol>>,
 }
 
 struct FieldContainer {
@@ -267,6 +271,84 @@ impl Class {
 		//         guaranteed to have mirrors.
 		let mirror = unsafe { (*self.mirror.get()).assume_init_ref() };
 		Arc::clone(mirror)
+	}
+
+	/// TODO: Document
+	pub fn package_name(&self) -> Result<Option<Symbol>, RuntimeError> {
+		if let Some(package_name) = unsafe { (*self.misc_cache.get()).package_name } {
+			return Ok(package_name);
+		};
+
+		let name_str = self.name.as_str();
+
+		if name_str.is_empty() {
+			return Err(RuntimeError::BadClassName);
+		}
+
+		let Some(end) = name_str.as_bytes().iter().rposition(|c| *c == b'/') else {
+			unsafe {
+				(*self.misc_cache.get()).package_name = Some(None);
+			}
+
+			return Ok(None);
+		};
+
+		let mut start_index = 0;
+
+		// Skip over '['
+		if name_str.starts_with('[') {
+			start_index = name_str.chars().skip_while(|c| *c == '[').count();
+
+			// A fully qualified class name should not contain a 'L'
+			if start_index >= name_str.len() || name_str.as_bytes()[start_index] == b'L' {
+				return Err(RuntimeError::BadClassName);
+			}
+		}
+
+		if start_index >= name_str.len() {
+			return Err(RuntimeError::BadClassName);
+		}
+
+		assert!(
+			!(&name_str[start_index..end]).is_empty(),
+			"Package name is an empty string"
+		);
+
+		let ret = Symbol::intern_bytes(&name_str[start_index..end].as_bytes());
+		unsafe {
+			(*self.misc_cache.get()).package_name = Some(Some(ret));
+		}
+
+		Ok(Some(ret))
+	}
+
+	// TODO: This is expensive, requires locking. Should just be computed when the class is created.
+	pub fn package(&self) -> Option<&Package> {
+		let Some(package_name) = self.package_name().unwrap() else {
+			return None;
+		};
+
+		let mut package = None;
+		crate::modules::with_module_lock(|guard| {
+			package = self.loader().lookup_package(&guard, package_name);
+		});
+
+		assert!(package.is_some(), "Package not found in loader");
+		package
+	}
+
+	pub fn module(&self) -> &Module {
+		let bootstrap_loader = ClassLoader::bootstrap();
+		if !bootstrap_loader.java_base().has_obj() {
+			// Assume we are early in VM initialization, where `java.base` isn't a real module yet.
+			// In this case, we can assume that the intended module is `java.base`.
+			return bootstrap_loader.java_base();
+		}
+
+		match self.package() {
+			Some(package) => package.module(),
+			None => self.loader().unnamed_module(),
+		}
 	}
 
 	/// Wrap the class name as an array
@@ -672,9 +754,18 @@ impl Class {
 	/// This is only safe to call *before* the class is in use. It should never be used outside of
 	/// class loading.
 	pub unsafe fn set_mirror(&'static self) {
-		let mirror = match self.class_ty() {
-			ClassType::Instance(_) => MirrorInstance::new(self),
-			ClassType::Array(_) => MirrorInstance::new_array(self),
+		let mirror;
+		match self.class_ty() {
+			ClassType::Instance(_) => {
+				mirror = MirrorInstance::new(self);
+				mirror.get().set_module(self.module().obj())
+			},
+			ClassType::Array(_) => {
+				mirror = MirrorInstance::new_array(self);
+
+				let bootstrap_loader = ClassLoader::bootstrap();
+				mirror.get().set_module(bootstrap_loader.java_base().obj())
+			},
 		};
 
 		unsafe {
@@ -691,17 +782,11 @@ impl Class {
 			return true;
 		}
 
-		// TODO: We can probably cache these at some point
-		let Ok(other_pkg) = ClassLoader::package_name_for_class(other.name) else {
+		let Ok(other_pkg) = other.package_name() else {
 			return false;
 		};
 
-		// We should never receive an empty string from `package_name_for_class`
-		if let Some(other_pkg_str) = other_pkg {
-			assert!(!other_pkg_str.is_empty(), "Package name is an empty string");
-		}
-
-		let Ok(this_pkg) = ClassLoader::package_name_for_class(other.name) else {
+		let Ok(this_pkg) = self.package_name() else {
 			return false;
 		};
 
@@ -711,7 +796,7 @@ impl Class {
 			return this_pkg == other_pkg;
 		}
 
-		return this_pkg.unwrap() == other_pkg.unwrap();
+		this_pkg.unwrap() == other_pkg.unwrap()
 	}
 
 	pub fn implements(&self, class: &Class) -> bool {

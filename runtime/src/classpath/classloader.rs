@@ -1,5 +1,5 @@
 use crate::error::{Result, RuntimeError};
-use crate::modules::{Module, Package};
+use crate::modules::{Module, ModuleLockGuard, Package};
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 
@@ -29,9 +29,17 @@ pub struct ClassLoader {
 	obj: Reference,
 
 	unnamed_module: SyncUnsafeCell<Option<Module>>,
+
 	classes: Mutex<HashMap<Symbol, &'static Class>>,
-	modules: Mutex<HashMap<Symbol, &'static Module>>,
-	packages: Mutex<HashMap<Symbol, &'static Package>>,
+
+	// TODO: Is there a better way to do this?
+	// Keep the java.base module separate from the other modules for bootstrapping. This field is only
+	// valid for the bootstrap loader.
+	java_base: SyncUnsafeCell<Option<Module>>,
+
+	// Access to these fields is manually synchronized with the global module mutex
+	modules: SyncUnsafeCell<HashMap<Symbol, Module>>,
+	packages: SyncUnsafeCell<HashMap<Symbol, Package>>,
 }
 
 impl PartialEq for ClassLoader {
@@ -49,7 +57,76 @@ impl Debug for ClassLoader {
 	}
 }
 
+// Module locked methods
 impl ClassLoader {
+	pub fn insert_package_if_absent(&self, _guard: &ModuleLockGuard, package: Package) {
+		let packages = unsafe { &mut *self.packages.get() };
+		packages.entry(package.name()).or_insert(package);
+	}
+
+	pub fn lookup_package(&self, _guard: &ModuleLockGuard, name: Symbol) -> Option<&Package> {
+		let packages = unsafe { &*self.packages.get() };
+		packages.get(&name)
+	}
+
+	pub fn insert_module(&self, _guard: &ModuleLockGuard, module: Module) {
+		let Some(module_name) = module.name() else {
+			panic!("Attempted to insert an unnamed module using `insert_module`")
+		};
+
+		let modules = unsafe { &mut *self.modules.get() };
+		modules.entry(module_name).or_insert(module);
+	}
+
+	pub fn lookup_module(&self, _guard: &ModuleLockGuard, name: Symbol) -> Option<&Module> {
+		let modules = unsafe { &*self.modules.get() };
+		modules.get(&name)
+	}
+}
+
+// Bootstrap methods
+impl ClassLoader {
+	pub fn bootstrap() -> &'static Self {
+		static BOOTSTRAP_LOADER: LazyLock<SyncUnsafeCell<ClassLoader>> = LazyLock::new(|| {
+			let loader = ClassLoader {
+				flags: ClassLoaderFlags { is_bootstrap: true },
+				obj: Reference::null(),
+
+				unnamed_module: SyncUnsafeCell::new(None),
+				classes: Mutex::new(HashMap::new()),
+
+				java_base: SyncUnsafeCell::new(None),
+				modules: SyncUnsafeCell::new(HashMap::new()),
+				packages: SyncUnsafeCell::new(HashMap::new()),
+			};
+
+			SyncUnsafeCell::new(loader)
+		});
+
+		unsafe { &*BOOTSTRAP_LOADER.get() }
+	}
+
+	pub fn java_base(&self) -> &Module {
+		assert!(self.is_bootstrap());
+		unsafe { &*self.java_base.get() }
+			.as_ref()
+			.expect("java.base should be set")
+	}
+
+	pub fn set_java_base(&self, java_base: Module) {
+		let ptr = self.java_base.get();
+		assert!(
+			unsafe { &*ptr }.is_none(),
+			"java.base cannot be set more than once"
+		);
+
+		unsafe { *ptr = Some(java_base) }
+	}
+
+	pub fn is_bootstrap(&self) -> bool {
+		self.flags.is_bootstrap
+	}
+
 	/// Stores a copy of the `jdk.internal.loader.BootLoader#UNNAMED_MODULE` field
 	///
 	/// This is called from `jdk.internal.loader.BootLoader#setBootLoaderUnnamedModule0`, and can
@@ -67,36 +144,18 @@ impl ClassLoader {
 			*ptr = Some(entry);
 		}
 	}
-
-	pub fn bootstrap() -> &'static Self {
-		static BOOTSTRAP_LOADER: LazyLock<SyncUnsafeCell<ClassLoader>> = LazyLock::new(|| {
-			let loader = ClassLoader {
-				flags: ClassLoaderFlags { is_bootstrap: true },
-				obj: Reference::null(),
-
-				unnamed_module: SyncUnsafeCell::new(None),
-				classes: Mutex::new(HashMap::new()),
-				modules: Mutex::new(HashMap::new()),
-				packages: Mutex::new(HashMap::new()),
-			};
-
-			SyncUnsafeCell::new(loader)
-		});
-
-		unsafe { &*BOOTSTRAP_LOADER.get() }
-	}
-}
-
-impl ClassLoader {
-	pub fn is_bootstrap(&self) -> bool {
-		self.flags.is_bootstrap
-	}
 }
 
 impl ClassLoader {
 	pub(crate) fn lookup_class(&self, name: Symbol) -> Option<&'static Class> {
 		let loaded_classes = self.classes.lock().unwrap();
 		loaded_classes.get(&name).map(|&class| class)
+	}
+
+	pub fn unnamed_module(&self) -> &Module {
+		unsafe { &*self.unnamed_module.get() }
+			.as_ref()
+			.expect("unnamed module should be set")
 	}
 }
 
@@ -301,37 +360,6 @@ impl ClassLoader {
 		array_class
 	}
 
-	/// Get the package name from a fully qualified class name
-	pub fn package_name_for_class(name: Symbol) -> Result<Option<&'static str>> {
-		let name_str = name.as_str();
-
-		if name_str.is_empty() {
-			return Err(RuntimeError::BadClassName);
-		}
-
-		let Some(end) = name_str.as_bytes().iter().rposition(|c| *c == b'/') else {
-			return Ok(None);
-		};
-
-		let mut start_index = 0;
-
-		// Skip over '['
-		if name_str.starts_with('[') {
-			start_index = name_str.chars().skip_while(|c| *c == '[').count();
-
-			// A fully qualified class name should not contain a 'L'
-			if start_index >= name_str.len() || name_str.as_bytes()[start_index] == b'L' {
-				return Err(RuntimeError::BadClassName);
-			}
-		}
-
-		if start_index >= name_str.len() {
-			return Err(RuntimeError::BadClassName);
-		}
-
-		return Ok(Some(&name_str[start_index..end]));
-	}
-
 	/// Recreate mirrors for all loaded classes
 	pub fn fixup_mirrors() {
 		let bootstrap_loader = ClassLoader::bootstrap();
@@ -344,11 +372,10 @@ impl ClassLoader {
 	}
 
 	/// Sets all currently loaded classes to be members of `java.base`
-	pub fn fixup_modules() {
+	pub fn fixup_modules(obj: Reference) {
 		let bootstrap_loader = ClassLoader::bootstrap();
-		let java_base = crate::modules::java_base();
 		for class in bootstrap_loader.classes.lock().unwrap().values() {
-			class.mirror().get().set_module(java_base.obj());
+			class.mirror().get().set_module(obj.clone());
 		}
 	}
 }
@@ -369,14 +396,4 @@ fn init_mirror(class: &'static Class) {
 	unsafe {
 		class.set_mirror();
 	}
-
-	// Set the module
-	if !crate::modules::java_base().has_obj() {
-		// Assume we are early in VM initialization, where `java.base` isn't a real module yet.
-		// In this case, we can assume that the intended module is `java.base`.
-		class.mirror().get().set_module(Reference::null());
-		return;
-	}
-
-	todo!("Setting modules other than java.base");
 }

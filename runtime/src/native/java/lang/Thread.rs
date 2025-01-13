@@ -1,5 +1,6 @@
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
+use crate::thread::exceptions::throw;
 use crate::thread::java_lang_Thread::ThreadStatus;
 use crate::thread::pool::ThreadPool;
 use crate::thread::{java_lang_Thread, JavaThread, JavaThreadBuilder};
@@ -72,10 +73,8 @@ pub fn sleepNanos0(_env: NonNull<JniEnv>, _class: &'static Class, _nanos: jlong)
 
 pub fn start0(_env: NonNull<JniEnv>, this: Reference /* java.lang.Thread */) {
 	{
-		let existing_thread = ThreadPool::find_from_obj(this.clone());
-		if existing_thread.is_some() {
-			JavaThread::current()
-				.throw_exception(todo!("Throw java.lang.IllegalThreadStateException"))
+		if let Some(existing_thread) = ThreadPool::find_from_obj(this.clone()) {
+			throw!(existing_thread, IllegalThreadStateException);
 		}
 	}
 

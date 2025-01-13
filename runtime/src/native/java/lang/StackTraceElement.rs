@@ -5,6 +5,7 @@ use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::string_interner::StringInterner;
+use crate::thread::exceptions::throw;
 use crate::thread::JavaThread;
 
 use std::ptr::NonNull;
@@ -107,8 +108,7 @@ pub fn initStackTraceElements(
 
 	if x.is_null() || elements.is_null() {
 		let thread = unsafe { &*JavaThread::for_env(env.as_ptr()) };
-		thread.throw_exception(todo!("NullPointerException"));
-		return;
+		throw!(thread, NullPointerException);
 	}
 
 	let stacktrace_elements_instance = elements.extract_array();
@@ -119,8 +119,7 @@ pub fn initStackTraceElements(
 
 	if stack_trace_elements.len() != depth as usize {
 		let thread = unsafe { &*JavaThread::for_env(env.as_ptr()) };
-		thread.throw_exception(todo!("IndexOutOfBoundsException"));
-		return;
+		throw!(thread, IndexOutOfBoundsException);
 	}
 
 	// `x` is a reference to our backtrace. See the `BackTrace` struct in `java/lang/Throwable.rs` for

@@ -161,13 +161,20 @@ vm_symbols::define_symbols! {
 	java_io_File: "java/io/File",
 	jdk_internal_misc_UnsafeConstants: "jdk/internal/misc/UnsafeConstants",
 	jdk_internal_reflect_MethodAccessorImpl: "jdk/internal/reflect/MethodAccessorImpl",
-	java_lang_StackTraceElement: "java/lang/StackTraceElement",
 	java_lang_invoke_MethodHandle: "java/lang/invoke/MethodHandle",
 	java_lang_invoke_VarHandle: "java/lang/invoke/VarHandle",
 	java_lang_Thread: "java/lang/Thread",
 	java_lang_ThreadGroup: "java/lang/ThreadGroup",
 	java_lang_Thread_FieldHolder: "java/lang/Thread$FieldHolder",
 	java_lang_ref_Finalizer: "java/lang/ref/Finalizer",
+
+	java_lang_Throwable: "java/lang/Throwable",
+	java_lang_StackTraceElement: "java/lang/StackTraceElement",
+	java_lang_NullPointerException: "java/lang/NullPointerException",
+	java_lang_IllegalArgumentException: "java/lang/IllegalArgumentException",
+	java_lang_IndexOutOfBoundsException: "java/lang/IndexOutOfBoundsException",
+	java_lang_IllegalThreadStateException: "java/lang/IllegalThreadStateException",
+	java_lang_InternalError: "java/lang/InternalError",
 	// -- GENERATED CLASS NAME MARKER, DO NOT DELETE --
 
 	// Signatures

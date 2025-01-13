@@ -1,4 +1,4 @@
-mod exceptions;
+pub mod exceptions;
 pub mod frame;
 use frame::stack::{FrameStack, StackFrame};
 mod builder;
@@ -441,6 +441,6 @@ impl JavaThread {
 	/// This will panic if `object_ref` is non-null, but not a subclass of `java/lang/Throwable`.
 	/// This should never occur post-verification.
 	pub fn throw_exception(&self, object_ref: Reference) {
-		exceptions::throw(self, object_ref);
+		exceptions::handle_throw(self, object_ref);
 	}
 }

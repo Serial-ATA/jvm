@@ -6,6 +6,7 @@ use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
 use crate::thread::{JavaThread, JavaThreadBuilder};
 
+use crate::modules::Module;
 use classfile::accessflags::MethodAccessFlags;
 use common::int_types::s4;
 use instructions::Operand;
@@ -37,9 +38,9 @@ pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> JavaVm {
 /// 3. *Initialize* some of the classes that were loaded.
 /// 4. Create the initial `java.lang.Thread` for the current thread.
 ///
-/// [`create_java_base()`]: crate::modules::create_java_base()
+/// [`create_java_base()`]: crate::modules::ModuleLockGuard::create_java_base()
 fn initialize_thread(thread: &JavaThread) {
-	crate::modules::create_java_base();
+	crate::modules::with_module_lock(|guard| guard.create_java_base());
 
 	// Load some important classes
 	load_global_classes();
@@ -91,9 +92,6 @@ fn load_global_classes() {
 
 	// Fixup mirrors, as we have classes that were loaded before java.lang.Class
 	ClassLoader::fixup_mirrors();
-
-	// Fixup modules, as they rely on class mirrors
-	ClassLoader::fixup_modules();
 
 	load!(
 		jdk_internal_misc_UnsafeConstants,

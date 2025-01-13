@@ -1,46 +1,71 @@
+use crate::classpath::classloader::ClassLoader;
 use crate::objects::reference::Reference;
 
 use std::cell::SyncUnsafeCell;
+use std::collections::HashMap;
+use std::sync::{Mutex, MutexGuard};
 
-use symbols::sym;
+use symbols::{sym, Symbol};
 
 mod entry;
-
 pub use entry::Module;
 
 mod package;
 pub use package::Package;
 
-/// Special case for `java.base`, as it is heavily used during VM initialization, and is initially
-/// created in an **invalid state**.
-static JAVA_BASE: SyncUnsafeCell<Option<Module>> = SyncUnsafeCell::new(None);
+static MODULE_LOCK: Mutex<()> = Mutex::new(());
 
-fn set_java_base(entry: Module) {
-	let ptr = JAVA_BASE.get();
-	assert!(unsafe { &*ptr }.is_none(), "java.base can only be set once");
-	unsafe {
-		*ptr = Some(entry);
-	}
-}
+pub struct ModuleLockGuard(MutexGuard<'static, ()>);
 
-pub fn java_base() -> &'static Module {
-	let opt = unsafe { &*JAVA_BASE.get() };
-	opt.as_ref().expect("java.base should be set")
-}
-
-/// Create the entry for `java.base`
+/// Run the provided function while holding the [`ModuleLockGuard`]
 ///
-/// This is only useful for bootstrapping purposes, very early in VM initialization. The [`Module`]
-/// produced is **not valid**.
-pub fn create_java_base() {
-	// Don't use the constructors, since they do validation.
-	let java_base_module = Module {
-		name: Some(sym!(java_base)),
-		open: false,
-		obj: Reference::null(),
-		version: None,
-		location: None,
-	};
+/// This is the only way to interact with the module system.
+pub fn with_module_lock<F>(f: F)
+where
+	F: FnOnce(ModuleLockGuard),
+{
+	let _guard = MODULE_LOCK.lock().unwrap();
+	f(ModuleLockGuard(_guard));
+}
 
-	set_java_base(java_base_module);
+impl ModuleLockGuard {
+	/// Create the entry for `java.base`
+	///
+	/// This is only useful for bootstrapping purposes, very early in VM initialization. The [`Module`]
+	/// produced is **not valid**.
+	pub fn create_java_base(&self) {
+		// Don't use the constructors, since they do validation.
+		let java_base_module = Module {
+			name: Some(sym!(java_base)),
+			open: false,
+			obj: SyncUnsafeCell::new(Reference::null()),
+			version: SyncUnsafeCell::new(None),
+			location: SyncUnsafeCell::new(None),
+		};
+
+		ClassLoader::bootstrap().set_java_base(java_base_module);
+	}
+
+	pub fn fixup_java_base(
+		&self,
+		java_base: &Module,
+		obj: Reference,
+		version: Option<Symbol>,
+		location: Option<Symbol>,
+	) {
+		assert!(
+			!java_base.has_obj(),
+			"java.base module can only be initialized once"
+		);
+
+		assert!(obj.is_class(), "invalid associated object for module");
+		unsafe {
+			*java_base.obj.get() = obj.clone();
+			*java_base.version.get() = version;
+			*java_base.location.get() = location;
+		}
+
+		// All classes we've loaded up to this point need to be added to `java.base`
+		ClassLoader::fixup_modules(obj);
+	}
 }
