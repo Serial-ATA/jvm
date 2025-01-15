@@ -52,6 +52,8 @@ pub enum ExceptionKind {
 	NullPointerException,
 	/// java.lang.IllegalArgumentException
 	IllegalArgumentException,
+	/// java.lang.IllegalStateException
+	IllegalStateException,
 	/// java.lang.IndexOutOfBoundsException
 	IndexOutOfBoundsException,
 	/// java.lang.IllegalThreadStateException
@@ -66,6 +68,7 @@ impl ExceptionKind {
 		let class_name = match self {
 			ExceptionKind::NullPointerException => sym!(java_lang_NullPointerException),
 			ExceptionKind::IllegalArgumentException => sym!(java_lang_IllegalArgumentException),
+			ExceptionKind::IllegalStateException => sym!(java_lang_IllegalStateException),
 			ExceptionKind::IndexOutOfBoundsException => sym!(java_lang_IndexOutOfBoundsException),
 			ExceptionKind::IllegalThreadStateException => {
 				sym!(java_lang_IllegalThreadStateException)

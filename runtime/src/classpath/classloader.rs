@@ -1,4 +1,3 @@
-use crate::error::{Result, RuntimeError};
 use crate::modules::{Module, ModuleLockGuard, Package};
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
@@ -7,7 +6,7 @@ use std::cell::SyncUnsafeCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
-use std::sync::{LazyLock, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 
 use classfile::{ClassFile, FieldType};
 use common::int_types::u1;
@@ -28,17 +27,19 @@ pub struct ClassLoader {
 	flags: ClassLoaderFlags,
 	obj: Reference,
 
-	unnamed_module: SyncUnsafeCell<Option<Module>>,
+	name: Symbol,
+
+	unnamed_module: SyncUnsafeCell<Option<Arc<Module>>>,
 
 	classes: Mutex<HashMap<Symbol, &'static Class>>,
 
 	// TODO: Is there a better way to do this?
 	// Keep the java.base module separate from the other modules for bootstrapping. This field is only
 	// valid for the bootstrap loader.
-	java_base: SyncUnsafeCell<Option<Module>>,
+	java_base: SyncUnsafeCell<Option<Arc<Module>>>,
 
 	// Access to these fields is manually synchronized with the global module mutex
-	modules: SyncUnsafeCell<HashMap<Symbol, Module>>,
+	modules: SyncUnsafeCell<HashMap<Symbol, Arc<Module>>>,
 	packages: SyncUnsafeCell<HashMap<Symbol, Package>>,
 }
 
@@ -57,6 +58,16 @@ impl Debug for ClassLoader {
 	}
 }
 
+impl ClassLoader {
+	pub fn from_obj(obj: Reference) -> Option<&'static Self> {
+		if obj.is_null() {
+			return Some(Self::bootstrap());
+		}
+
+		todo!("Non-bootstrap classloaders")
+	}
+}
+
 // Module locked methods
 impl ClassLoader {
 	pub fn insert_package_if_absent(&self, _guard: &ModuleLockGuard, package: Package) {
@@ -69,18 +80,22 @@ impl ClassLoader {
 		packages.get(&name)
 	}
 
-	pub fn insert_module(&self, _guard: &ModuleLockGuard, module: Module) {
+	pub fn insert_module(&self, _guard: &ModuleLockGuard, module: Module) -> Arc<Module> {
 		let Some(module_name) = module.name() else {
 			panic!("Attempted to insert an unnamed module using `insert_module`")
 		};
 
 		let modules = unsafe { &mut *self.modules.get() };
-		modules.entry(module_name).or_insert(module);
+		Arc::clone(
+			modules
+				.entry(module_name)
+				.or_insert_with(|| Arc::new(module)),
+		)
 	}
 
-	pub fn lookup_module(&self, _guard: &ModuleLockGuard, name: Symbol) -> Option<&Module> {
+	pub fn lookup_module(&self, _guard: &ModuleLockGuard, name: Symbol) -> Option<Arc<Module>> {
 		let modules = unsafe { &*self.modules.get() };
-		modules.get(&name)
+		modules.get(&name).map(Arc::clone)
 	}
 }
 
@@ -91,6 +106,8 @@ impl ClassLoader {
 			let loader = ClassLoader {
 				flags: ClassLoaderFlags { is_bootstrap: true },
 				obj: Reference::null(),
+
+				name: Symbol::intern("bootstrap"),
 
 				unnamed_module: SyncUnsafeCell::new(None),
 				classes: Mutex::new(HashMap::new()),
@@ -106,10 +123,11 @@ impl ClassLoader {
 		unsafe { &*BOOTSTRAP_LOADER.get() }
 	}
 
-	pub fn java_base(&self) -> &Module {
+	pub fn java_base(&self) -> Arc<Module> {
 		assert!(self.is_bootstrap());
 		unsafe { &*self.java_base.get() }
 			.as_ref()
+			.map(Arc::clone)
 			.expect("java.base should be set")
 	}
 
@@ -120,7 +138,7 @@ impl ClassLoader {
 			"java.base cannot be set more than once"
 		);
 
-		unsafe { *ptr = Some(java_base) }
+		unsafe { *ptr = Some(Arc::new(java_base)) }
 	}
 
 	pub fn is_bootstrap(&self) -> bool {
@@ -141,7 +159,7 @@ impl ClassLoader {
 		);
 
 		unsafe {
-			*ptr = Some(entry);
+			*ptr = Some(Arc::new(entry));
 		}
 	}
 }
@@ -152,14 +170,19 @@ impl ClassLoader {
 		loaded_classes.get(&name).map(|&class| class)
 	}
 
-	pub fn unnamed_module(&self) -> &Module {
+	pub fn unnamed_module(&self) -> Arc<Module> {
 		unsafe { &*self.unnamed_module.get() }
 			.as_ref()
+			.map(Arc::clone)
 			.expect("unnamed module should be set")
 	}
 }
 
 impl ClassLoader {
+	pub fn name(&self) -> Symbol {
+		self.name
+	}
+
 	pub fn obj(&self) -> Reference {
 		self.obj.clone()
 	}

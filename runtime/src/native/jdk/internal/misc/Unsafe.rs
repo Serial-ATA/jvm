@@ -1,4 +1,3 @@
-use crate::native::JniEnv;
 use crate::objects::array::ArrayInstance;
 use crate::objects::class::ClassInitializationState;
 use crate::objects::instance::Instance;
@@ -12,6 +11,7 @@ use std::sync::atomic::{
 	AtomicBool, AtomicI16, AtomicI32, AtomicI64, AtomicI8, AtomicU16, Ordering,
 };
 
+use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 use common::atomic::{Atomic, AtomicF32, AtomicF64};
 use common::traits::PtrType;

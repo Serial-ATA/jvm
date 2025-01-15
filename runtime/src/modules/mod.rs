@@ -2,7 +2,6 @@ use crate::classpath::classloader::ClassLoader;
 use crate::objects::reference::Reference;
 
 use std::cell::SyncUnsafeCell;
-use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
 
 use symbols::{sym, Symbol};
@@ -15,6 +14,7 @@ pub use package::Package;
 
 static MODULE_LOCK: Mutex<()> = Mutex::new(());
 
+#[expect(dead_code)] // Never actually need to use the guard
 pub struct ModuleLockGuard(MutexGuard<'static, ()>);
 
 /// Run the provided function while holding the [`ModuleLockGuard`]
@@ -22,10 +22,10 @@ pub struct ModuleLockGuard(MutexGuard<'static, ()>);
 /// This is the only way to interact with the module system.
 pub fn with_module_lock<F>(f: F)
 where
-	F: FnOnce(ModuleLockGuard),
+	F: FnOnce(&ModuleLockGuard),
 {
 	let _guard = MODULE_LOCK.lock().unwrap();
-	f(ModuleLockGuard(_guard));
+	f(&ModuleLockGuard(_guard));
 }
 
 impl ModuleLockGuard {

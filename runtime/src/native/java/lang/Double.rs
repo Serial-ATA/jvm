@@ -1,8 +1,8 @@
-use crate::native::JniEnv;
 use crate::objects::class::Class;
 
 use std::ptr::NonNull;
 
+use ::jni::env::JniEnv;
 use common::int_types::{s8, u8};
 
 include_generated!("native/java/lang/def/Double.definitions.rs");

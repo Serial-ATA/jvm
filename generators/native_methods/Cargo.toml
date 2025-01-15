@@ -8,3 +8,4 @@ bitflags.workspace = true
 combine.workspace = true
 common.workspace = true
 walkdir.workspace = true
+indexmap.workspace = true

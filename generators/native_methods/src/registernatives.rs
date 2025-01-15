@@ -7,7 +7,7 @@ use std::path::Path;
 
 macro_rules! native_method_table_file_header {
 	() => {
-		r#"use crate::native::{{NativeMethodDef, NativeMethodPtr}};
+		r#"use crate::native::method::{{NativeMethodDef, NativeMethodPtr}};
 
 static NATIVES_REGISTERED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
@@ -79,7 +79,8 @@ pub(crate) fn generate_register_natives_table(
 
 	write!(
 		native_method_table_file,
-		"\t];\n\n\tfor method in natives {{\n\t\tcrate::native::insert_method(method);\n\t}}\n}}"
+		"\t];\n\n\tfor method in natives \
+		 {{\n\t\tcrate::native::method::insert_method(method);\n\t}}\n}}"
 	)
 	.unwrap();
 }

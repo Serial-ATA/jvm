@@ -20,7 +20,6 @@ libc.workspace = true
 num_cpus = "1.16.0"
 paste = { workspace = true }
 platform = { path = "../platform" }
-seq-macro = "0.3.5"
 symbols = { path = "../symbols" }
 zip = { workspace = true }
 

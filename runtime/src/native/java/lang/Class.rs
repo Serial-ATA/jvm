@@ -1,6 +1,5 @@
 use crate::include_generated;
 use crate::native::jni::{safe_classref_from_jclass, IntoJni};
-use crate::native::JniEnv;
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::mirror::MirrorInstance;
@@ -11,6 +10,7 @@ use crate::thread::JavaThread;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
+use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint};
 use common::traits::PtrType;
 use instructions::Operand;

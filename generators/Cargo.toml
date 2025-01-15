@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
-    "native_methods",
-    "vm_symbols",
+	"native_methods",
+	"vm_symbols",
 ]
 
 [workspace.dependencies]
@@ -10,6 +10,7 @@ common = { path = "../common" }
 
 combine = "4.6.7"
 bitflags = "2.6.0"
+indexmap = "2.7.0"
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "2", default-features = false }

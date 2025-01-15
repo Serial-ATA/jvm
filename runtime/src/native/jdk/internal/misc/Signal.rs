@@ -1,5 +1,5 @@
-use crate::native::Reference;
 use crate::objects::class::Class;
+use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
 
 use std::ptr::NonNull;

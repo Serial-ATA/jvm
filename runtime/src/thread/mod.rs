@@ -351,7 +351,7 @@ impl JavaThread {
 		// Try to lookup and set the method prior to calling
 		crate::native::lookup::lookup_native_method(method, self);
 
-		let fn_ptr = super::native::lookup_method(method);
+		let fn_ptr = super::native::method::lookup_method(method);
 
 		self.stash_and_reset_pc();
 

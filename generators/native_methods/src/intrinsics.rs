@@ -163,8 +163,8 @@ impl IntrinsicId {
 		macro_rules! intrinsics_id3 {
 			($class:expr, $method_name:expr, $method_signature:expr) => {
 				(($method_signature.as_u32() as u64) +
-					(($method_name.as_u32()  as u64) <<    symbols::Symbol::LOG2_LIMIT) +
-					(($class .as_u32()       as u64) << (2*symbols::Symbol::LOG2_LIMIT)))
+					(($method_name.as_u32()  as u64) <<    symbols::Symbol::PRE_INTERNED_LIMIT_LOG2) +
+					(($class .as_u32()       as u64) << (2*symbols::Symbol::PRE_INTERNED_LIMIT_LOG2)))
 			};
 		}
 

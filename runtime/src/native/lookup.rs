@@ -1,11 +1,10 @@
 use crate::java_call;
-use crate::native::NativeMethodPtr;
+use crate::native::method::NativeMethodPtr;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
 use crate::thread::JavaThread;
 
-use std::ffi::c_void;
 use std::os::raw::c_int;
 
 use classfile::accessflags::MethodAccessFlags;
@@ -204,7 +203,7 @@ fn lookup_style(
 ) -> Option<NativeMethodPtr> {
 	let class_loader = method.class().loader();
 	if class_loader.is_bootstrap() {
-		if let Some(entry) = crate::native::lookup_method_opt(method) {
+		if let Some(entry) = crate::native::method::lookup_method_opt(method) {
 			return Some(entry);
 		}
 	}
@@ -240,7 +239,7 @@ fn lookup_style(
 		todo!("Agent library search");
 	}
 
-	let entry = address as usize as *const c_void;
+	let entry = address as usize as *const ();
 	Some(unsafe { NativeMethodPtr::from_raw(entry) })
 }
 

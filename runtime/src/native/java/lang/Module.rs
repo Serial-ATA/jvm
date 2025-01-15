@@ -21,6 +21,8 @@ pub fn defineModule0(
 	location: Reference, // java.lang.String
 	pns: Reference,      // java.lang.Object[]
 ) {
+	let thread = unsafe { &*JavaThread::for_env(env.as_ptr()) };
+
 	let mut version_sym = None;
 	if !version.is_null() {
 		version_sym = Some(StringInterner::symbol_from_java_string(
@@ -41,6 +43,10 @@ pub fn defineModule0(
 		let package_names_ref = package_names_obj.get().get_content().expect_reference();
 
 		for package_name in package_names_ref {
+			if package_name.is_null() {
+				throw!(thread, IllegalArgumentException, "Bad package name");
+			}
+
 			let package_name =
 				StringInterner::rust_string_from_java_string(package_name.extract_class());
 			package_names.push(Package::name_to_internal(package_name));
@@ -55,14 +61,7 @@ pub fn defineModule0(
 		package_names,
 	);
 
-	let thread = unsafe { &*JavaThread::for_env(env.as_ptr()) };
-	let Some(module) = handle_exception!(thread, module_entry_result) else {
-		// `Module::named` returns `None` in the case of `java.base`, so we have nothing left
-		// to do.
-		return;
-	};
-
-	unimplemented!("java.lang.Module#defineModule0");
+	handle_exception!(thread, module_entry_result);
 }
 
 pub fn addReads0(

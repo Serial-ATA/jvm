@@ -1,10 +1,10 @@
-use crate::native::JniEnv;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 
 use std::ptr::NonNull;
 
-use jni::sys::jint;
+use ::jni::env::JniEnv;
+use ::jni::sys::jint;
 
 include_generated!("native/java/lang/def/ClassLoader.registerNatives.rs");
 include_generated!("native/java/lang/def/ClassLoader.definitions.rs");

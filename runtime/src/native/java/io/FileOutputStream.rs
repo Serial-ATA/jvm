@@ -1,8 +1,8 @@
 #![allow(non_upper_case_globals)]
 
-use crate::native::Reference;
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
+use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
 use std::io::Write;

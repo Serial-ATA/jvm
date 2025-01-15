@@ -1,6 +1,6 @@
 pub mod spec;
 
-use crate::native::NativeMethodPtr;
+use crate::native::method::NativeMethodPtr;
 use crate::objects::class::Class;
 use crate::objects::constant_pool::cp_types;
 

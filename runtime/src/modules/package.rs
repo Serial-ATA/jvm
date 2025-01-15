@@ -1,5 +1,7 @@
 use super::entry::Module;
+
 use std::fmt::Debug;
+use std::sync::Arc;
 
 use symbols::Symbol;
 
@@ -18,7 +20,7 @@ pub enum PackageExportType {
 /// A representation of a package in Java
 pub struct Package {
 	name: Symbol,
-	module: &'static Module,
+	module: Arc<Module>,
 
 	export_type: PackageExportType,
 }
@@ -27,14 +29,14 @@ impl Debug for Package {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("Package")
 			.field("name", &self.name.as_str())
-			.field("module", self.module)
+			.field("module", &self.module)
 			.field("export_type", &self.export_type)
 			.finish()
 	}
 }
 
 impl Package {
-	pub fn new(name: Symbol, module: &'static Module) -> Package {
+	pub fn new(name: Symbol, module: Arc<Module>) -> Package {
 		Self {
 			name,
 			module,
@@ -46,8 +48,8 @@ impl Package {
 		self.name
 	}
 
-	pub fn module(&self) -> &'static Module {
-		self.module
+	pub fn module(&self) -> Arc<Module> {
+		Arc::clone(&self.module)
 	}
 }
 

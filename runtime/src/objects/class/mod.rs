@@ -330,14 +330,14 @@ impl Class {
 
 		let mut package = None;
 		crate::modules::with_module_lock(|guard| {
-			package = self.loader().lookup_package(&guard, package_name);
+			package = self.loader().lookup_package(guard, package_name);
 		});
 
 		assert!(package.is_some(), "Package not found in loader");
 		package
 	}
 
-	pub fn module(&self) -> &Module {
+	pub fn module(&self) -> Arc<Module> {
 		let bootstrap_loader = ClassLoader::bootstrap();
 		if !bootstrap_loader.java_base().has_obj() {
 			// Assume we are early in VM initialization, where `java.base` isn't a real module yet.

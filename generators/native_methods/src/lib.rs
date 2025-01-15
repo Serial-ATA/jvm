@@ -284,11 +284,16 @@ fn generate_modules(native_directory: &Path, modules: &[Module]) -> Result<()> {
 		.expect("Can't find module marker comment");
 
 	// Remove anything trailing the comment
-	let mut root_mod_file_content_bytes = root_mod_file_content.into_bytes();
-	root_mod_file_content_bytes
-		.drain(marker_comment_start_pos + MODULE_MARKER_START_COMMENT.len()..);
+	let mut root_mod_file_content_bytes = root_mod_file_content;
 
+	let existing_modules = root_mod_file_content_bytes
+		.split_off(marker_comment_start_pos + MODULE_MARKER_START_COMMENT.len());
 	let generated_modules = create_modules_string(modules)?;
+
+	// Don't update the modules so the build script won't run again
+	if existing_modules.trim() == generated_modules.trim() {
+		return Ok(());
+	}
 
 	write!(
 		&mut root_mod_file_content_bytes,

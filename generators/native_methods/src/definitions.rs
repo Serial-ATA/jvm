@@ -52,7 +52,7 @@ pub fn generate_definitions_for_class(def_path: &Path, class: &Class) {
 macro_rules! non_static_signature {
 	() => {
 		"\tpub fn _{}(env: std::ptr::NonNull<::jni::env::JniEnv>, locals: \
-		 crate::stack::local_stack::LocalStack) -> crate::native::NativeReturn {{"
+		 crate::stack::local_stack::LocalStack) -> crate::native::method::NativeReturn {{"
 	};
 }
 
@@ -60,10 +60,9 @@ macro_rules! static_signature {
 	() => {
 		"\tpub fn _{}(env: std::ptr::NonNull<::jni::env::JniEnv>, class: &'static \
 		 crate::objects::class::Class, locals: crate::stack::local_stack::LocalStack) -> \
-		 crate::native::NativeReturn {{"
+		 crate::native::method::NativeReturn {{"
 	};
 }
-const STATIC_SIGNATURE: &str = "pub fn ";
 
 fn generate_methods_for_class(class: &Class, definitions_file: &mut File) {
 	for method in class.methods().filter(|method| {

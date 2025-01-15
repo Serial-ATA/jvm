@@ -1,9 +1,8 @@
 use crate::parse::{Class, Member};
 use crate::{definitions, field, parse, registernatives, util, SymbolCollector};
-use std::collections::HashMap;
 
+use indexmap::IndexMap;
 use std::path::{Path, PathBuf};
-
 use walkdir::WalkDir;
 
 static METHOD_DEFINITION_DIR_NAME: &str = "def";
@@ -204,7 +203,7 @@ pub(crate) fn get_modules_from(
 		))
 	}
 
-	let mut modules_by_root: HashMap<String, Vec<Module>> = HashMap::new();
+	let mut modules_by_root: IndexMap<String, Vec<Module>> = IndexMap::new();
 	for module in modules {
 		let entry = modules_by_root
 			.entry(module.components[0].name.clone())
@@ -237,6 +236,9 @@ pub(crate) fn get_modules_from(
 			i -= 1;
 		}
 	}
+
+	// Need to make sure the roots are sorted so we aren't constantly making unnecessary module updates
+	modules_by_root.sort_keys();
 
 	// Flatten back to a Vec, sorted by root
 	let mut modules = Vec::new();

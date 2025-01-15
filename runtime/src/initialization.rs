@@ -6,7 +6,6 @@ use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
 use crate::thread::{JavaThread, JavaThreadBuilder};
 
-use crate::modules::Module;
 use classfile::accessflags::MethodAccessFlags;
 use common::int_types::s4;
 use instructions::Operand;
