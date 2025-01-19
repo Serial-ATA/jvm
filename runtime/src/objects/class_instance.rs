@@ -86,7 +86,7 @@ impl Instance for ClassInstance {
 
 	fn get_field_value(&self, field: &Field) -> Operand<Reference> {
 		assert!(!field.is_static());
-		self.get_field_value0(field.idx)
+		self.get_field_value0(field.index())
 	}
 
 	fn get_field_value0(&self, field_idx: usize) -> Operand<Reference> {
@@ -115,7 +115,7 @@ impl Instance for ClassInstance {
 
 	fn put_field_value(&mut self, field: &Field, value: Operand<Reference>) {
 		assert!(!field.is_static());
-		self.put_field_value0(field.idx, value)
+		self.put_field_value0(field.index(), value)
 	}
 
 	fn put_field_value0(&mut self, field_idx: usize, value: Operand<Reference>) {
@@ -128,9 +128,9 @@ impl Instance for ClassInstance {
 				let current = &self.fields[field_idx];
 				assert!(
 					current.is_compatible_with(&value),
-					"Expected type compatible with: {:?}, found: {:?}",
-					current,
-					value
+					"Expected type compatible with: {current:?}, found: {value:?} (class: {}, \
+					 field index: {field_idx})",
+					self.class.name.as_str(),
 				);
 
 				self.fields[field_idx] = value;

@@ -7,6 +7,7 @@ pub enum Error {
 	InvalidMagic,
 	InvalidTableSize,
 	BadIndexSize,
+	DecompressorNotFound(String),
 
 	Common(common::error::CommonError),
 	Io(std::io::Error),
@@ -22,6 +23,7 @@ impl Display for Error {
 				f,
 				"The index does not match the size provided in the header"
 			),
+			Self::DecompressorNotFound(s) => write!(f, "Image decompressor \"{s}\" not found"),
 
 			Self::Common(err) => write!(f, "{}", err),
 			Self::Io(err) => write!(f, "{}", err),

@@ -2,6 +2,8 @@
 
 //! Various offsets for fields of frequently accessed classes
 
+const MAX_FIELD_COUNT: usize = 8;
+
 macro_rules! get_sym {
 	($specified_sym_name:ident $_fallback:ident) => {
 		symbols::sym!($specified_sym_name)
@@ -11,76 +13,202 @@ macro_rules! get_sym {
 	};
 }
 
+macro_rules! instance_field_count {
+	() => {
+		0
+	};
+	(
+		$(#[$meta:meta])*
+		$([sym: $specified_sym_name:ident])?
+		@INJECTED $field_name:ident: $_descriptor:pat => $field_ty:ty, $($rest:tt)*
+	) => {
+		0 + instance_field_count!($($rest)*)
+	};
+	(
+		$(#[$meta:meta])*
+		$([sym: $specified_sym_name:ident])?
+		@FIELD $field_name:ident: $matcher:pat $(if $guard:expr)?, $($rest:tt)*
+	) => {
+		1 + instance_field_count!($($rest)*)
+	};
+}
+
+macro_rules! injected_field_count {
+	() => {
+		0
+	};
+	(
+		$(#[$meta:meta])*
+		$([sym: $specified_sym_name:ident])?
+		@INJECTED $field_name:ident: $_descriptor:expr => $field_ty:ty, $($rest:tt)*
+	) => {
+		1 + injected_field_count!($($rest)*)
+	};
+	(
+		$(#[$meta:meta])*
+		$([sym: $specified_sym_name:ident])?
+		@FIELD $field_name:ident: $matcher:pat $(if $guard:expr)?, $($rest:tt)*
+	) => {
+		0 + injected_field_count!($($rest)*)
+	};
+}
+
+macro_rules! injected_field_definition {
+	($class:ident, $($field_tt:tt)*) => {
+		injected_field_definition!(@ACC [] $class, $($field_tt)*)
+	};
+	(
+		@ACC [$($acc:tt)*] $class:ident,
+
+		$(#[$meta:meta])*
+		$([sym: $specified_sym_name:ident])?
+		@INJECTED $field_name:ident: $descriptor:expr => $_field_ty:ty, $($rest:tt)*
+	) => {
+		injected_field_definition!(@ACC [$($acc)* crate::objects::field::Field::new_injected($class, get_sym!($($specified_sym_name)? $field_name), $descriptor), ] $class, $($rest)*)
+	};
+	(
+		@ACC [$($acc:tt)*] $class:ident,
+
+		$(#[$meta:meta])*
+		$([sym: $specified_sym_name:ident])?
+		@FIELD $field_name:ident: $matcher:pat $(if $guard:expr)?, $($rest:tt)*
+	) => {
+		injected_field_definition!(@ACC [$($acc)*] $class, $($rest)*)
+	};
+	(@ACC [$($acc:tt)*] $class:ident,) => { [$($acc)*] };
+}
+
+macro_rules! field_constructor {
+	($class_name:ident $($sub_class_name:ident)? @FIELDSTART $($field_tt:tt)*) => {
+		field_constructor!(@METHODS $($field_tt)*);
+
+		/// Initialize the field offsets
+		///
+		/// # Safety
+		///
+		/// This **requires** that the target class is loaded
+		pub unsafe fn init_offsets() {
+			const INSTANCE_FIELD_COUNT: usize = instance_field_count!($($field_tt)*);
+			const INJECTED_FIELD_COUNT: usize = injected_field_count!($($field_tt)*);
+			const EXPECTED_FIELD_SET: usize = (1 << INSTANCE_FIELD_COUNT) - 1;
+			const _: () = {
+				assert!(INSTANCE_FIELD_COUNT + INJECTED_FIELD_COUNT <= crate::globals::fields::MAX_FIELD_COUNT);
+			};
+
+			let class = crate::globals::classes::$class_name();
+
+			if INJECTED_FIELD_COUNT > 0 {
+				class.inject_fields(
+					injected_field_definition!(class, $($field_tt)*),
+					INJECTED_FIELD_COUNT
+				);
+			}
+
+			let mut field_set = 0;
+			for field in class.fields() {
+				field_constructor!(@CHECKS field, field_set, $($field_tt)*);
+			}
+
+			assert_eq!(field_set, EXPECTED_FIELD_SET, "Not all fields found in {}", stringify!($class_name));
+
+			$(
+				unsafe {
+					$sub_class_name::init_offsets();
+				}
+			)?
+		}
+	};
+	(@METHODS
+		$(#[$meta:meta])*
+		$([sym: $specified_sym_name:ident])?
+		@INJECTED $field_name:ident: $_descriptor:expr => $field_ty:ty, $($rest:tt)*
+	) => {
+		// Treat this field as a normal field
+		field_constructor!(@METHODS
+			$(#[$meta])*
+			$([sym: $specified_sym_name])?
+			@FIELD $field_name: _, $($rest)*
+		);
+	};
+	(@METHODS
+		$(#[$meta:meta])*
+		$([sym: $specified_sym_name:ident])?
+		@FIELD $field_name:ident: $matcher:pat $(if $guard:expr)?, $($rest:tt)*
+	) => {
+		paste::paste! {
+			static mut [<__ $field_name:snake:upper _FIELD_OFFSET>]: usize = 0;
+
+			$(#[$meta])*
+			/// This will not change for the lifetime of the program.
+			pub fn [<$field_name _field_offset>]() -> usize {
+				unsafe { [<__ $field_name:snake:upper _FIELD_OFFSET>] }
+			}
+
+			unsafe fn [<set_ $field_name _field_offset>](value: usize) {
+				[<__ $field_name:snake:upper _FIELD_OFFSET>] = value;
+			}
+		}
+
+		field_constructor!(@METHODS $($rest)*);
+	};
+	(@METHODS) => {};
+
+	(
+		@CHECKS
+		$field_ident:ident,
+		$field_set_ident:ident,
+
+		$(#[$meta:meta])*
+		$([sym: $specified_sym_name:ident])?
+		@FIELD $field_name:ident: $matcher:pat $(if $guard:expr)?, $($rest:tt)*
+	) => {
+		paste::paste! {
+			if $field_ident.name == get_sym!($($specified_sym_name)? $field_name) && matches!(&$field_ident.descriptor, $matcher $(if $guard)?) {
+				$field_set_ident |= 1 << instance_field_count!($($rest)*);
+				unsafe { [<set_ $field_name _field_offset>]($field_ident.index()); }
+				continue;
+			}
+		}
+
+		field_constructor!(@CHECKS $field_ident, $field_set_ident, $($rest)*);
+	};
+	(
+		@CHECKS
+		$field_ident:ident,
+		$field_set_ident:ident,
+
+		$(#[$meta:meta])*
+		$([sym: $specified_sym_name:ident])?
+		@INJECTED $field_name:ident: $_descriptor:expr => $field_ty:ty, $($rest:tt)*
+	) => {
+		// Injected fields are not checked, in the field set, we only need to set their ids
+		paste::paste! {
+			if $field_ident.name == get_sym!($($specified_sym_name)? $field_name) {
+				unsafe { [<set_ $field_name _field_offset>]($field_ident.index()); }
+				continue;
+			}
+		}
+
+		field_constructor!(@CHECKS $field_ident, $field_set_ident, $($rest)*);
+	};
+	(
+		@CHECKS
+		$field_ident:ident,
+		$field_set_ident:ident,
+	) => {};
+}
+
 // TODO: Document
 macro_rules! field_module {
 	(
 	@CLASS $class_name:ident;
-	$(
-		$(#[$meta:meta])*
-		$([sym: $specified_sym_name:ident])?
-		@FIELD $field_name:ident: $matcher:pat $(if $guard:expr)?,
-	)+
-	$(
-		mod $inner_mod:ident {
-			$($inner_mod_tt:tt)*
-		}
-	)?
+	$(@SUBCLASS $sub_class_name:ident;)?
+
+	@FIELDSTART
+	$($field_tt:tt)*
 	) => {
-		paste::paste! {
-			$(
-				static mut [<__ $field_name:snake:upper _FIELD_OFFSET>]: usize = 0;
-
-				$(#[$meta])*
-				/// This will not change for the lifetime of the program.
-				pub fn [<$field_name _field_offset>]() -> usize {
-					unsafe { [<__ $field_name:snake:upper _FIELD_OFFSET>] }
-				}
-
-				unsafe fn [<set_ $field_name _field_offset>](value: usize) {
-					[<__ $field_name:snake:upper _FIELD_OFFSET>] = value;
-				}
-			)+
-
-			/// Initialize the field offsets
-			///
-			/// # Safety
-			///
-			/// This **requires** that the target class is loaded
-			pub unsafe fn init_offsets() {
-				const EXPECTED_FIELD_SET: usize = (1 << ${count($field_name)}) - 1;
-				let class = crate::globals::classes::$class_name();
-
-				let mut field_set = 0;
-				for field in class.fields() {
-					$(
-						if field.name == get_sym!($($specified_sym_name)? $field_name) && matches!(&field.descriptor, $matcher $(if $guard)?) {
-							field_set |= 1 << ${index()};
-							unsafe { [<set_ $field_name _field_offset>](field.idx); }
-							continue;
-						}
-					)+
-				}
-
-				assert_eq!(field_set, EXPECTED_FIELD_SET, "Not all fields found in {}", stringify!($class_name));
-
-				$(
-					unsafe {
-						$inner_mod::init_offsets();
-					}
-				)?
-			}
-		}
-
-		$(
-			pub mod $inner_mod {
-				use super::*;
-
-				field_module!(
-					$($inner_mod_tt)*
-				);
-			}
-		)?
-	}
+		field_constructor!($class_name $($sub_class_name)? @FIELDSTART $($field_tt)*);
+	};
 }
 
 pub mod java_lang_ref_Reference {
@@ -89,6 +217,7 @@ pub mod java_lang_ref_Reference {
 	field_module! {
 		@CLASS java_lang_ref_Reference;
 
+		@FIELDSTART
 		/// `java.lang.ref.Reference#referent` field offset
 		///
 		/// Expected type: `Reference`
@@ -102,6 +231,7 @@ pub mod java_lang_Class {
 	field_module! {
 		@CLASS java_lang_Class;
 
+		@FIELDSTART
 		/// `java.lang.Class#name` field offset
 		///
 		/// Expected type: `Reference` to `java.lang.String`
@@ -117,12 +247,56 @@ pub mod java_lang_Class {
 	}
 }
 
+pub mod java_lang_ClassLoader {
+	use crate::classpath::loader::ClassLoader;
+	use crate::objects::instance::Instance;
+	use crate::objects::reference::Reference;
+	use classfile::FieldType;
+
+	pub fn injected_loader_ptr_for(obj: Reference) -> Option<*const ClassLoader> {
+		let ptr = obj
+			.get_field_value0(loader_ptr_field_offset())
+			.expect_long();
+		if ptr == 0 {
+			// Field not initialized yet.
+			return None;
+		}
+
+		Some(ptr as *const ClassLoader)
+	}
+
+	field_module! {
+		@CLASS java_lang_ClassLoader;
+
+		@FIELDSTART
+		/// [`ClassLoader`] pointer field
+		///
+		/// Expected type: `jlong`
+		/// [`ClassLoader`]: crate::classpath::loader::ClassLoader
+		@INJECTED loader_ptr: FieldType::Long => jni::sys::jlong,
+
+		/// `java.lang.ClassLoader#name` field offset
+		///
+		/// Expected type: `Reference` to `java.lang.String`
+		@FIELD name: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
+		/// `java.lang.ClassLoader#unnamedModule` field offset
+		///
+		/// Expected type: `Reference` to `java.lang.Module`
+		@FIELD unnamedModule: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/Module"),
+		/// `java.lang.ClassLoader#nameAndId` field offset
+		///
+		/// Expected type: `Reference` to `java.lang.String`
+		@FIELD nameAndId: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
+	}
+}
+
 pub mod java_lang_String {
 	use classfile::FieldType;
 
 	field_module! {
 		@CLASS java_lang_String;
 
+		@FIELDSTART
 		/// `java.lang.String#value` field offset
 		///
 		/// Expected type: `jByteArray`
@@ -135,10 +309,32 @@ pub mod java_lang_String {
 }
 
 pub mod java_lang_Module {
+	use crate::modules::Module;
+	use crate::objects::instance::Instance;
+	use crate::objects::reference::Reference;
 	use classfile::FieldType;
+
+	pub fn injected_module_ptr_for(obj: Reference) -> Option<*const Module> {
+		let ptr = obj
+			.get_field_value0(module_ptr_field_offset())
+			.expect_long();
+		if ptr == 0 {
+			// Field not initialized yet.
+			return None;
+		}
+
+		Some(ptr as *const Module)
+	}
 
 	field_module! {
 		@CLASS java_lang_Module;
+
+		@FIELDSTART
+		/// [`Module`] pointer field
+		///
+		/// Expected type: `jlong`
+		/// [`Module`]: crate::modules::Module
+		@INJECTED module_ptr: FieldType::Long => jni::sys::jlong,
 
 		/// `java.lang.Module#name` field offset
 		///
@@ -156,7 +352,9 @@ pub mod java_lang_Thread {
 
 	field_module! {
 		@CLASS java_lang_Thread;
+		@SUBCLASS holder;
 
+		@FIELDSTART
 		/// `java.lang.Thread#eetop` field offset
 		///
 		/// Expected type: `jlong`
@@ -165,10 +363,15 @@ pub mod java_lang_Thread {
 		///
 		/// Expected type: `Reference` to `java.lang.Thread$FieldHolder`
 		@FIELD holder: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/Thread$FieldHolder"),
+	}
 
-		mod holder {
+	pub mod holder {
+		use super::*;
+
+		field_module! {
 			@CLASS java_lang_Thread_FieldHolder;
 
+			@FIELDSTART
 			/// `java.lang.Thread$FieldHolder#stackSize` field offset
 			///
 			/// Expected field type: `jlong`
@@ -195,6 +398,7 @@ pub mod java_lang_StackTraceElement {
 	field_module! {
 		@CLASS java_lang_StackTraceElement;
 
+		@FIELDSTART
 		/// `java.lang.StackTraceElement#declaringClassObject` field offset
 		///
 		/// Expected field type: `Reference` to `java.lang.Class`
@@ -236,6 +440,7 @@ pub mod java_lang_Throwable {
 	field_module! {
 		@CLASS java_lang_Throwable;
 
+		@FIELDSTART
 		/// `java.lang.Throwable#stackTrace` field offset
 		///
 		/// Expected field type: `Reference` to `StackTraceElement[]`
@@ -257,6 +462,7 @@ pub mod java_io_File {
 	field_module! {
 		@CLASS java_io_File;
 
+		@FIELDSTART
 		/// `java.io.File#path` field offset
 		///
 		/// Expected field type: `Reference` to `java.lang.String`
@@ -271,6 +477,7 @@ pub mod java_io_FileDescriptor {
 	field_module! {
 		@CLASS java_io_FileDescriptor;
 
+		@FIELDSTART
 		/// `java.io.FileDescriptor#fd` field offset
 		///
 		/// Expected field type: `jint`
@@ -285,6 +492,7 @@ pub mod java_io_FileDescriptor {
 	field_module! {
 		@CLASS java_io_FileDescriptor;
 
+		@FIELDSTART
 		/// `java.io.FileDescriptor#fd` field offset
 		///
 		/// Expected field type: `jint`
@@ -306,6 +514,7 @@ pub mod java_io_FileInputStream {
 	field_module! {
 		@CLASS java_io_FileInputStream;
 
+		@FIELDSTART
 		/// `java.io.FileInputStream#fd` field offset
 		///
 		/// Expected field type: `Reference` to `java.io.FileDescriptor`
@@ -319,6 +528,7 @@ pub mod java_io_FileOutputStream {
 	field_module! {
 		@CLASS java_io_FileOutputStream;
 
+		@FIELDSTART
 		/// `java.io.FileOutputStream#fd` field offset
 		///
 		/// Expected field type: `Reference` to `java.io.FileDescriptor`
@@ -334,6 +544,7 @@ pub mod jdk_internal_misc_UnsafeConstants {
 	field_module! {
 		@CLASS jdk_internal_misc_UnsafeConstants;
 
+		@FIELDSTART
 		/// `jdk.internal.misc.UnsafeConstants#ADDRESS_SIZE0` field offset
 		///
 		/// Expected field type: `jint`

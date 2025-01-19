@@ -1,4 +1,5 @@
 use super::JavaThread;
+use crate::classpath::loader::ClassLoader;
 use crate::java_call;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::reference::Reference;
@@ -21,6 +22,16 @@ pub enum Throws<T> {
 impl<T> Throws<T> {
 	pub fn threw(&self) -> bool {
 		matches!(self, Throws::Exception(_))
+	}
+
+	pub fn expect(self, msg: &str) -> T {
+		match self {
+			Throws::Ok(t) => t,
+			Throws::Exception(e) => panic!(
+				"{msg}: thread threw {:?} with message: {:?}",
+				e.kind, e.message
+			),
+		}
 	}
 }
 
@@ -107,7 +118,7 @@ impl Exception {
 	}
 
 	pub fn throw(self, thread: &JavaThread) {
-		let obj = self.kind.obj();
+		let this = self.kind.obj();
 
 		match self.message {
 			Some(message) => {
@@ -124,6 +135,7 @@ impl Exception {
 				java_call!(
 					thread,
 					init_method,
+					Operand::Reference(this.clone()),
 					Operand::Reference(Reference::class(string_object))
 				);
 			},
@@ -137,11 +149,11 @@ impl Exception {
 					)
 					.expect("method should exist");
 
-				java_call!(thread, init_method);
+				java_call!(thread, init_method, Operand::Reference(this.clone()));
 			},
 		}
 
-		handle_throw(thread, obj);
+		thread.set_pending_exception(this);
 	}
 }
 
@@ -173,7 +185,7 @@ macro_rules! throw {
 }
 
 macro_rules! handle_exception {
-	($thread:ident, $throwsy_expr:expr) => {{
+	($thread:expr, $throwsy_expr:expr) => {{
 		match $throwsy_expr {
 			crate::thread::exceptions::Throws::Ok(__val) => __val,
 			crate::thread::exceptions::Throws::Exception(__exception) => {
@@ -184,11 +196,11 @@ macro_rules! handle_exception {
 	}};
 }
 
-use crate::classpath::classloader::ClassLoader;
 pub(crate) use {handle_exception, throw};
 
 /// See [`JavaThread::throw_exception`]
-pub(super) fn handle_throw(thread: &JavaThread, object_ref: Reference) {
+#[must_use = "must know whether the exception was thrown"]
+pub(super) fn handle_throw(thread: &JavaThread, object_ref: Reference) -> bool {
 	// https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-6.html#jvms-6.5.athrow
 	// The objectref must be of type reference and must refer to an object that is an instance of class Throwable or of a subclass of Throwable.
 
@@ -210,7 +222,7 @@ pub(super) fn handle_throw(thread: &JavaThread, object_ref: Reference) {
 			.method()
 			.find_exception_handler(class_instance.get().class(), current_frame_pc)
 		{
-			// The pc register is reset to that location,the operand stack of the current frame is cleared, objectref
+			// The pc register is reset to that location, the operand stack of the current frame is cleared, objectref
 			// is pushed back onto the operand stack, and execution continues.
 			thread.pc.store(handler_pc, Ordering::Relaxed);
 
@@ -218,15 +230,17 @@ pub(super) fn handle_throw(thread: &JavaThread, object_ref: Reference) {
 			stack.clear();
 			stack.push_reference(object_ref);
 
-			return;
+			return false;
 		}
 
 		let _ = thread.frame_stack.pop();
 	}
 
 	// No handler found, we have to print the stack trace and exit
-	thread.frame_stack.clear();
+	thread.set_exiting();
 	print_stack_trace(thread, object_ref);
+
+	false
 }
 
 fn print_stack_trace(thread: &JavaThread, object_ref: Reference) {

@@ -9,21 +9,21 @@ use jni::sys::jboolean;
 
 include_generated!("native/java/lang/ref/def/Reference.definitions.rs");
 
-pub fn getAndClearReferencePendingList(_: NonNull<JniEnv>, _class: &'static Class) -> Reference /* java.lang.ref.Reference */
+pub fn getAndClearReferencePendingList(_: JniEnv, _class: &'static Class) -> Reference /* java.lang.ref.Reference */
 {
 	unimplemented!("java.lang.ref.Reference#getAndClearReferencePendingList")
 }
 
-pub fn hasReferencePendingList(_: NonNull<JniEnv>, _class: &'static Class) -> jboolean {
+pub fn hasReferencePendingList(_: JniEnv, _class: &'static Class) -> jboolean {
 	unimplemented!("java.lang.ref.Reference#hasReferencePendingList")
 }
 
-pub fn waitForReferencePendingList(_: NonNull<JniEnv>, _class: &'static Class) {
+pub fn waitForReferencePendingList(_: JniEnv, _class: &'static Class) {
 	unimplemented!("java.lang.ref.Reference#waitForReferencePendingList")
 }
 
 pub fn refersTo0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	this: Reference, // java.lang.ref.Reference
 	o: Reference,    // java.lang.Object
 ) -> jboolean {
@@ -34,6 +34,6 @@ pub fn refersTo0(
 	referent.expect_reference() == o
 }
 
-pub fn clear0(_: NonNull<JniEnv>, _this: Reference /* java.lang.ref.Reference */) {
+pub fn clear0(_: JniEnv, _this: Reference /* java.lang.ref.Reference */) {
 	unimplemented!("java.lang.ref.Reference#clear0")
 }

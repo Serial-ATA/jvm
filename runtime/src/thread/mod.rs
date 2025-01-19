@@ -20,14 +20,14 @@ use crate::thread::frame::native::NativeFrame;
 use crate::thread::frame::Frame;
 
 use std::cell::{Cell, SyncUnsafeCell, UnsafeCell};
-use std::ptr::NonNull;
-use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 use std::thread::JoinHandle;
 
 use classfile::accessflags::MethodAccessFlags;
 use instructions::{Operand, StackLike};
 use java_lang_Thread::ThreadStatus;
 use jni::env::JniEnv;
+use jni::sys::JNIEnv;
 use symbols::sym;
 
 #[thread_local]
@@ -42,7 +42,7 @@ pub struct JVMOptions {
 
 #[repr(C)]
 pub struct JavaThread {
-	env: JniEnv,
+	env: JNIEnv,
 	obj: UnsafeCell<Option<Reference>>,
 	os_thread: UnsafeCell<Option<JoinHandle<()>>>,
 
@@ -55,6 +55,9 @@ pub struct JavaThread {
 	frame_stack: FrameStack,
 
 	remaining_operand: UnsafeCell<Option<Operand<Reference>>>,
+
+	pending_exception: UnsafeCell<Option<Reference>>,
+	exiting: AtomicBool,
 }
 
 unsafe impl Sync for JavaThread {}
@@ -72,7 +75,7 @@ impl JavaThread {
 	fn new(obj: Option<Reference>) -> Self {
 		let seed = 1;
 		JavaThread {
-			env: unsafe { JniEnv::from_raw(new_env()) },
+			env: unsafe { new_env() },
 			obj: UnsafeCell::new(obj),
 			os_thread: UnsafeCell::new(None),
 
@@ -81,6 +84,9 @@ impl JavaThread {
 			pc: AtomicIsize::new(0),
 			frame_stack: FrameStack::new(),
 			remaining_operand: UnsafeCell::new(None),
+
+			pending_exception: UnsafeCell::new(None),
+			exiting: AtomicBool::new(false),
 		}
 	}
 
@@ -90,7 +96,7 @@ impl JavaThread {
 	///
 	/// The caller must ensure that `env` is a pointer obtained from [`Self::env()`], and that it is
 	/// valid for the current thread.
-	pub unsafe fn for_env(env: *const JniEnv) -> *mut JavaThread {
+	pub unsafe fn for_env(env: *const JNIEnv) -> *mut JavaThread {
 		unsafe {
 			let ptr = env.sub(core::mem::offset_of!(JavaThread, env));
 			ptr.cast::<Self>() as _
@@ -275,10 +281,10 @@ impl JavaThread {
 }
 
 impl JavaThread {
-	/// Get a pointer to the associated [`JniEnv`]
-	pub fn env(&self) -> NonNull<JniEnv> {
+	/// Get a pointer to the associated [`JNIEnv`]
+	pub fn env(&self) -> JniEnv {
 		unsafe {
-			NonNull::new_unchecked(
+			JniEnv::from_raw(
 				std::ptr::from_ref(self).add(core::mem::offset_of!(JavaThread, env)) as _,
 			)
 		}
@@ -371,8 +377,14 @@ impl JavaThread {
 
 		assert!(
 			self.frame_stack.pop_native().is_some(),
-			"native frame consumed"
+			"native frame consumed",
 		);
+
+		// Exception from native code, nothing left to do
+		if self.has_pending_exception() {
+			self.throw_pending_exception(false);
+			return;
+		}
 
 		// Push the return value onto the previous frame's stack
 		if let Some(ret) = ret {
@@ -431,6 +443,27 @@ impl JavaThread {
 			Interpreter::instruction(current_frame);
 		}
 	}
+}
+
+// Exceptions
+impl JavaThread {
+	pub fn set_pending_exception(&self, exception: Reference) {
+		unsafe { *self.pending_exception.get() = Some(exception) }
+	}
+
+	pub fn has_pending_exception(&self) -> bool {
+		unsafe { (*self.pending_exception.get()).is_some() }
+	}
+
+	fn set_exiting(&self) {
+		self.exiting.store(true, Ordering::Relaxed);
+		self.frame_stack.clear();
+		self.pc.store(0, Ordering::Relaxed);
+	}
+
+	pub fn is_exiting(&self) -> bool {
+		self.exiting.load(Ordering::Relaxed)
+	}
 
 	/// Throw an exception on this thread
 	///
@@ -441,6 +474,26 @@ impl JavaThread {
 	/// This will panic if `object_ref` is non-null, but not a subclass of `java/lang/Throwable`.
 	/// This should never occur post-verification.
 	pub fn throw_exception(&self, object_ref: Reference) {
-		exceptions::handle_throw(self, object_ref);
+		// `throw_exception` is only ever called while the thread is guaranteed to be running, so
+		// we don't care whether the exception was handled or not here.
+		let _ = exceptions::handle_throw(self, object_ref);
+	}
+
+	/// Throw the pending exception on this thread
+	pub fn throw_pending_exception(&self, during_vm_init: bool) {
+		let pending_exception = unsafe { (*self.pending_exception.get()).take() };
+		let Some(exception) = pending_exception else {
+			return;
+		};
+
+		if !exceptions::handle_throw(self, exception) {
+			// The exception was handled, nothing to do.
+			return;
+		}
+
+		// An exception thrown during VM init will stop the thread, need to start it back up to print the stack trace.
+		if during_vm_init {
+			self.run();
+		}
 	}
 }

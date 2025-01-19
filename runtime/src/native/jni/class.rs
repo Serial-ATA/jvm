@@ -1,5 +1,5 @@
 use super::{classref_from_jclass, IntoJni};
-use crate::classpath::classloader::ClassLoader;
+use crate::classpath::loader::ClassLoader;
 use crate::objects::class::Class;
 use crate::thread::JavaThread;
 

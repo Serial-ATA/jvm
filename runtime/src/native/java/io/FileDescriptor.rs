@@ -18,12 +18,12 @@ pub fn get_fd(this: &Reference) -> jint {
 }
 
 // throws SyncFailedException
-pub fn sync0(_: NonNull<JniEnv>, _this: Reference) {
+pub fn sync0(_: JniEnv, _this: Reference) {
 	unimplemented!("java.io.FileDescriptor#sync0");
 }
 
 // TODO: Move logic to globals
-pub fn initIDs(_: NonNull<JniEnv>, class: &'static Class) {
+pub fn initIDs(_: JniEnv, class: &'static Class) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE
 		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -40,23 +40,23 @@ pub fn initIDs(_: NonNull<JniEnv>, class: &'static Class) {
 }
 
 #[cfg(windows)]
-pub fn getHandle(_: NonNull<JniEnv>, _class: &'static Class, _d: jint) -> jlong {
+pub fn getHandle(_: JniEnv, _class: &'static Class, _d: jint) -> jlong {
 	unimplemented!("java.io.FileDescriptor#getHandle");
 }
 
 // Only windows uses the `handle` field.
 #[cfg(unix)]
-pub fn getHandle(_: NonNull<JniEnv>, _class: &'static Class, _d: jint) -> jlong {
+pub fn getHandle(_: JniEnv, _class: &'static Class, _d: jint) -> jlong {
 	-1
 }
 
 #[cfg(windows)]
-pub fn getAppend(_: NonNull<JniEnv>, _class: &'static Class, _fd: jint) -> jboolean {
+pub fn getAppend(_: JniEnv, _class: &'static Class, _fd: jint) -> jboolean {
 	unimplemented!("java.io.FileDescriptor#getAppend");
 }
 
 #[cfg(unix)]
-pub fn getAppend(_: NonNull<JniEnv>, _class: &'static Class, fd_: jint) -> jboolean {
+pub fn getAppend(_: JniEnv, _class: &'static Class, fd_: jint) -> jboolean {
 	use libc::{F_GETFL, O_APPEND};
 
 	let flags = unsafe { libc::fcntl(fd_, F_GETFL) };
@@ -64,6 +64,6 @@ pub fn getAppend(_: NonNull<JniEnv>, _class: &'static Class, fd_: jint) -> jbool
 }
 
 // throws IOException
-pub fn close0(_: NonNull<JniEnv>, _this: Reference) {
+pub fn close0(_: JniEnv, _this: Reference) {
 	unimplemented!("java.io.FileDescriptor#close0");
 }

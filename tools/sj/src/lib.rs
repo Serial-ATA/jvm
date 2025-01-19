@@ -7,6 +7,7 @@ use crate::error::{Error, Result};
 use std::path::Path;
 
 use clap::Parser;
+use jni::error::JniError;
 use jvm_runtime::classpath::{add_classpath_entry, jar, jimage, ClassPathEntry};
 
 #[tracing::instrument]
@@ -41,7 +42,11 @@ pub fn launch() -> Result<()> {
 		return Ok(());
 	}
 
-	native::invoke_main_method(env, main_class, args.args)?;
+	match native::invoke_main_method(env, main_class, args.args) {
+		Err(Error::Jni(JniError::ExceptionThrown)) => env.exception_describe(),
+		Err(e) => return Err(e),
+		_ => {},
+	}
 
 	Ok(())
 }

@@ -8,6 +8,7 @@ use crate::thread::{JavaThread, JavaThreadBuilder};
 use core::ffi::c_void;
 use std::ffi::CStr;
 
+use jni::error::JniError;
 use jni::java_vm::JavaVm;
 use jni::sys::{
 	jint, jsize, JNIInvokeInterface_, JNINativeInterface_, JavaVM, JNI_EVERSION, JNI_OK,
@@ -69,15 +70,27 @@ pub extern "system" fn JNI_CreateJavaVM(
 		return jni::sys::JNI_EVERSION;
 	}
 
-	let vm = initialization::create_java_vm(Some(args));
-	let current_thread = JavaThread::current();
-	let env = current_thread.env().as_ptr();
-	unsafe {
-		*pvm = vm.raw() as _;
-		*penv = (*env).raw() as _;
+	let vm;
+	match initialization::create_java_vm(Some(args)) {
+		Ok(java_vm) => vm = java_vm,
+		Err(e) => {
+			if let JniError::ExceptionThrown = e {
+				JavaThread::current().throw_pending_exception(true);
+			}
+
+			// All errors result in an abort
+			std::process::abort();
+		},
 	}
 
-	unimplemented!("jni::JNI_CreateJavaVM")
+	let current_thread = JavaThread::current();
+	let env = current_thread.env();
+	unsafe {
+		*pvm = vm.raw() as _;
+		*penv = env.raw() as _;
+	}
+
+	JNI_OK
 }
 
 #[no_mangle]
@@ -97,9 +110,9 @@ fn attach_current_thread_impl(
 ) -> jint {
 	// We're already attached
 	if let Some(thread) = JavaThread::current_opt() {
-		let env = thread.env().as_ptr();
+		let env = thread.env();
 		unsafe {
-			*penv = (*env).raw() as _;
+			*penv = env.raw() as _;
 		}
 		return JNI_OK;
 	}

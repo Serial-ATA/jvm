@@ -5,7 +5,6 @@ use crate::stack::local_stack::LocalStack;
 
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::ptr::NonNull;
 use std::sync::{LazyLock, RwLock};
 
 use ::jni::env::JniEnv;
@@ -32,8 +31,8 @@ impl Debug for NativeMethodDef {
 }
 
 pub type NativeReturn = Option<Operand<Reference>>;
-pub type NativeStaticMethodPtr = fn(NonNull<JniEnv>, &'static Class, LocalStack) -> NativeReturn;
-pub type NativeNonStaticMethodPtr = fn(NonNull<JniEnv>, LocalStack) -> NativeReturn;
+pub type NativeStaticMethodPtr = fn(JniEnv, &'static Class, LocalStack) -> NativeReturn;
+pub type NativeNonStaticMethodPtr = fn(JniEnv, LocalStack) -> NativeReturn;
 
 #[derive(Copy, Clone)]
 union NativeMethodPtrInner {

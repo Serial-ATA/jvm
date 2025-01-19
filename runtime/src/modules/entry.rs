@@ -1,27 +1,55 @@
-use super::package::Package;
-use crate::classpath::classloader::ClassLoader;
+use super::package::{Package, PackageExportType};
 use crate::classpath::jimage;
+use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
 use crate::thread::exceptions::{throw, Throws};
 
 use std::cell::SyncUnsafeCell;
+use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
+use std::hash::Hash;
 
+use common::traits::PtrType;
+use instructions::Operand;
+use jni::sys::jlong;
 use symbols::{sym, Symbol};
 
-// NOTE: The fields are `UnsafeCell`s due to the bootstrapping process.
-//       Mutation does not occur outside of `java.base`.
+struct ModuleFlags {
+	can_read_all_unnamed: bool,
+}
 
 /// Representation of a `java.lang.Module` object
 pub struct Module {
-	pub(super) obj: SyncUnsafeCell<Reference>,
-	pub(super) open: bool,
-	pub(super) name: Option<Symbol>,
-	pub(super) version: SyncUnsafeCell<Option<Symbol>>,
-	pub(super) location: SyncUnsafeCell<Option<Symbol>>,
+	name: Option<Symbol>,
+
+	// These fields are only ever mutated while the module lock is held
+	flags: SyncUnsafeCell<ModuleFlags>,
+	reads: SyncUnsafeCell<HashSet<&'static Self>>,
+	loader: SyncUnsafeCell<Option<&'static ClassLoader>>, // Set in `ModuleSet::add()`
+
+	open: bool,
+
+	// NOTE: These fields are `UnsafeCell`s due to the bootstrapping process.
+	//       Mutation does not occur outside of `java.base`.
+	obj: SyncUnsafeCell<Reference>,
+	version: SyncUnsafeCell<Option<Symbol>>,
+	location: SyncUnsafeCell<Option<Symbol>>,
+}
+
+impl PartialEq for Module {
+	fn eq(&self, other: &Self) -> bool {
+		self.name == other.name
+	}
+}
+
+impl Eq for Module {}
+
+impl Hash for Module {
+	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+		self.name.hash(state);
+	}
 }
 
 impl Debug for Module {
@@ -40,6 +68,68 @@ impl Debug for Module {
 		}
 
 		s.finish()
+	}
+}
+
+// Bootstrapping methods
+impl Module {
+	/// Create the partial `java.base` entry for bootstrapping purposes
+	///
+	/// The [`Module`] produced is **not valid**.
+	pub(crate) fn create_java_base(_guard: &super::ModuleLockGuard) {
+		// This doesn't use the constructors, since they do validation.
+		let java_base = Module {
+			flags: SyncUnsafeCell::new(ModuleFlags {
+				can_read_all_unnamed: false,
+			}),
+			reads: SyncUnsafeCell::new(HashSet::new()),
+			loader: SyncUnsafeCell::new(None),
+
+			name: Some(sym!(java_base)),
+			open: false,
+			obj: SyncUnsafeCell::new(Reference::null()),
+			version: SyncUnsafeCell::new(None),
+			location: SyncUnsafeCell::new(None),
+		};
+
+		ClassLoader::bootstrap().set_java_base(java_base);
+	}
+
+	/// Make `java.base` into a real module
+	///
+	/// # Safety
+	///
+	/// This must be called on the `java.base` [`Module`]
+	pub(super) unsafe fn fixup_java_base(
+		&'static self,
+		_guard: &super::ModuleLockGuard,
+		obj: Reference,
+		version: Option<Symbol>,
+		location: Option<Symbol>,
+	) {
+		assert!(
+			!self.has_obj(),
+			"java.base module can only be initialized once"
+		);
+
+		assert!(obj.is_class(), "invalid associated object for module");
+
+		unsafe {
+			*self.loader.get() = Some(ClassLoader::bootstrap());
+
+			*self.obj.get() = obj.clone();
+			*self.version.get() = version;
+			*self.location.get() = location;
+		}
+
+		// Store the pointer in the module, to make future lookups cheaper
+		obj.extract_class().get_mut().put_field_value0(
+			crate::globals::fields::java_lang_Module::module_ptr_field_offset(),
+			Operand::Long(self as *const Module as jlong),
+		);
+
+		// All classes we've loaded up to this point need to be added to `java.base`
+		ClassLoader::fixup_modules(obj);
 	}
 }
 
@@ -68,6 +158,12 @@ impl Module {
 		}
 
 		Throws::Ok(Self {
+			flags: SyncUnsafeCell::new(ModuleFlags {
+				can_read_all_unnamed: true,
+			}),
+			reads: SyncUnsafeCell::new(HashSet::new()),
+			loader: SyncUnsafeCell::new(None),
+
 			obj: SyncUnsafeCell::new(obj),
 			open: true,
 			name: None,
@@ -92,12 +188,12 @@ impl Module {
 			throw!(@DEFER IllegalArgumentException, "Module name cannot be null");
 		}
 
-		let module_name = StringInterner::symbol_from_java_string(name_obj.extract_class());
+		let module_name = StringInterner::rust_string_from_java_string(name_obj.extract_class());
 		let loader = obj
 			.get_field_value0(crate::globals::fields::java_lang_Module::loader_field_offset())
 			.expect_reference();
 
-		if module_name == sym!(java_base) {
+		if &module_name == "java.base" {
 			init_java_base(obj, is_open, version, location, package_names, loader);
 			return Throws::Ok(());
 		}
@@ -124,15 +220,17 @@ impl Module {
 			package_symbols.push(Symbol::intern_owned(package));
 		}
 
-		let loader = ClassLoader::from_obj(loader).expect("module must have a valid loader");
+		let loader = ClassLoaderSet::find_or_add(loader);
 
 		if let Some(disallowed_package) = disallowed_package {
 			throw!(@DEFER IllegalArgumentException,
 				"Class loader (instance of): {} tried to define prohibited package name: {}",
-				loader.name().as_str(),
+				loader.name_and_id().as_str(),
 				disallowed_package.replace('/', ".")
 			);
 		}
+
+		let module_name_sym = Symbol::intern_owned(module_name);
 
 		let mut module_already_defined = false;
 		let mut duplicate_package: Option<&Package> = None;
@@ -143,7 +241,7 @@ impl Module {
 					duplicate_package = Some(duplicate);
 
 					// Also check for a duplicate module. That error takes precedence over the duplicate package.
-					if loader.lookup_module(guard, module_name).is_some() {
+					if loader.lookup_module(guard, module_name_sym).is_some() {
 						module_already_defined = true;
 					}
 
@@ -152,9 +250,15 @@ impl Module {
 			}
 
 			let module_entry = Self {
+				flags: SyncUnsafeCell::new(ModuleFlags {
+					can_read_all_unnamed: false,
+				}),
+				reads: SyncUnsafeCell::new(HashSet::new()),
+				loader: SyncUnsafeCell::new(None),
+
 				obj: SyncUnsafeCell::new(obj),
 				open: is_open,
-				name: Some(module_name),
+				name: Some(module_name_sym),
 				version: SyncUnsafeCell::new(version),
 				location: SyncUnsafeCell::new(location),
 			};
@@ -162,13 +266,13 @@ impl Module {
 			let module = loader.insert_module(guard, module_entry);
 
 			for package in package_symbols {
-				let package = Package::new(package, Arc::clone(&module));
+				let package = Package::new(package, module);
 				loader.insert_package_if_absent(guard, package);
 			}
 		});
 
 		if module_already_defined {
-			throw!(@DEFER IllegalStateException, "Module {} is already defined", module_name.as_str());
+			throw!(@DEFER IllegalStateException, "Module {} is already defined", module_name_sym.as_str());
 		}
 
 		if let Some(duplicate_package) = duplicate_package {
@@ -177,7 +281,7 @@ impl Module {
 					throw!(@DEFER IllegalStateException,
 						"Package {} for module {} is already in another module, {}, defined to the class loader",
 						duplicate_package.name().as_str(),
-						module_name.as_str(),
+						module_name_sym.as_str(),
 						name.as_str(),
 					);
 				},
@@ -185,7 +289,7 @@ impl Module {
 					throw!(@DEFER IllegalStateException,
 						"Package {} for module {} is already in the unnamed module defined to the class loader",
 						duplicate_package.name().as_str(),
-						module_name.as_str()
+						module_name_sym.as_str()
 					);
 				},
 			}
@@ -245,11 +349,11 @@ fn init_java_base(
 				return;
 			}
 
-			let package = Package::new(Symbol::intern_owned(package), Arc::clone(&java_base));
+			let package = Package::new(Symbol::intern_owned(package), java_base);
 			ClassLoader::bootstrap().insert_package_if_absent(guard, package);
 		}
 
-		guard.fixup_java_base(&java_base, obj, version, location)
+		unsafe { java_base.fixup_java_base(guard, obj, version, location) }
 	});
 
 	if let Some(bad_package_name) = bad_package_name {
@@ -270,6 +374,19 @@ impl Module {
 	/// This will only return `None` for modules created with [`Module::unnamed()`]
 	pub fn name(&self) -> Option<Symbol> {
 		self.name
+	}
+
+	pub fn is_open(&self) -> bool {
+		self.open
+	}
+
+	// Called in `ModuleSet::add`
+	pub(super) fn set_classloader(&mut self, loader: &'static ClassLoader) {
+		*self.loader.get_mut() = Some(loader);
+	}
+
+	pub fn classloader(&self) -> &'static ClassLoader {
+		unsafe { *self.loader.get() }.expect("loader should always be available")
 	}
 
 	pub fn version(&self) -> Option<Symbol> {
@@ -294,5 +411,47 @@ impl Module {
 		let obj_ptr = self.obj.get();
 		let obj_ref = unsafe { &*obj_ptr };
 		!obj_ref.is_null()
+	}
+
+	pub fn add_reads(&self, other: Option<&'static Self>) -> Throws<()> {
+		if self.name.is_none() {
+			// Nothing to do
+			return Throws::Ok(());
+		}
+
+		super::with_module_lock(|_guard| {
+			let flags_ptr = self.flags.get();
+
+			let Some(other) = other else {
+				unsafe { (&mut *flags_ptr).can_read_all_unnamed = true };
+				return;
+			};
+
+			let reads = unsafe { &mut *self.reads.get() };
+			reads.insert(other);
+		});
+
+		Throws::Ok(())
+	}
+
+	pub fn add_exports(&self, other: Option<&'static Self>, package_name: String) {
+		if self.name().is_none() || self.is_open() {
+			// Nothing to do if `from` is unnamed or open. All packages are exported by default.
+			return;
+		}
+
+		super::with_module_lock(|guard| {
+			let Some(package) = self
+				.classloader()
+				.lookup_package(guard, Symbol::intern_owned(package_name))
+			else {
+				return;
+			};
+
+			match other {
+				Some(other) => package.add_qualified_export(guard, other),
+				None => package.set_export_type(guard, PackageExportType::Unqualified),
+			}
+		})
 	}
 }

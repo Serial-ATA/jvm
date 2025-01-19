@@ -2,18 +2,20 @@ use super::reference::Reference;
 use crate::objects::class::Class;
 use crate::objects::constant_pool::{cp_types, ConstantPool};
 
+use std::cell::SyncUnsafeCell;
 use std::fmt::{Debug, Formatter};
 
 use classfile::accessflags::FieldAccessFlags;
 use classfile::{FieldInfo, FieldType};
 use common::int_types::u2;
 use instructions::Operand;
-use symbols::Symbol;
+use symbols::{sym, Symbol};
 
 // TODO: Make more fields private
-#[derive(Clone, PartialEq)]
 pub struct Field {
-	pub idx: usize, // Used to set the value on `ClassInstance`s
+	// Used to set the value on `ClassInstance`s
+	// This is an `UnsafeCell`, as the index will be mutated for injected fields.
+	idx: SyncUnsafeCell<usize>,
 	pub class: &'static Class,
 	pub access_flags: FieldAccessFlags,
 	pub name: Symbol,
@@ -29,7 +31,7 @@ impl Debug for Field {
 			"{}#{} (index: {})",
 			self.class.name.as_str(),
 			self.name.as_str(),
-			self.idx
+			self.index()
 		)
 	}
 }
@@ -45,6 +47,16 @@ impl Field {
 
 	pub fn is_volatile(&self) -> bool {
 		self.access_flags.is_volatile()
+	}
+}
+
+impl Field {
+	pub fn index(&self) -> usize {
+		unsafe { *self.idx.get() }
+	}
+
+	pub(super) unsafe fn set_index(&self, index: usize) {
+		unsafe { *self.idx.get() = index };
 	}
 }
 
@@ -73,7 +85,7 @@ impl Field {
 			.map(|constant_value| constant_value.constantvalue_index);
 
 		Box::leak(Box::new(Self {
-			idx,
+			idx: SyncUnsafeCell::new(idx),
 			class,
 			access_flags,
 			name,
@@ -82,20 +94,35 @@ impl Field {
 		}))
 	}
 
+	pub fn new_injected(
+		class: &'static Class,
+		name: Symbol,
+		descriptor: FieldType,
+	) -> &'static Field {
+		Box::leak(Box::new(Self {
+			idx: SyncUnsafeCell::new(0),
+			class,
+			access_flags: FieldAccessFlags::NONE,
+			name,
+			descriptor,
+			constant_value_index: None,
+		}))
+	}
+
 	pub fn get_static_value(&self) -> Operand<Reference> {
 		if self.is_volatile() {
-			self.class.static_field_value_volatile(self.idx)
+			self.class.static_field_value_volatile(self.index())
 		} else {
-			self.class.static_field_value(self.idx)
+			self.class.static_field_value(self.index())
 		}
 	}
 
 	pub fn set_static_value(&self, value: Operand<Reference>) {
 		if self.is_volatile() {
-			unsafe { self.class.set_static_field_volatile(self.idx, value) }
+			unsafe { self.class.set_static_field_volatile(self.index(), value) }
 		} else {
 			unsafe {
-				self.class.set_static_field(self.idx, value);
+				self.class.set_static_field(self.index(), value);
 			}
 		}
 	}

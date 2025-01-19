@@ -62,13 +62,15 @@ impl JImage {
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L523
 	/// Return the resource for the supplied location offset.
-	pub fn get_resource(&self, offset: u4, uncompressed_data: &mut [u1]) {
+	pub fn get_resource(&self, offset: u4, uncompressed_data: &mut [u1]) -> Result<()> {
 		// Get address of first byte of location attribute stream.
 		let data = self.get_location_offset_data(offset);
 		// Expand location attributes.
 		let location = JImageLocation::new_opt_(self, data);
 		// Read the data
-		self.get_resource_from_location(&location, uncompressed_data);
+		self.get_resource_from_location(&location, uncompressed_data)?;
+
+		Ok(())
 	}
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L533
@@ -77,7 +79,7 @@ impl JImage {
 		&self,
 		location: &JImageLocation<'_>,
 		uncompressed_data: &mut [u1],
-	) {
+	) -> Result<()> {
 		// Retrieve the byte offset and size of the resource.
 		let offset = location.get_content_offset() as usize;
 		let uncompressed_size = location.get_uncompressed_size();
@@ -91,12 +93,11 @@ impl JImage {
 				(&mut data).read_exact(uncompressed_data).is_ok(),
 				"error reading from image or short read"
 			);
-			return;
+			return Ok(());
 		}
 
 		// We have to decompress the data
-		let mut compressed_data =
-			Box::<[u1]>::from(&self.resources[offset..offset + compressed_size as usize]);
+		let mut compressed_data = &self.resources[offset..offset + compressed_size as usize];
 		// Get image string table.
 		let strings = ImageStrings(self.index.string_bytes());
 		// Decompress resource.
@@ -106,7 +107,9 @@ impl JImage {
 			uncompressed_size,
 			strings,
 			self.endian,
-		);
+		)?;
+
+		Ok(())
 	}
 
 	/// Return a sorted collection of all paths to valid locations
@@ -203,7 +206,7 @@ impl JImage {
 	fn verify_location(&self, location: &JImageLocation<'_>, path: &str) -> bool {
 		// Manage the image string table.
 		let strings = ImageStrings(self.index.string_bytes());
-
+	
 		// Get module name string.
 		let module =
 			location.get_attribute_string(crate::location::attr::ATTRIBUTE_MODULE as u4, strings);

@@ -52,7 +52,7 @@ fn write_entries_for_class(mut file: Option<File>, def_path: &Path, class: &Clas
 			Member::Field(field) => {
 				writeln!(
 					file.as_mut().expect("file should exist"),
-					"#[allow(non_upper_case_globals)]\npub const {}: {} = {};",
+					"#[allow(non_upper_case_globals, dead_code)]\npub const {}: {} = {};",
 					field.name,
 					field.ty.map_to_rust_ty(),
 					field.expr

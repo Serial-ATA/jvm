@@ -105,7 +105,6 @@ impl super::JniEnv {
 		let sig = sig.into();
 
 		let ret;
-		let exception;
 		unsafe {
 			let invoke_interface = self.as_native_interface();
 			ret = ((*invoke_interface).GetStaticMethodID)(
@@ -114,11 +113,9 @@ impl super::JniEnv {
 				name.as_cstr().as_ptr(),
 				sig.as_cstr().as_ptr(),
 			);
-
-			exception = ((*invoke_interface).ExceptionCheck)(self.0 as _);
 		}
 
-		if exception {
+		if self.exception_check() {
 			return Err(JniError::ExceptionThrown);
 		}
 
@@ -167,7 +164,6 @@ impl super::JniEnv {
 			.map(JValue::raw)
 			.collect::<Vec<_>>();
 
-		let exception;
 		unsafe {
 			let invoke_interface = self.as_native_interface();
 			((*invoke_interface).CallStaticVoidMethod)(
@@ -176,11 +172,9 @@ impl super::JniEnv {
 				method_id.raw(),
 				new_args.as_ptr(),
 			);
-
-			exception = ((*invoke_interface).ExceptionCheck)(self.0 as _);
 		}
 
-		if exception {
+		if self.exception_check() {
 			return Err(JniError::ExceptionThrown);
 		}
 

@@ -25,15 +25,12 @@ impl super::JniEnv {
 		let utf = utf.into();
 
 		let ret;
-		let exception;
 		unsafe {
 			let invoke_interface = self.as_native_interface();
 			ret = ((*invoke_interface).NewStringUTF)(self.0 as _, utf.as_cstr().as_ptr());
-
-			exception = ((*invoke_interface).ExceptionCheck)(self.0 as _);
 		}
 
-		if exception {
+		if self.exception_check() {
 			return Err(JniError::ExceptionThrown);
 		}
 

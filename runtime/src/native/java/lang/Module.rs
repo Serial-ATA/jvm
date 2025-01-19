@@ -5,15 +5,14 @@ use crate::string_interner::StringInterner;
 use crate::thread::exceptions::{handle_exception, throw};
 use crate::thread::JavaThread;
 
-use std::ptr::NonNull;
-
 use ::jni::env::JniEnv;
 use common::traits::PtrType;
+use symbols::Symbol;
 
 include_generated!("native/java/lang/def/Module.definitions.rs");
 
 pub fn defineModule0(
-	env: NonNull<JniEnv>,
+	env: JniEnv,
 	_class: &'static Class,
 	module: Reference, // java.lang.Module
 	is_open: bool,
@@ -21,20 +20,18 @@ pub fn defineModule0(
 	location: Reference, // java.lang.String
 	pns: Reference,      // java.lang.Object[]
 ) {
-	let thread = unsafe { &*JavaThread::for_env(env.as_ptr()) };
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 
 	let mut version_sym = None;
 	if !version.is_null() {
-		version_sym = Some(StringInterner::symbol_from_java_string(
-			version.extract_class(),
-		));
+		let version_str = StringInterner::rust_string_from_java_string(version.extract_class());
+		version_sym = Some(Symbol::intern_owned(version_str));
 	}
 
 	let mut location_sym = None;
 	if !location.is_null() {
-		location_sym = Some(StringInterner::symbol_from_java_string(
-			version.extract_class(),
-		));
+		let location_str = StringInterner::rust_string_from_java_string(location.extract_class());
+		location_sym = Some(Symbol::intern_owned(location_str));
 	}
 
 	let mut package_names = Vec::new();
@@ -53,47 +50,127 @@ pub fn defineModule0(
 		}
 	}
 
-	let module_entry_result = Module::named(
-		module.clone(),
-		is_open,
-		version_sym,
-		location_sym,
-		package_names,
+	handle_exception!(
+		thread,
+		Module::named(
+			module.clone(),
+			is_open,
+			version_sym,
+			location_sym,
+			package_names,
+		)
 	);
-
-	handle_exception!(thread, module_entry_result);
 }
 
 pub fn addReads0(
-	_: NonNull<JniEnv>,
+	env: JniEnv,
 	_class: &'static Class,
-	_from: Reference, // java.lang.Module
-	_to: Reference,   // java.lang.Module
+	from: Reference, // java.lang.Module
+	to: Reference,   // java.lang.Module
 ) {
-	unimplemented!("java.lang.Module#addReads0");
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	if from.is_null() {
+		throw!(thread, NullPointerException, "from_module is null");
+	}
+
+	if from == to {
+		// Nothing to do if the modules are the same
+		return;
+	}
+
+	let Some(from_ptr) = crate::globals::fields::java_lang_Module::injected_module_ptr_for(from)
+	else {
+		throw!(thread, IllegalArgumentException, "from_module is not valid");
+	};
+
+	let from_module = unsafe { &*from_ptr };
+	if from_module.name().is_none() {
+		// Nothing to do if `from` is unnamed
+		return;
+	}
+
+	let mut to_module = None;
+	if !to.is_null() {
+		let Some(to_ptr) = crate::globals::fields::java_lang_Module::injected_module_ptr_for(to)
+		else {
+			throw!(thread, IllegalArgumentException, "to_module is not valid");
+		};
+
+		to_module = Some(unsafe { &*to_ptr });
+	}
+
+	from_module.add_reads(to_module);
 }
 
 pub fn addExports0(
-	_: NonNull<JniEnv>,
+	env: JniEnv,
 	_class: &'static Class,
-	_from: Reference, // java.lang.Module
-	_pn: Reference,   // java.lang.String
-	_to: Reference,   // java.lang.Module
+	from: Reference, // java.lang.Module
+	pn: Reference,   // java.lang.String
+	to: Reference,   // java.lang.Module
 ) {
-	unimplemented!("java.lang.Module#addExports0");
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	if from.is_null() {
+		throw!(thread, NullPointerException, "from_module is null");
+	}
+
+	if to.is_null() {
+		throw!(thread, NullPointerException, "to_module is null");
+	}
+
+	if pn.is_null() {
+		throw!(thread, NullPointerException, "package is null");
+	}
+
+	let Some(from_ptr) = crate::globals::fields::java_lang_Module::injected_module_ptr_for(from)
+	else {
+		throw!(thread, IllegalArgumentException, "from_module is not valid");
+	};
+
+	let Some(to_ptr) = crate::globals::fields::java_lang_Module::injected_module_ptr_for(to) else {
+		throw!(thread, IllegalArgumentException, "to_module is not valid");
+	};
+
+	let package_name = StringInterner::rust_string_from_java_string(pn.extract_class());
+	let package_name = Package::name_to_internal(package_name);
+
+	let from_module = unsafe { &*from_ptr };
+	let to_module = unsafe { &*to_ptr };
+	from_module.add_exports(Some(to_module), package_name);
 }
 
 pub fn addExportsToAll0(
-	_: NonNull<JniEnv>,
+	env: JniEnv,
 	_class: &'static Class,
-	_from: Reference, // java.lang.Module
-	_pn: Reference,   // java.lang.String
+	from: Reference, // java.lang.Module
+	pn: Reference,   // java.lang.String
 ) {
-	unimplemented!("java.lang.Module#addExportsToAll0");
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	if from.is_null() {
+		throw!(thread, NullPointerException, "from_module is null");
+	}
+
+	if pn.is_null() {
+		throw!(thread, NullPointerException, "package is null");
+	}
+
+	let Some(from_ptr) = crate::globals::fields::java_lang_Module::injected_module_ptr_for(from)
+	else {
+		throw!(thread, IllegalArgumentException, "from_module is not valid");
+	};
+
+	let package_name = StringInterner::rust_string_from_java_string(pn.extract_class());
+	let package_name = Package::name_to_internal(package_name);
+
+	let from_module = unsafe { &*from_ptr };
+	from_module.add_exports(None, package_name);
 }
 
 pub fn addExportsToAllUnnamed0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_class: &'static Class,
 	_from: Reference, // java.lang.Module
 	_pn: Reference,   // java.lang.String

@@ -6,7 +6,6 @@ use crate::string_interner::StringInterner;
 use crate::thread::JavaThread;
 
 use std::marker::PhantomData;
-use std::ptr::NonNull;
 use std::sync::atomic::{
 	AtomicBool, AtomicI16, AtomicI32, AtomicI64, AtomicI8, AtomicU16, Ordering,
 };
@@ -294,7 +293,7 @@ unsafe_ops! {
 }
 
 pub fn getUncompressedObject(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 	_address: jlong,
 ) -> Reference {
@@ -302,27 +301,27 @@ pub fn getUncompressedObject(
 }
 
 pub fn writeback0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 	_address: jlong,
 ) {
 	unimplemented!("jdk.internal.misc.Unsafe#writeback0")
 }
 pub fn writebackPreSync0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 ) {
 	unimplemented!("jdk.internal.misc.Unsafe#writebackPreSync0")
 }
 pub fn writebackPostSync0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 ) {
 	unimplemented!("jdk.internal.misc.Unsafe#writebackPostSync0")
 }
 
 pub fn defineClass0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,  // jdk.internal.misc.Unsafe
 	_name: Reference,  // java.lang.String
 	_bytes: Reference, // [B
@@ -336,7 +335,7 @@ pub fn defineClass0(
 
 // throws InstantiationException
 pub fn allocateInstance(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,  // jdk.internal.misc.Unsafe
 	_class: Reference, // java.lang.Class
 ) -> Reference {
@@ -344,7 +343,7 @@ pub fn allocateInstance(
 }
 
 pub fn throwException(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,      // jdk.internal.misc.Unsafe
 	_exception: Reference, // java.lang.Throwable
 ) {
@@ -352,7 +351,7 @@ pub fn throwException(
 }
 
 pub fn compareAndSetInt(
-	env: NonNull<JniEnv>,
+	env: JniEnv,
 	this: Reference,   // jdk.internal.misc.Unsafe
 	object: Reference, // Object
 	offset: jlong,
@@ -363,7 +362,7 @@ pub fn compareAndSetInt(
 }
 
 pub fn compareAndExchangeInt(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,  // jdk.internal.misc.Unsafe
 	object: Reference, // Object
 	offset: jlong,
@@ -383,7 +382,7 @@ pub fn compareAndExchangeInt(
 }
 
 pub fn compareAndSetLong(
-	env: NonNull<JniEnv>,
+	env: JniEnv,
 	this: Reference,   // jdk.internal.misc.Unsafe
 	object: Reference, // Object
 	offset: jlong,
@@ -394,7 +393,7 @@ pub fn compareAndSetLong(
 }
 
 pub fn compareAndExchangeLong(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,  // jdk.internal.misc.Unsafe
 	object: Reference, // Object
 	offset: jlong,
@@ -415,7 +414,7 @@ pub fn compareAndExchangeLong(
 }
 
 pub fn compareAndSetReference(
-	env: NonNull<JniEnv>,
+	env: JniEnv,
 	this: Reference,   // jdk.internal.misc.Unsafe
 	object: Reference, // Object
 	offset: jlong,
@@ -433,7 +432,7 @@ pub fn compareAndSetReference(
 }
 
 pub fn compareAndExchangeReference(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,  // jdk.internal.misc.Unsafe
 	object: Reference, // Object
 	offset: jlong,
@@ -474,7 +473,7 @@ pub fn compareAndExchangeReference(
 }
 
 pub fn getReference(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,  // jdk.internal.misc.Unsafe
 	object: Reference, // Object
 	offset: jlong,
@@ -503,7 +502,7 @@ pub fn getReference(
 }
 
 pub fn putReference(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,  // jdk.internal.misc.Unsafe
 	object: Reference, // Object
 	offset: jlong,
@@ -533,7 +532,7 @@ pub fn putReference(
 }
 
 pub fn getReferenceVolatile(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,  // jdk.internal.misc.Unsafe
 	object: Reference, // Object
 	offset: jlong,
@@ -543,7 +542,7 @@ pub fn getReferenceVolatile(
 }
 
 pub fn putReferenceVolatile(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,  // jdk.internal.misc.Unsafe
 	object: Reference, // java.lang.Object
 	offset: jlong,
@@ -559,7 +558,7 @@ macro_rules! get_put_methods {
 		$(
 			paste::paste! {
 				pub fn [<get $ty:camel>](
-					_env: NonNull<JniEnv>,
+					_env: JniEnv,
 					_this: Reference,  // jdk.internal.misc.Unsafe
 					object: Reference, // Object
 					offset: jlong
@@ -569,7 +568,7 @@ macro_rules! get_put_methods {
 				}
 
 				pub fn [<put $ty:camel>](
-					_env: NonNull<JniEnv>,
+					_env: JniEnv,
 					_this: Reference,  // jdk.internal.misc.Unsafe
 					object: Reference, // Object
 					offset: jlong,
@@ -580,7 +579,7 @@ macro_rules! get_put_methods {
 				}
 
 				pub fn [<get $ty:camel Volatile>](
-					_env: NonNull<JniEnv>,
+					_env: JniEnv,
 					_this: Reference,  // jdk.internal.misc.Unsafe
 					object: Reference, // Object
 					offset: jlong
@@ -590,7 +589,7 @@ macro_rules! get_put_methods {
 				}
 
 				pub fn [<put $ty:camel Volatile>](
-					_env: NonNull<JniEnv>,
+					_env: JniEnv,
 					_this: Reference,  // jdk.internal.misc.Unsafe
 					object: Reference, // Object
 					offset: jlong,
@@ -607,7 +606,7 @@ macro_rules! get_put_methods {
 get_put_methods! { (boolean; AtomicBool), (byte; AtomicI8), (short; AtomicI16), (char; AtomicU16), (int; AtomicI32), (long; AtomicI64), (float; AtomicF32), (double; AtomicF64) }
 
 pub fn unpark(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,   // jdk.internal.misc.Unsafe
 	_thread: Reference, // Object
 ) {
@@ -615,7 +614,7 @@ pub fn unpark(
 }
 
 pub fn park(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 	_is_absolute: bool,
 	_time: jlong,
@@ -624,14 +623,14 @@ pub fn park(
 }
 
 pub fn fullFence(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 ) {
 	platform::arch::ordering::fence();
 }
 
 pub fn allocateMemory0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 	_bytes: jlong,
 ) -> jlong {
@@ -639,7 +638,7 @@ pub fn allocateMemory0(
 }
 
 pub fn reallocateMemory0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 	_address: jlong,
 	_bytes: jlong,
@@ -648,7 +647,7 @@ pub fn reallocateMemory0(
 }
 
 pub fn freeMemory0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 	_address: jlong,
 ) {
@@ -656,7 +655,7 @@ pub fn freeMemory0(
 }
 
 pub fn setMemory0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,   // jdk.internal.misc.Unsafe
 	_object: Reference, // Object
 	_offset: jlong,
@@ -667,7 +666,7 @@ pub fn setMemory0(
 }
 
 pub fn copyMemory0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,     // jdk.internal.misc.Unsafe
 	_src_base: Reference, // Object
 	_src_offset: jlong,
@@ -679,7 +678,7 @@ pub fn copyMemory0(
 }
 
 pub fn copySwapMemory0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,     // jdk.internal.misc.Unsafe
 	_src_base: Reference, // Object
 	_src_offset: jlong,
@@ -692,7 +691,7 @@ pub fn copySwapMemory0(
 }
 
 pub fn objectFieldOffset0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,  // jdk.internal.misc.Unsafe
 	_field: Reference, // java.lang.reflect.Field
 ) -> jlong {
@@ -700,7 +699,7 @@ pub fn objectFieldOffset0(
 }
 
 pub fn objectFieldOffset1(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 	class: Reference, // java.lang.Class
 	name: Reference,  // String
@@ -728,7 +727,7 @@ pub fn objectFieldOffset1(
 }
 
 pub fn staticFieldOffset0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,  // jdk.internal.misc.Unsafe
 	_field: Reference, // java.lang.reflect.Field
 ) -> jlong {
@@ -736,25 +735,25 @@ pub fn staticFieldOffset0(
 }
 
 pub fn staticFieldBase0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,  // jdk.internal.misc.Unsafe
 	_field: Reference, // java.lang.reflect.Field
 ) -> Reference /* java.lang.Object */ {
 	unimplemented!("jdk.internal.misc.Unsafe#staticFieldBase0")
 }
 pub fn shouldBeInitialized0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,  // jdk.internal.misc.Unsafe
 	_class: Reference, // java.lang.Class
 ) -> bool {
 	unimplemented!("jdk.internal.misc.Unsafe#shouldBeInitialized0")
 }
 pub fn ensureClassInitialized0(
-	env: NonNull<JniEnv>,
+	env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 	class: Reference, // java.lang.Class
 ) {
-	let current_thread = unsafe { &mut *JavaThread::for_env(env.as_ptr() as _) };
+	let current_thread = unsafe { &mut *JavaThread::for_env(env.raw()) };
 	let mirror = class.extract_mirror();
 
 	let target_class = mirror.get().target_class();
@@ -766,7 +765,7 @@ pub fn ensureClassInitialized0(
 	}
 }
 pub fn arrayBaseOffset0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,       // jdk.internal.misc.Unsafe
 	array_class: Reference, // java.lang.Class
 ) -> jint {
@@ -778,7 +777,7 @@ pub fn arrayBaseOffset0(
 	0
 }
 pub fn arrayIndexScale0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,       // jdk.internal.misc.Unsafe
 	array_class: Reference, // java.lang.Class
 ) -> jint {
@@ -790,7 +789,7 @@ pub fn arrayIndexScale0(
 	1
 }
 pub fn getLoadAverage0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,    // jdk.internal.misc.Unsafe
 	_loadavg: Reference, // [D
 	_nelems: jint,

@@ -10,7 +10,7 @@ include_generated!("native/java/lang/def/ClassLoader.registerNatives.rs");
 include_generated!("native/java/lang/def/ClassLoader.definitions.rs");
 
 pub fn defineClass1(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_class: &'static Class,
 	_loader: Reference, // java.lang.ClassLoader
 	_name: Reference,   // java.lang.String
@@ -25,7 +25,7 @@ pub fn defineClass1(
 }
 
 pub fn defineClass2(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_class: &'static Class,
 	_loader: Reference, // java.lang.ClassLoader
 	_name: Reference,   // java.lang.String
@@ -40,7 +40,7 @@ pub fn defineClass2(
 }
 
 pub fn defineClass0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_class: &'static Class,
 	_loader: Reference, // java.lang.ClassLoader
 	_lookup: Reference, // java.lang.Class
@@ -58,7 +58,7 @@ pub fn defineClass0(
 }
 
 pub fn findBootstrapClass(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_class: &'static Class,
 	_name: Reference, // java.lang.String
 ) -> Reference // java.lang.Class
@@ -67,7 +67,7 @@ pub fn findBootstrapClass(
 }
 
 pub fn findLoadedClass0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference, // java.lang.Class
 	_name: Reference, // java.lang.String
 ) -> Reference // java.lang.Class
@@ -75,7 +75,7 @@ pub fn findLoadedClass0(
 	unimplemented!("java.lang.ClassLoader#findLoadedClass0")
 }
 
-pub fn retrieveDirectives(_env: NonNull<JniEnv>, _class: &'static Class) -> Reference // AssertionStatusDirectives
+pub fn retrieveDirectives(_env: JniEnv, _class: &'static Class) -> Reference // AssertionStatusDirectives
 {
 	unimplemented!("java.lang.ClassLoader#retrieveDirectives")
 }

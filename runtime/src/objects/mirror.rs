@@ -185,7 +185,7 @@ impl Instance for MirrorInstance {
 	}
 
 	fn get_field_value(&self, field: &Field) -> Operand<Reference> {
-		self.get_field_value0(field.idx)
+		self.get_field_value0(field.index())
 	}
 
 	fn get_field_value0(&self, field_idx: usize) -> Operand<Reference> {
@@ -202,7 +202,7 @@ impl Instance for MirrorInstance {
 	}
 
 	fn put_field_value(&mut self, field: &Field, value: Operand<Reference>) {
-		self.put_field_value0(field.idx, value)
+		self.put_field_value0(field.index(), value)
 	}
 
 	fn put_field_value0(&mut self, field_idx: usize, value: Operand<Reference>) {

@@ -171,25 +171,16 @@ impl Class {
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.3.3
 	#[tracing::instrument(skip_all)]
-	pub fn resolve_method<'a>(
-		class: &'static Class,
-		interface_method: bool, // TODO: Should just call `resolve_interface_method` directly
-		name: Symbol,
-		descriptor: Symbol,
-	) -> Option<&'static Method> {
-		if interface_method {
-			return class.resolve_interface_method(name, descriptor);
-		}
-
+	pub fn resolve_method<'a>(&self, name: Symbol, descriptor: Symbol) -> Option<&'static Method> {
 		// When resolving a method reference:
 
 		//  1. If C is an interface, method resolution throws an IncompatibleClassChangeError.
-		if class.is_interface() {
+		if self.is_interface() {
 			panic!("IncompatibleClassChangeError"); // TODO
 		}
 
 		//  2. Otherwise, method resolution attempts to locate the referenced method in C and its superclasses:
-		if let ret @ Some(_) = class.resolve_method_step_two(name, descriptor) {
+		if let ret @ Some(_) = self.resolve_method_step_two(name, descriptor) {
 			return ret;
 		}
 
@@ -197,13 +188,13 @@ impl Class {
 
 		//    3.1. If the maximally-specific superinterface methods of C for the name and descriptor specified by the method reference include
 		//         exactly one method that does not have its ACC_ABSTRACT flag set, then this method is chosen and method lookup succeeds.
-		if let Some(method) = class.resolve_method_in_superinterfaces(name, descriptor, true) {
+		if let Some(method) = self.resolve_method_in_superinterfaces(name, descriptor, true) {
 			return Some(method);
 		}
 
 		//    3.2. Otherwise, if any superinterface of C declares a method with the name and descriptor specified by the method reference that
 		//         has neither its ACC_PRIVATE flag nor its ACC_STATIC flag set, one of these is arbitrarily chosen and method lookup succeeds.
-		if let Some(method) = class.resolve_method_in_superinterfaces(name, descriptor, false) {
+		if let Some(method) = self.resolve_method_in_superinterfaces(name, descriptor, false) {
 			return Some(method);
 		}
 
@@ -251,7 +242,7 @@ impl Class {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.3.4
-	fn resolve_interface_method(
+	pub fn resolve_interface_method(
 		&self,
 		method_name: Symbol,
 		descriptor: Symbol,
@@ -305,9 +296,19 @@ impl Class {
 		&self,
 		method_name: Symbol,
 		descriptor: Symbol,
-		// TODO: Deal with maximally-specific check (§5.4.3.3)
 		maximally_specific: bool,
 	) -> Option<&'static Method> {
+		// A maximally-specific superinterface method of a class or interface C for a particular method name and descriptor is any method for which all of the following are true:
+		//
+		//     The method is declared in a superinterface (direct or indirect) of C.
+		//
+		//     The method is declared with the specified name and descriptor.
+		//
+		//     The method has neither its ACC_PRIVATE flag nor its ACC_STATIC flag set.
+		//
+		//     Where the method is declared in interface I, there exists no other maximally-specific superinterface method of C with the specified name and descriptor that is declared in a subinterface of I.
+		let mut maximally_specific_definition = None;
+
 		for interface in &self.interfaces {
 			if let Some(method) = interface.resolve_method_in_superinterfaces(
 				method_name,
@@ -327,8 +328,25 @@ impl Class {
 					continue;
 				}
 
+				if maximally_specific {
+					if method.is_abstract() {
+						continue;
+					}
+
+					match maximally_specific_definition {
+						Some(_) => maximally_specific_definition = None,
+						None => maximally_specific_definition = Some(method),
+					}
+
+					continue;
+				}
+
 				return Some(method);
 			}
+		}
+
+		if maximally_specific {
+			return maximally_specific_definition;
 		}
 
 		None
@@ -403,7 +421,7 @@ impl Class {
 						.get::<cp_types::Integer>(constant_value_index);
 					let value = Operand::from(constant_value);
 					unsafe {
-						self.set_static_field(field.idx, value);
+						self.set_static_field(field.index(), value);
 					}
 				},
 				FieldType::Double => {
@@ -412,7 +430,7 @@ impl Class {
 						.get::<cp_types::Double>(constant_value_index);
 					let value = Operand::from(constant_value);
 					unsafe {
-						self.set_static_field(field.idx, value);
+						self.set_static_field(field.index(), value);
 					}
 				},
 				FieldType::Float => {
@@ -421,7 +439,7 @@ impl Class {
 						.get::<cp_types::Float>(constant_value_index);
 					let value = Operand::from(constant_value);
 					unsafe {
-						self.set_static_field(field.idx, value);
+						self.set_static_field(field.index(), value);
 					}
 				},
 				FieldType::Long => {
@@ -430,7 +448,7 @@ impl Class {
 						.get::<cp_types::Long>(constant_value_index);
 					let value = Operand::from(constant_value);
 					unsafe {
-						self.set_static_field(field.idx, value);
+						self.set_static_field(field.index(), value);
 					}
 				},
 				FieldType::Object(ref obj) if &**obj == b"java/lang/String" => {
@@ -440,7 +458,7 @@ impl Class {
 					let string_instance = StringInterner::intern_symbol(raw_string);
 					let value = Operand::Reference(Reference::class(string_instance));
 					unsafe {
-						self.set_static_field(field.idx, value);
+						self.set_static_field(field.index(), value);
 					}
 				},
 				_ => unreachable!(),
@@ -552,6 +570,7 @@ impl Class {
 
 	/// Find an implementation of an interface method on the target class
 	#[tracing::instrument(skip_all)]
+	#[allow(non_snake_case)]
 	pub fn map_interface_method(&self, method: &'static Method) -> &'static Method {
 		// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.6
 
@@ -562,43 +581,37 @@ impl Class {
 		// (ii) a method that was previously resolved by the instruction.
 		//
 		// The rules to select a method with respect to a class or interface C and a method mR are as follows:
+		let mR = method;
 
 		// 1. If mR is marked ACC_PRIVATE, then it is the selected method.
-		if method.is_private() {
-			return method;
+		if mR.is_private() {
+			return mR;
 		}
 
 		// 2. Otherwise, the selected method is determined by the following lookup procedure:
 
 		//    If C contains a declaration of an instance method m that can override mR (§5.4.5), then m is the selected method.
-		for instance_method in self.vtable() {
-			if instance_method.can_override(&*method) {
-				// We found an implementation
-				return instance_method;
-			}
-		}
-
+		//
 		//    Otherwise, if C has a superclass, a search for a declaration of an instance method that can override mR is performed,
 		//    starting with the direct superclass of C and continuing with the direct superclass of that class, and so forth, until a
 		//    method is found or no further superclasses exist. If a method is found, it is the selected method.
-		for parent in self.parent_iter() {
-			for instance_method in parent.vtable() {
-				if instance_method.can_override(&*method) {
-					// We found an implementation
-					return instance_method;
-				}
+
+		// (This covers both cases. A class VTable also holds the methods of all super classes)
+		for instance_method in self.vtable() {
+			if instance_method.can_override(mR) {
+				return instance_method;
 			}
 		}
 
 		//    Otherwise, the maximally-specific superinterface methods of C are determined (§5.4.3.3). If exactly one matches mR's name
 		//    and descriptor and is not abstract, then it is the selected method.
 		if let Some(superinterface_method) =
-			self.resolve_method_in_superinterfaces(method.name, method.descriptor, true)
+			self.resolve_method_in_superinterfaces(mR.name, mR.descriptor, true)
 		{
 			return superinterface_method;
 		}
 
-		// No implementation found, return the original method
-		method
+		// No implementation found
+		panic!("No viable methods for method selection");
 	}
 }

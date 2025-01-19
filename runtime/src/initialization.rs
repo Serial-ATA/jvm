@@ -1,5 +1,6 @@
-use crate::classpath::classloader::ClassLoader;
+use crate::classpath::loader::ClassLoader;
 use crate::java_call;
+use crate::modules::Module;
 use crate::native::jni::invocation_api::main_java_vm;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::reference::Reference;
@@ -9,18 +10,20 @@ use crate::thread::{JavaThread, JavaThreadBuilder};
 use classfile::accessflags::MethodAccessFlags;
 use common::int_types::s4;
 use instructions::Operand;
+use jni::error::JniError;
 use jni::java_vm::JavaVm;
-use jni::sys::JavaVMInitArgs;
+use jni::sys::{JavaVM, JavaVMInitArgs, JNI_ERR, JNI_OK};
 use symbols::sym;
 
-pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> JavaVm {
+pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> Result<JavaVm, JniError> {
 	let thread = JavaThreadBuilder::new().finish();
 	unsafe {
 		JavaThread::set_current_thread(thread);
 	}
 
-	initialize_thread(JavaThread::current());
-	unsafe { main_java_vm() }
+	initialize_thread(JavaThread::current())?;
+
+	Ok(unsafe { main_java_vm() })
 }
 
 /// The entire initialization stage of the VM
@@ -38,8 +41,8 @@ pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> JavaVm {
 /// 4. Create the initial `java.lang.Thread` for the current thread.
 ///
 /// [`create_java_base()`]: crate::modules::ModuleLockGuard::create_java_base()
-fn initialize_thread(thread: &JavaThread) {
-	crate::modules::with_module_lock(|guard| guard.create_java_base());
+fn initialize_thread(thread: &JavaThread) -> Result<(), JniError> {
+	crate::modules::with_module_lock(|guard| Module::create_java_base(guard));
 
 	// Load some important classes
 	load_global_classes();
@@ -57,17 +60,19 @@ fn initialize_thread(thread: &JavaThread) {
 
 	// https://github.com/openjdk/jdk/blob/04591595374e84cfbfe38d92bff4409105b28009/src/hotspot/share/runtime/threads.cpp#L408
 
-	init_phase_1(thread);
+	init_phase_1(thread)?;
 
 	// TODO: ...
 
-	init_phase_2(thread);
+	init_phase_2(thread)?;
 
 	// TODO: ...
 
-	init_phase_3(thread);
+	init_phase_3(thread)?;
 
 	// TODO: https://github.com/openjdk/jdk/blob/04591595374e84cfbfe38d92bff4409105b28009/src/java.base/share/native/libjli/java.c#L1805
+
+	Ok(())
 }
 
 fn load_global_classes() {
@@ -138,6 +143,11 @@ fn init_field_offsets() {
 	// java.lang.Class
 	unsafe {
 		crate::globals::fields::java_lang_Class::init_offsets();
+	}
+
+	// java.lang.ClassLoader
+	unsafe {
+		crate::globals::fields::java_lang_ClassLoader::init_offsets();
 	}
 
 	// java.lang.String
@@ -219,41 +229,58 @@ fn create_thread_object(thread: &JavaThread) {
 /// * Signal handlers
 /// * OS-specific system settings
 /// * Thread group of the main thread
-fn init_phase_1(thread: &JavaThread) {
+fn init_phase_1(thread: &JavaThread) -> Result<(), JniError> {
 	let system_class = crate::globals::classes::java_lang_System();
 	let init_phase_1 = system_class
 		.resolve_method_step_two(sym!(initPhase1_name), sym!(void_method_signature))
 		.unwrap();
 
 	java_call!(thread, init_phase_1);
+
+	if thread.has_pending_exception() {
+		return Err(JniError::ExceptionThrown);
+	}
+
+	Ok(())
 }
 
 /// Call `java.lang.System#initPhase2`
 ///
 /// This is responsible for initializing the module system. Prior to this point, the only module
 /// available to us is `java.base`.
-fn init_phase_2(thread: &JavaThread) {
+fn init_phase_2(thread: &JavaThread) -> Result<(), JniError> {
 	let system_class = crate::globals::classes::java_lang_System();
 
 	// TODO: Actually set these arguments accordingly
 	let display_vm_output_to_stderr = false;
 	let print_stacktrace_on_exception = true;
 
-	// TODO: Need some way to check failure
 	let init_phase_2 = system_class
 		.resolve_method_step_two(sym!(initPhase2_name), sym!(bool_bool_int_signature))
 		.unwrap();
 
-	java_call!(
+	let ret = java_call!(
 		thread,
 		init_phase_2,
 		display_vm_output_to_stderr as s4,
 		print_stacktrace_on_exception as s4
-	);
+	)
+	.unwrap()
+	.expect_int();
+
+	if ret != JNI_OK {
+		return Err(JniError::Unknown);
+	}
+
+	if thread.has_pending_exception() {
+		return Err(JniError::ExceptionThrown);
+	}
 
 	unsafe {
 		crate::globals::modules::set_module_system_initialized();
 	}
+
+	Ok(())
 }
 
 /// Call `java.lang.System#initPhase3`
@@ -263,7 +290,7 @@ fn init_phase_2(thread: &JavaThread) {
 /// * Initialization of and setting the security manager
 /// * Setting the system class loader
 /// * Setting the thread context class loader
-fn init_phase_3(thread: &JavaThread) {
+fn init_phase_3(thread: &JavaThread) -> Result<(), JniError> {
 	let system_class = crate::globals::classes::java_lang_System();
 
 	let init_phase_3 = system_class
@@ -271,4 +298,10 @@ fn init_phase_3(thread: &JavaThread) {
 		.unwrap();
 
 	java_call!(thread, init_phase_3);
+
+	if thread.has_pending_exception() {
+		return Err(JniError::ExceptionThrown);
+	}
+
+	Ok(())
 }

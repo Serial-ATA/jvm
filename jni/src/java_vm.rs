@@ -9,8 +9,9 @@ pub use attach_args::*;
 pub use error::*;
 pub use init_args::*;
 
-use core::ffi::c_void;
 use std::path::PathBuf;
+
+use jni_sys::JNIEnv;
 
 #[derive(Default, Debug, Clone)]
 pub struct JavaVmBuilder {
@@ -20,7 +21,7 @@ pub struct JavaVmBuilder {
 
 type CreateJavaVmFn = unsafe extern "system" fn(
 	*mut *mut jni_sys::JavaVM,
-	*mut *mut c_void,
+	*mut *mut (),
 	*mut jni_sys::JavaVMInitArgs,
 ) -> jni_sys::jint;
 
@@ -49,9 +50,7 @@ impl JavaVmBuilder {
 	}
 
 	pub fn build(self) -> Result<(JavaVm, JniEnv)> {
-		let libjvm_path = self
-			.jvm_lib_path
-			.unwrap_or_else(|| PathBuf::from("/home/alex/.cache/target/debug/libjvm_runtime.so"));
+		let libjvm_path = self.jvm_lib_path.unwrap_or_else(default_libjvm_path);
 		let args = self.args.unwrap_or_default().finish();
 
 		let ret;
@@ -77,10 +76,30 @@ impl JavaVmBuilder {
 		}
 
 		let java_vm = unsafe { JavaVm::from_raw(javavm_raw) };
-		let jni_env = unsafe { JniEnv::from_raw(jni_env_raw as _) };
+		let jni_env = unsafe { JniEnv::from_raw(jni_env_raw as *mut JNIEnv) };
 
 		Ok((java_vm, jni_env))
 	}
+}
+
+#[cfg(debug_assertions)]
+fn default_libjvm_path() -> PathBuf {
+	let target = std::env::var("CARGO_TARGET_DIR").map_or_else(
+		|_| {
+			PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.parent()
+				.unwrap()
+				.join("target")
+		},
+		PathBuf::from,
+	);
+
+	target.join("debug").join("libjvm_runtime.so")
+}
+
+#[cfg(not(debug_assertions))]
+fn default_libjvm_path() -> PathBuf {
+	todo!("Determine libjvm path")
 }
 
 /// A wrapper around a built [`jni_sys::JavaVM`]

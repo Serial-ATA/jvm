@@ -27,7 +27,7 @@ fn get_file_path(file: Reference) -> String {
 }
 
 pub fn canonicalize0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	path: Reference, // java.lang.String
 ) -> Reference /* java.lang.String */ {
@@ -48,7 +48,7 @@ pub fn canonicalize0(
 
 #[cfg(unix)]
 pub fn getBooleanAttributes0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	f: Reference, // java.io.File
 ) -> jint {
@@ -78,7 +78,7 @@ pub fn getBooleanAttributes0(
 
 #[cfg(not(unix))]
 pub fn getBooleanAttributes0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	_f: Reference, // java.io.File
 ) -> jint {
@@ -86,7 +86,7 @@ pub fn getBooleanAttributes0(
 }
 
 pub fn checkAccess0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	_f: Reference, // java.io.File
 	_access: jint,
@@ -95,7 +95,7 @@ pub fn checkAccess0(
 }
 
 pub fn getLastModifiedTime0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	_f: Reference, // java.io.File
 ) -> jlong {
@@ -103,7 +103,7 @@ pub fn getLastModifiedTime0(
 }
 
 pub fn getLength0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	_f: Reference, // java.io.File
 ) -> jlong {
@@ -111,7 +111,7 @@ pub fn getLength0(
 }
 
 pub fn setPermission0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	_f: Reference, // java.io.File
 	_access: jint,
@@ -122,7 +122,7 @@ pub fn setPermission0(
 }
 
 pub fn createFileExclusively0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	_path: Reference, // java.lang.String
 ) -> jboolean {
@@ -130,7 +130,7 @@ pub fn createFileExclusively0(
 }
 
 pub fn delete0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	_f: Reference, // java.io.File
 ) -> jboolean {
@@ -138,7 +138,7 @@ pub fn delete0(
 }
 
 pub fn list0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	_f: Reference, // java.io.File
 ) -> Reference /* java.lang.String[] */ {
@@ -146,7 +146,7 @@ pub fn list0(
 }
 
 pub fn createDirectory0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	_f: Reference, // java.io.File
 ) -> jboolean {
@@ -154,7 +154,7 @@ pub fn createDirectory0(
 }
 
 pub fn rename0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	_f1: Reference, // java.io.File
 	_f2: Reference, // java.io.File
@@ -163,7 +163,7 @@ pub fn rename0(
 }
 
 pub fn setLastModifiedTime0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	_f: Reference, // java.io.File
 	_time: jlong,
@@ -172,7 +172,7 @@ pub fn setLastModifiedTime0(
 }
 
 pub fn setReadOnly0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	_f: Reference, // java.io.File
 ) -> jboolean {
@@ -180,7 +180,7 @@ pub fn setReadOnly0(
 }
 
 pub fn getSpace0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	_f: Reference, // java.io.File
 	_t: jint,
@@ -189,14 +189,14 @@ pub fn getSpace0(
 }
 
 pub fn getNameMax0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference,
 	_path: Reference, // java.lang.String
 ) -> jlong {
 	unimplemented!("java.io.UnixFileSystem#getNameMax0");
 }
 
-pub fn initIDs(_: NonNull<JniEnv>, class: &'static Class) {
+pub fn initIDs(_: JniEnv, class: &'static Class) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE
 		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)

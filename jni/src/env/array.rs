@@ -27,20 +27,17 @@ impl super::JniEnv {
 		init: Option<JObject>,
 	) -> Result<JObjectArray> {
 		let ret;
-		let exception;
 		unsafe {
 			let invoke_interface = self.as_native_interface();
 			ret = ((*invoke_interface).NewObjectArray)(
-				self.0 as _,
+				self.raw(),
 				len,
 				class.raw(),
 				init.map_or(core::ptr::null_mut(), |init| init.raw()),
 			);
-
-			exception = ((*invoke_interface).ExceptionCheck)(self.0 as _);
 		}
 
-		if exception {
+		if self.exception_check() {
 			return Err(JniError::ExceptionThrown);
 		}
 
@@ -73,7 +70,6 @@ impl super::JniEnv {
 		index: jsize,
 		val: Option<impl Into<JObject>>,
 	) -> Result<()> {
-		let exception;
 		unsafe {
 			let invoke_interface = self.as_native_interface();
 			((*invoke_interface).SetObjectArrayElement)(
@@ -82,11 +78,9 @@ impl super::JniEnv {
 				index,
 				val.map_or(core::ptr::null_mut(), |init| init.into().raw()),
 			);
-
-			exception = ((*invoke_interface).ExceptionCheck)(self.0 as _);
 		}
 
-		if exception {
+		if self.exception_check() {
 			return Err(JniError::ExceptionThrown);
 		}
 

@@ -90,7 +90,7 @@ unsafe fn initialize() {
 }
 
 pub fn fillInStackTrace(
-	env: NonNull<JniEnv>,
+	env: JniEnv,
 	mut this: Reference, // java.lang.Throwable
 	_dummy: s4,
 ) -> Reference /* java.lang.Throwable */
@@ -104,7 +104,7 @@ pub fn fillInStackTrace(
 	let stack_trace_offset = crate::globals::fields::java_lang_Throwable::stackTrace_field_offset();
 	this.put_field_value0(stack_trace_offset, Operand::Reference(Reference::null()));
 
-	let current_thread = unsafe { &*JavaThread::for_env(env.as_ptr() as _) };
+	let current_thread = unsafe { &*JavaThread::for_env(env.raw() as _) };
 
 	let this_class_instance = this.extract_class();
 	let this_class = this_class_instance.get().class();

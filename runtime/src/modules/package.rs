@@ -1,7 +1,9 @@
 use super::entry::Module;
+use crate::modules::ModuleLockGuard;
 
+use std::cell::SyncUnsafeCell;
+use std::collections::HashSet;
 use std::fmt::Debug;
-use std::sync::Arc;
 
 use symbols::Symbol;
 
@@ -20,9 +22,11 @@ pub enum PackageExportType {
 /// A representation of a package in Java
 pub struct Package {
 	name: Symbol,
-	module: Arc<Module>,
+	module: &'static Module,
 
-	export_type: PackageExportType,
+	// These fields are only ever mutated while the module lock is held
+	qualified_exports: SyncUnsafeCell<HashSet<&'static Module>>,
+	export_type: SyncUnsafeCell<PackageExportType>,
 }
 
 impl Debug for Package {
@@ -36,11 +40,12 @@ impl Debug for Package {
 }
 
 impl Package {
-	pub fn new(name: Symbol, module: Arc<Module>) -> Package {
+	pub fn new(name: Symbol, module: &'static Module) -> Package {
 		Self {
 			name,
 			module,
-			export_type: PackageExportType::None,
+			qualified_exports: SyncUnsafeCell::new(HashSet::new()),
+			export_type: SyncUnsafeCell::new(PackageExportType::None),
 		}
 	}
 
@@ -48,8 +53,16 @@ impl Package {
 		self.name
 	}
 
-	pub fn module(&self) -> Arc<Module> {
-		Arc::clone(&self.module)
+	pub fn module(&self) -> &'static Module {
+		self.module
+	}
+
+	pub fn set_export_type(&self, _guard: &ModuleLockGuard, export_type: PackageExportType) {
+		unsafe { *self.export_type.get() = export_type }
+	}
+
+	pub fn add_qualified_export(&self, _guard: &ModuleLockGuard, module: &'static Module) {
+		unsafe { &mut *self.qualified_exports.get() }.insert(module);
 	}
 }
 

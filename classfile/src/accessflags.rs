@@ -175,7 +175,7 @@ impl_is_methods! {
 	impl MethodAccessFlags {
 		is_public       => ACC_PUBLIC;
 		is_private      => ACC_PRIVATE;
-		is_protected    => ACC_PRIVATE;
+		is_protected    => ACC_PROTECTED;
 		is_static       => ACC_STATIC;
 		is_final        => ACC_FINAL;
 		is_synchronized => ACC_SYNCHRONIZED;
@@ -223,7 +223,7 @@ impl_is_methods! {
 	impl FieldAccessFlags {
 		is_public    => ACC_PUBLIC;
 		is_private   => ACC_PRIVATE;
-		is_protected => ACC_PRIVATE;
+		is_protected => ACC_PROTECTED;
 		is_static    => ACC_STATIC;
 		is_final     => ACC_FINAL;
 		is_volatile  => ACC_VOLATILE;

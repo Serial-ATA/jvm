@@ -26,15 +26,12 @@ impl super::JniEnv {
 		let name = name.into();
 
 		let ret;
-		let exception;
 		unsafe {
 			let invoke_interface = self.as_native_interface();
 			ret = ((*invoke_interface).FindClass)(self.0 as _, name.as_cstr().as_ptr());
-
-			exception = ((*invoke_interface).ExceptionCheck)(self.0 as _);
 		}
 
-		if exception {
+		if self.exception_check() {
 			return Err(JniError::ExceptionThrown);
 		}
 

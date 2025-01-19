@@ -5,8 +5,6 @@ pub mod Raw {
 	use crate::objects::reference::Reference;
 	use crate::string_interner::StringInterner;
 
-	use std::ptr::NonNull;
-
 	use ::jni::env::JniEnv;
 	use common::traits::PtrType;
 	use instructions::Operand;
@@ -20,7 +18,7 @@ pub mod Raw {
 	const VM_VERSION: &str = env!("CARGO_PKG_VERSION");
 	const VM_VENDOR: &str = env!("SYSTEM_PROPS_VM_VENDOR");
 
-	pub fn vmProperties(_env: NonNull<JniEnv>, _class: &'static Class) -> Reference /* [Ljava/lang/String; */
+	pub fn vmProperties(_env: JniEnv, _class: &'static Class) -> Reference /* [Ljava/lang/String; */
 	{
 		macro_rules! store_properties {
 			($prop_array:ident; $($key:literal => $value:expr),+ $(,)?) => {
@@ -60,7 +58,7 @@ pub mod Raw {
 		Reference::array(prop_array)
 	}
 
-	pub fn platformProperties(_env: NonNull<JniEnv>, _class: &'static Class) -> Reference /* [Ljava/lang/String; */
+	pub fn platformProperties(_env: JniEnv, _class: &'static Class) -> Reference /* [Ljava/lang/String; */
 	{
 		macro_rules! store_properties {
 			($prop_array:ident; $($index:expr => $value:expr),+ $(,)?) => {

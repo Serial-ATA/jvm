@@ -1,12 +1,17 @@
-use crate::modules::{Module, ModuleLockGuard, Package};
+mod set;
+pub use set::*;
+
+use crate::modules::{Module, ModuleLockGuard, ModuleSet, Package};
 use crate::objects::class::Class;
+use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
+use crate::string_interner::StringInterner;
 
 use std::cell::SyncUnsafeCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex};
 
 use classfile::{ClassFile, FieldType};
 use common::int_types::u1;
@@ -18,28 +23,23 @@ const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 69;
 const SUPPORTED_MAJOR_VERSION_RANGE: RangeInclusive<u1> =
 	SUPPORTED_MAJOR_LOWER_BOUND..=SUPPORTED_MAJOR_UPPER_BOUND;
 
-#[derive(Copy, Clone, Debug)]
-struct ClassLoaderFlags {
-	is_bootstrap: bool,
-}
-
 pub struct ClassLoader {
-	flags: ClassLoaderFlags,
 	obj: Reference,
 
-	name: Symbol,
+	name: Option<Symbol>,
+	name_and_id: Symbol,
 
-	unnamed_module: SyncUnsafeCell<Option<Arc<Module>>>,
+	unnamed_module: SyncUnsafeCell<Option<&'static Module>>,
 
 	classes: Mutex<HashMap<Symbol, &'static Class>>,
 
 	// TODO: Is there a better way to do this?
 	// Keep the java.base module separate from the other modules for bootstrapping. This field is only
 	// valid for the bootstrap loader.
-	java_base: SyncUnsafeCell<Option<Arc<Module>>>,
+	java_base: SyncUnsafeCell<Option<&'static Module>>,
 
 	// Access to these fields is manually synchronized with the global module mutex
-	modules: SyncUnsafeCell<HashMap<Symbol, Arc<Module>>>,
+	modules: ModuleSet,
 	packages: SyncUnsafeCell<HashMap<Symbol, Package>>,
 }
 
@@ -52,19 +52,72 @@ impl PartialEq for ClassLoader {
 impl Debug for ClassLoader {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("ClassLoader")
-			.field("flags", &self.flags)
 			.field("obj", &self.obj)
 			.finish()
 	}
 }
 
 impl ClassLoader {
-	pub fn from_obj(obj: Reference) -> Option<&'static Self> {
-		if obj.is_null() {
-			return Some(Self::bootstrap());
+	fn from_obj(obj: Reference) -> Self {
+		assert!(!obj.is_null(), "cannot create ClassLoader from null obj");
+		assert!(obj.is_instance_of(crate::globals::classes::java_lang_ClassLoader()));
+
+		let mut name = None;
+
+		let name_obj = obj
+			.get_field_value0(crate::globals::fields::java_lang_ClassLoader::name_field_offset())
+			.expect_reference();
+		if !name_obj.is_null() {
+			let name_str = StringInterner::rust_string_from_java_string(name_obj.extract_class());
+
+			if !name_str.is_empty() {
+				name = Some(Symbol::intern_owned(name_str));
+			}
 		}
 
-		todo!("Non-bootstrap classloaders")
+		let unnamed_module_obj = obj
+			.get_field_value0(
+				crate::globals::fields::java_lang_ClassLoader::unnamedModule_field_offset(),
+			)
+			.expect_reference();
+		assert!(
+			!unnamed_module_obj.is_null()
+				&& unnamed_module_obj.is_instance_of(crate::globals::classes::java_lang_Module())
+		);
+
+		let unnamed_module =
+			Module::unnamed(unnamed_module_obj).expect("unnamed module creation failed");
+
+		let name_and_id_obj = obj
+			.get_field_value0(
+				crate::globals::fields::java_lang_ClassLoader::nameAndId_field_offset(),
+			)
+			.expect_reference();
+
+		let name_and_id;
+		if name_and_id_obj.is_null() {
+			name_and_id = obj.extract_target_class().name.as_str().replace('/', ".");
+		} else {
+			name_and_id =
+				StringInterner::rust_string_from_java_string(name_and_id_obj.extract_class());
+		}
+
+		assert!(!name_and_id.is_empty(), "class loader has no name and id");
+
+		Self {
+			obj,
+			name,
+			name_and_id: Symbol::intern_owned(name_and_id),
+
+			unnamed_module: SyncUnsafeCell::new(Some(Box::leak(Box::new(unnamed_module)))),
+			classes: Mutex::new(HashMap::new()),
+
+			// Never initialized for non-bootstrap loaders
+			java_base: SyncUnsafeCell::new(None),
+
+			modules: ModuleSet::new(),
+			packages: SyncUnsafeCell::new(HashMap::new()),
+		}
 	}
 }
 
@@ -80,22 +133,16 @@ impl ClassLoader {
 		packages.get(&name)
 	}
 
-	pub fn insert_module(&self, _guard: &ModuleLockGuard, module: Module) -> Arc<Module> {
-		let Some(module_name) = module.name() else {
+	pub fn insert_module(&self, _guard: &ModuleLockGuard, module: Module) -> &'static Module {
+		if module.name().is_none() {
 			panic!("Attempted to insert an unnamed module using `insert_module`")
 		};
 
-		let modules = unsafe { &mut *self.modules.get() };
-		Arc::clone(
-			modules
-				.entry(module_name)
-				.or_insert_with(|| Arc::new(module)),
-		)
+		self.modules.add(_guard, module)
 	}
 
-	pub fn lookup_module(&self, _guard: &ModuleLockGuard, name: Symbol) -> Option<Arc<Module>> {
-		let modules = unsafe { &*self.modules.get() };
-		modules.get(&name).map(Arc::clone)
+	pub fn lookup_module(&self, _guard: &ModuleLockGuard, name: Symbol) -> Option<&'static Module> {
+		self.modules.find(_guard, name)
 	}
 }
 
@@ -103,17 +150,19 @@ impl ClassLoader {
 impl ClassLoader {
 	pub fn bootstrap() -> &'static Self {
 		static BOOTSTRAP_LOADER: LazyLock<SyncUnsafeCell<ClassLoader>> = LazyLock::new(|| {
+			let name_sym = Symbol::intern("bootstrap");
+
 			let loader = ClassLoader {
-				flags: ClassLoaderFlags { is_bootstrap: true },
 				obj: Reference::null(),
 
-				name: Symbol::intern("bootstrap"),
+				name: Some(name_sym),
+				name_and_id: name_sym,
 
 				unnamed_module: SyncUnsafeCell::new(None),
 				classes: Mutex::new(HashMap::new()),
 
 				java_base: SyncUnsafeCell::new(None),
-				modules: SyncUnsafeCell::new(HashMap::new()),
+				modules: ModuleSet::new(),
 				packages: SyncUnsafeCell::new(HashMap::new()),
 			};
 
@@ -123,12 +172,9 @@ impl ClassLoader {
 		unsafe { &*BOOTSTRAP_LOADER.get() }
 	}
 
-	pub fn java_base(&self) -> Arc<Module> {
+	pub fn java_base(&self) -> &'static Module {
 		assert!(self.is_bootstrap());
-		unsafe { &*self.java_base.get() }
-			.as_ref()
-			.map(Arc::clone)
-			.expect("java.base should be set")
+		unsafe { &*self.java_base.get() }.expect("java.base should be set")
 	}
 
 	pub fn set_java_base(&self, java_base: Module) {
@@ -138,11 +184,11 @@ impl ClassLoader {
 			"java.base cannot be set more than once"
 		);
 
-		unsafe { *ptr = Some(Arc::new(java_base)) }
+		unsafe { *ptr = Some(Box::leak(Box::new(java_base))) }
 	}
 
 	pub fn is_bootstrap(&self) -> bool {
-		self.flags.is_bootstrap
+		self.obj.is_null()
 	}
 
 	/// Stores a copy of the `jdk.internal.loader.BootLoader#UNNAMED_MODULE` field
@@ -159,7 +205,7 @@ impl ClassLoader {
 		);
 
 		unsafe {
-			*ptr = Some(Arc::new(entry));
+			*ptr = Some(Box::leak(Box::new(entry)));
 		}
 	}
 }
@@ -170,17 +216,27 @@ impl ClassLoader {
 		loaded_classes.get(&name).map(|&class| class)
 	}
 
-	pub fn unnamed_module(&self) -> Arc<Module> {
-		unsafe { &*self.unnamed_module.get() }
-			.as_ref()
-			.map(Arc::clone)
-			.expect("unnamed module should be set")
+	pub fn unnamed_module(&self) -> &'static Module {
+		unsafe { &*self.unnamed_module.get() }.expect("unnamed module should be set")
 	}
 }
 
 impl ClassLoader {
-	pub fn name(&self) -> Symbol {
+	/// Get the `name` field of the `ClassLoader`, if it has been set
+	pub fn name(&self) -> Option<Symbol> {
 		self.name
+	}
+
+	/// Get the `nameAndId` field of the `ClassLoader`
+	///
+	/// Unlike [`name`], this field is always available.
+	///
+	/// The format is:
+	/// * The loader has a name defined: `'<loader-name>' @<id>`
+	/// * The loader has no name defined: `<qualified-class-name> @<id>`
+	/// * The loader is built-in: `@<id>` is omitted, as there is only one instance
+	pub fn name_and_id(&self) -> Symbol {
+		self.name_and_id
 	}
 
 	pub fn obj(&self) -> Reference {
@@ -188,7 +244,7 @@ impl ClassLoader {
 	}
 
 	pub fn load(&'static self, name: Symbol) -> Option<&'static Class> {
-		if self.flags.is_bootstrap {
+		if self.is_bootstrap() {
 			return self.load_bootstrap(name);
 		}
 

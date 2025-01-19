@@ -26,19 +26,19 @@ fn get_fd(this: &Reference) -> jint {
 }
 
 // throws FileNotFoundException
-pub fn open0(_: NonNull<JniEnv>, _this: Reference, _name: Reference /* java.lang.String */) {
+pub fn open0(_: JniEnv, _this: Reference, _name: Reference /* java.lang.String */) {
 	unimplemented!("java.io.FileOutputStream#open0");
 }
 
 // throws IOException
-pub fn write(_: NonNull<JniEnv>, _this: Reference, _b: jint, _append: jboolean) {
+pub fn write(_: JniEnv, _this: Reference, _b: jint, _append: jboolean) {
 	unimplemented!("java.io.FileOutputStream#write");
 }
 
 // throws IOException
 #[allow(trivial_numeric_casts)]
 pub fn writeBytes(
-	env: NonNull<JniEnv>,
+	env: JniEnv,
 	this: Reference,
 	b: Reference, // byte[]
 	off: jint,
@@ -46,14 +46,14 @@ pub fn writeBytes(
 	_append: jboolean,
 ) {
 	if b.is_null() {
-		let _thread = unsafe { JavaThread::for_env(env.as_ptr()) };
+		let _thread = unsafe { JavaThread::for_env(env.raw()) };
 		panic!("NullPointerException"); // TODO
 	}
 
 	let array_instance = b.extract_array();
 	let array_content = array_instance.get().get_content().expect_byte();
 	if off < 0 || len < 0 || (off + len) as usize > array_content.len() {
-		let _thread = unsafe { JavaThread::for_env(env.as_ptr()) };
+		let _thread = unsafe { JavaThread::for_env(env.raw()) };
 		panic!("IndexOutOfBoundsException"); // TODO
 	}
 
@@ -73,7 +73,7 @@ pub fn writeBytes(
 	while len > 0 {
 		let current_fd = get_fd(&this);
 		if current_fd == -1 {
-			let _thread = unsafe { JavaThread::for_env(env.as_ptr()) };
+			let _thread = unsafe { JavaThread::for_env(env.raw()) };
 			panic!("IOException, stream closed"); // TODO
 		}
 
@@ -82,7 +82,7 @@ pub fn writeBytes(
 			ManuallyDrop::new(unsafe { std::fs::File::from_raw_fd(current_fd as RawFd) });
 
 		let Ok(n) = file.write(&window[offset..]) else {
-			let _thread = unsafe { JavaThread::for_env(env.as_ptr()) };
+			let _thread = unsafe { JavaThread::for_env(env.raw()) };
 			panic!("IOException"); // TODO
 		};
 
@@ -92,7 +92,7 @@ pub fn writeBytes(
 	}
 }
 
-pub fn initIDs(_: NonNull<JniEnv>, class: &'static Class) {
+pub fn initIDs(_: JniEnv, class: &'static Class) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE
 		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)

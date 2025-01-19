@@ -7,9 +7,10 @@ use super::field::Field;
 use super::method::Method;
 use super::mirror::MirrorInstance;
 use super::vtable::VTable;
-use crate::classpath::classloader::ClassLoader;
+use crate::classpath::loader::ClassLoader;
 use crate::error::RuntimeError;
 use crate::globals::PRIMITIVES;
+use crate::modules::{Module, Package};
 use crate::objects::constant_pool::cp_types;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
 use crate::thread::JavaThread;
@@ -19,8 +20,8 @@ use std::fmt::{Debug, Formatter};
 use std::mem::MaybeUninit;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
+use std::{mem, ptr};
 
-use crate::modules::{Module, Package};
 use classfile::accessflags::ClassAccessFlags;
 use classfile::{ClassFile, FieldType, MethodInfo};
 use common::box_slice;
@@ -38,8 +39,8 @@ struct MiscCache {
 }
 
 struct FieldContainer {
-	/// A list of all fields, including static
-	fields: UnsafeCell<Box<[&'static Field]>>,
+	/// A list of all fields, including static. Only ever uninit during field injection.
+	fields: UnsafeCell<MaybeUninit<Box<[&'static Field]>>>,
 	/// All static field slots
 	///
 	/// This needs to be scaled to the `fields` field, in that index 0 of this array relates
@@ -55,7 +56,7 @@ impl FieldContainer {
 	/// Used as the field container for arrays, as they have no instance fields.
 	fn null() -> Self {
 		Self {
-			fields: UnsafeCell::new(box_slice![]),
+			fields: UnsafeCell::new(MaybeUninit::new(box_slice![])),
 			static_field_slots: box_slice![],
 			instance_field_count: UnsafeCell::new(0),
 		}
@@ -63,21 +64,24 @@ impl FieldContainer {
 
 	fn new(static_field_slots: Box<[UnsafeCell<Operand<Reference>>]>) -> Self {
 		Self {
-			fields: UnsafeCell::new(box_slice![]),
+			fields: UnsafeCell::new(MaybeUninit::new(box_slice![])),
 			static_field_slots,
 			instance_field_count: UnsafeCell::new(0),
 		}
 	}
 
 	fn fields(&self) -> impl Iterator<Item = &'static Field> {
-		let fields = unsafe { &*self.fields.get() };
+		let fields = unsafe { (&*self.fields.get()).assume_init_ref() };
 		fields.iter().copied()
 	}
 
 	// This is only ever used in class loading
 	fn set_fields(&self, new: Vec<&'static Field>) {
 		let fields = self.fields.get();
-		let old = core::mem::replace(unsafe { &mut *fields }, new.into_boxed_slice());
+		let old = mem::replace(
+			unsafe { &mut *fields },
+			MaybeUninit::new(new.into_boxed_slice()),
+		);
 		drop(old);
 	}
 
@@ -86,7 +90,7 @@ impl FieldContainer {
 	/// See [`Class::set_static_field`]
 	unsafe fn set_static_field(&self, index: usize, value: Operand<Reference>) {
 		let field = &self.static_field_slots[index];
-		let old = core::mem::replace(unsafe { &mut *field.get() }, value);
+		let old = mem::replace(unsafe { &mut *field.get() }, value);
 		drop(old);
 	}
 
@@ -105,7 +109,7 @@ impl FieldContainer {
 		unsafe { *self.instance_field_count.get() }
 	}
 
-	// This is only ever used in class loading
+	// This is only ever used in class loading and field injection
 	fn set_instance_field_count(&self, value: u4) {
 		unsafe {
 			*self.instance_field_count.get() = value;
@@ -337,7 +341,7 @@ impl Class {
 		package
 	}
 
-	pub fn module(&self) -> Arc<Module> {
+	pub fn module(&self) -> &'static Module {
 		let bootstrap_loader = ClassLoader::bootstrap();
 		if !bootstrap_loader.java_base().has_obj() {
 			// Assume we are early in VM initialization, where `java.base` isn't a real module yet.
@@ -448,6 +452,53 @@ impl Class {
 		unsafe {
 			self.field_container.set_static_field(index, value);
 		}
+	}
+
+	/// Inject a set of fields into this class
+	///
+	/// This can only ever be called once, and is **NEVER** to be used outside of initialization.
+	///
+	/// This allows us to store extra information in objects as necessary, such as a [`Module`] pointer
+	/// in a `java.lang.Module` object.
+	pub unsafe fn inject_fields(
+		&self,
+		fields: impl IntoIterator<Item = &'static Field>,
+		field_count: usize,
+	) {
+		assert!(field_count > 0, "field injection requires at least 1 field");
+
+		let old_fields_ptr = self.field_container.fields.get();
+		let old_fields = unsafe {
+			let old_fields = ptr::replace(old_fields_ptr, MaybeUninit::uninit());
+			old_fields.assume_init()
+		};
+
+		let max_instance_index =
+			old_fields
+				.iter()
+				.fold(0, |a, b| if b.is_static() { a } else { a.max(b.index()) });
+
+		let expected_len = old_fields.len() + field_count;
+		let mut new_fields = Vec::with_capacity(expected_len);
+		new_fields.extend(old_fields);
+
+		for (idx, field) in fields.into_iter().enumerate() {
+			assert!(!field.is_static());
+			field.set_index(max_instance_index + idx + 1);
+			new_fields.push(field);
+		}
+
+		assert_eq!(new_fields.len(), expected_len);
+
+		let new_fields = MaybeUninit::new(new_fields.into_boxed_slice());
+		unsafe {
+			ptr::write(old_fields_ptr, new_fields);
+		}
+
+		// + 1 as `max_instance_index` is the index of the *last* instance field, not of the first
+		// field we inject.
+		self.field_container
+			.set_instance_field_count((max_instance_index + 1 + field_count) as u32);
 	}
 }
 

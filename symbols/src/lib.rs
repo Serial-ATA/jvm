@@ -138,6 +138,8 @@ macro_rules! sym {
 // NOTE: **ONLY ADD MANUAL ENTRIES ABOVE THE MARKER COMMENTS**
 //       Other generators may inject into this macro, take note of the marker comments below
 vm_symbols::define_symbols! {
+	EMPTY: "",
+
 	// Classes
 
 	// Primitive
@@ -264,4 +266,10 @@ vm_symbols::define_symbols! {
 	methodName: "methodName",
 	fileName: "fileName",
 	lineNumber: "lineNumber",
+	unnamedModule: "unnamedModule",
+	nameAndId: "nameAndId",
+
+	// Injected fields
+	loader_ptr,
+	module_ptr,
 }

@@ -1,11 +1,12 @@
 use super::class::Class;
 use super::instance::{CloneableInstance, Header};
 use super::reference::{ArrayInstanceRef, Reference};
-use crate::classpath::classloader::ClassLoader;
+use crate::classpath::loader::ClassLoader;
 
 use std::fmt::{Debug, Formatter};
 use std::ptr::NonNull;
 
+use crate::thread::exceptions::Throws;
 use common::box_slice;
 use common::int_types::{s1, s2, s4, s8, u1, u2};
 use common::traits::PtrType;
@@ -82,6 +83,62 @@ impl ArrayInstance {
 			class: array_class,
 			elements: ArrayContent::Reference(elements),
 		})
+	}
+
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.multianewarray
+	pub fn new_multidimensional(
+		counts: impl IntoIterator<Item = s4>,
+		array_class: &'static Class,
+	) -> Throws<ArrayInstanceRef> {
+		fn inner(
+			parent: &mut ArrayInstance,
+			parent_count: s4,
+			counts: &mut impl Iterator<Item = s4>,
+			array_class: &'static Class,
+		) -> Throws<()> {
+			let Some(count) = counts.next() else {
+				return Throws::Ok(());
+			};
+
+			let component_name = array_class.array_component_name();
+			let component_class = array_class
+				.loader()
+				.load(component_name)
+				.expect("component classes must exist");
+			for i in 0..parent_count {
+				let instance = ArrayInstance::new_reference(count, array_class);
+				inner(instance.get_mut(), parent_count, counts, component_class)?;
+				parent.store(i, Operand::Reference(Reference::array(instance)));
+			}
+
+			Throws::Ok(())
+		}
+
+		assert!(
+			array_class.is_array(),
+			"multi-dimensional arrays must have array component types"
+		);
+
+		let mut counts = counts.into_iter();
+
+		let initial_count = counts
+			.next()
+			.expect("multi-dimensional arrays must have at least one element");
+		let initial_instance = Self::new_reference(initial_count, array_class);
+
+		let component_name = array_class.array_component_name();
+		let component_class = array_class
+			.loader()
+			.load(component_name)
+			.expect("component classes must exist");
+		inner(
+			initial_instance.get_mut(),
+			initial_count,
+			&mut counts,
+			component_class,
+		)?;
+
+		Throws::Ok(initial_instance)
 	}
 
 	pub fn get(&self, index: s4) -> Operand<Reference> {

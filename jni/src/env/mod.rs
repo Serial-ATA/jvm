@@ -17,18 +17,21 @@ mod weak;
 /// Safer wrapper around `jni_sys::JNIEnv`
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub struct JniEnv(jni_sys::JNIEnv);
+pub struct JniEnv(*mut jni_sys::JNIEnv);
 
 impl JniEnv {
-	pub fn raw(&self) -> jni_sys::JNIEnv {
+	pub fn raw(&self) -> *mut jni_sys::JNIEnv {
 		self.0
 	}
 
-	pub unsafe fn from_raw(env: jni_sys::JNIEnv) -> Self {
+	pub unsafe fn from_raw(env: *mut jni_sys::JNIEnv) -> Self {
 		Self(env)
 	}
 
 	unsafe fn as_native_interface(&self) -> *const jni_sys::JNINativeInterface_ {
-		self.0 as _
+		assert!(!self.0.is_null());
+
+		// Assuming this was created using the safe APIs, the pointer will always be valid
+		unsafe { (*self.0) as _ }
 	}
 }

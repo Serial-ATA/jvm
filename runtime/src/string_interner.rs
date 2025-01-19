@@ -109,16 +109,6 @@ impl StringInterner {
 			_ => unreachable!(),
 		}
 	}
-
-	pub fn symbol_from_java_string(class: ClassInstanceRef) -> Symbol {
-		STRING_POOL
-			.read()
-			.unwrap()
-			.iter()
-			.find_map(|(symbol, instance)| (instance == &class).then(|| symbol))
-			.copied()
-			.unwrap()
-	}
 }
 
 fn str_is_latin1(string: &str) -> bool {

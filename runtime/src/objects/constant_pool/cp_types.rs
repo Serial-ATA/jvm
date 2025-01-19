@@ -225,7 +225,13 @@ impl EntryType for MethodRef {
 		let descriptor_entry = ConstantUtf8::resolve(class, cp, descriptor_index);
 		let descriptor = ConstantUtf8::resolved_entry(descriptor_entry);
 
-		let method_ref = ClassObj::resolve_method(class, is_interface, name, descriptor).unwrap();
+		let method_ref;
+		if is_interface {
+			method_ref = class.resolve_interface_method(name, descriptor).unwrap();
+		} else {
+			method_ref = class.resolve_method(name, descriptor).unwrap();
+		}
+
 		ResolvedEntry { method_ref }
 	}
 }

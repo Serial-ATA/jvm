@@ -33,29 +33,55 @@ impl Method {
 	}
 
 	/// Whether this method can override the provided instance method ([§5.4.3.3](https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.5))
+	#[allow(non_snake_case)]
 	pub fn can_override(&self, other: &Method) -> bool {
 		// An instance method mC can override another instance method mA iff all of the following are true:
 
-		// mC has the same name and descriptor as mA.
-		//
-		// mC is not marked ACC_PRIVATE.
-		//
-		// One of the following is true:
-		//
-		//     mA is marked ACC_PUBLIC.
-		//
-		//     mA is marked ACC_PROTECTED.
-		//
-		//     mA is marked neither ACC_PUBLIC nor ACC_PROTECTED nor ACC_PRIVATE, and either:
-		//
-		//         (a) the declaration of mA appears in the same run-time package as the declaration of mC, or
-		//         (b) if mA is declared in a class A and mC is declared in a class C, then there exists a method mB declared in a class B
-		//             such that C is a subclass of B and B is a subclass of A and mC can override mB and mB can override mA.
+		let mC = self;
+		let mA = other;
 
-		(self.name == other.name && self.descriptor == other.descriptor)
-			&& !self.is_private()
-			&& (other.is_public()
-				|| other.is_protected()
-				|| (!other.is_private() && other.class.shares_package_with(self.class)))
+		// mC has the same name and descriptor as mA.
+		if mC.name != mA.name || mC.descriptor != mA.descriptor {
+			return false;
+		}
+
+		// mC is not marked ACC_PRIVATE.
+		if mC.is_private() {
+			return false;
+		}
+
+		// One of the following is true:
+
+		//     mA is marked ACC_PUBLIC.
+		//     mA is marked ACC_PROTECTED.
+		if mA.is_public() || mA.is_protected() {
+			return true;
+		}
+
+		//     mA is marked neither ACC_PUBLIC nor ACC_PROTECTED nor ACC_PRIVATE, and either:
+		if !mA.is_private() {
+			//         (a) the declaration of mA appears in the same run-time package as the declaration of mC, or
+			if mA.class.shares_package_with(mC.class) {
+				return true;
+			}
+
+			//         (b) if mA is declared in a class A and mC is declared in a class C, then there exists a method mB declared in a class B
+			//             such that C is a subclass of B and B is a subclass of A and mC can override mB and mB can override mA.
+			let mA_class = mA.class;
+			let mC_class = mC.class;
+
+			for applicable_supers in mC_class
+				.parent_iter()
+				.find(|parent| parent.super_class == Some(mA_class))
+			{
+				for mB in applicable_supers.vtable() {
+					if mC.can_override(mB) && mB.can_override(mA) {
+						return true;
+					}
+				}
+			}
+		}
+
+		false
 	}
 }

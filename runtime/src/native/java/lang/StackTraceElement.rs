@@ -96,7 +96,7 @@ fn fill_in_stack_trace(stacktrace_element: ClassInstanceRef, method: &Method, pc
 }
 
 pub fn initStackTraceElements(
-	env: NonNull<JniEnv>,
+	env: JniEnv,
 	class: &'static Class,
 	elements: Reference, // java.lang.StackTraceElement[]
 	x: Reference,        // java.lang.Object
@@ -107,7 +107,7 @@ pub fn initStackTraceElements(
 	}
 
 	if x.is_null() || elements.is_null() {
-		let thread = unsafe { &*JavaThread::for_env(env.as_ptr()) };
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(thread, NullPointerException);
 	}
 
@@ -118,7 +118,7 @@ pub fn initStackTraceElements(
 	};
 
 	if stack_trace_elements.len() != depth as usize {
-		let thread = unsafe { &*JavaThread::for_env(env.as_ptr()) };
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(thread, IndexOutOfBoundsException);
 	}
 
@@ -147,7 +147,7 @@ pub fn initStackTraceElements(
 }
 
 pub fn initStackTraceElement(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	class: &'static Class,
 	_element: Reference, // java.lang.StackTraceElement
 	_sfi: Reference,     // java.lang.StackFrameInfo

@@ -28,7 +28,9 @@ where
 	T: AsRef<str>,
 {
 	fn from(value: T) -> Self {
-		let encoded = cesu8::to_java_cesu8(value.as_ref()).into_owned();
+		let mut encoded = cesu8::to_java_cesu8(value.as_ref()).into_owned();
+		encoded.push(b'\0');
+
 		JCesu8String {
 			inner: unsafe { CString::from_vec_with_nul_unchecked(encoded) },
 		}

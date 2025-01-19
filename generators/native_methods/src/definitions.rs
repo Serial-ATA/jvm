@@ -51,16 +51,15 @@ pub fn generate_definitions_for_class(def_path: &Path, class: &Class) {
 
 macro_rules! non_static_signature {
 	() => {
-		"\tpub fn _{}(env: std::ptr::NonNull<::jni::env::JniEnv>, locals: \
-		 crate::stack::local_stack::LocalStack) -> crate::native::method::NativeReturn {{"
+		"\tpub fn _{}(env: ::jni::env::JniEnv, locals: crate::stack::local_stack::LocalStack) -> \
+		 crate::native::method::NativeReturn {{"
 	};
 }
 
 macro_rules! static_signature {
 	() => {
-		"\tpub fn _{}(env: std::ptr::NonNull<::jni::env::JniEnv>, class: &'static \
-		 crate::objects::class::Class, locals: crate::stack::local_stack::LocalStack) -> \
-		 crate::native::method::NativeReturn {{"
+		"\tpub fn _{}(env: ::jni::env::JniEnv, class: &'static crate::objects::class::Class, \
+		 locals: crate::stack::local_stack::LocalStack) -> crate::native::method::NativeReturn {{"
 	};
 }
 

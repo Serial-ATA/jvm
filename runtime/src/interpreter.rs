@@ -1,6 +1,5 @@
 #![allow(unused_imports)] // Intellij-Rust doesn't like this file much, the imports used in macros are not recognized
 
-use crate::classpath::classloader::ClassLoader;
 use crate::method_invoker::MethodInvoker;
 use crate::objects::array::ArrayInstance;
 use crate::objects::class::{Class, ClassInitializationState};
@@ -18,6 +17,7 @@ use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
 use std::sync::Arc;
 
+use crate::thread::exceptions::handle_exception;
 use classfile::ConstantPoolValueInfo;
 use common::int_types::{s2, s4, s8, u2};
 use common::traits::PtrType;
@@ -704,6 +704,9 @@ impl Interpreter {
                 // ========= Extended =========
                 // TODO: wide, multianewarray, jsr_w
                 CATEGORY: extended
+                OpCode::multianewarray => {
+                    Self::multianewarray(frame);
+                },
                 OpCode::ifnull => {
                     let reference = frame.stack_mut().pop_reference();
                     
@@ -1006,4 +1009,21 @@ impl Interpreter {
 
         frame.thread().pc.store(opcode_address + offset, MemOrdering::Relaxed);
     }
+	
+	fn multianewarray(frame: &mut Frame) {
+		let index = frame.read_byte2();
+		let dimensions = frame.read_byte();
+		
+		assert!(dimensions >= 1);
+		
+        let constant_pool = frame.constant_pool();
+        let class = constant_pool.get::<cp_types::Class>(index);
+		
+		class.initialize(frame.thread());
+		
+		let counts = frame.stack_mut().popn(dimensions as usize);
+		
+        let array_ref = handle_exception!(frame.thread(), ArrayInstance::new_multidimensional(counts.into_iter().map(|op| op.expect_int()), class));
+        frame.stack_mut().push_reference(Reference::array(array_ref));
+	}
 }

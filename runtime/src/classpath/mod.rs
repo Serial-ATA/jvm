@@ -1,6 +1,6 @@
-pub mod classloader;
 pub mod jar;
 pub mod jimage;
+pub mod loader;
 
 use std::fs::File;
 use std::io::Read;

@@ -10,24 +10,24 @@ use common::traits::PtrType;
 
 include_generated!("native/java/lang/def/Object.definitions.rs");
 
-pub fn getClass(_: NonNull<JniEnv>, this: Reference /* java.lang.Object */) -> Reference /* java.lang.Class<?> */
+pub fn getClass(_: JniEnv, this: Reference /* java.lang.Object */) -> Reference /* java.lang.Class<?> */
 {
 	Reference::mirror(this.extract_class_mirror())
 }
 
-pub fn hashCode(env: NonNull<JniEnv>, this: Reference /* java.lang.Object */) -> jint {
+pub fn hashCode(env: JniEnv, this: Reference /* java.lang.Object */) -> jint {
 	// Hash already generated, nothing to do
 	if let Some(hash) = this.hash() {
 		return hash;
 	}
 
 	// We need to generate a hash, this will update the object for future calls
-	let thread = unsafe { &*JavaThread::for_env(env.as_ptr()) };
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 	this.generate_hash(thread)
 }
 
 // throws CloneNotSupportedException
-pub fn clone(_: NonNull<JniEnv>, this: Reference /* java.lang.Object */) -> Reference /* java.lang.Object */
+pub fn clone(_: JniEnv, this: Reference /* java.lang.Object */) -> Reference /* java.lang.Object */
 {
 	// An array is always cloneable
 	if this.is_array() {
@@ -48,16 +48,16 @@ pub fn clone(_: NonNull<JniEnv>, this: Reference /* java.lang.Object */) -> Refe
 	Reference::class(cloned)
 }
 
-pub fn notify(_: NonNull<JniEnv>, _this: Reference /* java.lang.Object */) {
+pub fn notify(_: JniEnv, _this: Reference /* java.lang.Object */) {
 	unimplemented!("Object#notify")
 }
 
-pub fn notifyAll(_: NonNull<JniEnv>, this: Reference /* java.lang.Object */) {
+pub fn notifyAll(_: JniEnv, this: Reference /* java.lang.Object */) {
 	this.notify_all();
 }
 
 pub fn wait0(
-	_: NonNull<JniEnv>,
+	_: JniEnv,
 	_this: Reference, // java.lang.Object
 	_timeout_millis: jlong,
 ) {

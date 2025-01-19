@@ -8,7 +8,7 @@ include_generated!("native/jdk/internal/misc/def/ScopedMemoryAccess.definitions.
 include_generated!("native/jdk/internal/misc/def/ScopedMemoryAccess.registerNatives.rs");
 
 pub fn closeScope0(
-	_env: NonNull<JniEnv>,
+	_env: JniEnv,
 	_this: Reference,    // jdk.internal.misc.ScopedMemoryAccess
 	_session: Reference, // jdk.internal.foreign.MemorySessionImpl
 	_error: Reference,   // jdk.internal.misc.ScopedMemoryAccess.ScopedAccessError

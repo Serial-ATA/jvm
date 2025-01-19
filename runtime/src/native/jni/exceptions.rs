@@ -1,3 +1,5 @@
+use crate::thread::JavaThread;
+
 use core::ffi::c_char;
 use jni::sys::{jboolean, jclass, jint, jthrowable, JNIEnv};
 
@@ -33,5 +35,8 @@ pub extern "system" fn FatalError(env: *mut JNIEnv, msg: *const c_char) -> ! {
 
 #[no_mangle]
 pub extern "system" fn ExceptionCheck(env: *mut JNIEnv) -> jboolean {
-	unimplemented!("jni::ExceptionCheck");
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	thread.has_pending_exception()
 }
