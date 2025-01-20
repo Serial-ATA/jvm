@@ -33,7 +33,7 @@ pub fn launch() -> Result<()> {
 		},
 	};
 
-	let (vm, env) = native::init_java_vm(args.options.system_properties.unwrap_or_default())?;
+	let (_vm, env) = native::init_java_vm(args.options.system_properties.unwrap_or_default())?;
 
 	// Load the main class
 	let main_class = env.find_class(main_class)?;

@@ -206,7 +206,7 @@ impl JImage {
 	fn verify_location(&self, location: &JImageLocation<'_>, path: &str) -> bool {
 		// Manage the image string table.
 		let strings = ImageStrings(self.index.string_bytes());
-	
+
 		// Get module name string.
 		let module =
 			location.get_attribute_string(crate::location::attr::ATTRIBUTE_MODULE as u4, strings);
