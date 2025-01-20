@@ -2,8 +2,6 @@ use crate::include_generated;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 
-use std::ptr::NonNull;
-
 use ::jni::env::JniEnv;
 use common::int_types::s8;
 

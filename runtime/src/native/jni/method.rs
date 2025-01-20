@@ -1,9 +1,19 @@
+use super::{classref_from_jclass, method_ref_from_jmethodid, reference_from_jobject, IntoJni};
+use crate::objects::method::Method;
+use crate::stack::local_stack::LocalStack;
+use crate::thread::JavaThread;
+
 use core::ffi::c_char;
+use std::ffi::CStr;
+
+use classfile::FieldType;
+use instructions::Operand;
+use jni::objects::JObject;
 use jni::sys::{
 	jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, jobject, jshort,
 	jvalue, va_list, JNIEnv,
 };
-
+use symbols::Symbol;
 // --------------
 //   NON-STATIC
 // --------------
@@ -657,7 +667,21 @@ pub unsafe extern "system" fn GetStaticMethodID(
 	name: *const c_char,
 	sig: *const c_char,
 ) -> jmethodID {
-	unimplemented!("jni::GetStaticMethodID")
+	let name = unsafe { CStr::from_ptr(name) };
+	let sig = unsafe { CStr::from_ptr(sig) };
+
+	let name = Symbol::intern_bytes(name.to_bytes());
+	let sig = Symbol::intern_bytes(sig.to_bytes());
+
+	let Some(class) = classref_from_jclass(clazz) else {
+		return core::ptr::null::<&'static Method>() as jmethodID;
+	};
+
+	let Some(method) = class.resolve_method(name, sig) else {
+		return core::ptr::null::<&'static Method>() as jmethodID;
+	};
+
+	method.into_jni()
 }
 
 #[no_mangle]
@@ -935,9 +959,9 @@ pub unsafe extern "C" fn CallStaticVoidMethod(
 	env: *mut JNIEnv,
 	cls: jclass,
 	methodID: jmethodID,
-	...
+	args: ...
 ) {
-	unimplemented!("jni::CallStaticVoidMethod");
+	unimplemented!("jni::CallStaticVoidMethod")
 }
 
 #[no_mangle]
@@ -957,5 +981,25 @@ pub unsafe extern "system" fn CallStaticVoidMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) {
-	unimplemented!("jni::CallStaticVoidMethodA")
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let class = unsafe { classref_from_jclass(cls) };
+	let Some(class) = class else {
+		return; // TODO: Exception?
+	};
+
+	let method = unsafe { method_ref_from_jmethodid(methodID) };
+	let Some(method) = method else {
+		return; // TODO: Exception?
+	};
+
+	let Some(parameters) = (unsafe { method.args_for_c_array(args) }) else {
+		return; // TODO: Exception?
+	};
+
+	thread.invoke_method_scoped(
+		method,
+		LocalStack::new_with_args(parameters, method.code.max_locals as usize),
+	);
 }

@@ -5,7 +5,6 @@ use crate::objects::reference::Reference;
 use crate::thread::frame::stack::VisibleStackFrame;
 use crate::thread::JavaThread;
 
-use std::ptr::NonNull;
 use std::sync::atomic::Ordering;
 use std::sync::Once;
 

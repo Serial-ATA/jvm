@@ -166,7 +166,7 @@ impl super::JniEnv {
 
 		unsafe {
 			let invoke_interface = self.as_native_interface();
-			((*invoke_interface).CallStaticVoidMethod)(
+			((*invoke_interface).CallStaticVoidMethodA)(
 				self.0 as _,
 				class.raw(),
 				method_id.raw(),

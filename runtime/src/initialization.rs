@@ -12,7 +12,7 @@ use common::int_types::s4;
 use instructions::Operand;
 use jni::error::JniError;
 use jni::java_vm::JavaVm;
-use jni::sys::{JavaVM, JavaVMInitArgs, JNI_ERR, JNI_OK};
+use jni::sys::{JavaVMInitArgs, JNI_OK};
 use symbols::sym;
 
 pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> Result<JavaVm, JniError> {

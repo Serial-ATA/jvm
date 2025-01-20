@@ -98,7 +98,7 @@ pub fn lookup_method_opt(method: &Method) -> Option<NativeMethodPtr> {
 	let native_method = NativeMethodDef {
 		class: method.class().name,
 		name: method.name,
-		descriptor: method.descriptor,
+		descriptor: method.descriptor_sym,
 		is_static: method.is_static(),
 	};
 

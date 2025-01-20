@@ -38,15 +38,12 @@ impl<T> Deref for IsSend<T> {
 pub fn invoke_main_method(env: JniEnv, main_class: JClass, args: Vec<String>) -> Result<()> {
 	let env = IsSend(env);
 	let main_class = IsSend(main_class);
-	let main_thread = std::thread::spawn(move || -> Result<()> {
-		let method_id = env.get_static_method_id(*main_class, "main", MAIN_METHOD_SIGNATURE)?;
-		let args = args_as_jstring_array(*env, args)?;
 
-		env.call_static_void_method(*main_class, method_id, [args])?;
-		Ok(())
-	});
+	let method_id = env.get_static_method_id(*main_class, "main", MAIN_METHOD_SIGNATURE)?;
+	let args = args_as_jstring_array(*env, args)?;
 
-	main_thread.join().unwrap()?;
+	env.call_static_void_method(*main_class, method_id, [args])?;
+
 	Ok(())
 }
 

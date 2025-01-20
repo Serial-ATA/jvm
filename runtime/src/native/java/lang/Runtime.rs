@@ -1,7 +1,5 @@
 use crate::objects::reference::Reference;
 
-use std::ptr::NonNull;
-
 use ::jni::env::JniEnv;
 use common::int_types::{s4, s8};
 

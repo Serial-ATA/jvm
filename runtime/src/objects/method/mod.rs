@@ -3,13 +3,18 @@ pub mod spec;
 use crate::native::method::NativeMethodPtr;
 use crate::objects::class::Class;
 use crate::objects::constant_pool::cp_types;
+use std::ffi::VaList;
 
 use std::fmt::{Debug, Formatter};
 use std::sync::RwLock;
 
+use crate::native::jni::reference_from_jobject;
+use crate::objects::reference::Reference;
 use classfile::accessflags::MethodAccessFlags;
-use classfile::{Code, LineNumber, MethodDescriptor, MethodInfo, ResolvedAnnotation};
+use classfile::{Code, FieldType, LineNumber, MethodDescriptor, MethodInfo, ResolvedAnnotation};
 use common::int_types::{s4, u1};
+use instructions::Operand;
+use jni::sys::{jdouble, jint, jlong, jobject, jvalue};
 use symbols::Symbol;
 
 #[derive(Default, PartialEq, Eq, Debug)]
@@ -42,7 +47,8 @@ pub struct Method {
 	pub access_flags: MethodAccessFlags,
 	extra_flags: ExtraFlags,
 	pub name: Symbol,
-	pub descriptor: Symbol,
+	pub descriptor_sym: Symbol,
+	pub descriptor: MethodDescriptor,
 	pub parameter_count: u1,
 	pub line_number_table: Vec<LineNumber>,
 	pub code: Code,
@@ -55,7 +61,7 @@ impl PartialEq for Method {
 			&& self.access_flags == other.access_flags
 			&& self.extra_flags == other.extra_flags
 			&& self.name == other.name
-			&& self.descriptor == other.descriptor
+			&& self.descriptor_sym == other.descriptor_sym
 			&& self.parameter_count == other.parameter_count
 			&& self.line_number_table == other.line_number_table
 			&& self.code == other.code
@@ -92,14 +98,11 @@ impl Method {
 		let name = constant_pool.get::<cp_types::ConstantUtf8>(name_index);
 
 		let descriptor_index = method_info.descriptor_index;
-		let descriptor = constant_pool.get::<cp_types::ConstantUtf8>(descriptor_index);
+		let descriptor_sym = constant_pool.get::<cp_types::ConstantUtf8>(descriptor_index);
 
-		let parameter_count: u1 = MethodDescriptor::parse(&mut descriptor.as_bytes())
-			.unwrap() // TODO: Error handling
-			.parameters
-			.len()
-			.try_into()
-			.unwrap();
+		let descriptor = MethodDescriptor::parse(&mut descriptor_sym.as_bytes()).unwrap(); // TODO: Error handling
+
+		let parameter_count: u1 = descriptor.parameters.len().try_into().unwrap();
 
 		let line_number_table = method_info
 			.get_line_number_table_attribute()
@@ -111,6 +114,7 @@ impl Method {
 			access_flags,
 			extra_flags,
 			name,
+			descriptor_sym,
 			descriptor,
 			parameter_count,
 			line_number_table,
@@ -228,5 +232,106 @@ impl Method {
 		}
 
 		false
+	}
+}
+
+// JNI stuff
+impl Method {
+	pub unsafe fn args_for_c_array(
+		&self,
+		mut args: *const jvalue,
+	) -> Option<Vec<Operand<Reference>>> {
+		let mut parameters = Vec::with_capacity(self.parameter_count as usize);
+
+		for parameter in &self.descriptor.parameters {
+			let val = unsafe { *args };
+
+			match parameter {
+				FieldType::Byte => {
+					let val = unsafe { val.b };
+					parameters.push(Operand::from(val))
+				},
+				FieldType::Char => {
+					let val = unsafe { val.c };
+					parameters.push(Operand::from(val))
+				},
+				FieldType::Short => {
+					let val = unsafe { val.s };
+					parameters.push(Operand::from(val))
+				},
+				FieldType::Int => {
+					let val = unsafe { val.i };
+					parameters.push(Operand::from(val))
+				},
+
+				FieldType::Boolean => {
+					let val = unsafe { val.z };
+					parameters.push(Operand::from(val));
+				},
+
+				FieldType::Long => {
+					let val = unsafe { val.j };
+					parameters.push(Operand::from(val));
+				},
+				FieldType::Double => {
+					let val = unsafe { val.d };
+					parameters.push(Operand::from(val))
+				},
+				FieldType::Float => {
+					let val = unsafe { val.f };
+					parameters.push(Operand::from(val))
+				},
+
+				FieldType::Object(_) | FieldType::Array(_) => {
+					let val = unsafe { val.l };
+					let obj = unsafe { reference_from_jobject(val) };
+					let Some(obj) = obj else {
+						return None;
+					};
+
+					parameters.push(Operand::Reference(obj))
+				},
+
+				FieldType::Void => unreachable!(),
+			}
+
+			unsafe {
+				args = args.add(1);
+			}
+		}
+
+		Some(parameters)
+	}
+
+	pub unsafe fn args_for_va_list(&self, mut args: VaList) -> Option<Vec<Operand<Reference>>> {
+		let mut parameters = Vec::with_capacity(self.parameter_count as usize);
+		for parameter in &self.descriptor.parameters {
+			match parameter {
+				FieldType::Byte | FieldType::Char | FieldType::Short | FieldType::Int => {
+					parameters.push(Operand::from(args.arg::<jint>()))
+				},
+
+				FieldType::Boolean => parameters.push(Operand::from(args.arg::<jint>() != 0)),
+
+				FieldType::Long => parameters.push(Operand::from(args.arg::<jlong>())),
+				FieldType::Double => parameters.push(Operand::from(args.arg::<jdouble>())),
+				FieldType::Float => todo!("float parameter"),
+
+				FieldType::Object(_) | FieldType::Array(_) => {
+					// TODO: Is this correct?
+					let obj_raw = args.arg::<*mut ()>();
+					let obj = unsafe { reference_from_jobject(obj_raw as jobject) };
+					let Some(obj) = obj else {
+						return None;
+					};
+
+					parameters.push(Operand::Reference(obj))
+				},
+
+				FieldType::Void => unreachable!(),
+			}
+		}
+
+		Some(parameters)
 	}
 }

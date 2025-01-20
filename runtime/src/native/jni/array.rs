@@ -1,4 +1,13 @@
+use super::{classref_from_jclass, reference_from_jobject, IntoJni};
+use crate::objects::array::ArrayInstance;
+use crate::objects::reference::Reference;
+
 use core::ffi::c_void;
+use std::ptr;
+
+use common::int_types::s4;
+use common::traits::PtrType;
+use instructions::Operand;
 use jni::sys::{
 	jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jclass, jdouble,
 	jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, jobject, jobjectArray,
@@ -17,7 +26,16 @@ pub extern "system" fn NewObjectArray(
 	clazz: jclass,
 	init: jobject,
 ) -> jobjectArray {
-	unimplemented!("jni::NewObjectArray")
+	let class = unsafe { classref_from_jclass(clazz) };
+	let Some(class) = class else {
+		return ptr::null_mut() as jobjectArray;
+	};
+
+	if init.is_null() {
+		return Reference::array(ArrayInstance::new_reference(len as s4, class)).into_jni();
+	}
+
+	unimplemented!("jni::NewObjectArray with non-null init")
 }
 
 #[no_mangle]
@@ -36,7 +54,20 @@ pub extern "system" fn SetObjectArrayElement(
 	index: jsize,
 	val: jobject,
 ) {
-	unimplemented!("jni::SetObjectArrayElement")
+	let array = unsafe { reference_from_jobject(array as jobject) };
+	let Some(array) = array else {
+		return; // TODO: NPE?
+	};
+
+	let array = array.extract_array();
+
+	let val = unsafe { reference_from_jobject(val) };
+	let Some(val) = val else {
+		return; // TODO: ArrayStoreException?
+	};
+
+	let instance = array.get_mut();
+	instance.store(index as s4, Operand::Reference(val));
 }
 
 #[no_mangle]

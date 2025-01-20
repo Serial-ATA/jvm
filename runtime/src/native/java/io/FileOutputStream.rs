@@ -8,7 +8,6 @@ use crate::thread::JavaThread;
 use std::io::Write;
 use std::mem::ManuallyDrop;
 use std::os::fd::{FromRawFd, RawFd};
-use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;

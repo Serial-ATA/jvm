@@ -6,7 +6,6 @@ use crate::thread::pool::ThreadPool;
 use crate::thread::{java_lang_Thread, JavaThread, JavaThreadBuilder};
 
 use std::cmp;
-use std::ptr::NonNull;
 use std::sync::atomic::AtomicUsize;
 
 use ::jni::env::JniEnv;

@@ -7,7 +7,6 @@ use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
 use crate::thread::JavaThread;
 
-use std::ptr::NonNull;
 use std::sync::Arc;
 
 use ::jni::env::JniEnv;

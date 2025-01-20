@@ -1,8 +1,6 @@
 use crate::include_generated;
 use crate::objects::class::Class;
 
-use std::ptr::NonNull;
-
 use ::jni::env::JniEnv;
 use common::int_types::s4;
 

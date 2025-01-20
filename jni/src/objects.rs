@@ -1,4 +1,5 @@
 use jni_sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort, jvalue};
+use std::fmt::{Debug, Formatter};
 
 #[derive(Copy, Clone)]
 pub enum JValue {
@@ -11,6 +12,22 @@ pub enum JValue {
 	Float(jfloat),
 	Double(jdouble),
 	Object(jobject),
+}
+
+impl Debug for JValue {
+	fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+		match self {
+			JValue::Boolean(v) => v.fmt(f),
+			JValue::Byte(v) => v.fmt(f),
+			JValue::Char(v) => v.fmt(f),
+			JValue::Short(v) => v.fmt(f),
+			JValue::Int(v) => v.fmt(f),
+			JValue::Long(v) => v.fmt(f),
+			JValue::Float(v) => v.fmt(f),
+			JValue::Double(v) => v.fmt(f),
+			JValue::Object(v) => v.fmt(f),
+		}
+	}
 }
 
 impl JValue {

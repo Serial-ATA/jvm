@@ -2,8 +2,6 @@ use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 
-use std::ptr::NonNull;
-
 use jni::env::JniEnv;
 use jni::sys::jboolean;
 

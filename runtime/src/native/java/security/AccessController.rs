@@ -1,8 +1,6 @@
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 
-use std::ptr::NonNull;
-
 use jni::env::JniEnv;
 
 include_generated!("native/java/security/def/AccessController.definitions.rs");

@@ -1,3 +1,4 @@
+#![allow(warnings)]
 #![feature(c_variadic)]
 #![feature(box_into_inner)]
 #![feature(thread_local)]

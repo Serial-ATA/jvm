@@ -179,6 +179,7 @@ vm_symbols::define_symbols! {
 	java_lang_IllegalStateException: "java/lang/IllegalStateException",
 	java_lang_IndexOutOfBoundsException: "java/lang/IndexOutOfBoundsException",
 	java_lang_IllegalThreadStateException: "java/lang/IllegalThreadStateException",
+	java_lang_NoClassDefFoundError: "java/lang/NoClassDefFoundError",
 	java_lang_InternalError: "java/lang/InternalError",
 	// -- GENERATED CLASS NAME MARKER, DO NOT DELETE --
 

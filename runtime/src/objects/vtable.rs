@@ -71,7 +71,7 @@ impl<'a> VTable<'a> {
 	) -> bool {
 		method.name == name
 			&& (flags == MethodAccessFlags::NONE || method.access_flags & flags == flags)
-			&& method.descriptor == descriptor
+			&& method.descriptor_sym == descriptor
 	}
 
 	/// Get an iterator over all the `VTable` methods

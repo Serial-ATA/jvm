@@ -3,7 +3,6 @@
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 
-use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;

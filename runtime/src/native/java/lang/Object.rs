@@ -2,8 +2,6 @@ use crate::objects::instance::CloneableInstance;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
-use std::ptr::NonNull;
-
 use ::jni::env::JniEnv;
 use ::jni::sys::{jint, jlong};
 use common::traits::PtrType;

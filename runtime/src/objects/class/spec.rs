@@ -224,7 +224,7 @@ impl Class {
 		let searched_method = self
 			.vtable()
 			.iter()
-			.find(|method| method.name == method_name && method.descriptor == descriptor);
+			.find(|method| method.name == method_name && method.descriptor_sym == descriptor);
 		if let Some(method) = searched_method {
 			return Some(method);
 		}
@@ -256,7 +256,7 @@ impl Class {
 
 		// 2. Otherwise, if C declares a method with the name and descriptor specified by the interface method reference, method lookup succeeds.
 		for method in self.vtable() {
-			if method.name == method_name && method.descriptor == descriptor {
+			if method.name == method_name && method.descriptor_sym == descriptor {
 				return Some(method);
 			}
 		}
@@ -266,7 +266,7 @@ impl Class {
 		let object_class = crate::globals::classes::java_lang_Object();
 		for method in object_class.vtable() {
 			if method.name == method_name
-				&& method.descriptor == descriptor
+				&& method.descriptor_sym == descriptor
 				&& method.is_public()
 				&& !method.is_static()
 			{
@@ -606,7 +606,7 @@ impl Class {
 		//    Otherwise, the maximally-specific superinterface methods of C are determined (§5.4.3.3). If exactly one matches mR's name
 		//    and descriptor and is not abstract, then it is the selected method.
 		if let Some(superinterface_method) =
-			self.resolve_method_in_superinterfaces(mR.name, mR.descriptor, true)
+			self.resolve_method_in_superinterfaces(mR.name, mR.descriptor_sym, true)
 		{
 			return superinterface_method;
 		}

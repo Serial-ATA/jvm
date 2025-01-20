@@ -1,6 +1,7 @@
 use super::{classref_from_jclass, IntoJni};
 use crate::classpath::loader::ClassLoader;
 use crate::objects::class::Class;
+use crate::thread::exceptions::throw_with_ret;
 use crate::thread::JavaThread;
 
 use core::ffi::{c_char, CStr};
@@ -22,23 +23,26 @@ pub unsafe extern "system" fn DefineClass(
 
 #[no_mangle]
 pub unsafe extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -> jclass {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
 	let name = unsafe { CStr::from_ptr(name) };
 
 	// Initially assume the system loader
 	let mut loader = ClassLoader::bootstrap();
 
-	let thread = JavaThread::current();
 	let frame_stack = thread.frame_stack();
 	if let Some(current_frame) = frame_stack.current() {
 		// If we can find a caller frame, use its loader instead
 		loader = current_frame.method().class().loader();
 	}
 
-	if let Some(class) = loader.lookup_class(Symbol::intern_bytes(name.to_bytes())) {
+	if let Some(class) = loader.load(Symbol::intern_bytes(name.to_bytes())) {
 		return class.into_jni();
 	}
 
-	return core::ptr::null::<&'static Class>() as jclass;
+	let ret = core::ptr::null::<&'static Class>() as jclass;
+	throw_with_ret!(ret, thread, NoClassDefFoundError, name.to_string_lossy());
 }
 
 #[no_mangle]

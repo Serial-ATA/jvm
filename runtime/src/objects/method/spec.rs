@@ -17,7 +17,7 @@ impl Method {
 
 		//     It has a single formal parameter of type Object[].
 		let parsed_descriptor =
-			MethodDescriptor::parse(&mut &self.descriptor.as_str().as_bytes()[..]).unwrap(); // TODO: Error handling
+			MethodDescriptor::parse(&mut &self.descriptor_sym.as_str().as_bytes()[..]).unwrap(); // TODO: Error handling
 		match &*parsed_descriptor.parameters {
 			[FieldType::Array(arr_ty)] => match &**arr_ty {
 				FieldType::Object(ref obj) if &**obj == b"java/lang/Object" => {},
@@ -41,7 +41,7 @@ impl Method {
 		let mA = other;
 
 		// mC has the same name and descriptor as mA.
-		if mC.name != mA.name || mC.descriptor != mA.descriptor {
+		if mC.name != mA.name || mC.descriptor_sym != mA.descriptor_sym {
 			return false;
 		}
 
@@ -70,11 +70,11 @@ impl Method {
 			let mA_class = mA.class;
 			let mC_class = mC.class;
 
-			for applicable_supers in mC_class
+			if let Some(applicable_super) = mC_class
 				.parent_iter()
 				.find(|parent| parent.super_class == Some(mA_class))
 			{
-				for mB in applicable_supers.vtable() {
+				for mB in applicable_super.vtable() {
 					if mC.can_override(mB) && mB.can_override(mA) {
 						return true;
 					}

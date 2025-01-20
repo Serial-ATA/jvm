@@ -2,7 +2,6 @@ use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
-use std::ptr::NonNull;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ::jni::env::JniEnv;

@@ -69,6 +69,8 @@ pub enum ExceptionKind {
 	IndexOutOfBoundsException,
 	/// java.lang.IllegalThreadStateException
 	IllegalThreadStateException,
+	/// java.lang.NoClassDefFoundError
+	NoClassDefFoundError,
 
 	/// java.lang.InternalError
 	InternalError,
@@ -84,6 +86,7 @@ impl ExceptionKind {
 			ExceptionKind::IllegalThreadStateException => {
 				sym!(java_lang_IllegalThreadStateException)
 			},
+			ExceptionKind::NoClassDefFoundError => sym!(java_lang_NoClassDefFoundError),
 			ExceptionKind::InternalError => sym!(java_lang_InternalError),
 		};
 
@@ -160,9 +163,7 @@ impl Exception {
 // TODO: Document, maybe also have a second private macro to hide construction patterns
 macro_rules! throw {
 	($thread:ident, $($tt:tt)*) => {{
-		let __ex = throw!(@CONSTRUCT $($tt)*);
-		__ex.throw(&$thread);
-		return;
+		crate::thread::exceptions::throw_with_ret!((), $thread, $($tt)*);
 	}};
 	(@DEFER $($tt:tt)*) => {{
 		return crate::thread::exceptions::Throws::Exception(throw!(@CONSTRUCT $($tt)*));
@@ -184,6 +185,14 @@ macro_rules! throw {
 	}};
 }
 
+macro_rules! throw_with_ret {
+	($ret:expr, $thread:ident, $($tt:tt)*) => {
+		let __ex = crate::thread::exceptions::throw!(@CONSTRUCT $($tt)*);
+		__ex.throw(&$thread);
+		return $ret;
+	};
+}
+
 macro_rules! handle_exception {
 	($thread:expr, $throwsy_expr:expr) => {{
 		match $throwsy_expr {
@@ -196,7 +205,7 @@ macro_rules! handle_exception {
 	}};
 }
 
-pub(crate) use {handle_exception, throw};
+pub(crate) use {handle_exception, throw, throw_with_ret};
 
 /// See [`JavaThread::throw_exception`]
 #[must_use = "must know whether the exception was thrown"]

@@ -99,7 +99,17 @@ fn default_libjvm_path() -> PathBuf {
 
 #[cfg(not(debug_assertions))]
 fn default_libjvm_path() -> PathBuf {
-	todo!("Determine libjvm path")
+	let target = std::env::var("CARGO_TARGET_DIR").map_or_else(
+		|_| {
+			PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+				.parent()
+				.unwrap()
+				.join("target")
+		},
+		PathBuf::from,
+	);
+
+	target.join("release").join("libjvm_runtime.so")
 }
 
 /// A wrapper around a built [`jni_sys::JavaVM`]

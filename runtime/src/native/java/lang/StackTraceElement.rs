@@ -8,7 +8,6 @@ use crate::string_interner::StringInterner;
 use crate::thread::exceptions::throw;
 use crate::thread::JavaThread;
 
-use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;

@@ -114,7 +114,7 @@ impl<'a> NativeNameConverter<'a> {
 		// Start with the prefix
 		let mut name = String::from("__");
 
-		let descriptor = self.method.descriptor.as_str();
+		let descriptor = self.method.descriptor_sym.as_str();
 		let closing_paren_pos = descriptor
 			.chars()
 			.position(|b| b == ')')

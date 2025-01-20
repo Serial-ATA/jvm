@@ -1,7 +1,5 @@
 use crate::objects::reference::Reference;
 
-use std::ptr::NonNull;
-
 use ::jni::env::JniEnv;
 
 include_generated!("native/jdk/internal/misc/def/ScopedMemoryAccess.definitions.rs");

@@ -2,6 +2,7 @@
 
 //! Various offsets for fields of frequently accessed classes
 
+#[allow(dead_code)] // This is used in the `field_constructor!` macro
 const MAX_FIELD_COUNT: usize = 8;
 
 macro_rules! get_sym {
