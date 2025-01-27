@@ -2,9 +2,9 @@ use crate::include_generated;
 use crate::native::jni::{safe_classref_from_jclass, IntoJni};
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
-use crate::objects::mirror::MirrorInstance;
 use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
+use crate::thread::exceptions::throw_with_ret;
 use crate::thread::JavaThread;
 
 use std::sync::Arc;
@@ -43,8 +43,8 @@ pub fn isAssignableFrom(
 	cls: Reference,  // java.lang.Class
 ) -> jboolean {
 	if cls.is_null() {
-		let _thread = unsafe { JavaThread::for_env(env.raw()) };
-		panic!("NullPointerException"); // TODO
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		throw_with_ret!(false, thread, NullPointerException);
 	}
 
 	// For clarity
@@ -153,7 +153,7 @@ pub fn getPrimitiveClass(
 
 	for (name, ty) in crate::globals::TYPES {
 		if &name_string == name {
-			return Reference::mirror(MirrorInstance::new_primitive(ty.clone()));
+			return crate::globals::mirrors::primitive_mirror_for(ty);
 		}
 	}
 

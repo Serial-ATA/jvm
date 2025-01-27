@@ -1,5 +1,5 @@
+use crate::attribute::AttributeTag;
 use crate::parse::attributes::Location;
-use crate::AttributeTag;
 
 use std::error::Error;
 use std::fmt::{Display, Formatter};

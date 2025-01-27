@@ -164,6 +164,7 @@ vm_symbols::define_symbols! {
 	jdk_internal_misc_UnsafeConstants: "jdk/internal/misc/UnsafeConstants",
 	jdk_internal_reflect_MethodAccessorImpl: "jdk/internal/reflect/MethodAccessorImpl",
 	java_lang_invoke_MethodHandle: "java/lang/invoke/MethodHandle",
+	java_lang_invoke_MethodHandleNatives: "java/lang/invoke/MethodHandleNatives",
 	java_lang_invoke_VarHandle: "java/lang/invoke/VarHandle",
 	java_lang_Thread: "java/lang/Thread",
 	java_lang_ThreadGroup: "java/lang/ThreadGroup",
@@ -174,12 +175,25 @@ vm_symbols::define_symbols! {
 	// Throwables
 	java_lang_Throwable: "java/lang/Throwable",
 	java_lang_StackTraceElement: "java/lang/StackTraceElement",
+
+	java_lang_ClassFormatError: "java/lang/ClassFormatError",
+	java_lang_UnsupportedClassVersionError: "java/lang/UnsupportedClassVersionError",
+	java_lang_NoClassDefFoundError: "java/lang/NoClassDefFoundError",
+
+	java_lang_LinkageError: "java/lang/LinkageError",
+	java_lang_IncompatibleClassChangeError: "java/lang/IncompatibleClassChangeError",
+	java_lang_NoSuchFieldError: "java/lang/NoSuchFieldError",
+	java_lang_NoSuchMethodError: "java/lang/NoSuchMethodError",
+
+	java_lang_NegativeArraySizeException: "java/lang/NegativeArraySizeException",
+	java_lang_ArrayIndexOutOfBoundsException: "java/lang/ArrayIndexOutOfBoundsException",
+
 	java_lang_NullPointerException: "java/lang/NullPointerException",
+	java_lang_IllegalAccessError: "java/lang/IllegalAccessError",
 	java_lang_IllegalArgumentException: "java/lang/IllegalArgumentException",
 	java_lang_IllegalStateException: "java/lang/IllegalStateException",
 	java_lang_IndexOutOfBoundsException: "java/lang/IndexOutOfBoundsException",
 	java_lang_IllegalThreadStateException: "java/lang/IllegalThreadStateException",
-	java_lang_NoClassDefFoundError: "java/lang/NoClassDefFoundError",
 	java_lang_InternalError: "java/lang/InternalError",
 	// -- GENERATED CLASS NAME MARKER, DO NOT DELETE --
 
@@ -190,6 +204,8 @@ vm_symbols::define_symbols! {
 	ClassLoader_string_long_signature: "(Ljava/lang/ClassLoader;Ljava/lang/String;)J",
 	ThreadGroup_String_void_signature: "(Ljava/lang/ThreadGroup;Ljava/lang/String;)V",
 	ThreadGroup_Runnable_void_signature: "(Ljava/lang/ThreadGroup;Ljava/lang/Runnable;)V",
+	linkCallSite_signature: "(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;[Ljava/lang/Object;)",
+	findMethodHandleType_signature: "(Ljava/lang/Class;[Ljava/lang/Class;)Ljava/lang/invoke/MethodType;",
 	// -- GENERATED METHOD SIGNATURE MARKER, DO NOT DELETE --
 
 	// Types
@@ -219,6 +235,9 @@ vm_symbols::define_symbols! {
 	object_initializer_name: "<init>",
 	class_initializer_name: "<clinit>",
 	athrow_name: "<athrow>",
+
+	linkCallSite,
+	findMethodHandleType,
 
 	initPhase1_name: "initPhase1",
 	initPhase2_name: "initPhase2",

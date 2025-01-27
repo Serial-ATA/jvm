@@ -68,11 +68,12 @@ fn fill_in_stack_trace(stacktrace_element: ClassInstanceRef, method: &Method, pc
 		crate::globals::fields::java_lang_StackTraceElement::fileName_field_offset();
 	match method_class.source_file_index {
 		Some(idx) => {
-			let file_name = StringInterner::intern_symbol(
-				method_class
-					.constant_pool
-					.get::<cp_types::ConstantUtf8>(idx),
-			);
+			let file_name_sym = method_class
+				.constant_pool
+				.get::<cp_types::ConstantUtf8>(idx)
+				.expect("file name should always resolve");
+
+			let file_name = StringInterner::intern_symbol(file_name_sym);
 			stacktrace_element.get_mut().put_field_value0(
 				file_name_field_offset,
 				Operand::Reference(Reference::class(file_name)),

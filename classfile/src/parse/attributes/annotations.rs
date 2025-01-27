@@ -1,10 +1,10 @@
 use super::Location;
-use crate::attribute::{RuntimeInvisibleAnnotations, RuntimeVisibleAnnotations};
-use crate::error::Result;
-use crate::{
-	Annotation, AttributeTag, AttributeType, ConstantPool, ElementValue, ElementValuePair,
-	ElementValueTag, ElementValueType,
+use crate::attribute::{
+	Annotation, AttributeTag, AttributeType, ElementValue, ElementValuePair, ElementValueTag,
+	ElementValueType, RuntimeInvisibleAnnotations, RuntimeVisibleAnnotations,
 };
+use crate::constant_pool::ConstantPool;
+use crate::error::Result;
 
 use std::io::Read;
 
@@ -70,10 +70,12 @@ where
 
 pub mod type_annotations {
 	use super::Location;
+	use crate::attribute::{
+		AttributeTag, AttributeType, RuntimeInvisibleTypeAnnotations, RuntimeVisibleTypeAnnotations,
+	};
+	use crate::constant_pool::ConstantPool;
 	use crate::error::Result;
-	use crate::{AttributeTag, AttributeType, ConstantPool};
 
-	use crate::attribute::{RuntimeInvisibleTypeAnnotations, RuntimeVisibleTypeAnnotations};
 	use std::io::Read;
 
 	const VALID_LOCATIONS: &[Location] = &[
@@ -124,12 +126,13 @@ pub mod type_annotations {
 
 pub mod parameter_annotations {
 	use super::Location;
-	use crate::error::Result;
-	use crate::{AttributeTag, AttributeType, ConstantPool};
-
 	use crate::attribute::{
-		RuntimeInvisibleParameterAnnotations, RuntimeVisibleParameterAnnotations,
+		AttributeTag, AttributeType, RuntimeInvisibleParameterAnnotations,
+		RuntimeVisibleParameterAnnotations,
 	};
+	use crate::constant_pool::ConstantPool;
+	use crate::error::Result;
+
 	use std::io::Read;
 
 	const VALID_LOCATIONS: &[Location] = &[Location::MethodInfo];

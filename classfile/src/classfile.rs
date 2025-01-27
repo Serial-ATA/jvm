@@ -1,11 +1,12 @@
 use crate::accessflags::ClassAccessFlags;
-use crate::attribute::{Attribute, SourceFile};
-use crate::constant_pool::ConstantPool;
+use crate::attribute::resolved::ResolvedBootstrapMethod;
+use crate::attribute::{Attribute, AttributeType, SourceFile};
+use crate::constant_pool::{self, ConstantPool};
 use crate::fieldinfo::FieldInfo;
 use crate::methodinfo::MethodInfo;
 use crate::parse::error::Result;
-use crate::AttributeType;
 
+use std::borrow::Cow;
 use std::io::Read;
 
 use common::int_types::{u1, u2};
@@ -30,26 +31,32 @@ impl ClassFile {
 		crate::parse::parse_class(reader)
 	}
 
-	pub fn get_super_class(&self) -> Option<&[u1]> {
+	pub fn get_super_class(&self) -> Option<Cow<'_, [u1]>> {
 		// For a class, the value of the super_class item either must be zero or must be a valid
 		// index into the constant_pool table.
 		let super_class_index = self.super_class;
 
-		let mut super_class_name = None;
+		let mut super_class = None;
 
 		// If the value of the super_class item is zero, then this class file must represent
 		// the class Object, the only class or interface without a direct superclass.
 		if super_class_index == 0 {
+			let this_class_name = self
+				.constant_pool
+				.get::<constant_pool::types::raw::RawClassName>(self.this_class)
+				.name;
 			assert_eq!(
-				self.constant_pool.get_class_name(self.this_class),
-				b"java/lang/Object",
+				*this_class_name, *b"java/lang/Object",
 				"Only java/lang/Object can have no superclass!"
 			);
 		} else {
-			super_class_name = Some(self.constant_pool.get_class_name(super_class_index));
+			super_class = Some(
+				self.constant_pool
+					.get::<constant_pool::types::raw::RawClassName>(super_class_index),
+			);
 		}
 
-		super_class_name
+		super_class.map(|class| class.name)
 	}
 
 	pub fn source_file_index(&self) -> Option<u2> {
@@ -57,6 +64,25 @@ impl ClassFile {
 			if let AttributeType::SourceFile(SourceFile { sourcefile_index }) = attr.info {
 				return Some(sourcefile_index);
 			}
+		}
+
+		None
+	}
+
+	pub fn bootstrap_methods(
+		&self,
+	) -> Option<impl Iterator<Item = ResolvedBootstrapMethod> + use<'_>> {
+		for attr in &self.attributes {
+			let Some(bootstrap_methods) = attr.bootstrap_methods() else {
+				continue;
+			};
+
+			let iter = bootstrap_methods
+				.bootstrap_methods
+				.iter()
+				.map(move |bsm| ResolvedBootstrapMethod::resolve_from(bsm, &self.constant_pool));
+
+			return Some(iter);
 		}
 
 		None

@@ -5,7 +5,7 @@ use crate::objects::class::Class;
 use crate::objects::constant_pool::cp_types;
 use crate::objects::method::Method;
 
-use classfile::{Attribute, CodeException, StackMapTable};
+use classfile::attribute::{Attribute, CodeException, StackMapTable};
 use common::int_types::{u1, u2};
 use symbols::{sym, Symbol};
 
@@ -154,7 +154,8 @@ impl Environment<'_> {
 				.class
 				.constant_pool()
 				.unwrap()
-				.get::<cp_types::ClassName>(handler.catch_type);
+				.get::<cp_types::ClassName>(handler.catch_type)
+				.expect("class name should always resolve");
 
 			let exception_class = types::Class(exception_class_name);
 			if !exception_class.is_assignable(types::Class(sym!(java_lang_Throwable))) {

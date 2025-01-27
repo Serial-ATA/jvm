@@ -1,7 +1,6 @@
 use super::Location;
-use crate::attribute::SourceDebugExtension;
+use crate::attribute::{AttributeTag, AttributeType, SourceDebugExtension};
 use crate::error::Result;
-use crate::{AttributeTag, AttributeType};
 
 use std::io::Read;
 

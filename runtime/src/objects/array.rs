@@ -2,11 +2,11 @@ use super::class::Class;
 use super::instance::{CloneableInstance, Header};
 use super::reference::{ArrayInstanceRef, Reference};
 use crate::classpath::loader::ClassLoader;
+use crate::thread::exceptions::{throw, Throws};
 
 use std::fmt::{Debug, Formatter};
 use std::ptr::NonNull;
 
-use crate::thread::exceptions::Throws;
 use common::box_slice;
 use common::int_types::{s1, s2, s4, s8, u1, u2};
 use common::traits::PtrType;
@@ -41,9 +41,9 @@ impl ArrayInstance {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.newarray
-	pub fn new_from_type(type_code: u1, count: s4) -> ArrayInstanceRef {
+	pub fn new_from_type(type_code: u1, count: s4) -> Throws<ArrayInstanceRef> {
 		if count.is_negative() {
-			panic!("NegativeArraySizeException"); // TODO
+			throw!(@DEFER NegativeArraySizeException);
 		}
 
 		let array_signature = match type_code {
@@ -58,31 +58,31 @@ impl ArrayInstance {
 			_ => panic!("Invalid array type code: {}", type_code),
 		};
 
-		let array_class = ClassLoader::bootstrap().load(array_signature).unwrap();
+		let array_class = ClassLoader::bootstrap().load(array_signature)?;
 		let elements = ArrayContent::default_initialize(type_code, count);
 
-		ArrayInstancePtr::new(Self {
+		Throws::Ok(ArrayInstancePtr::new(Self {
 			header: Header::new(),
 			class: array_class,
 			elements,
-		})
+		}))
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.anewarray
-	pub fn new_reference(count: s4, component_class: &'static Class) -> ArrayInstanceRef {
+	pub fn new_reference(count: s4, component_class: &'static Class) -> Throws<ArrayInstanceRef> {
 		if count.is_negative() {
-			panic!("NegativeArraySizeException"); // TODO
+			throw!(@DEFER NegativeArraySizeException);
 		}
 
 		let array_class_name = component_class.array_class_name();
-		let array_class = component_class.loader().load(array_class_name).unwrap();
+		let array_class = component_class.loader().load(array_class_name)?;
 
 		let elements = box_slice![Reference::null(); count as usize];
-		ArrayInstancePtr::new(Self {
+		Throws::Ok(ArrayInstancePtr::new(Self {
 			header: Header::new(),
 			class: array_class,
 			elements: ArrayContent::Reference(elements),
-		})
+		}))
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.multianewarray
@@ -106,7 +106,7 @@ impl ArrayInstance {
 				.load(component_name)
 				.expect("component classes must exist");
 			for i in 0..parent_count {
-				let instance = ArrayInstance::new_reference(count, array_class);
+				let instance = ArrayInstance::new_reference(count, array_class)?;
 				inner(instance.get_mut(), parent_count, counts, component_class)?;
 				parent.store(i, Operand::Reference(Reference::array(instance)));
 			}
@@ -124,7 +124,7 @@ impl ArrayInstance {
 		let initial_count = counts
 			.next()
 			.expect("multi-dimensional arrays must have at least one element");
-		let initial_instance = Self::new_reference(initial_count, array_class);
+		let initial_instance = Self::new_reference(initial_count, array_class)?;
 
 		let component_name = array_class.array_component_name();
 		let component_class = array_class
@@ -141,17 +141,17 @@ impl ArrayInstance {
 		Throws::Ok(initial_instance)
 	}
 
-	pub fn get(&self, index: s4) -> Operand<Reference> {
+	pub fn get(&self, index: s4) -> Throws<Operand<Reference>> {
 		if index.is_negative() || index as usize > self.elements.element_count() {
-			panic!("ArrayIndexOutOfBoundsException"); // TODO
+			throw!(@DEFER ArrayIndexOutOfBoundsException);
 		}
 
-		self.elements.get(index as usize)
+		Throws::Ok(self.elements.get(index as usize))
 	}
 
-	pub fn store(&mut self, index: s4, value: Operand<Reference>) {
+	pub fn store(&mut self, index: s4, value: Operand<Reference>) -> Throws<()> {
 		if index.is_negative() || index as usize > self.elements.element_count() {
-			panic!("ArrayIndexOutOfBoundsException"); // TODO
+			throw!(@DEFER ArrayIndexOutOfBoundsException);
 		}
 
 		let index = index as usize;
@@ -168,6 +168,8 @@ impl ArrayInstance {
 			ArrayContent::Long(ref mut contents) => contents[index] = value.expect_long(),
 			ArrayContent::Reference(ref mut contents) => contents[index] = value.expect_reference(),
 		}
+
+		Throws::Ok(())
 	}
 
 	pub fn header(&self) -> &Header {

@@ -1,7 +1,6 @@
 use super::Location;
-use crate::attribute::LineNumberTable;
+use crate::attribute::{AttributeTag, AttributeType, LineNumber, LineNumberTable};
 use crate::error::Result;
-use crate::{AttributeTag, AttributeType, LineNumber};
 
 use std::io::Read;
 

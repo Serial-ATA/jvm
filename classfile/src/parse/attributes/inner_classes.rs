@@ -1,7 +1,6 @@
 use super::Location;
-use crate::attribute::InnerClasses;
+use crate::attribute::{AttributeTag, AttributeType, InnerClass, InnerClasses};
 use crate::error::Result;
-use crate::{AttributeTag, AttributeType, InnerClass};
 
 use std::io::Read;
 

@@ -24,7 +24,7 @@
 #[macro_export]
 macro_rules! java_call {
 	(
-        $thread:ident,
+        $thread:expr,
         $method:ident,
 		$($arg:expr),+ $(,)?
     ) => {{
@@ -36,7 +36,7 @@ macro_rules! java_call {
 	}};
 	// No arguments path, still needs to allocate a LocalStack for stores
 	(
-        $thread:ident,
+        $thread:expr,
         $method:ident $(,)?
     ) => {{
 		tracing::debug!(target: "java_call", "Invoking manual Java call for method `{:?}`", $method);

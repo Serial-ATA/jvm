@@ -14,6 +14,7 @@ use common::traits::PtrType;
 use instructions::{Operand, StackLike};
 use symbols::sym;
 
+#[must_use]
 pub enum Throws<T> {
 	Ok(T),
 	Exception(Exception),
@@ -24,6 +25,16 @@ impl<T> Throws<T> {
 		matches!(self, Throws::Exception(_))
 	}
 
+	pub fn map<U, F>(self, f: F) -> Throws<U>
+	where
+		F: FnOnce(T) -> U,
+	{
+		match self {
+			Throws::Ok(x) => Throws::Ok(f(x)),
+			Throws::Exception(e) => Throws::Exception(e),
+		}
+	}
+
 	pub fn expect(self, msg: &str) -> T {
 		match self {
 			Throws::Ok(t) => t,
@@ -31,6 +42,13 @@ impl<T> Throws<T> {
 				"{msg}: thread threw {:?} with message: {:?}",
 				e.kind, e.message
 			),
+		}
+	}
+
+	pub fn unwrap(self) -> T {
+		match self {
+			Throws::Ok(t) => t,
+			Throws::Exception(e) => panic!("unwrapped exception: {:?}", e),
 		}
 	}
 }
@@ -59,18 +77,39 @@ impl<T> FromResidual<Exception> for Throws<T> {
 
 #[derive(Copy, Clone, Debug)]
 pub enum ExceptionKind {
+	/// java.lang.ClassFormatError
+	ClassFormatError,
+	/// java.lang.UnsupportedClassVersionError
+	UnsupportedClassVersionError,
+	/// java.lang.NoClassDefFoundError
+	NoClassDefFoundError,
+
+	/// java.lang.LinkageError
+	LinkageError,
+	/// java.lang.IncompatibleClassChangeError
+	IncompatibleClassChangeError,
+	/// java.lang.NoSuchFieldError
+	NoSuchFieldError,
+	/// java.lang.NoSuchMethodError
+	NoSuchMethodError,
+
+	/// java.lang.NegativeArraySizeException
+	NegativeArraySizeException,
+	/// java.lang.ArrayIndexOutOfBoundsException
+	ArrayIndexOutOfBoundsException,
+
 	/// java.lang.NullPointerException
 	NullPointerException,
 	/// java.lang.IllegalArgumentException
 	IllegalArgumentException,
 	/// java.lang.IllegalStateException
 	IllegalStateException,
+	/// java.lang.IllegalAccessError
+	IllegalAccessError,
 	/// java.lang.IndexOutOfBoundsException
 	IndexOutOfBoundsException,
 	/// java.lang.IllegalThreadStateException
 	IllegalThreadStateException,
-	/// java.lang.NoClassDefFoundError
-	NoClassDefFoundError,
 
 	/// java.lang.InternalError
 	InternalError,
@@ -79,14 +118,32 @@ pub enum ExceptionKind {
 impl ExceptionKind {
 	fn obj(&self) -> Reference {
 		let class_name = match self {
+			ExceptionKind::ClassFormatError => sym!(java_lang_ClassFormatError),
+			ExceptionKind::UnsupportedClassVersionError => {
+				sym!(java_lang_UnsupportedClassVersionError)
+			},
+			ExceptionKind::NoClassDefFoundError => sym!(java_lang_NoClassDefFoundError),
+
+			ExceptionKind::LinkageError => sym!(java_lang_LinkageError),
+			ExceptionKind::IncompatibleClassChangeError => {
+				sym!(java_lang_IncompatibleClassChangeError)
+			},
+			ExceptionKind::NoSuchFieldError => sym!(java_lang_NoSuchFieldError),
+			ExceptionKind::NoSuchMethodError => sym!(java_lang_NoSuchMethodError),
+
+			ExceptionKind::NegativeArraySizeException => sym!(java_lang_NegativeArraySizeException),
+			ExceptionKind::ArrayIndexOutOfBoundsException => {
+				sym!(java_lang_ArrayIndexOutOfBoundsException)
+			},
+
 			ExceptionKind::NullPointerException => sym!(java_lang_NullPointerException),
 			ExceptionKind::IllegalArgumentException => sym!(java_lang_IllegalArgumentException),
 			ExceptionKind::IllegalStateException => sym!(java_lang_IllegalStateException),
+			ExceptionKind::IllegalAccessError => sym!(java_lang_IllegalAccessError),
 			ExceptionKind::IndexOutOfBoundsException => sym!(java_lang_IndexOutOfBoundsException),
 			ExceptionKind::IllegalThreadStateException => {
 				sym!(java_lang_IllegalThreadStateException)
 			},
-			ExceptionKind::NoClassDefFoundError => sym!(java_lang_NoClassDefFoundError),
 			ExceptionKind::InternalError => sym!(java_lang_InternalError),
 		};
 
@@ -97,6 +154,7 @@ impl ExceptionKind {
 	}
 }
 
+#[derive(Debug)]
 pub struct Exception {
 	kind: ExceptionKind,
 	message: Option<String>,

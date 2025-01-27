@@ -11,6 +11,7 @@ use crate::thread::JavaThread;
 use std::cell::UnsafeCell;
 use std::sync::{Condvar, Mutex, MutexGuard};
 
+use crate::thread::exceptions::{throw, Throws};
 use classfile::accessflags::MethodAccessFlags;
 use classfile::FieldType;
 use instructions::Operand;
@@ -140,48 +141,55 @@ impl Class {
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.3.2
 	#[tracing::instrument(skip_all)]
-	pub fn resolve_field(&self, name: Symbol, descriptor: Symbol) -> Option<&'static Field> {
-		let field_type = FieldType::parse(&mut descriptor.as_bytes()).unwrap(); // TODO: Error handling
+	pub fn resolve_field(&self, name: Symbol, descriptor: Symbol) -> Throws<&'static Field> {
+		fn inner(class: &Class, name: Symbol, descriptor: Symbol) -> Option<&'static Field> {
+			let field_type = FieldType::parse(&mut descriptor.as_bytes()).unwrap(); // TODO: Error handling
 
-		// When resolving a field reference, field resolution first attempts to look up
-		// the referenced field in C and its superclasses:
+			// When resolving a field reference, field resolution first attempts to look up
+			// the referenced field in C and its superclasses:
 
-		// 1. If C declares a field with the name and descriptor specified by the field reference,
-		//    field lookup succeeds. The declared field is the result of the field lookup.
-		for field in self.fields() {
-			if field.name == name && field.descriptor == field_type {
-				return Some(field);
+			// 1. If C declares a field with the name and descriptor specified by the field reference,
+			//    field lookup succeeds. The declared field is the result of the field lookup.
+			for field in class.fields() {
+				if field.name == name && field.descriptor == field_type {
+					return Some(field);
+				}
 			}
-		}
 
-		// TODO:
-		// 2. Otherwise, field lookup is applied recursively to the direct superinterfaces of the
-		//    specified class or interface C.
+			// TODO:
+			// 2. Otherwise, field lookup is applied recursively to the direct superinterfaces of the
+			//    specified class or interface C.
 
-		// 3. Otherwise, if C has a superclass S, field lookup is applied recursively to S.
-		if let Some(super_class) = &self.super_class {
-			if let Some(field) = super_class.resolve_field(name, descriptor) {
-				return Some(field);
+			// 3. Otherwise, if C has a superclass S, field lookup is applied recursively to S.
+			if let Some(super_class) = &class.super_class {
+				if let Some(field) = inner(super_class, name, descriptor) {
+					return Some(field);
+				}
 			}
+
+			None
 		}
 
 		// 4. Otherwise, field lookup fails.
-		panic!("NoSuchFieldError") // TODO
+		match inner(self, name, descriptor) {
+			Some(field) => Throws::Ok(field),
+			None => throw!(@DEFER NoSuchFieldError),
+		}
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.3.3
 	#[tracing::instrument(skip_all)]
-	pub fn resolve_method<'a>(&self, name: Symbol, descriptor: Symbol) -> Option<&'static Method> {
+	pub fn resolve_method<'a>(&self, name: Symbol, descriptor: Symbol) -> Throws<&'static Method> {
 		// When resolving a method reference:
 
 		//  1. If C is an interface, method resolution throws an IncompatibleClassChangeError.
 		if self.is_interface() {
-			panic!("IncompatibleClassChangeError"); // TODO
+			throw!(@DEFER IncompatibleClassChangeError);
 		}
 
 		//  2. Otherwise, method resolution attempts to locate the referenced method in C and its superclasses:
-		if let ret @ Some(_) = self.resolve_method_step_two(name, descriptor) {
-			return ret;
+		if let Some(method) = self.resolve_method_step_two(name, descriptor) {
+			return Throws::Ok(method);
 		}
 
 		//  3. Otherwise, method resolution attempts to locate the referenced method in the superinterfaces of the specified class C:
@@ -189,17 +197,17 @@ impl Class {
 		//    3.1. If the maximally-specific superinterface methods of C for the name and descriptor specified by the method reference include
 		//         exactly one method that does not have its ACC_ABSTRACT flag set, then this method is chosen and method lookup succeeds.
 		if let Some(method) = self.resolve_method_in_superinterfaces(name, descriptor, true) {
-			return Some(method);
+			return Throws::Ok(method);
 		}
 
 		//    3.2. Otherwise, if any superinterface of C declares a method with the name and descriptor specified by the method reference that
 		//         has neither its ACC_PRIVATE flag nor its ACC_STATIC flag set, one of these is arbitrarily chosen and method lookup succeeds.
 		if let Some(method) = self.resolve_method_in_superinterfaces(name, descriptor, false) {
-			return Some(method);
+			return Throws::Ok(method);
 		}
 
 		//    3.3. Otherwise, method lookup fails.
-		panic!("NoSuchMethodError") // TODO
+		throw!(@DEFER NoSuchMethodError);
 	}
 
 	pub fn resolve_method_step_two(
@@ -246,18 +254,18 @@ impl Class {
 		&self,
 		method_name: Symbol,
 		descriptor: Symbol,
-	) -> Option<&'static Method> {
+	) -> Throws<&'static Method> {
 		// When resolving an interface method reference:
 
 		// 1. If C is not an interface, interface method resolution throws an IncompatibleClassChangeError.
 		if !self.is_interface() {
-			panic!("IncompatibleClassChangeError"); // TODO
+			throw!(@DEFER IncompatibleClassChangeError);
 		}
 
 		// 2. Otherwise, if C declares a method with the name and descriptor specified by the interface method reference, method lookup succeeds.
 		for method in self.vtable() {
 			if method.name == method_name && method.descriptor_sym == descriptor {
-				return Some(method);
+				return Throws::Ok(method);
 			}
 		}
 
@@ -270,7 +278,7 @@ impl Class {
 				&& method.is_public()
 				&& !method.is_static()
 			{
-				return Some(method);
+				return Throws::Ok(method);
 			}
 		}
 
@@ -278,18 +286,18 @@ impl Class {
 		//    one method that does not have its ACC_ABSTRACT flag set, then this method is chosen and method lookup succeeds.
 		if let Some(method) = self.resolve_method_in_superinterfaces(method_name, descriptor, true)
 		{
-			return Some(method);
+			return Throws::Ok(method);
 		}
 
 		// 5. Otherwise, if any superinterface of C declares a method with the name and descriptor specified by the method reference that has neither its ACC_PRIVATE flag
 		//    nor its ACC_STATIC flag set, one of these is arbitrarily chosen and method lookup succeeds.
 		if let Some(method) = self.resolve_method_in_superinterfaces(method_name, descriptor, false)
 		{
-			return Some(method);
+			return Throws::Ok(method);
 		}
 
 		// 6. Otherwise, method lookup fails.
-		panic!("NoSuchMethodError") // TODO
+		throw!(@DEFER NoSuchMethodError);
 	}
 
 	fn resolve_method_in_superinterfaces(
@@ -418,7 +426,8 @@ impl Class {
 				| FieldType::Int => {
 					let constant_value = class_instance
 						.constant_pool
-						.get::<cp_types::Integer>(constant_value_index);
+						.get::<cp_types::Integer>(constant_value_index)
+						.expect("numeric constants should always resolve");
 					let value = Operand::from(constant_value);
 					unsafe {
 						self.set_static_field(field.index(), value);
@@ -427,7 +436,8 @@ impl Class {
 				FieldType::Double => {
 					let constant_value = class_instance
 						.constant_pool
-						.get::<cp_types::Double>(constant_value_index);
+						.get::<cp_types::Double>(constant_value_index)
+						.expect("numeric constants should always resolve");
 					let value = Operand::from(constant_value);
 					unsafe {
 						self.set_static_field(field.index(), value);
@@ -436,7 +446,8 @@ impl Class {
 				FieldType::Float => {
 					let constant_value = class_instance
 						.constant_pool
-						.get::<cp_types::Float>(constant_value_index);
+						.get::<cp_types::Float>(constant_value_index)
+						.expect("numeric constants should always resolve");
 					let value = Operand::from(constant_value);
 					unsafe {
 						self.set_static_field(field.index(), value);
@@ -445,17 +456,19 @@ impl Class {
 				FieldType::Long => {
 					let constant_value = class_instance
 						.constant_pool
-						.get::<cp_types::Long>(constant_value_index);
+						.get::<cp_types::Long>(constant_value_index)
+						.expect("numeric constants should always resolve");
 					let value = Operand::from(constant_value);
 					unsafe {
 						self.set_static_field(field.index(), value);
 					}
 				},
 				FieldType::Object(ref obj) if &**obj == b"java/lang/String" => {
-					let raw_string = class_instance
+					let string = class_instance
 						.constant_pool
-						.get::<cp_types::String>(constant_value_index);
-					let string_instance = StringInterner::intern_symbol(raw_string);
+						.get::<cp_types::String>(constant_value_index)
+						.expect("string constants should always resolve");
+					let string_instance = StringInterner::intern_symbol(string);
 					let value = Operand::Reference(Reference::class(string_instance));
 					unsafe {
 						self.set_static_field(field.index(), value);

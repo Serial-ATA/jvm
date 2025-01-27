@@ -1,7 +1,9 @@
 use super::Location;
-use crate::attribute::{Module, ModuleMainClass, ModulePackages};
+use crate::attribute::{
+	AttributeTag, AttributeType, Module, ModuleExport, ModuleMainClass, ModuleOpen, ModulePackages,
+	ModuleProvide, ModuleRequire,
+};
 use crate::error::Result;
-use crate::{AttributeTag, AttributeType, ModuleExport, ModuleOpen, ModuleProvide, ModuleRequire};
 
 use std::io::Read;
 

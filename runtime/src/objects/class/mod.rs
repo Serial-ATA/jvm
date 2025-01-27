@@ -23,6 +23,8 @@ use std::sync::Arc;
 use std::{mem, ptr};
 
 use classfile::accessflags::ClassAccessFlags;
+use classfile::attribute::resolved::ResolvedBootstrapMethod;
+use classfile::constant_pool::types::raw as raw_types;
 use classfile::{ClassFile, FieldType, MethodInfo};
 use common::box_slice;
 use common::int_types::{u1, u2, u4};
@@ -129,6 +131,8 @@ pub struct Class {
 	field_container: FieldContainer,
 	vtable: UnsafeCell<MaybeUninit<VTable<'static>>>,
 
+	bootstrap_methods: Option<Box<[ResolvedBootstrapMethod]>>,
+
 	class_ty: UnsafeCell<MaybeUninit<ClassType>>,
 
 	init_lock: Arc<InitializationLock>,
@@ -178,7 +182,10 @@ impl Debug for ClassDescriptor {
 		match self.source_file_index {
 			Some(idx) => debug_struct.field(
 				"source_file",
-				&self.constant_pool.get::<cp_types::ConstantUtf8>(idx),
+				&self
+					.constant_pool
+					.get::<cp_types::ConstantUtf8>(idx)
+					.expect("string constants should always be resolved"),
 			),
 			None => debug_struct.field("source_file", &"None"),
 		};
@@ -215,6 +222,10 @@ impl Class {
 			ClassType::Instance(instance) => Some(&instance.constant_pool),
 			_ => None,
 		}
+	}
+
+	pub fn bootstrap_methods(&self) -> Option<&[ResolvedBootstrapMethod]> {
+		self.bootstrap_methods.as_deref()
 	}
 
 	/// Get the `VTable` for this class
@@ -619,10 +630,18 @@ impl Class {
 
 		let source_file_index = parsed_file.source_file_index();
 
+		// Check the BootstrapMethods attribute
+		let bootstrap_methods = match parsed_file.bootstrap_methods() {
+			Some(bootstrap_methods) => {
+				Some(bootstrap_methods.collect::<Box<[ResolvedBootstrapMethod]>>())
+			},
+			None => None,
+		};
+
 		let constant_pool = parsed_file.constant_pool;
 
-		let name_raw = constant_pool.get_class_name(class_name_index);
-		let name = Symbol::intern_bytes(name_raw);
+		let name_raw = constant_pool.get::<raw_types::RawClassName>(class_name_index);
+		let name = Symbol::intern_bytes(&*name_raw.name);
 
 		let static_field_count = parsed_file
 			.fields
@@ -639,9 +658,11 @@ impl Class {
 			.interfaces
 			.iter()
 			.map(|index| {
+				let interface_class_name =
+					constant_pool.get::<raw_types::RawClassName>(*index).name;
 				loader
-					.load(Symbol::intern_bytes(constant_pool.get_class_name(*index)))
-					.unwrap()
+					.load(Symbol::intern_bytes(&*interface_class_name))
+					.unwrap() // TODO: Handle throws
 			})
 			.collect();
 
@@ -657,6 +678,7 @@ impl Class {
 			mirror: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			field_container: FieldContainer::new(static_field_slots),
 			vtable: UnsafeCell::new(MaybeUninit::uninit()), // Set later
+			bootstrap_methods,
 			class_ty: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			init_lock: Arc::new(InitializationLock::new()),
 			is_initialized: Cell::new(false),
@@ -759,6 +781,7 @@ impl Class {
 			mirror: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			field_container: FieldContainer::null(),
 			vtable: UnsafeCell::new(MaybeUninit::uninit()), // Set later
+			bootstrap_methods: None,
 			class_ty: UnsafeCell::new(MaybeUninit::new(ClassType::Array(array_instance))),
 			init_lock: Arc::new(InitializationLock::new()),
 			is_initialized: Cell::new(false),

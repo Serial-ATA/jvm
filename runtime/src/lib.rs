@@ -9,6 +9,7 @@
 #![feature(try_with_capacity)]
 #![feature(array_chunks)]
 #![feature(try_trait_v2)]
+#![feature(associated_type_defaults)]
 
 pub mod calls;
 pub mod classpath;

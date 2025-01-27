@@ -365,7 +365,6 @@ impl JavaThread {
 		self.frame_stack
 			.push(StackFrame::Native(NativeFrame { method }));
 
-		// TODO: Exception check
 		let ret;
 		if method.is_static() {
 			let fn_ptr = unsafe { fn_ptr.as_static() };

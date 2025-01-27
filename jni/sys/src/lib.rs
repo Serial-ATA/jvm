@@ -34,7 +34,7 @@ pub type jfloat = f32;
 pub type jdouble = f64;
 pub type jsize = jint;
 
-extern { pub type _jobject; }
+extern "C" { pub type _jobject; }
 pub type jobject = *mut _jobject;
 pub type jclass = jobject;
 pub type jthrowable = jobject;
@@ -71,9 +71,9 @@ impl Clone for jvalue {
 	}
 }
 
-extern { pub type _jfieldID; }
+extern "C" { pub type _jfieldID; }
 pub type jfieldID = *mut _jfieldID;
-extern { pub type _jmethodID; }
+extern "C" { pub type _jmethodID; }
 pub type jmethodID = *mut _jmethodID;
 
 /// Return values from `jobjectRefType`

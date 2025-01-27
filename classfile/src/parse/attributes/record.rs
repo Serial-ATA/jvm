@@ -1,7 +1,7 @@
 use super::{read_attribute, Location};
-use crate::attribute::Record;
+use crate::attribute::{AttributeTag, AttributeType, Record, RecordComponentInfo};
+use crate::constant_pool::ConstantPool;
 use crate::error::Result;
-use crate::{AttributeTag, AttributeType, ConstantPool, RecordComponentInfo};
 
 use std::io::Read;
 

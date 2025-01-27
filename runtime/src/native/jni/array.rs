@@ -1,10 +1,12 @@
 use super::{classref_from_jclass, reference_from_jobject, IntoJni};
 use crate::objects::array::ArrayInstance;
 use crate::objects::reference::Reference;
+use crate::thread::exceptions::Throws;
 
 use core::ffi::c_void;
 use std::ptr;
 
+use crate::thread::JavaThread;
 use common::int_types::s4;
 use common::traits::PtrType;
 use instructions::Operand;
@@ -26,13 +28,22 @@ pub extern "system" fn NewObjectArray(
 	clazz: jclass,
 	init: jobject,
 ) -> jobjectArray {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
 	let class = unsafe { classref_from_jclass(clazz) };
 	let Some(class) = class else {
 		return ptr::null_mut() as jobjectArray;
 	};
 
 	if init.is_null() {
-		return Reference::array(ArrayInstance::new_reference(len as s4, class)).into_jni();
+		return match ArrayInstance::new_reference(len as s4, class) {
+			Throws::Ok(array) => Reference::array(array).into_jni(),
+			Throws::Exception(e) => {
+				e.throw(thread);
+				ptr::null_mut() as jobjectArray
+			},
+		};
 	}
 
 	unimplemented!("jni::NewObjectArray with non-null init")

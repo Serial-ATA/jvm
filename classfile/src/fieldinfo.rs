@@ -93,7 +93,6 @@ impl FieldType {
 	pub fn is_primitive(&self) -> bool {
 		match self {
 			Self::Object(_) | Self::Array(_) => false,
-			Self::Void => unreachable!(),
 			_ => true,
 		}
 	}
@@ -132,6 +131,10 @@ impl FieldType {
 
 	pub fn is_boolean(&self) -> bool {
 		matches!(self, Self::Boolean)
+	}
+
+	pub fn is_void(&self) -> bool {
+		matches!(self, Self::Void)
 	}
 
 	pub fn is_array(&self) -> bool {

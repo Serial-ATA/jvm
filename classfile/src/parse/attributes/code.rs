@@ -1,6 +1,7 @@
 use super::{read_attribute, Location};
+use crate::attribute::{AttributeTag, AttributeType, Code, CodeException};
+use crate::constant_pool::ConstantPool;
 use crate::error::Result;
-use crate::{AttributeTag, AttributeType, Code, CodeException, ConstantPool};
 
 use std::io::Read;
 

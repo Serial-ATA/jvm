@@ -48,6 +48,9 @@ fn initialize_thread(thread: &JavaThread) -> Result<(), JniError> {
 	load_global_classes();
 	init_field_offsets();
 
+	// Create the primitive mirrors (java.lang.Integer, etc...)
+	crate::globals::mirrors::init_primitive_mirrors();
+
 	// Init some important classes
 	initialize_global_classes(thread);
 
@@ -110,6 +113,7 @@ fn load_global_classes() {
 		java_lang_ref_Reference,
 		java_lang_ref_Finalizer,
 		jdk_internal_reflect_MethodAccessorImpl,
+		java_lang_invoke_MethodHandleNatives,
 	);
 
 	// Primitive types
@@ -189,6 +193,8 @@ fn initialize_global_classes(thread: &JavaThread) {
 
 	crate::globals::classes::jdk_internal_misc_UnsafeConstants().initialize(thread);
 	crate::globals::classes::java_lang_Module().initialize(thread);
+
+	crate::globals::classes::java_lang_invoke_MethodHandleNatives().initialize(thread);
 }
 
 fn create_thread_object(thread: &JavaThread) {

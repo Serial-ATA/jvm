@@ -1,7 +1,6 @@
 use super::Location;
-use crate::attribute::{NestHost, NestMembers};
+use crate::attribute::{AttributeTag, AttributeType, NestHost, NestMembers};
 use crate::error::Result;
-use crate::{AttributeTag, AttributeType};
 
 use std::io::Read;
 

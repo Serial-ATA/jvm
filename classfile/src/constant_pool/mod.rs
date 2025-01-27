@@ -1,7 +1,11 @@
+pub mod types;
+
+use crate::constant_pool::types::{CpEntry, LoadableConstantPoolValue};
+
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, Index};
 
-use common::int_types::{s4, s8, u1, u2, u4};
+use common::int_types::{u1, u2, u4};
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4
 
@@ -26,119 +30,62 @@ impl ConstantPool {
 		self.inner
 	}
 
-	pub fn get_class_name(&self, idx: u2) -> &[u1] {
-		let constant = &self[idx];
-
-		match constant {
-			ConstantPoolValueInfo::Class { name_index } => self.get_constant_utf8(*name_index),
-			_ => panic!("Expected a constant value of \"Class\""),
-		}
+	pub fn get<'a, T: CpEntry<'a>>(&'a self, index: u2) -> T::Entry {
+		T::get(self, index)
 	}
 
-	pub fn get_constant_utf8(&self, idx: u2) -> &[u1] {
-		let constant = &self[idx];
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4-310
+	pub fn get_loadable_entry(&self, index: u2) -> LoadableConstantPoolValue {
+		let constant = &self[index];
 
 		match constant {
-			ConstantPoolValueInfo::Utf8 { bytes, .. } => bytes,
-			_ => panic!("Expected a constant value of \"Utf8\""),
-		}
-	}
-
-	pub fn get_field_ref(&self, idx: u2) -> (u2, u2) {
-		let constant = &self[idx];
-
-		match constant {
-			ConstantPoolValueInfo::Fieldref {
-				class_index,
-				name_and_type_index,
-			} => (*class_index, *name_and_type_index),
-			_ => panic!("Expected a constant value of \"Fieldref\""),
-		}
-	}
-
-	pub fn get_method_ref(&self, idx: u2) -> (bool, u2, u2) {
-		let constant = &self[idx];
-
-		match constant {
-			ConstantPoolValueInfo::Methodref {
-				class_index,
-				name_and_type_index,
-			} => (false, *class_index, *name_and_type_index),
-			ConstantPoolValueInfo::InterfaceMethodref {
-				class_index,
-				name_and_type_index,
-			} => (true, *class_index, *name_and_type_index),
-			_ => panic!("Expected a constant value of \"Methodref\""),
-		}
-	}
-
-	pub fn get_name_and_type(&self, idx: u2) -> (u2, u2) {
-		let constant = &self[idx];
-
-		match constant {
-			ConstantPoolValueInfo::NameAndType {
-				name_index,
-				descriptor_index,
-			} => (*name_index, *descriptor_index),
-			_ => panic!("Expected a constant value of \"NameAndType\""),
-		}
-	}
-
-	pub fn get_integer(&self, idx: u2) -> s4 {
-		let constant = &self[idx];
-
-		match constant {
-			ConstantPoolValueInfo::Integer { bytes } => (*bytes) as s4,
-			_ => panic!("Expected a constant value of \"Integer\""),
-		}
-	}
-
-	pub fn get_float(&self, idx: u2) -> f32 {
-		let constant = &self[idx];
-
-		match constant {
-			ConstantPoolValueInfo::Float { bytes } => (*bytes) as s4 as f32,
-			_ => panic!("Expected a constant value of \"Float\""),
-		}
-	}
-
-	pub fn get_long(&self, idx: u2) -> s8 {
-		let constant = &self[idx];
-
-		match constant {
+			ConstantPoolValueInfo::Integer { bytes } => {
+				LoadableConstantPoolValue::Integer(types::raw::Integer::handle(self, *bytes))
+			},
+			ConstantPoolValueInfo::Float { bytes } => {
+				LoadableConstantPoolValue::Float(types::raw::Float::handle(self, *bytes))
+			},
 			ConstantPoolValueInfo::Long {
 				high_bytes,
 				low_bytes,
-			} => (s8::from(*high_bytes) << 32) + s8::from(*low_bytes),
-			_ => panic!("Expected a constant value of \"Long\""),
-		}
-	}
-
-	pub fn get_double(&self, idx: u2) -> f64 {
-		let constant = &self[idx];
-
-		match constant {
+			} => LoadableConstantPoolValue::Long(types::raw::Long::handle(
+				self,
+				(*high_bytes, *low_bytes),
+			)),
 			ConstantPoolValueInfo::Double {
 				high_bytes,
 				low_bytes,
-			} => {
-				let high = high_bytes.to_be_bytes();
-				let low = low_bytes.to_be_bytes();
-
-				f64::from_be_bytes([
-					high[0], high[1], high[2], high[3], low[0], low[1], low[2], low[3],
-				])
+			} => LoadableConstantPoolValue::Double(types::raw::Double::handle(
+				self,
+				(*high_bytes, *low_bytes),
+			)),
+			ConstantPoolValueInfo::Class { name_index } => LoadableConstantPoolValue::Class(
+				types::raw::RawClassName::handle(self, *name_index),
+			),
+			ConstantPoolValueInfo::String { string_index } => LoadableConstantPoolValue::String(
+				types::raw::RawString::handle(self, *string_index),
+			),
+			ConstantPoolValueInfo::MethodHandle {
+				reference_kind,
+				reference_index,
+			} => LoadableConstantPoolValue::MethodHandle(types::raw::RawMethodHandle::handle(
+				self,
+				(*reference_kind, *reference_index),
+			)),
+			ConstantPoolValueInfo::MethodType { descriptor_index } => {
+				LoadableConstantPoolValue::MethodType(types::raw::RawMethodType::handle(
+					self,
+					*descriptor_index,
+				))
 			},
-			_ => panic!("Expected a constant value of \"Double\""),
-		}
-	}
-
-	pub fn get_string(&self, idx: u2) -> &[u1] {
-		let constant = &self[idx];
-
-		match constant {
-			ConstantPoolValueInfo::String { string_index } => self.get_constant_utf8(*string_index),
-			_ => panic!("Expected a constant value of \"String\""),
+			ConstantPoolValueInfo::Dynamic {
+				bootstrap_method_attr_index,
+				name_and_type_index,
+			} => LoadableConstantPoolValue::Dynamic(types::raw::RawDynamic::handle(
+				self,
+				(*bootstrap_method_attr_index, *name_and_type_index),
+			)),
+			_ => panic!("Expected a loadable constant pool entry"),
 		}
 	}
 }
@@ -279,6 +226,11 @@ pub enum ConstantPoolValueInfo {
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.9
 	MethodType {
 		descriptor_index: u2,
+	},
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.10
+	Dynamic {
+		bootstrap_method_attr_index: u2,
+		name_and_type_index: u2,
 	},
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4.10
 	InvokeDynamic {

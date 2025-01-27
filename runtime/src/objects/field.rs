@@ -21,7 +21,6 @@ pub struct Field {
 	pub name: Symbol,
 	pub descriptor: FieldType,
 	pub constant_value_index: Option<u2>,
-	// TODO
 }
 
 impl Debug for Field {
@@ -74,10 +73,14 @@ impl Field {
 		let access_flags = field_info.access_flags;
 
 		let name_index = field_info.name_index;
-		let name = constant_pool.get::<cp_types::ConstantUtf8>(name_index);
+		let name = constant_pool
+			.get::<cp_types::ConstantUtf8>(name_index)
+			.expect("field name should always resolve");
 
 		let descriptor_index = field_info.descriptor_index;
-		let descriptor = constant_pool.get::<cp_types::ConstantUtf8>(descriptor_index);
+		let descriptor = constant_pool
+			.get::<cp_types::ConstantUtf8>(descriptor_index)
+			.expect("field descriptor should always resolve");
 
 		let descriptor = FieldType::parse(&mut descriptor.as_bytes()).unwrap(); // TODO: Error handling
 		let constant_value_index = field_info

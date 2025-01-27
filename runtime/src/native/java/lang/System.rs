@@ -4,6 +4,7 @@ use crate::thread::JavaThread;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::thread::exceptions::throw;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jint, jlong};
 use common::traits::PtrType;
@@ -70,8 +71,8 @@ pub fn arraycopy(
 	length: jint,
 ) {
 	if src.is_null() || dest.is_null() {
-		let _thread = unsafe { &*JavaThread::for_env(env.raw()) };
-		todo!("NullPointerException")
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		throw!(thread, NullPointerException);
 	}
 
 	let src_array = src.extract_array();
@@ -83,8 +84,8 @@ pub fn arraycopy(
 		|| src_pos + length > src_array.get().elements.element_count() as jint
 		|| dest_pos + length > dest_array.get().elements.element_count() as jint
 	{
-		// TODO
-		panic!("IndexOutOfBoundsException")
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		throw!(thread, IndexOutOfBoundsException);
 	}
 
 	if src_array.as_raw() == dest_array.as_raw() {

@@ -1,7 +1,6 @@
 use super::Location;
-use crate::attribute::LocalVariableTypeTable;
+use crate::attribute::{AttributeTag, AttributeType, LocalVariableType, LocalVariableTypeTable};
 use crate::error::Result;
-use crate::{AttributeTag, AttributeType, LocalVariableType};
 
 use std::io::Read;
 

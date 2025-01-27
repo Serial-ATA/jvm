@@ -1,7 +1,6 @@
 use super::Location;
-use crate::attribute::PermittedSubclasses;
+use crate::attribute::{AttributeTag, AttributeType, PermittedSubclasses};
 use crate::error::Result;
-use crate::{AttributeTag, AttributeType};
 
 use std::io::Read;
 

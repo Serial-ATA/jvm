@@ -1,5 +1,6 @@
 pub mod classes;
 pub mod fields;
+pub mod mirrors;
 pub mod modules;
 pub mod threads;
 

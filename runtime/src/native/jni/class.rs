@@ -1,7 +1,7 @@
 use super::{classref_from_jclass, IntoJni};
 use crate::classpath::loader::ClassLoader;
 use crate::objects::class::Class;
-use crate::thread::exceptions::throw_with_ret;
+use crate::thread::exceptions::{throw_with_ret, Throws};
 use crate::thread::JavaThread;
 
 use core::ffi::{c_char, CStr};
@@ -37,8 +37,9 @@ pub unsafe extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -
 		loader = current_frame.method().class().loader();
 	}
 
-	if let Some(class) = loader.load(Symbol::intern_bytes(name.to_bytes())) {
-		return class.into_jni();
+	match loader.load(Symbol::intern_bytes(name.to_bytes())) {
+		Throws::Ok(class) => return class.into_jni(),
+		Throws::Exception(e) => e.throw(thread),
 	}
 
 	let ret = core::ptr::null::<&'static Class>() as jclass;

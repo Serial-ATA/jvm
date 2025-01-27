@@ -1,7 +1,6 @@
 use super::Location;
-use crate::attribute::BootstrapMethods;
+use crate::attribute::{AttributeTag, AttributeType, BootstrapMethod, BootstrapMethods};
 use crate::error::Result;
-use crate::{AttributeTag, AttributeType, BootstrapMethod};
 
 use std::io::Read;
 

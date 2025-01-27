@@ -1,21 +1,28 @@
 pub mod spec;
 
+use crate::java_call;
+use crate::native::jni::reference_from_jobject;
 use crate::native::method::NativeMethodPtr;
+use crate::objects::array::ArrayInstance;
 use crate::objects::class::Class;
 use crate::objects::constant_pool::cp_types;
-use std::ffi::VaList;
+use crate::objects::reference::Reference;
+use crate::thread::exceptions::Throws;
+use crate::thread::JavaThread;
 
+use std::ffi::VaList;
 use std::fmt::{Debug, Formatter};
 use std::sync::RwLock;
 
-use crate::native::jni::reference_from_jobject;
-use crate::objects::reference::Reference;
 use classfile::accessflags::MethodAccessFlags;
-use classfile::{Code, FieldType, LineNumber, MethodDescriptor, MethodInfo, ResolvedAnnotation};
+use classfile::attribute::resolved::ResolvedAnnotation;
+use classfile::attribute::{Code, LineNumber};
+use classfile::{FieldType, MethodDescriptor, MethodInfo};
 use common::int_types::{s4, u1};
+use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::{jdouble, jint, jlong, jobject, jvalue};
-use symbols::Symbol;
+use symbols::{sym, Symbol};
 
 #[derive(Default, PartialEq, Eq, Debug)]
 struct ExtraFlags {
@@ -94,11 +101,17 @@ impl Method {
 			},
 		}
 
+		// TODO: Handle throws
 		let name_index = method_info.name_index;
-		let name = constant_pool.get::<cp_types::ConstantUtf8>(name_index);
+		let name = constant_pool
+			.get::<cp_types::ConstantUtf8>(name_index)
+			.expect("method name should always resolve");
 
+		// TODO: Handle throws
 		let descriptor_index = method_info.descriptor_index;
-		let descriptor_sym = constant_pool.get::<cp_types::ConstantUtf8>(descriptor_index);
+		let descriptor_sym = constant_pool
+			.get::<cp_types::ConstantUtf8>(descriptor_index)
+			.expect("method descriptor should always resolve");
 
 		let descriptor = MethodDescriptor::parse(&mut descriptor_sym.as_bytes()).unwrap(); // TODO: Error handling
 
@@ -154,11 +167,13 @@ impl Method {
 				return Some(exception_handler.handler_pc as isize);
 			}
 
+			// TODO: Handle throws here, should take precedence over the current exception?
 			let catch_type_class = self
 				.class
 				.unwrap_class_instance()
 				.constant_pool
-				.get::<cp_types::Class>(exception_handler.catch_type);
+				.get::<cp_types::Class>(exception_handler.catch_type)
+				.unwrap();
 
 			if catch_type_class == class || catch_type_class.is_subclass_of(class) {
 				return Some(exception_handler.handler_pc as isize);
@@ -214,6 +229,10 @@ impl Method {
 		self.access_flags.is_abstract()
 	}
 
+	pub fn is_var_args(&self) -> bool {
+		self.access_flags.is_varargs()
+	}
+
 	pub fn is_default(&self) -> bool {
 		self.class.is_interface() && (!self.is_abstract() && !self.is_public())
 	}
@@ -232,6 +251,92 @@ impl Method {
 		}
 
 		false
+	}
+}
+
+// Parsing stuff
+impl Method {
+	/// Get the `java.lang.invoke.MethodType` for a method descriptor
+	///
+	/// This requires an initiating [`Class`], as this process may load additional classes.
+	///
+	/// This will parse the `descriptor` and call `java.lang.invoke.MethodHandleNatives#findMethodHandleType` on
+	/// the current thread.
+	pub fn method_type_for(class: &'static Class, descriptor: &str) -> Throws<Reference> {
+		let descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes()).unwrap(); // TODO: Error handling
+		let num_parameters = descriptor.parameters.len();
+		let mut parameters = ArrayInstance::new_reference(
+			num_parameters as s4,
+			crate::globals::classes::java_lang_Class(),
+		)?;
+
+		for (index, parameter) in descriptor.parameters.iter().enumerate() {
+			match parameter {
+				FieldType::Byte
+				| FieldType::Char
+				| FieldType::Double
+				| FieldType::Float
+				| FieldType::Int
+				| FieldType::Long
+				| FieldType::Short
+				| FieldType::Boolean => {
+					let mirror = crate::globals::mirrors::primitive_mirror_for(&parameter);
+					parameters
+						.get_mut()
+						.store(index as s4, Operand::Reference(mirror))?;
+				},
+				FieldType::Void => {
+					panic!("Void parameter"); // TODO: Exception
+				},
+				FieldType::Object(_) | FieldType::Array(_) => todo!("Object parameters"),
+			}
+		}
+
+		let return_type;
+		match descriptor.return_type {
+			FieldType::Byte
+			| FieldType::Char
+			| FieldType::Double
+			| FieldType::Float
+			| FieldType::Int
+			| FieldType::Long
+			| FieldType::Short
+			| FieldType::Boolean
+			| FieldType::Void => {
+				return_type =
+					crate::globals::mirrors::primitive_mirror_for(&descriptor.return_type);
+			},
+			FieldType::Object(class_name) => {
+				let class = class.loader().load(Symbol::intern_bytes(&*class_name))?;
+				return_type = Reference::mirror(class.mirror());
+			},
+			FieldType::Array(_) => todo!("Array returns"),
+		}
+
+		let method_handle_natives_class =
+			crate::globals::classes::java_lang_invoke_MethodHandleNatives();
+
+		let find_method_handle_type_method = method_handle_natives_class.resolve_method(
+			sym!(findMethodHandleType),
+			sym!(findMethodHandleType_signature),
+		)?;
+
+		let thread = JavaThread::current();
+
+		// static java.lang.invoke.MethodHandleNatives#findMethodHandleType(Class rt, Class[] pts) -> MethodType
+		let result = java_call!(
+			thread,
+			find_method_handle_type_method,
+			Operand::Reference(return_type),
+			Operand::Reference(Reference::array(parameters))
+		)
+		.expect("method should return something")
+		.expect_reference();
+
+		// TODO: Need a way to take the pending exception from the thread to pass it up the Throws chain instead
+		assert!(!thread.has_pending_exception());
+
+		Throws::Ok(result)
 	}
 }
 

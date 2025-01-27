@@ -69,6 +69,13 @@ impl MirrorInstance {
 		})
 	}
 
+	/// Create a new mirror instance for a primitive type
+	///
+	/// This should **never** be used outside of initialization.
+	///
+	/// All primitive mirrors are available in [`crate::globals::mirrors`]. For example, [`primitive_int_mirror()`].
+	///
+	/// [`primitive_int_mirror()`]: crate::globals::mirrors::primitive_int_mirror
 	pub fn new_primitive(target: FieldType) -> MirrorInstanceRef {
 		assert!(
 			!matches!(target, FieldType::Array(_) | FieldType::Object(_)),

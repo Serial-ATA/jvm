@@ -1,0 +1,41 @@
+import java.lang.Object;
+import java.lang.Class;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MemberName;
+import java.lang.invoke.CallSite;
+
+public class MethodHandleNatives {
+    //--- MemberName support
+
+    static native void init(MemberName self, Object ref);
+    static native void expand(MemberName self);
+    static native MemberName resolve(MemberName self, Class<?> caller, int lookupMode,
+            boolean speculativeResolve) throws LinkageError, ClassNotFoundException;
+
+    //--- Field layout queries parallel to jdk.internal.misc.Unsafe:
+    static native long objectFieldOffset(MemberName self);  // e.g., returns vmindex
+    static native long staticFieldOffset(MemberName self);  // e.g., returns vmindex
+    static native Object staticFieldBase(MemberName self);  // e.g., returns clazz
+    static native Object getMemberVMInfo(MemberName self);  // returns {vmindex,vmtarget}
+
+    //--- CallSite support
+
+    // Tell the JVM that we need to change the target of a CallSite.
+    static native void setCallSiteTargetNormal(CallSite site, MethodHandle target);
+    static native void setCallSiteTargetVolatile(CallSite site, MethodHandle target);
+
+    static native void copyOutBootstrapArguments(Class<?> caller, int[] indexInfo,
+                                                 int start, int end,
+                                                 Object[] buf, int pos,
+                                                 boolean resolve,
+                                                 Object ifNotAvailable);
+
+    static class CallSiteContext {}
+
+    // Invalidate all recorded nmethods.
+    private static native void clearCallSiteContext(CallSiteContext context);
+
+    private static native void registerNatives();
+
+    private static native int getNamedCon(int which, Object[] name);
+}

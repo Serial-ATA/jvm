@@ -27,8 +27,14 @@ macro_rules! define_classes {
             /// This will panic if the class is not actually loaded.
 			#[allow(non_snake_case)]
             pub fn $name() -> &'static Class {
+                [<$name _opt>]().expect(concat!(stringify!($name), " not loaded"))
+            }
+
+            #[doc = "Get the loaded " $name " class, if it's loaded"]
+			#[allow(non_snake_case)]
+            pub fn [<$name _opt>]() -> Option<&'static Class> {
                 unsafe {
-                    (*[<$name _>].get()).expect(concat!(stringify!($name), " not loaded"))
+                    (*[<$name _>].get())
                 }
             }
             )+
@@ -50,6 +56,7 @@ define_classes!(
 	java_lang_Cloneable,
 	java_io_Serializable,
 	java_lang_Module,
+	java_lang_invoke_MethodHandleNatives,
 	java_lang_ref_Reference,
 	java_lang_ref_Finalizer,
 	java_io_FileDescriptor,

@@ -1,7 +1,6 @@
 use super::Location;
-use crate::attribute::MethodParameters;
+use crate::attribute::{AttributeTag, AttributeType, MethodParameter, MethodParameters};
 use crate::error::Result;
-use crate::{AttributeTag, AttributeType, MethodParameter};
 
 use std::io::Read;
 

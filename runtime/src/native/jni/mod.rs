@@ -4,16 +4,13 @@
 
 #![allow(unused_variables, non_snake_case)]
 
-use crate::objects::array::ArrayInstancePtr;
 use crate::objects::class::Class;
 use crate::objects::field::Field;
 use crate::objects::method::Method;
-use crate::objects::reference::{ArrayInstanceRef, Reference};
+use crate::objects::reference::Reference;
 
-use std::sync::Arc;
-
-use jni::objects::{JClass, JFieldId, JMethodId, JObject, JObjectArray};
-use jni::sys::{jclass, jfieldID, jmethodID, jobject, jobjectArray};
+use jni::objects::{JClass, JFieldId, JMethodId, JObject};
+use jni::sys::{jclass, jfieldID, jmethodID, jobject};
 
 pub mod array;
 pub mod class;

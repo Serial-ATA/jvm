@@ -65,7 +65,6 @@ pub fn initIDs(_: JniEnv, class: &'static Class) {
 		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
 		.is_err()
 	{
-		// TODO
 		panic!("java.io.FileInputStream#initIDs: attempt to initialize more than once.");
 	}
 

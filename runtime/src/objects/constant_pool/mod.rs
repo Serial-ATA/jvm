@@ -1,12 +1,15 @@
 pub mod cp_types;
+use cp_types::Entry;
 mod entry;
+mod raw_ext;
 
 use crate::objects::class::Class;
-use cp_types::Entry;
+use crate::thread::exceptions::Throws;
 
 use std::fmt::{Debug, Formatter};
 
-use classfile::ConstantPoolValueInfo;
+use classfile::constant_pool::types::CpEntry;
+use classfile::constant_pool::ConstantPoolValueInfo;
 use common::box_slice;
 use common::int_types::u2;
 
@@ -27,11 +30,11 @@ use common::int_types::u2;
 pub struct ConstantPool {
 	class: &'static Class,
 	entries: Box<[entry::ConstantPoolEntry]>,
-	raw: classfile::ConstantPool,
+	raw: classfile::constant_pool::ConstantPool,
 }
 
 impl ConstantPool {
-	pub fn new(class: &'static Class, cp: classfile::ConstantPool) -> Self {
+	pub fn new(class: &'static Class, cp: classfile::constant_pool::ConstantPool) -> Self {
 		Self {
 			class,
 			entries: box_slice![entry::ConstantPoolEntry::new(); cp.len()],
@@ -39,48 +42,67 @@ impl ConstantPool {
 		}
 	}
 
+	// TODO: Ideally have an entry api, so that the caller can check whether the value is resolved, and if not, resolve it.
+	//       Having `get` potentially throw isn't very good.
+
 	/// Get a constant pool entry of a specific type
 	///
 	/// See [`ConstantPool`] for notes on resolution.
-	pub fn get<T: cp_types::EntryType>(&self, index: u2) -> T::Resolved {
+	pub fn get<T: cp_types::EntryType>(&self, index: u2) -> Throws<T::Resolved> {
 		let entry = &self.entries[index as usize];
 		if let Some(resolved) = entry.resolved::<T>() {
-			return resolved;
+			return Throws::Ok(resolved);
 		}
 
 		entry.resolve::<T>(self.class, &self, index)
 	}
 
+	unsafe fn resolve_entry_with<T: cp_types::EntryType>(
+		&self,
+		index: u2,
+		value: <T::RawEntryType as CpEntry>::Entry,
+	) -> Throws<T::Resolved> {
+		let entry = &self.entries[index as usize];
+		unsafe { entry.resolve_with::<T>(self.class, self, index, value) }
+	}
+
 	/// Get a constant pool entry of any type
 	///
 	/// See [`ConstantPool`] for notes on resolution.
-	pub fn get_any(&self, index: u2) -> Entry {
+	pub fn get_any(&self, index: u2) -> Throws<Entry> {
 		let raw = &self.raw[index as usize];
 		match raw {
-			ConstantPoolValueInfo::Class { .. } => Entry::Class(self.get::<cp_types::Class>(index)),
+			ConstantPoolValueInfo::Class { .. } => {
+				self.get::<cp_types::Class>(index).map(Entry::Class)
+			},
 			ConstantPoolValueInfo::Fieldref { .. } => {
-				Entry::FieldRef(self.get::<cp_types::FieldRef>(index))
+				self.get::<cp_types::FieldRef>(index).map(Entry::FieldRef)
 			},
 			ConstantPoolValueInfo::Methodref { .. } => {
-				Entry::MethodRef(self.get::<cp_types::MethodRef>(index))
+				self.get::<cp_types::MethodRef>(index).map(Entry::MethodRef)
 			},
 			ConstantPoolValueInfo::String { .. } => {
-				Entry::String(self.get::<cp_types::String>(index))
+				self.get::<cp_types::String>(index).map(Entry::String)
 			},
 			ConstantPoolValueInfo::Integer { .. } => {
-				Entry::Integer(self.get::<cp_types::Integer>(index))
+				self.get::<cp_types::Integer>(index).map(Entry::Integer)
 			},
-			ConstantPoolValueInfo::Float { .. } => Entry::Float(self.get::<cp_types::Float>(index)),
-			ConstantPoolValueInfo::Long { .. } => Entry::Long(self.get::<cp_types::Long>(index)),
+			ConstantPoolValueInfo::Float { .. } => {
+				self.get::<cp_types::Float>(index).map(Entry::Float)
+			},
+			ConstantPoolValueInfo::Long { .. } => {
+				self.get::<cp_types::Long>(index).map(Entry::Long)
+			},
 			ConstantPoolValueInfo::Double { .. } => {
-				Entry::Double(self.get::<cp_types::Double>(index))
+				self.get::<cp_types::Double>(index).map(Entry::Double)
 			},
-			ConstantPoolValueInfo::Utf8 { .. } => {
-				Entry::ConstantUtf8(self.get::<cp_types::ConstantUtf8>(index))
-			},
+			ConstantPoolValueInfo::Utf8 { .. } => self
+				.get::<cp_types::ConstantUtf8>(index)
+				.map(Entry::ConstantUtf8),
 			ConstantPoolValueInfo::MethodHandle { .. }
 			| ConstantPoolValueInfo::MethodType { .. }
 			| ConstantPoolValueInfo::InterfaceMethodref { .. }
+			| ConstantPoolValueInfo::Dynamic { .. }
 			| ConstantPoolValueInfo::InvokeDynamic { .. }
 			| ConstantPoolValueInfo::Module { .. }
 			| ConstantPoolValueInfo::Package { .. } => todo!(),
@@ -91,7 +113,7 @@ impl ConstantPool {
 		}
 	}
 
-	pub(super) fn raw(&self) -> &classfile::ConstantPool {
+	pub(super) fn raw(&self) -> &classfile::constant_pool::ConstantPool {
 		&self.raw
 	}
 }

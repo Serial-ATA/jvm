@@ -4,6 +4,8 @@ pub mod Raw {
 	use crate::objects::class::Class;
 	use crate::objects::reference::Reference;
 	use crate::string_interner::StringInterner;
+	use crate::thread::exceptions::Throws;
+	use crate::thread::JavaThread;
 
 	use ::jni::env::JniEnv;
 	use common::traits::PtrType;
@@ -18,7 +20,7 @@ pub mod Raw {
 	const VM_VERSION: &str = env!("CARGO_PKG_VERSION");
 	const VM_VENDOR: &str = env!("SYSTEM_PROPS_VM_VENDOR");
 
-	pub fn vmProperties(_env: JniEnv, _class: &'static Class) -> Reference /* [Ljava/lang/String; */
+	pub fn vmProperties(env: JniEnv, _class: &'static Class) -> Reference /* [Ljava/lang/String; */
 	{
 		macro_rules! store_properties {
 			($prop_array:ident; $($key:literal => $value:expr),+ $(,)?) => {
@@ -35,8 +37,19 @@ pub mod Raw {
 			};
 		}
 
+		// TODO: FIXED_LENGTH is not the correct size here
 		let string_array_class = crate::globals::classes::string_array();
-		let prop_array = ArrayInstance::new_reference(FIXED_LENGTH, string_array_class);
+		let prop_array;
+		match ArrayInstance::new_reference(FIXED_LENGTH, string_array_class) {
+			Throws::Ok(array) => prop_array = array,
+			Throws::Exception(e) => {
+				let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+				e.throw(thread);
+
+				// Doesn't matter what we return, this value will never be used.
+				return Reference::null();
+			},
+		}
 
 		let prop_array_mut = prop_array.get_mut();
 		store_properties!(prop_array_mut;
@@ -58,7 +71,7 @@ pub mod Raw {
 		Reference::array(prop_array)
 	}
 
-	pub fn platformProperties(_env: JniEnv, _class: &'static Class) -> Reference /* [Ljava/lang/String; */
+	pub fn platformProperties(env: JniEnv, _class: &'static Class) -> Reference /* [Ljava/lang/String; */
 	{
 		macro_rules! store_properties {
 			($prop_array:ident; $($index:expr => $value:expr),+ $(,)?) => {
@@ -72,7 +85,17 @@ pub mod Raw {
 		}
 
 		let string_array_class = crate::globals::classes::string_array();
-		let prop_array = ArrayInstance::new_reference(FIXED_LENGTH, string_array_class);
+		let prop_array;
+		match ArrayInstance::new_reference(FIXED_LENGTH, string_array_class) {
+			Throws::Ok(array) => prop_array = array,
+			Throws::Exception(e) => {
+				let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+				e.throw(thread);
+
+				// Doesn't matter what we return, this value will never be used.
+				return Reference::null();
+			},
+		}
 
 		let prop_array_mut = prop_array.get_mut();
 

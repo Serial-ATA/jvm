@@ -1,6 +1,6 @@
+use crate::attribute::{AttributeTag, AttributeType};
 use crate::error::Result;
 use crate::parse::attributes::Location;
-use crate::{AttributeTag, AttributeType};
 
 const VALID_LOCATIONS: &[Location] = &[
 	Location::ClassFile,

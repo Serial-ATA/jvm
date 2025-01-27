@@ -6,7 +6,8 @@ use crate::objects::method::Method;
 use crate::objects::vtable::VTable;
 
 use classfile::accessflags::MethodAccessFlags;
-use classfile::{Attribute, MethodDescriptor};
+use classfile::attribute::Attribute;
+use classfile::MethodDescriptor;
 use symbols::{sym, Symbol};
 
 pub(super) trait ClassAccessorExt {

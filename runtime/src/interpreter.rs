@@ -10,6 +10,7 @@ use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::string_interner::StringInterner;
+use crate::thread::exceptions::handle_exception;
 use crate::thread::frame::Frame;
 use crate::thread::JavaThread;
 
@@ -17,8 +18,7 @@ use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
 use std::sync::Arc;
 
-use crate::thread::exceptions::handle_exception;
-use classfile::ConstantPoolValueInfo;
+use classfile::constant_pool::ConstantPoolValueInfo;
 use common::int_types::{s2, s4, s8, u2};
 use common::traits::PtrType;
 use instructions::{ConstOperandType, OpCode, Operand, StackLike};
@@ -125,7 +125,9 @@ macro_rules! load_from_array {
 
 		// TODO: Validate the type, right now the output is just trusted
 		//       to be correct
-		stack.push_op(array_ref.get().get(index));
+		// TODO: actually handle throws
+		let op = array_ref.get().get(index).unwrap();
+		stack.push_op(op);
 	}};
 }
 
@@ -434,7 +436,6 @@ impl Interpreter {
                 } => stack_operations;
                 
                 // ========= Math =========
-                // TODO: ushr
                 CATEGORY: math
                 @GROUP {
                     [
@@ -562,8 +563,6 @@ impl Interpreter {
                 } => comparisons;
                 
                 // ========= References =========
-                // TODO: 
-                //       invokedynamic
                 CATEGORY: references
                 OpCode::getstatic => {
                     let field = Self::fetch_field(frame, true);
@@ -605,6 +604,9 @@ impl Interpreter {
 
                     object_ref.put_field_value(field, value);
                 },
+                OpCode::invokedynamic => {
+                    Self::invoke_dynamic(frame);
+                },
                 OpCode::invokevirtual => {
                     let method = Self::fetch_method(frame, false);
                     MethodInvoker::invoke_virtual(frame, method);
@@ -638,19 +640,21 @@ impl Interpreter {
                     let stack = frame.stack_mut();
                     let count = stack.pop_int();
                     
-                    let array_ref = ArrayInstance::new_from_type(type_code, count);
+                    // TODO: Handle throws
+                    let array_ref = ArrayInstance::new_from_type(type_code, count).unwrap();
                     stack.push_reference(Reference::array(array_ref));
                 },
+                // TODO: Handle throws
                 OpCode::anewarray => {
                     let index = frame.read_byte2();
 
                     let constant_pool = frame.constant_pool();
-                    let array_class = constant_pool.get::<cp_types::Class>(index);
+                    let array_class = constant_pool.get::<cp_types::Class>(index).unwrap();
 
                     let stack = frame.stack_mut();
                     let count = stack.pop_int();
-
-                    let array_ref = ArrayInstance::new_reference(count, array_class);
+        
+                    let array_ref = ArrayInstance::new_reference(count, array_class).unwrap();
                     stack.push_reference(Reference::array(array_ref));
                 },
                 OpCode::arraylength => {
@@ -755,7 +759,7 @@ impl Interpreter {
         };
 
         let constant_pool = frame.constant_pool();
-        let constant = constant_pool.get_any(idx);
+        let constant = constant_pool.get_any(idx).unwrap(); // TODO
 
         // The run-time constant pool entry at index must be loadable (§5.1),
         match constant {
@@ -796,7 +800,7 @@ impl Interpreter {
         let idx = frame.read_byte2();
 
         let constant_pool = frame.constant_pool();
-        let constant = constant_pool.get_any(idx);
+        let constant = constant_pool.get_any(idx).unwrap(); // TODO: Handle throws
 
         // The run-time constant pool entry at index must be loadable (§5.1),
         match constant {
@@ -890,7 +894,7 @@ impl Interpreter {
         }
 
         let constant_pool = frame.constant_pool();
-        let class = constant_pool.get::<cp_types::Class>(index);
+        let class = constant_pool.get::<cp_types::Class>(index).unwrap(); // TODO: Handle throws
 
         let stack = frame.stack_mut();
         if objectref.is_instance_of(class) {
@@ -913,12 +917,26 @@ impl Interpreter {
         }
     }
 
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.invokedynamic
+    fn invoke_dynamic(frame: &mut Frame) {
+        let index = frame.read_byte2();
+	    
+	    // The values of the third and fourth operand bytes must always be zero.
+		assert_eq!(frame.read_byte2(), 0);
+	    
+        let constant_pool = frame.constant_pool();
+        let constant = constant_pool.get::<cp_types::InvokeDynamic>(index).unwrap(); // TODO: Handle throws
+		
+		unimplemented!("invokedynamic")
+    }
+
     fn fetch_field(frame: &mut Frame, is_static: bool) -> &'static Field {
         let field_ref_idx = frame.read_byte2();
 
         let constant_pool = frame.constant_pool();
 
-        let ret = constant_pool.get::<cp_types::FieldRef>(field_ref_idx);
+	    // TODO: Handle throws
+        let ret = constant_pool.get::<cp_types::FieldRef>(field_ref_idx).unwrap();
         if is_static {
             ret.class.initialize(frame.thread());
         }
@@ -931,7 +949,8 @@ impl Interpreter {
 
         let constant_pool = frame.constant_pool();
 
-        let ret = constant_pool.get::<cp_types::MethodRef>(method_ref_idx);
+	    // TODO: Handle throws
+        let ret = constant_pool.get::<cp_types::MethodRef>(method_ref_idx).unwrap();
         if is_static {
             // On successful resolution of the method, the class or interface that declared the resolved method is initialized if that class or interface has not already been initialized
             ret.class().initialize(frame.thread());
@@ -945,7 +964,8 @@ impl Interpreter {
 
         let constant_pool = frame.constant_pool();
 
-        let class = constant_pool.get::<cp_types::Class>(index);
+	    // TODO: Handle throws
+        let class = constant_pool.get::<cp_types::Class>(index).unwrap();
         if class.is_interface() || class.is_abstract() {
             panic!("InstantiationError") // TODO
         }
@@ -1017,13 +1037,14 @@ impl Interpreter {
 		assert!(dimensions >= 1);
 		
         let constant_pool = frame.constant_pool();
-        let class = constant_pool.get::<cp_types::Class>(index);
+        let class = constant_pool.get::<cp_types::Class>(index).unwrap(); // TODO: Handle throws
 		
 		class.initialize(frame.thread());
 		
 		let counts = frame.stack_mut().popn(dimensions as usize);
 		
-        let array_ref = handle_exception!(frame.thread(), ArrayInstance::new_multidimensional(counts.into_iter().map(|op| op.expect_int()), class));
+		// TODO: Handle throws
+        let array_ref = ArrayInstance::new_multidimensional(counts.into_iter().map(|op| op.expect_int()), class).unwrap();
         frame.stack_mut().push_reference(Reference::array(array_ref));
 	}
 }

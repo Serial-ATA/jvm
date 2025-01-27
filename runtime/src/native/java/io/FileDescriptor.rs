@@ -21,14 +21,12 @@ pub fn sync0(_: JniEnv, _this: Reference) {
 	unimplemented!("java.io.FileDescriptor#sync0");
 }
 
-// TODO: Move logic to globals
 pub fn initIDs(_: JniEnv, class: &'static Class) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE
 		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
 		.is_err()
 	{
-		// TODO
 		panic!("java.io.FileDescriptor#initIDs: attempt to initialize more than once.");
 	}
 

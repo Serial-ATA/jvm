@@ -22,7 +22,7 @@ mod synthetic;
 
 use super::error::{ClassFileParseError, Result};
 use crate::attribute::{Attribute, AttributeTag};
-use crate::constant_pool::ConstantPool;
+use crate::constant_pool::{types, ConstantPool};
 
 use std::io::Read;
 
@@ -60,11 +60,11 @@ where
 	R: Read,
 {
 	let attribute_name_index = reader.read_u2()?;
-	let attribute_name = constant_pool.get_constant_utf8(attribute_name_index);
+	let attribute_name = constant_pool.get::<types::raw::RawConstantUtf8>(attribute_name_index);
 
 	let attribute_length = reader.read_u4()?;
 
-	let info = match AttributeTag::from(attribute_name) {
+	let info = match AttributeTag::from(&*attribute_name) {
 		AttributeTag::ConstantValue => constant_value::read(reader, location),
 		AttributeTag::Code => code::read(reader, constant_pool, location),
 		AttributeTag::StackMapTable => stack_map_table::read(reader, location),

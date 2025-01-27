@@ -1,4 +1,4 @@
-use super::{classref_from_jclass, method_ref_from_jmethodid, reference_from_jobject, IntoJni};
+use super::{classref_from_jclass, method_ref_from_jmethodid, IntoJni};
 use crate::objects::method::Method;
 use crate::stack::local_stack::LocalStack;
 use crate::thread::JavaThread;
@@ -6,9 +6,7 @@ use crate::thread::JavaThread;
 use core::ffi::c_char;
 use std::ffi::CStr;
 
-use classfile::FieldType;
-use instructions::Operand;
-use jni::objects::JObject;
+use crate::thread::exceptions::Throws;
 use jni::sys::{
 	jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, jobject, jshort,
 	jvalue, va_list, JNIEnv,
@@ -674,14 +672,19 @@ pub unsafe extern "system" fn GetStaticMethodID(
 	let sig = Symbol::intern_bytes(sig.to_bytes());
 
 	let Some(class) = classref_from_jclass(clazz) else {
-		return core::ptr::null::<&'static Method>() as jmethodID;
+		return core::ptr::null::<Method>() as jmethodID;
 	};
 
-	let Some(method) = class.resolve_method(name, sig) else {
-		return core::ptr::null::<&'static Method>() as jmethodID;
-	};
+	match class.resolve_method(name, sig) {
+		Throws::Ok(method) => method.into_jni(),
+		Throws::Exception(e) => {
+			let thread = JavaThread::current();
+			assert_eq!(thread.env().raw(), env);
+			e.throw(thread);
 
-	method.into_jni()
+			core::ptr::null::<Method>() as jmethodID
+		},
+	}
 }
 
 #[no_mangle]

@@ -1,7 +1,6 @@
 use super::Location;
-use crate::attribute::EnclosingMethod;
+use crate::attribute::{AttributeTag, AttributeType, EnclosingMethod};
 use crate::error::Result;
-use crate::{AttributeTag, AttributeType};
 
 use std::io::Read;
 

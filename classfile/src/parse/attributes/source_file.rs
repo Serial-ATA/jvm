@@ -1,7 +1,6 @@
 use super::Location;
-use crate::attribute::SourceFile;
+use crate::attribute::{AttributeTag, AttributeType, SourceFile};
 use crate::error::Result;
-use crate::{AttributeTag, AttributeType};
 
 use std::io::Read;
 
