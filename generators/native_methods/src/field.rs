@@ -9,7 +9,11 @@ fn class_contains_fields(class: &Class) -> bool {
 	for member in &class.members {
 		match member {
 			Member::Field(_) => return true,
-			Member::Class(c) => return class_contains_fields(c),
+			Member::Class(c) => {
+				if class_contains_fields(c) {
+					return true;
+				}
+			},
 			Member::Method(_) => {},
 		}
 	}

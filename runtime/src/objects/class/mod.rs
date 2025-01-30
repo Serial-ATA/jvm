@@ -173,6 +173,7 @@ pub enum ClassType {
 pub struct ClassDescriptor {
 	pub source_file_index: Option<u2>,
 	pub constant_pool: ConstantPool,
+	pub is_record: bool,
 }
 
 impl Debug for ClassDescriptor {
@@ -189,6 +190,8 @@ impl Debug for ClassDescriptor {
 			),
 			None => debug_struct.field("source_file", &"None"),
 		};
+
+		debug_struct.field("is_record", &self.is_record);
 
 		debug_struct.finish()
 	}
@@ -541,6 +544,14 @@ impl Class {
 		self.access_flags.is_abstract()
 	}
 
+	/// Whether the class is a record
+	pub fn is_record(&self) -> bool {
+		match self.class_ty() {
+			ClassType::Instance(ref instance) => instance.is_record,
+			_ => false,
+		}
+	}
+
 	/// Whether this class is a subclass of `class`
 	pub fn is_subclass_of(&self, class: &Class) -> bool {
 		let mut current_class = self;
@@ -638,6 +649,12 @@ impl Class {
 			None => None,
 		};
 
+		// TODO: Actually retain the information from the record attribute
+		let is_record = parsed_file
+			.attributes
+			.iter()
+			.any(|attr| attr.record().is_some());
+
 		let constant_pool = parsed_file.constant_pool;
 
 		let name_raw = constant_pool.get::<raw_types::RawClassName>(class_name_index);
@@ -693,6 +710,7 @@ impl Class {
 		let class_instance = ClassDescriptor {
 			source_file_index,
 			constant_pool: ConstantPool::new(class, constant_pool),
+			is_record,
 		};
 		unsafe {
 			*class.class_ty.get() = MaybeUninit::new(ClassType::Instance(class_instance));

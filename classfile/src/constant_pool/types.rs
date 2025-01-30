@@ -62,7 +62,7 @@ impl<'a> FieldRefEntry<'a> {
 }
 
 /// The type of a method handle
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ReferenceKind {
 	/// REF_getField
 	GetField = 1,
@@ -85,7 +85,7 @@ pub enum ReferenceKind {
 }
 
 impl ReferenceKind {
-	fn from_u8(value: u8) -> Option<ReferenceKind> {
+	pub fn from_u8(value: u8) -> Option<ReferenceKind> {
 		match value {
 			1 => Some(ReferenceKind::GetField),
 			2 => Some(ReferenceKind::GetStatic),
@@ -98,6 +98,30 @@ impl ReferenceKind {
 			9 => Some(ReferenceKind::InvokeInterface),
 			_ => None,
 		}
+	}
+
+	pub fn is_field(self) -> bool {
+		matches!(
+			self,
+			ReferenceKind::GetField
+				| ReferenceKind::GetStatic
+				| ReferenceKind::PutField
+				| ReferenceKind::PutStatic
+		)
+	}
+
+	pub fn is_method(self) -> bool {
+		matches!(
+			self,
+			ReferenceKind::InvokeVirtual
+				| ReferenceKind::InvokeStatic
+				| ReferenceKind::InvokeSpecial
+				| ReferenceKind::InvokeInterface
+		)
+	}
+
+	pub fn is_constructor(self) -> bool {
+		self == ReferenceKind::NewInvokeSpecial
 	}
 }
 

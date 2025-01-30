@@ -115,6 +115,11 @@ impl ClassAccessFlags {
 	pub const ACC_ENUM      : ClassAccessFlags = Self(0x4000);
 	/// Is a module, not a class or interface.
 	pub const ACC_MODULE    : ClassAccessFlags = Self(0x8000);
+	
+	/// Returns the `u2` representation of the access flags
+	pub fn as_u2(self) -> u16 {
+		self.0
+	}
 }
 
 impl_accessflags_for!(ClassAccessFlags);
@@ -135,6 +140,7 @@ impl_is_methods! {
 
 /// Method access and property flags (§4.6-A)
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
 pub struct MethodAccessFlags(u16);
 
 #[rustfmt::skip]
@@ -167,6 +173,11 @@ impl MethodAccessFlags {
 	pub const ACC_STRICT      : MethodAccessFlags = Self(0x0800);
 	/// Declared synthetic; not present in the source code.
 	pub const ACC_SYNTHETIC   : MethodAccessFlags = Self(0x1000);
+	
+	/// Returns the `u2` representation of the access flags
+	pub fn as_u2(self) -> u16 {
+		self.0
+	}
 }
 
 impl_accessflags_for!(MethodAccessFlags);
@@ -190,6 +201,7 @@ impl_is_methods! {
 
 /// Field access and property flags (§4.5-A)
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
 pub struct FieldAccessFlags(u16);
 
 #[rustfmt::skip]
@@ -215,6 +227,11 @@ impl FieldAccessFlags {
 	pub const ACC_SYNTHETIC: FieldAccessFlags = Self(0x1000);
 	/// Declared as an element of an enum class.
 	pub const ACC_ENUM 	   : FieldAccessFlags = Self(0x4000);
+	
+	/// Returns the `u2` representation of the access flags
+	pub fn as_u2(self) -> u16 {
+		self.0
+	}
 }
 
 impl_accessflags_for!(FieldAccessFlags);

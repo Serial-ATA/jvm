@@ -10,11 +10,15 @@ use crate::string_interner::StringInterner;
 use crate::thread::exceptions::{throw, Throws};
 use crate::thread::JavaThread;
 
+use crate::native::java::lang::invoke::MethodHandleNatives;
+use crate::objects::class_instance::ClassInstance;
+use crate::objects::instance::Instance;
 use classfile::constant_pool::types::{raw as raw_types, CpEntry, ReferenceEntry, ReferenceKind};
 use classfile::{FieldType, MethodDescriptor};
 use common::int_types::{s4, s8, u1, u2};
 use common::traits::PtrType;
 use instructions::Operand;
+use jni::sys::jint;
 use symbols::{sym, Symbol};
 
 /// A constant pool entry of any type
@@ -380,6 +384,7 @@ impl EntryType for InvokeDynamic {
 		let bootstrap_method = &bootstrap_methods[value.bootstrap_method_attr_index as usize];
 		let bsm_handle = cp.get::<MethodHandle>(bootstrap_method.method_handle_index)?;
 
+		panic!("got the bsm");
 		let link_call_site_method = crate::globals::classes::java_lang_invoke_MethodHandleNatives()
 			.resolve_method(sym!(linkCallSite), sym!(linkCallSite_signature))?;
 
@@ -413,8 +418,7 @@ impl EntryType for MethodHandle {
 
 	#[inline]
 	fn resolved_entry(entry: ResolvedEntry) -> Self::Resolved {
-		// unsafe { entry.method_handle }
-		todo!()
+		unsafe { entry.method_handle }.clone()
 	}
 
 	fn resolve(
@@ -433,97 +437,75 @@ impl EntryType for MethodHandle {
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
 	) -> Throws<ResolvedEntry> {
+		let callee_class;
+		let name;
+		let descriptor;
+
 		match value.reference_kind {
 			ReferenceKind::GetField
 			| ReferenceKind::GetStatic
 			| ReferenceKind::PutField
 			| ReferenceKind::PutStatic => {
-				let ReferenceEntry::FieldRef(field) = value.reference else {
-					panic!("Expected a field reference"); // TODO: Exception and set failure
-				};
-
-				let _class = cp.get::<Class>(field.class_index)?;
-				let (_name, _descriptor) = unsafe {
-					cp.resolve_entry_with::<NameAndType>(
-						field.name_and_type_index,
-						field.name_and_type,
-					)?
-				};
 				todo!("MH of kind field");
 			},
 			ReferenceKind::InvokeVirtual
 			| ReferenceKind::NewInvokeSpecial
 			| ReferenceKind::InvokeStatic
 			| ReferenceKind::InvokeSpecial => {
-				let ReferenceEntry::MethodRef(method) = value.reference else {
+				let ReferenceEntry::MethodRef(method_ref) = value.reference else {
 					panic!("Expected a method reference"); // TODO: Exception and set failure
 				};
 
-				let class = cp.get::<Class>(method.class_index)?;
-				let (name, descriptor) = unsafe {
+				callee_class = cp.get::<Class>(method_ref.class_index)?;
+				(name, descriptor) = unsafe {
 					cp.resolve_entry_with::<NameAndType>(
-						method.name_and_type_index,
-						method.name_and_type,
+						method_ref.name_and_type_index,
+						method_ref.name_and_type,
 					)?
 				};
-
-				let method = class.resolve_method(name, descriptor)?;
-
-				let mut is_valid = true;
-				match value.reference_kind {
-					ReferenceKind::InvokeSpecial => {
-						is_valid = method.class() == invoking_class
-							|| class
-								.parent_iter()
-								.any(|super_class| super_class == invoking_class)
-							|| class
-								.interfaces
-								.iter()
-								.any(|interface| *interface == invoking_class)
-							|| method.class() == crate::globals::classes::java_lang_Object();
-					},
-					ReferenceKind::NewInvokeSpecial => {
-						is_valid = method.name == sym!(object_initializer_name);
-						if method.is_protected() {
-							is_valid &= method.class().shares_package_with(invoking_class);
-						} else {
-							is_valid &= method.class() == class;
-						}
-					},
-					ReferenceKind::InvokeStatic => {
-						is_valid = method.is_static();
-					},
-					ReferenceKind::InvokeVirtual => {
-						if method.is_protected()
-							&& !method.class().shares_package_with(invoking_class)
-						{
-							is_valid = method
-								.class()
-								.parent_iter()
-								.any(|super_class| super_class == invoking_class);
-						}
-					},
-					_ => unreachable!(),
-				}
-
-				if !is_valid {
-					throw!(@DEFER IllegalAccessError);
-				}
-
-				if method.is_var_args() {
-					todo!("varargs method handle");
-				}
-
-				todo!("MH of kind method");
 			},
 			ReferenceKind::InvokeInterface => {
-				let ReferenceEntry::MethodRef(method) = value.reference else {
-					panic!("Expected a method reference"); // TODO: Exception and set failure
-				};
 				todo!("MH of kind interface method");
 			},
 		}
-		todo!("Method handle resolution")
+
+		if name == sym!(class_initializer_name) {
+			throw!(@DEFER IllegalArgumentException, "method handles cannot link to class initializer");
+		}
+
+		let member_name = MethodHandleNatives::new_member_name(name, descriptor, callee_class)?;
+
+		MethodHandleNatives::resolve_member_name(
+			member_name.get_mut(),
+			value.reference_kind,
+			invoking_class,
+			0,
+		)?;
+
+		let ty_arg = Method::method_type_for(invoking_class, descriptor.as_str())?;
+
+		let link_method_handle_constant_method =
+			crate::globals::classes::java_lang_invoke_MethodHandleNatives().resolve_method(
+				sym!(linkMethodHandleConstant),
+				sym!(linkMethodHandleConstant_signature),
+			)?;
+
+		// TODO: Handle throws
+		let method_handle = java_call!(
+			JavaThread::current(),
+			link_method_handle_constant_method,
+			Operand::Reference(Reference::mirror(invoking_class.mirror())),
+			Operand::Int(value.reference_kind as i32),
+			Operand::Reference(Reference::mirror(callee_class.mirror())),
+			Operand::Reference(Reference::class(StringInterner::intern_symbol(name))),
+			Operand::Reference(ty_arg),
+		)
+		.expect("method should return something")
+		.expect_reference();
+
+		Throws::Ok(ResolvedEntry {
+			method_handle: Box::leak(Box::new(method_handle)),
+		})
 	}
 }
 

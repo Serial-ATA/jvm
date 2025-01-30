@@ -595,3 +595,51 @@ pub mod jdk_internal_misc_UnsafeConstants {
 		// TODO: class.set_static_field(data_cache_line_flush_size_field_offset(), /* ... */);
 	}
 }
+
+pub mod java_lang_invoke_MemberName {
+	use classfile::FieldType;
+	use instructions::Operand;
+	use jni::sys::jint;
+
+	field_module! {
+		@CLASS java_lang_invoke_MemberName;
+
+		@FIELDSTART
+		/// `java.lang.invoke.MemberName#clazz` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.Class`
+		@FIELD clazz: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/Class"),
+		/// `java.lang.invoke.MemberName#name` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.String`
+		@FIELD name: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
+		/// `java.lang.invoke.MemberName#type` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.Object`
+		@FIELD r#type: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/Object"),
+		/// `java.lang.invoke.MemberName#flags` field offset
+		///
+		/// Expected field type: jint
+		@FIELD flags: FieldType::Int,
+		/// `java.lang.invoke.MemberName#method` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.invoke.ResolvedMethodName`
+		@FIELD method: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/invoke/ResolvedMethodName"),
+	}
+}
+
+pub mod java_lang_invoke_ResolvedMethodName {
+	use classfile::FieldType;
+	use instructions::Operand;
+	use jni::sys::jint;
+
+	field_module! {
+		@CLASS java_lang_invoke_ResolvedMethodName;
+
+		@FIELDSTART
+		/// `java.lang.invoke.ResolvedMethodName#vmholder` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.Class`
+		@FIELD vmholder: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/Class"),
+	}
+}

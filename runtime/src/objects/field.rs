@@ -36,16 +36,24 @@ impl Debug for Field {
 }
 
 impl Field {
+	#[inline]
 	pub fn is_static(&self) -> bool {
 		self.access_flags.is_static()
 	}
 
+	#[inline]
 	pub fn is_final(&self) -> bool {
 		self.access_flags.is_final()
 	}
 
+	#[inline]
 	pub fn is_volatile(&self) -> bool {
 		self.access_flags.is_volatile()
+	}
+
+	#[inline]
+	pub fn is_trusted_final(&self) -> bool {
+		self.is_final() && (self.is_static() || self.class.is_record())
 	}
 }
 

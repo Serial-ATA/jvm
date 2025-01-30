@@ -37,5 +37,21 @@ public class MethodHandleNatives {
 
     private static native void registerNatives();
 
+    public class Constants {
+        @Native static final int MN_IS_METHOD           = 0x00010000; // method (not constructor)
+        @Native static final int MN_IS_CONSTRUCTOR      = 0x00020000; // constructor
+        @Native static final int MN_IS_FIELD            = 0x00040000; // field
+        @Native static final int MN_IS_TYPE             = 0x00080000; // nested type
+        @Native static final int MN_CALLER_SENSITIVE    = 0x00100000; // @CallerSensitive annotation detected
+        @Native static final int MN_TRUSTED_FINAL       = 0x00200000; // trusted final field
+        @Native static final int MN_HIDDEN_MEMBER       = 0x00400000; // members defined in a hidden class or with @Hidden
+        @Native static final int MN_REFERENCE_KIND_SHIFT = 24; // refKind
+        @Native static final int MN_REFERENCE_KIND_MASK = 0x0F000000 >> MN_REFERENCE_KIND_SHIFT;
+
+        @Native static final int LM_MODULE        = 0x10; // Lookup.MODULE
+        @Native static final int LM_UNCONDITIONAL = 0x20; // Lookup.UNCONDITIONAL
+        @Native static final int LM_TRUSTED       = -1;
+    }
+
     private static native int getNamedCon(int which, Object[] name);
 }

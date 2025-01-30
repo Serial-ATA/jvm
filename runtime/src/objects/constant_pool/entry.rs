@@ -25,6 +25,7 @@ pub(super) union ResolvedEntry {
 	pub(super) field_ref: &'static Field,
 	pub(super) invoke_dynamic: u32, // TODO
 	pub(super) method_ref: &'static Method,
+	pub(super) method_handle: &'static Reference,
 	pub(super) string: Symbol,
 }
 

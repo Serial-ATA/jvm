@@ -244,7 +244,7 @@ macro_rules! throw {
 }
 
 macro_rules! throw_with_ret {
-	($ret:expr, $thread:ident, $($tt:tt)*) => {
+	($ret:expr, $thread:expr, $($tt:tt)*) => {
 		let __ex = crate::thread::exceptions::throw!(@CONSTRUCT $($tt)*);
 		__ex.throw(&$thread);
 		return $ret;

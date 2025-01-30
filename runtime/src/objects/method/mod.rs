@@ -288,7 +288,14 @@ impl Method {
 				FieldType::Void => {
 					panic!("Void parameter"); // TODO: Exception
 				},
-				FieldType::Object(_) | FieldType::Array(_) => todo!("Object parameters"),
+				FieldType::Object(class_name) => {
+					let class = class.loader().load(Symbol::intern_bytes(&*class_name))?;
+					parameters.get_mut().store(
+						index as s4,
+						Operand::Reference(Reference::mirror(class.mirror())),
+					)?;
+				},
+				FieldType::Array(_) => todo!("Array parameters"),
 			}
 		}
 

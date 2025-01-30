@@ -112,8 +112,14 @@ fn load_global_classes() {
 		java_io_Serializable,
 		java_lang_ref_Reference,
 		java_lang_ref_Finalizer,
+	);
+
+	// MethodHandle stuff
+	load!(
 		jdk_internal_reflect_MethodAccessorImpl,
 		java_lang_invoke_MethodHandleNatives,
+		java_lang_invoke_MemberName,
+		java_lang_invoke_ResolvedMethodName,
 	);
 
 	// Primitive types
@@ -177,6 +183,16 @@ fn init_field_offsets() {
 	// java.lang.Thread
 	unsafe {
 		crate::globals::fields::java_lang_Thread::init_offsets();
+	}
+
+	// java.lang.invoke.MemberName
+	unsafe {
+		crate::globals::fields::java_lang_invoke_MemberName::init_offsets();
+	}
+
+	// java.lang.invoke.ResolvedMethodName
+	unsafe {
+		crate::globals::fields::java_lang_invoke_ResolvedMethodName::init_offsets();
 	}
 }
 
