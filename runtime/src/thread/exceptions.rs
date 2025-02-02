@@ -253,11 +253,14 @@ macro_rules! throw_with_ret {
 
 macro_rules! handle_exception {
 	($thread:expr, $throwsy_expr:expr) => {{
+		crate::thread::exceptions::handle_exception!((), $thread, $throwsy_expr)
+	}};
+	($ret:expr, $thread:expr, $throwsy_expr:expr) => {{
 		match $throwsy_expr {
 			crate::thread::exceptions::Throws::Ok(__val) => __val,
 			crate::thread::exceptions::Throws::Exception(__exception) => {
 				__exception.throw(&$thread);
-				return;
+				return $ret;
 			},
 		}
 	}};

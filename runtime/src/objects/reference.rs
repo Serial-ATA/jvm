@@ -90,6 +90,10 @@ impl Reference {
 		matches!(self.instance, ReferenceInstance::Array(_))
 	}
 
+	pub fn is_mirror(&self) -> bool {
+		matches!(self.instance, ReferenceInstance::Mirror(_))
+	}
+
 	pub fn is_null(&self) -> bool {
 		matches!(self.instance, ReferenceInstance::Null)
 	}
@@ -189,8 +193,8 @@ impl Reference {
 	pub fn extract_target_class(&self) -> &'static Class {
 		match &self.instance {
 			ReferenceInstance::Class(class) => class.get().class(),
-			ReferenceInstance::Mirror(mirror) => &mirror.get().target_class(),
-			ReferenceInstance::Array(arr) => &arr.get().class,
+			ReferenceInstance::Mirror(mirror) => mirror.get().target_class(),
+			ReferenceInstance::Array(arr) => arr.get().class,
 			ReferenceInstance::Null => panic!("NullPointerException"),
 		}
 	}

@@ -2,12 +2,14 @@ use crate::native::java::lang::invoke::MethodHandleNatives;
 use crate::objects::class::Class;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
+use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::string_interner::StringInterner;
 use crate::thread::exceptions::{throw, throw_with_ret, Throws};
 use crate::thread::JavaThread;
 
-use crate::objects::method::Method;
+use std::fmt::Write;
+
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
 use classfile::constant_pool::types::ReferenceKind;
@@ -37,12 +39,72 @@ pub fn new_member_name(
 		crate::globals::fields::java_lang_invoke_MemberName::name_field_offset(),
 		Operand::Reference(Reference::class(StringInterner::intern_symbol(name))),
 	);
+	// TODO: Not correct for field members
 	member_name.put_field_value0(
 		crate::globals::fields::java_lang_invoke_MemberName::type_field_offset(),
 		Operand::Reference(Reference::class(StringInterner::intern_symbol(descriptor))),
 	);
 
 	Throws::Ok(member_name_instance)
+}
+
+pub fn method_type_signature(method_type: Reference) -> Throws<Symbol> {
+	if !method_type.is_instance_of(crate::globals::classes::java_lang_invoke_MethodType()) {
+		throw!(@DEFER InternalError, "not a MethodType");
+	}
+
+	let mut signature = String::new();
+	signature.push('(');
+
+	let parameters = method_type
+		.get_field_value0(
+			crate::globals::fields::java_lang_invoke_MethodType::ptypes_field_offset(),
+		)
+		.expect_reference()
+		.extract_array();
+
+	for param in parameters.get().elements.expect_reference() {
+		if param.is_null() {
+			signature.push_str("null");
+			continue;
+		}
+
+		let mirror = param.extract_mirror();
+		if mirror.get().is_primitive() {
+			signature.push_str(&mirror.get().primitive_target().as_signature());
+			continue;
+		}
+
+		if write!(signature, "{}", mirror.get().target_class().as_signature()).is_err() {
+			throw!(@DEFER InternalError, "writing signature");
+		}
+	}
+
+	signature.push(')');
+
+	let return_type = method_type
+		.get_field_value0(crate::globals::fields::java_lang_invoke_MethodType::rtype_field_offset())
+		.expect_reference();
+
+	if return_type.is_null() {
+		signature.push_str("null");
+	} else {
+		let mirror_instance = return_type.extract_mirror();
+		let mirror = mirror_instance.get();
+
+		let result;
+		if mirror.is_primitive() {
+			result = write!(signature, "{}", mirror.primitive_target().as_signature());
+		} else {
+			result = write!(signature, "{}", mirror.target_class().as_signature());
+		}
+
+		if result.is_err() {
+			throw!(@DEFER InternalError, "writing signature");
+		}
+	}
+
+	Throws::Ok(Symbol::intern(signature))
 }
 
 pub fn resolve_member_name(
@@ -54,27 +116,37 @@ pub fn resolve_member_name(
 	let mut is_valid = true;
 	let mut flags = 0;
 
-	let invoking_class_field = member_name
+	let defining_class_field = member_name
 		.get_field_value0(crate::globals::fields::java_lang_invoke_MemberName::clazz_field_offset())
 		.expect_reference()
 		.extract_mirror();
-	if invoking_class_field.get().is_primitive() {
+	if defining_class_field.get().is_primitive() {
 		throw!(@DEFER InternalError, "primitive class");
 	}
-	let invoking_class = invoking_class_field.get().target_class();
+	let defining_class = defining_class_field.get().target_class();
 
 	let name_field = member_name
 		.get_field_value0(crate::globals::fields::java_lang_invoke_MemberName::name_field_offset())
 		.expect_reference();
 	let name_str = StringInterner::rust_string_from_java_string(name_field.extract_class());
-	let name = Symbol::intern_owned(name_str);
+	let name = Symbol::intern(name_str);
 
-	let descriptor_field = member_name
+	let type_field = member_name
 		.get_field_value0(crate::globals::fields::java_lang_invoke_MemberName::type_field_offset())
 		.expect_reference();
-	let descriptor_str =
-		StringInterner::rust_string_from_java_string(descriptor_field.extract_class());
-	let descriptor = Symbol::intern_owned(descriptor_str);
+
+	let descriptor: Symbol;
+	if type_field.is_instance_of(crate::globals::classes::java_lang_String()) {
+		let descriptor_str =
+			StringInterner::rust_string_from_java_string(type_field.extract_class());
+		descriptor = Symbol::intern(descriptor_str);
+	} else if type_field.is_instance_of(crate::globals::classes::java_lang_Class()) {
+		descriptor = type_field.extract_target_class().as_signature();
+	} else if type_field.is_instance_of(crate::globals::classes::java_lang_invoke_MethodType()) {
+		descriptor = method_type_signature(type_field)?;
+	} else {
+		throw!(@DEFER InternalError, "unrecognized field");
+	}
 
 	match ref_kind {
 		ReferenceKind::GetField
@@ -103,7 +175,7 @@ pub fn resolve_member_name(
 		| ReferenceKind::NewInvokeSpecial
 		| ReferenceKind::InvokeStatic
 		| ReferenceKind::InvokeSpecial => {
-			let method = calling_class.resolve_method(name, descriptor)?;
+			let method = defining_class.resolve_method(name, descriptor)?;
 
 			flags = method.access_flags.as_u2() as jint;
 			flags |= MethodHandleNatives::MN_IS_METHOD;
@@ -111,14 +183,14 @@ pub fn resolve_member_name(
 
 			match ref_kind {
 				ReferenceKind::InvokeSpecial => {
-					is_valid = method.class() == invoking_class
+					is_valid = method.class() == calling_class
 						|| calling_class
 							.parent_iter()
-							.any(|super_class| super_class == invoking_class)
+							.any(|super_class| super_class == calling_class)
 						|| calling_class
 							.interfaces
 							.iter()
-							.any(|interface| *interface == invoking_class)
+							.any(|interface| *interface == defining_class)
 						|| method.class() == crate::globals::classes::java_lang_Object();
 				},
 				ReferenceKind::NewInvokeSpecial => {
@@ -126,7 +198,7 @@ pub fn resolve_member_name(
 
 					is_valid = method.name == sym!(object_initializer_name);
 					if method.is_protected() {
-						is_valid &= method.class().shares_package_with(invoking_class);
+						is_valid &= method.class().shares_package_with(calling_class);
 					} else {
 						is_valid &= method.class() == calling_class;
 					}
@@ -135,12 +207,11 @@ pub fn resolve_member_name(
 					is_valid = method.is_static();
 				},
 				ReferenceKind::InvokeVirtual => {
-					if method.is_protected() && !method.class().shares_package_with(invoking_class)
-					{
+					if method.is_protected() && !method.class().shares_package_with(calling_class) {
 						is_valid = method
 							.class()
 							.parent_iter()
-							.any(|super_class| super_class == invoking_class);
+							.any(|super_class| super_class == calling_class);
 					}
 				},
 				_ => unreachable!(),

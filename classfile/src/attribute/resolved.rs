@@ -1,4 +1,7 @@
-use super::{Annotation, ElementValue, ElementValuePair, ElementValueTag, ElementValueType};
+use super::{
+	Annotation, ElementValue, ElementValuePair, ElementValueTag, ElementValueType, EnclosingMethod,
+	InnerClass, InnerClasses,
+};
 use crate::attribute::BootstrapMethod;
 use crate::constant_pool::types::{self, LoadableConstantPoolValue, MethodHandleEntry};
 use crate::constant_pool::ConstantPool;
@@ -160,6 +163,60 @@ impl ResolvedBootstrapMethod {
 			method_handle_index: raw.bootstrap_method_ref,
 			method_handle_info: method_handle_info.into_owned(),
 			arguments,
+		}
+	}
+}
+
+pub struct ResolvedEnclosingMethod<'a> {
+	pub class: <types::raw::RawClassName as types::CpEntry<'a>>::Entry,
+	pub method: Option<<types::raw::RawNameAndType as types::CpEntry<'a>>::Entry>,
+}
+
+impl<'a> ResolvedEnclosingMethod<'a> {
+	pub(crate) fn resolve_from(raw: EnclosingMethod, constant_pool: &'a ConstantPool) -> Self {
+		let class = constant_pool.get::<types::raw::RawClassName>(raw.class_index);
+		let method = if raw.method_index == 0 {
+			None
+		} else {
+			Some(constant_pool.get::<types::raw::RawNameAndType>(raw.method_index))
+		};
+
+		Self { class, method }
+	}
+}
+
+pub struct ResolvedInnerClass<'a> {
+	pub inner_class: <types::raw::RawClassName as types::CpEntry<'a>>::Entry,
+	pub outer_class: Option<<types::raw::RawClassName as types::CpEntry<'a>>::Entry>,
+	pub inner_name: Option<<types::raw::RawConstantUtf8 as types::CpEntry<'a>>::Entry>,
+	pub access_flags: u2,
+}
+
+impl<'a> ResolvedInnerClass<'a> {
+	pub(crate) fn resolve_from(raw: &InnerClass, constant_pool: &'a ConstantPool) -> Self {
+		let inner_class = constant_pool.get::<types::raw::RawClassName>(raw.inner_class_info_index);
+
+		let outer_class;
+		if raw.outer_class_info_index == 0 {
+			outer_class = None;
+		} else {
+			outer_class =
+				Some(constant_pool.get::<types::raw::RawClassName>(raw.outer_class_info_index));
+		}
+
+		let inner_name;
+		if raw.inner_name_index == 0 {
+			inner_name = None;
+		} else {
+			inner_name =
+				Some(constant_pool.get::<types::raw::RawConstantUtf8>(raw.inner_name_index));
+		}
+
+		Self {
+			inner_class,
+			outer_class,
+			inner_name,
+			access_flags: raw.inner_class_access_flags,
 		}
 	}
 }

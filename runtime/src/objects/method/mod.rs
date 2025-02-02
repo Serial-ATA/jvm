@@ -264,9 +264,8 @@ impl Method {
 	/// the current thread.
 	pub fn method_type_for(class: &'static Class, descriptor: &str) -> Throws<Reference> {
 		let descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes()).unwrap(); // TODO: Error handling
-		let num_parameters = descriptor.parameters.len();
 		let mut parameters = ArrayInstance::new_reference(
-			num_parameters as s4,
+			descriptor.parameters.len() as s4,
 			crate::globals::classes::java_lang_Class(),
 		)?;
 
@@ -289,7 +288,7 @@ impl Method {
 					panic!("Void parameter"); // TODO: Exception
 				},
 				FieldType::Object(class_name) => {
-					let class = class.loader().load(Symbol::intern_bytes(&*class_name))?;
+					let class = class.loader().load(Symbol::intern(&*class_name))?;
 					parameters.get_mut().store(
 						index as s4,
 						Operand::Reference(Reference::mirror(class.mirror())),
@@ -314,7 +313,7 @@ impl Method {
 					crate::globals::mirrors::primitive_mirror_for(&descriptor.return_type);
 			},
 			FieldType::Object(class_name) => {
-				let class = class.loader().load(Symbol::intern_bytes(&*class_name))?;
+				let class = class.loader().load(Symbol::intern(class_name))?;
 				return_type = Reference::mirror(class.mirror());
 			},
 			FieldType::Array(_) => todo!("Array returns"),
@@ -328,11 +327,9 @@ impl Method {
 			sym!(findMethodHandleType_signature),
 		)?;
 
-		let thread = JavaThread::current();
-
 		// static java.lang.invoke.MethodHandleNatives#findMethodHandleType(Class rt, Class[] pts) -> MethodType
 		let result = java_call!(
-			thread,
+			JavaThread::current(),
 			find_method_handle_type_method,
 			Operand::Reference(return_type),
 			Operand::Reference(Reference::array(parameters))
@@ -341,7 +338,7 @@ impl Method {
 		.expect_reference();
 
 		// TODO: Need a way to take the pending exception from the thread to pass it up the Throws chain instead
-		assert!(!thread.has_pending_exception());
+		assert!(!JavaThread::current().has_pending_exception());
 
 		Throws::Ok(result)
 	}

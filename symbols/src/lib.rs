@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::sync::{LazyLock, Mutex};
 
 use common::int_types::u1;
@@ -18,7 +19,7 @@ struct SymbolInterner {
 impl SymbolInterner {
 	fn initialize() -> Self {
 		let mut this = Self {
-			arena: bumpalo::Bump::new(),
+			arena: bumpalo::Bump::with_capacity(1024),
 			set: FxIndexSet::default(),
 		};
 
@@ -35,15 +36,18 @@ impl SymbolInterner {
 
 	/// Intern a string
 	#[allow(trivial_casts)]
-	fn intern(&mut self, string: &[u8]) -> Symbol {
-		if let Some(symbol_idx) = self.set.get_index_of(string) {
+	fn intern<T: Internable>(&mut self, string: T) -> Symbol {
+		let bytes = string.as_bytes();
+
+		if let Some(symbol_idx) = self.set.get_index_of(bytes) {
 			assert!(symbol_idx < self.set.len());
 			return Symbol::new(symbol_idx as u32);
 		}
 
 		// We extend the lifetime of the string to `'static`, which is safe,
 		// as we only use the strings while the arena is alive
-		let string: &'static [u8] = unsafe { &*(*self.arena.alloc(string) as *const [u8]) };
+		let string: &'static [u8] =
+			unsafe { &*(self.arena.alloc_slice_copy(bytes) as *const [u8]) };
 		self.intern_static(string)
 	}
 
@@ -96,32 +100,58 @@ impl Symbol {
 	}
 
 	/// Maps a string to its interned representation
-	///
-	/// NOTE: This will leak `string`.
-	pub fn intern_owned(string: String) -> Self {
-		let leaked_bytes: &'static mut [u8] = string.into_bytes().leak();
+	pub fn intern<T: Internable>(string: T) -> Self {
 		let mut guard = INTERNER.lock().unwrap();
-		guard.intern_static(leaked_bytes)
+		guard.intern(string)
 	}
+}
 
-	/// Maps a string to its interned representation
-	pub fn intern(string: &'static str) -> Self {
-		let mut guard = INTERNER.lock().unwrap();
+pub trait Internable {
+	fn as_bytes(&self) -> &[u8];
+}
 
-		// SAFETY: &str and &[u8] have the same layout
-		guard.intern_static(unsafe { core::mem::transmute(string) })
+impl Internable for String {
+	fn as_bytes(&self) -> &[u8] {
+		String::as_bytes(self)
 	}
+}
 
-	/// Same as [`Symbol::intern`], but takes a byte slice, which is used
-	/// heavily in the VM
-	pub fn intern_bytes(bytes: &[u1]) -> Self {
-		assert!(std::str::from_utf8(bytes).is_ok());
-		unsafe { Self::intern_bytes_unchecked(bytes) }
+impl Internable for Box<[u8]> {
+	fn as_bytes(&self) -> &[u8] {
+		&*self
 	}
+}
 
-	pub unsafe fn intern_bytes_unchecked(bytes: &[u1]) -> Self {
-		let mut guard = INTERNER.lock().unwrap();
-		guard.intern(bytes)
+impl Internable for Vec<u8> {
+	fn as_bytes(&self) -> &[u8] {
+		<Vec<u8>>::as_bytes(self)
+	}
+}
+
+impl Internable for &[u8] {
+	fn as_bytes(&self) -> &[u8] {
+		self
+	}
+}
+
+impl Internable for &str {
+	fn as_bytes(&self) -> &[u8] {
+		str::as_bytes(self)
+	}
+}
+
+impl<T> Internable for &T
+where
+	T: Internable,
+{
+	fn as_bytes(&self) -> &[u8] {
+		<T as Internable>::as_bytes(*self)
+	}
+}
+
+impl Display for Symbol {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", self.as_str())
 	}
 }
 
@@ -168,6 +198,7 @@ vm_symbols::define_symbols! {
 	java_lang_invoke_VarHandle: "java/lang/invoke/VarHandle",
 	java_lang_invoke_MemberName: "java/lang/invoke/MemberName",
 	java_lang_invoke_ResolvedMethodName: "java/lang/invoke/ResolvedMethodName",
+	java_lang_invoke_MethodType: "java/lang/invoke/MethodType",
 	java_lang_Thread: "java/lang/Thread",
 	java_lang_ThreadGroup: "java/lang/ThreadGroup",
 	java_lang_Thread_FieldHolder: "java/lang/Thread$FieldHolder",
@@ -297,6 +328,8 @@ vm_symbols::define_symbols! {
 	clazz,
 	method,
 	vmholder,
+	ptypes,
+	rtype,
 
 	// Injected fields
 	loader_ptr,

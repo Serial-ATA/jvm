@@ -25,13 +25,13 @@ pub fn defineModule0(
 	let mut version_sym = None;
 	if !version.is_null() {
 		let version_str = StringInterner::rust_string_from_java_string(version.extract_class());
-		version_sym = Some(Symbol::intern_owned(version_str));
+		version_sym = Some(Symbol::intern(version_str));
 	}
 
 	let mut location_sym = None;
 	if !location.is_null() {
 		let location_str = StringInterner::rust_string_from_java_string(location.extract_class());
-		location_sym = Some(Symbol::intern_owned(location_str));
+		location_sym = Some(Symbol::intern(location_str));
 	}
 
 	let mut package_names = Vec::new();

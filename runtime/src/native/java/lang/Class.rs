@@ -1,10 +1,11 @@
 use crate::include_generated;
 use crate::native::jni::{safe_classref_from_jclass, IntoJni};
+use crate::objects::array::ArrayInstance;
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
-use crate::objects::reference::Reference;
+use crate::objects::reference::{ArrayInstanceRef, MirrorInstanceRef, Reference};
 use crate::string_interner::StringInterner;
-use crate::thread::exceptions::throw_with_ret;
+use crate::thread::exceptions::{handle_exception, throw, throw_with_ret, Throws};
 use crate::thread::JavaThread;
 
 use std::sync::Arc;
@@ -17,6 +18,21 @@ use symbols::sym;
 
 include_generated!("native/java/lang/def/Class.registerNatives.rs");
 include_generated!("native/java/lang/def/Class.definitions.rs");
+
+/// Ensure that the mirror instance is not primitive or an array
+fn ensure_class_mirror(this: Reference) -> Throws<Option<MirrorInstanceRef>> {
+	if this.is_null() {
+		throw!(@DEFER NullPointerException);
+	}
+
+	let mirror_ref = this.extract_mirror();
+	let mirror = mirror_ref.get();
+	if mirror.is_primitive() || mirror.is_array() {
+		return Throws::Ok(None);
+	}
+
+	Throws::Ok(Some(mirror_ref))
+}
 
 // throws ClassNotFoundException
 pub fn forName0(
@@ -114,26 +130,152 @@ pub fn setSigners(
 ) {
 	unimplemented!("Class#setSigners");
 }
+
+// Returns Object[3] where:
+//
+// [0]: The class holding the enclosing method (not null, java.lang.Class<?>)
+// [1]: The enclosing method's name (nullable, java.lang.String)
+// [2]: The enclosing method's descriptor (nullable. java.lang.String)
 pub fn getEnclosingMethod0(
-	_env: JniEnv,
-	_this: Reference, // java.lang.Class
+	env: JniEnv,
+	this: Reference, // java.lang.Class
 ) -> Reference /* Object[] */
 {
-	unimplemented!("Class#getEnclosingMethod0");
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let Some(mirror) =
+		handle_exception!(Reference::null(), thread, ensure_class_mirror(this.clone()))
+	else {
+		return Reference::null();
+	};
+
+	let array = ArrayInstance::new_reference(3, crate::globals::classes::java_lang_Object());
+	let array_instance: ArrayInstanceRef = handle_exception!(Reference::null(), thread, array);
+
+	let target_class = mirror.get().target_class();
+
+	let Some(enclosing_method) = target_class.unwrap_class_instance().enclosing_method else {
+		// Class has no immediate enclosing method/class information
+		return Reference::null();
+	};
+
+	let enclosing_class = enclosing_method.class;
+
+	// SAFETY: We know that the array has a length of 3
+	unsafe {
+		array_instance.get_mut().store_unchecked(
+			0,
+			Operand::Reference(Reference::mirror(enclosing_class.mirror())),
+		);
+	}
+
+	let Some(enclosing_method) = enclosing_method.method else {
+		// There is no immediate enclosing method
+		return Reference::array(array_instance);
+	};
+
+	unsafe {
+		array_instance.get_mut().store_unchecked(
+			1,
+			Operand::Reference(Reference::class(StringInterner::intern_symbol(
+				enclosing_method.name,
+			))),
+		);
+
+		array_instance.get_mut().store_unchecked(
+			2,
+			Operand::Reference(Reference::class(StringInterner::intern_symbol(
+				enclosing_method.descriptor_sym,
+			))),
+		);
+	}
+
+	Reference::array(array_instance)
 }
 pub fn getDeclaringClass0(
-	_env: JniEnv,
-	_this: Reference, // java.lang.Class
+	env: JniEnv,
+	this: Reference, // java.lang.Class
 ) -> Reference /* Class<?> */
 {
-	unimplemented!("Class#getDeclaringClass0");
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let Some(mirror) =
+		handle_exception!(Reference::null(), thread, ensure_class_mirror(this.clone()))
+	else {
+		return Reference::null();
+	};
+
+	let target_class = mirror.get().target_class();
+	let target_class_descriptor = target_class.unwrap_class_instance();
+	let Some(inner_classes) = target_class_descriptor.inner_classes() else {
+		// No InnerClasses attribute
+		return Reference::null();
+	};
+
+	let mut declaring_class = Reference::null();
+	for inner_class in inner_classes {
+		if inner_class.inner_class != target_class.name {
+			continue;
+		}
+
+		match inner_class.outer_class {
+			Some(outer) => {
+				let outer: &'static Class =
+					handle_exception!(Reference::null(), thread, target_class.loader().load(outer));
+
+				if outer.is_array() {
+					throw_with_ret!(Reference::null(), thread, IncompatibleClassChangeError);
+				}
+
+				declaring_class = Reference::mirror(outer.mirror());
+			},
+			None => {
+				let Some(enclosing_method) = target_class_descriptor.enclosing_method else {
+					// Class has no immediate enclosing method/class information
+					return Reference::null();
+				};
+
+				declaring_class = Reference::mirror(enclosing_method.class.mirror());
+			},
+		}
+
+		break;
+	}
+
+	// TODO: need to verify that outer class actually declared the inner class
+	declaring_class
 }
+
 pub fn getSimpleBinaryName0(
-	_env: JniEnv,
-	_this: Reference, // java.lang.Class
+	env: JniEnv,
+	this: Reference, // java.lang.Class
 ) -> Reference /* String */
 {
-	unimplemented!("Class#getSimpleBinaryName0");
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let Some(mirror) =
+		handle_exception!(Reference::null(), thread, ensure_class_mirror(this.clone()))
+	else {
+		return Reference::null();
+	};
+
+	let target_class = mirror.get().target_class();
+	let target_class_descriptor = target_class.unwrap_class_instance();
+	let Some(inner_classes) = target_class_descriptor.inner_classes() else {
+		// No InnerClasses attribute
+		return Reference::null();
+	};
+
+	for inner_class in inner_classes {
+		if inner_class.inner_class != target_class.name {
+			continue;
+		}
+
+		if let Some(name) = inner_class.inner_class_name {
+			return Reference::class(StringInterner::intern_symbol(name));
+		}
+
+		break;
+	}
+
+	Reference::null()
 }
 pub fn getProtectionDomain0(
 	_env: JniEnv,

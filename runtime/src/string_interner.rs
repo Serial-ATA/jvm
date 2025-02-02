@@ -33,7 +33,7 @@ impl StringInterner {
 	}
 
 	pub fn intern_string(string: String) -> ClassInstanceRef {
-		let symbol = Symbol::intern_owned(string);
+		let symbol = Symbol::intern(string);
 		Self::intern_symbol(symbol)
 	}
 

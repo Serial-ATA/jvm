@@ -24,7 +24,7 @@ use std::{mem, ptr};
 
 use classfile::accessflags::ClassAccessFlags;
 use classfile::attribute::resolved::ResolvedBootstrapMethod;
-use classfile::constant_pool::types::raw as raw_types;
+use classfile::constant_pool::types::{raw as raw_types, NameAndTypeEntry};
 use classfile::{ClassFile, FieldType, MethodInfo};
 use common::box_slice;
 use common::int_types::{u1, u2, u4};
@@ -38,6 +38,7 @@ struct MiscCache {
 	array_class_name: Option<Symbol>,
 	array_component_name: Option<Symbol>,
 	package_name: Option<Option<Symbol>>,
+	signature: Option<Symbol>,
 }
 
 struct FieldContainer {
@@ -170,10 +171,33 @@ pub enum ClassType {
 	Array(ArrayDescriptor),
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct EnclosingMethodInfo {
+	/// The class of the enclosing method
+	pub class: &'static Class,
+	/// The enclosing method, if available
+	pub method: Option<&'static Method>,
+}
+
+pub struct InnerClassInfo {
+	pub inner_class: Symbol,
+	pub outer_class: Option<Symbol>,
+	pub inner_class_name: Option<Symbol>,
+	pub inner_class_access_flags: u2,
+}
+
 pub struct ClassDescriptor {
 	pub source_file_index: Option<u2>,
 	pub constant_pool: ConstantPool,
+	pub enclosing_method: Option<EnclosingMethodInfo>,
+	inner_classes: Option<Vec<InnerClassInfo>>,
 	pub is_record: bool,
+}
+
+impl ClassDescriptor {
+	pub fn inner_classes(&self) -> Option<&[InnerClassInfo]> {
+		self.inner_classes.as_deref()
+	}
 }
 
 impl Debug for ClassDescriptor {
@@ -191,9 +215,10 @@ impl Debug for ClassDescriptor {
 			None => debug_struct.field("source_file", &"None"),
 		};
 
-		debug_struct.field("is_record", &self.is_record);
-
-		debug_struct.finish()
+		debug_struct
+			.field("enclosing_method", &self.enclosing_method)
+			.field("is_record", &self.is_record)
+			.finish()
 	}
 }
 
@@ -332,7 +357,7 @@ impl Class {
 			"Package name is an empty string"
 		);
 
-		let ret = Symbol::intern_bytes(&name_str[start_index..end].as_bytes());
+		let ret = Symbol::intern(&name_str[start_index..end].as_bytes());
 		unsafe {
 			(*self.misc_cache.get()).package_name = Some(Some(ret));
 		}
@@ -383,10 +408,10 @@ impl Class {
 		let ret;
 		if self.is_array() {
 			let name = format!("[{}", self.name.as_str());
-			ret = Symbol::intern_owned(name);
+			ret = Symbol::intern(name);
 		} else {
-			let name = format!("[L{};", self.name.as_str());
-			ret = Symbol::intern_owned(name);
+			let name = format!("[{}", self.as_signature());
+			ret = Symbol::intern(name);
 		}
 
 		unsafe {
@@ -434,6 +459,22 @@ impl Class {
 			(*self.misc_cache.get()).array_component_name = Some(ret);
 		}
 		ret
+	}
+
+	/// Get the class name as it would appear in a method or field signature
+	///
+	/// This will, for example, convert `java/lang/Object` to `Ljava.lang.Object;`
+	pub fn as_signature(&self) -> Symbol {
+		if let Some(signature) = unsafe { (*self.misc_cache.get()).signature } {
+			return signature;
+		}
+
+		let signature = Symbol::intern(format!("L{};", self.name.as_str()));
+		unsafe {
+			(*self.misc_cache.get()).signature = Some(signature);
+		}
+
+		signature
 	}
 
 	pub(self) fn initialization_lock(&self) -> Arc<InitializationLock> {
@@ -649,6 +690,53 @@ impl Class {
 			None => None,
 		};
 
+		let enclosing_method = match parsed_file.enclosing_method() {
+			Some(enclosing_method_info) => {
+				let enclosing_class = loader
+					.load(Symbol::intern(&*enclosing_method_info.class.name))
+					.unwrap(); // TODO: handle throws
+
+				let enclosing_method;
+				match enclosing_method_info.method {
+					None => enclosing_method = None,
+					Some(name_and_type) => {
+						let method_name = Symbol::intern(&*name_and_type.name);
+						let method_descriptor = Symbol::intern(&*name_and_type.descriptor);
+						enclosing_method = Some(
+							enclosing_class
+								.resolve_method(method_name, method_descriptor)
+								.unwrap(),
+						) // TODO: handle throws
+					},
+				}
+
+				Some(EnclosingMethodInfo {
+					class: enclosing_class,
+					method: enclosing_method,
+				})
+			},
+			None => None,
+		};
+
+		let inner_classes = match parsed_file.inner_classes() {
+			Some(inner_classes) => {
+				let mut classes = Vec::with_capacity(inner_classes.len());
+				for class in inner_classes {
+					classes.push(InnerClassInfo {
+						inner_class: Symbol::intern(&*class.inner_class.name),
+						outer_class: class.outer_class.map(|oc| Symbol::intern(&*oc.name)),
+						inner_class_name: class
+							.inner_name
+							.map(|inner_name| Symbol::intern(&*inner_name)),
+						inner_class_access_flags: class.access_flags,
+					})
+				}
+
+				Some(classes)
+			},
+			None => None,
+		};
+
 		// TODO: Actually retain the information from the record attribute
 		let is_record = parsed_file
 			.attributes
@@ -658,7 +746,7 @@ impl Class {
 		let constant_pool = parsed_file.constant_pool;
 
 		let name_raw = constant_pool.get::<raw_types::RawClassName>(class_name_index);
-		let name = Symbol::intern_bytes(&*name_raw.name);
+		let name = Symbol::intern(&*name_raw.name);
 
 		let static_field_count = parsed_file
 			.fields
@@ -677,9 +765,7 @@ impl Class {
 			.map(|index| {
 				let interface_class_name =
 					constant_pool.get::<raw_types::RawClassName>(*index).name;
-				loader
-					.load(Symbol::intern_bytes(&*interface_class_name))
-					.unwrap() // TODO: Handle throws
+				loader.load(Symbol::intern(&*interface_class_name)).unwrap() // TODO: Handle throws
 			})
 			.collect();
 
@@ -710,6 +796,8 @@ impl Class {
 		let class_instance = ClassDescriptor {
 			source_file_index,
 			constant_pool: ConstantPool::new(class, constant_pool),
+			inner_classes,
+			enclosing_method,
 			is_record,
 		};
 		unsafe {

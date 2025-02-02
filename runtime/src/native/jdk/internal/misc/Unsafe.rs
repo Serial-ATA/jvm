@@ -455,6 +455,22 @@ pub fn compareAndExchangeReference(
 		}
 	}
 
+	if object.is_mirror() {
+		let instance = object.extract_mirror();
+		unsafe {
+			let mut current_field_value = instance
+				.get_mut()
+				.get_field_value_raw(offset as usize)
+				.as_ptr();
+			if (*current_field_value).expect_reference() == expected {
+				*current_field_value = Operand::Reference(Reference::clone(&value));
+				return expected;
+			}
+
+			return (*current_field_value).expect_reference();
+		}
+	}
+
 	let instance = object.extract_class();
 	unsafe {
 		let field_value = instance

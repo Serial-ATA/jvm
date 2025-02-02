@@ -217,7 +217,7 @@ impl Module {
 				break;
 			}
 
-			package_symbols.push(Symbol::intern_owned(package));
+			package_symbols.push(Symbol::intern(package));
 		}
 
 		let loader = ClassLoaderSet::find_or_add(loader);
@@ -230,7 +230,7 @@ impl Module {
 			);
 		}
 
-		let module_name_sym = Symbol::intern_owned(module_name);
+		let module_name_sym = Symbol::intern(module_name);
 
 		let mut module_already_defined = false;
 		let mut duplicate_package: Option<&Package> = None;
@@ -349,7 +349,7 @@ fn init_java_base(
 				return;
 			}
 
-			let package = Package::new(Symbol::intern_owned(package), java_base);
+			let package = Package::new(Symbol::intern(package), java_base);
 			ClassLoader::bootstrap().insert_package_if_absent(guard, package);
 		}
 
@@ -443,7 +443,7 @@ impl Module {
 		super::with_module_lock(|guard| {
 			let Some(package) = self
 				.classloader()
-				.lookup_package(guard, Symbol::intern_owned(package_name))
+				.lookup_package(guard, Symbol::intern(package_name))
 			else {
 				return;
 			};

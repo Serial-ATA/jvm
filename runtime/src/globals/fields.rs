@@ -628,6 +628,24 @@ pub mod java_lang_invoke_MemberName {
 	}
 }
 
+pub mod java_lang_invoke_MethodType {
+	use classfile::FieldType;
+
+	field_module! {
+		@CLASS java_lang_invoke_MethodType;
+
+		@FIELDSTART
+		/// `java.lang.invoke.MethodType#ptypes` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.Class[]`
+		@FIELD ptypes: FieldType::Array(ref val) if val.is_class(b"java/lang/Class"),
+		/// `java.lang.invoke.MethodType#rtype` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.Class`
+		@FIELD rtype: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/Class"),
+	}
+}
+
 pub mod java_lang_invoke_ResolvedMethodName {
 	use classfile::FieldType;
 	use instructions::Operand;

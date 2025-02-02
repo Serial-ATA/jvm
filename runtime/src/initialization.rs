@@ -92,9 +92,9 @@ fn load_global_classes() {
 
 	load!(
 		java_lang_Object,
-		java_lang_Class,
 		java_lang_String,
 		java_lang_ClassLoader,
+		java_lang_Class,
 	);
 
 	// Fixup mirrors, as we have classes that were loaded before java.lang.Class
@@ -120,6 +120,7 @@ fn load_global_classes() {
 		java_lang_invoke_MethodHandleNatives,
 		java_lang_invoke_MemberName,
 		java_lang_invoke_ResolvedMethodName,
+		java_lang_invoke_MethodType,
 	);
 
 	// Primitive types
@@ -194,6 +195,11 @@ fn init_field_offsets() {
 	unsafe {
 		crate::globals::fields::java_lang_invoke_ResolvedMethodName::init_offsets();
 	}
+
+	// java.lang.invoke.MethodType
+	unsafe {
+		crate::globals::fields::java_lang_invoke_MethodType::init_offsets();
+	}
 }
 
 fn initialize_global_classes(thread: &JavaThread) {
@@ -209,8 +215,6 @@ fn initialize_global_classes(thread: &JavaThread) {
 
 	crate::globals::classes::jdk_internal_misc_UnsafeConstants().initialize(thread);
 	crate::globals::classes::java_lang_Module().initialize(thread);
-
-	crate::globals::classes::java_lang_invoke_MethodHandleNatives().initialize(thread);
 }
 
 fn create_thread_object(thread: &JavaThread) {

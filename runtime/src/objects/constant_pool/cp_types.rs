@@ -260,7 +260,7 @@ impl EntryType for ClassName {
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
 	) -> Throws<ResolvedEntry> {
-		let class_name = Symbol::intern_bytes(&*value.name);
+		let class_name = Symbol::intern(&*value.name);
 		Throws::Ok(ResolvedEntry { class_name })
 	}
 }
@@ -292,7 +292,7 @@ impl EntryType for ConstantUtf8 {
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
 	) -> Throws<ResolvedEntry> {
-		let utf8 = Symbol::intern_bytes(&*value);
+		let utf8 = Symbol::intern(&*value);
 		Throws::Ok(ResolvedEntry {
 			constant_utf8: utf8,
 		})
@@ -616,7 +616,7 @@ impl EntryType for String {
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
 	) -> Throws<ResolvedEntry> {
-		let string = Symbol::intern_bytes(&*value);
+		let string = Symbol::intern(&*value);
 		Throws::Ok(ResolvedEntry { string })
 	}
 }

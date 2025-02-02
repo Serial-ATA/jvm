@@ -1,5 +1,7 @@
 use crate::accessflags::ClassAccessFlags;
-use crate::attribute::resolved::ResolvedBootstrapMethod;
+use crate::attribute::resolved::{
+	ResolvedBootstrapMethod, ResolvedEnclosingMethod, ResolvedInnerClass,
+};
 use crate::attribute::{Attribute, AttributeType, SourceFile};
 use crate::constant_pool::{self, ConstantPool};
 use crate::fieldinfo::FieldInfo;
@@ -64,6 +66,39 @@ impl ClassFile {
 			if let AttributeType::SourceFile(SourceFile { sourcefile_index }) = attr.info {
 				return Some(sourcefile_index);
 			}
+		}
+
+		None
+	}
+
+	pub fn enclosing_method(&self) -> Option<ResolvedEnclosingMethod<'_>> {
+		for attr in &self.attributes {
+			let Some(enclosing_method) = attr.enclosing_method() else {
+				continue;
+			};
+
+			return Some(ResolvedEnclosingMethod::resolve_from(
+				enclosing_method,
+				&self.constant_pool,
+			));
+		}
+
+		None
+	}
+
+	pub fn inner_classes(
+		&self,
+	) -> Option<impl ExactSizeIterator<Item = ResolvedInnerClass<'_>> + use<'_>> {
+		for attr in &self.attributes {
+			let Some(inner_classes) = attr.inner_classes() else {
+				continue;
+			};
+
+			let iter = inner_classes.classes.iter().map(move |inner_class| {
+				ResolvedInnerClass::resolve_from(inner_class, &self.constant_pool)
+			});
+
+			return Some(iter);
 		}
 
 		None

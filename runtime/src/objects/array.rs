@@ -154,6 +154,20 @@ impl ArrayInstance {
 			throw!(@DEFER ArrayIndexOutOfBoundsException);
 		}
 
+		// SAFETY: Performed a bounds check already
+		unsafe {
+			self.store_unchecked(index, value);
+		}
+
+		Throws::Ok(())
+	}
+
+	/// Same as [`self.store`], without the bounds checking
+	///
+	/// # Safety
+	///
+	/// It is up to the caller to ensure that `index` is unsigned and within the bounds of the current array.
+	pub unsafe fn store_unchecked(&mut self, index: s4, value: Operand<Reference>) {
 		let index = index as usize;
 		match self.elements {
 			ArrayContent::Byte(ref mut contents) => contents[index] = value.expect_int() as s1,
@@ -168,8 +182,6 @@ impl ArrayInstance {
 			ArrayContent::Long(ref mut contents) => contents[index] = value.expect_long(),
 			ArrayContent::Reference(ref mut contents) => contents[index] = value.expect_reference(),
 		}
-
-		Throws::Ok(())
 	}
 
 	pub fn header(&self) -> &Header {

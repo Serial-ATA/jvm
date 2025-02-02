@@ -37,7 +37,7 @@ pub unsafe extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -
 		loader = current_frame.method().class().loader();
 	}
 
-	match loader.load(Symbol::intern_bytes(name.to_bytes())) {
+	match loader.load(Symbol::intern(name.to_bytes())) {
 		Throws::Ok(class) => return class.into_jni(),
 		Throws::Exception(e) => e.throw(thread),
 	}

@@ -1,7 +1,8 @@
 use crate::accessflags::FieldAccessFlags;
 use crate::attribute::{Attribute, ConstantValue};
 use crate::error::Result;
-
+use std::borrow::Cow;
+use std::fmt::Display;
 use std::io::Read;
 
 use common::int_types::{u1, u2};
@@ -139,5 +140,27 @@ impl FieldType {
 
 	pub fn is_array(&self) -> bool {
 		matches!(self, Self::Array(_))
+	}
+
+	pub fn as_signature(&self) -> Cow<'static, str> {
+		match self {
+			Self::Byte => "B".into(),
+			Self::Char => "C".into(),
+			Self::Double => "D".into(),
+			Self::Float => "F".into(),
+			Self::Int => "I".into(),
+			Self::Long => "J".into(),
+			Self::Short => "S".into(),
+			Self::Boolean => "Z".into(),
+			Self::Void => "V".into(),
+			Self::Object(name) => format!("L{};", String::from_utf8_lossy(name)).into(),
+			Self::Array(component) => format!("[{}", component.as_signature()).into(),
+		}
+	}
+}
+
+impl Display for FieldType {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_str(&self.as_signature())
 	}
 }

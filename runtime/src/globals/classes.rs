@@ -59,6 +59,7 @@ define_classes!(
 	java_lang_invoke_MethodHandleNatives,
 	java_lang_invoke_MemberName,
 	java_lang_invoke_ResolvedMethodName,
+	java_lang_invoke_MethodType,
 	java_lang_ref_Reference,
 	java_lang_ref_Finalizer,
 	java_io_FileDescriptor,

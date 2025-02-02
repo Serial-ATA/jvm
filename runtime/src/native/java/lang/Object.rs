@@ -42,6 +42,8 @@ pub fn clone(_: JniEnv, this: Reference /* java.lang.Object */) -> Reference /* 
 		panic!("CloneNotSupportedException");
 	}
 
+	tracing::debug!(target: "method", "Cloning instance of {}", instance.class().name);
+
 	let cloned = unsafe { instance.clone() };
 	Reference::class(cloned)
 }

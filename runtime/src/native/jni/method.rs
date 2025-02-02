@@ -668,8 +668,8 @@ pub unsafe extern "system" fn GetStaticMethodID(
 	let name = unsafe { CStr::from_ptr(name) };
 	let sig = unsafe { CStr::from_ptr(sig) };
 
-	let name = Symbol::intern_bytes(name.to_bytes());
-	let sig = Symbol::intern_bytes(sig.to_bytes());
+	let name = Symbol::intern(name.to_bytes());
+	let sig = Symbol::intern(sig.to_bytes());
 
 	let Some(class) = classref_from_jclass(clazz) else {
 		return core::ptr::null::<Method>() as jmethodID;

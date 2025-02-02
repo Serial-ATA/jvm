@@ -73,7 +73,7 @@ impl ClassLoader {
 			let name_str = StringInterner::rust_string_from_java_string(name_obj.extract_class());
 
 			if !name_str.is_empty() {
-				name = Some(Symbol::intern_owned(name_str));
+				name = Some(Symbol::intern(name_str));
 			}
 		}
 
@@ -109,7 +109,7 @@ impl ClassLoader {
 		Self {
 			obj,
 			name,
-			name_and_id: Symbol::intern_owned(name_and_id),
+			name_and_id: Symbol::intern(name_and_id),
 
 			unnamed_module: SyncUnsafeCell::new(Some(Box::leak(Box::new(unnamed_module)))),
 			classes: Mutex::new(HashMap::new()),
@@ -329,7 +329,7 @@ impl ClassLoader {
 		//     Only Object has no direct superclass.
 		let mut super_class = None;
 		if let Some(super_class_name) = classfile.get_super_class() {
-			super_class = Some(self.resolve_super_class(Symbol::intern_bytes(&*super_class_name))?);
+			super_class = Some(self.resolve_super_class(Symbol::intern(&*super_class_name))?);
 		}
 
 		// TODO:
@@ -406,7 +406,7 @@ impl ClassLoader {
 
 		loop {
 			if let FieldType::Object(obj) = &*component {
-				self.load(Symbol::intern_bytes(&obj));
+				self.load(Symbol::intern(&obj));
 				break;
 			}
 

@@ -135,6 +135,14 @@ impl MirrorInstance {
 		}
 	}
 
+	/// The primitive type that this mirror is targeting
+	pub fn primitive_target(&self) -> &FieldType {
+		match &self.target {
+			MirrorTarget::Primitive(field_ty) => field_ty,
+			_ => unreachable!("only primitive mirrors should exist within primitive mirrors"),
+		}
+	}
+
 	pub fn set_module(&self, module: Reference) {
 		let module_offset = crate::globals::fields::java_lang_Class::module_field_offset();
 		let ptr = self.fields[module_offset].get();

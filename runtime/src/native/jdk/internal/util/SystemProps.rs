@@ -65,7 +65,7 @@ pub mod Raw {
 			// TODO: This isn't entirely accurate, there are more steps to determining java home.
 			"java.home" => std::env::var("JAVA_HOME").unwrap(),
 
-			"sj.printMod" => "true",
+			"sj.debug" => "true",
 		);
 
 		Reference::array(prop_array)
