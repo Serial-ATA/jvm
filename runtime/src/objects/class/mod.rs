@@ -24,7 +24,7 @@ use std::{mem, ptr};
 
 use classfile::accessflags::ClassAccessFlags;
 use classfile::attribute::resolved::ResolvedBootstrapMethod;
-use classfile::constant_pool::types::{raw as raw_types, NameAndTypeEntry};
+use classfile::constant_pool::types::raw as raw_types;
 use classfile::{ClassFile, FieldType, MethodInfo};
 use common::box_slice;
 use common::int_types::{u1, u2, u4};

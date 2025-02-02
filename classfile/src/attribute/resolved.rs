@@ -140,6 +140,7 @@ pub enum ResolvedElementValueType {
 	},
 }
 
+#[derive(Debug, Clone)]
 pub struct ResolvedBootstrapMethod {
 	pub method_handle_index: u2,
 	pub method_handle_info: MethodHandleEntry<'static>,

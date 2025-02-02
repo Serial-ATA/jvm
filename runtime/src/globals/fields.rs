@@ -598,8 +598,6 @@ pub mod jdk_internal_misc_UnsafeConstants {
 
 pub mod java_lang_invoke_MemberName {
 	use classfile::FieldType;
-	use instructions::Operand;
-	use jni::sys::jint;
 
 	field_module! {
 		@CLASS java_lang_invoke_MemberName;
@@ -648,8 +646,6 @@ pub mod java_lang_invoke_MethodType {
 
 pub mod java_lang_invoke_ResolvedMethodName {
 	use classfile::FieldType;
-	use instructions::Operand;
-	use jni::sys::jint;
 
 	field_module! {
 		@CLASS java_lang_invoke_ResolvedMethodName;

@@ -1,3 +1,12 @@
+use crate::objects::reference::Reference;
+
+use instructions::Operand;
+
+pub enum JavaCallResult {
+	Ok(Option<Operand<Reference>>),
+	PendingException,
+}
+
 /// Call a Java method with arguments
 ///
 /// This will invoke `method` on `thread` with the provided arguments.
@@ -30,9 +39,16 @@ macro_rules! java_call {
     ) => {{
 		tracing::debug!(target: "java_call", "Invoking manual Java call for method `{:?}`", $method);
 		let max_locals = $method.code.max_locals;
-		let __ret = $thread.invoke_method_scoped($method, $crate::stack::local_stack::LocalStack::new_with_args(vec![$(Operand::from($arg)),+], max_locals as usize));
+		let __thread = $thread;
+		let __ret = __thread.invoke_method_scoped($method, $crate::stack::local_stack::LocalStack::new_with_args(vec![$(Operand::from($arg)),+], max_locals as usize));
 		tracing::debug!(target: "java_call", "Manual Java call finished for method `{:?}`", $method);
-		__ret
+
+		// Exception thrown, nothing left to do
+		if __thread.has_pending_exception() {
+			$crate::calls::jcall::JavaCallResult::PendingException
+		} else {
+			$crate::calls::jcall::JavaCallResult::Ok(__ret)
+		}
 	}};
 	// No arguments path, still needs to allocate a LocalStack for stores
 	(
@@ -41,8 +57,15 @@ macro_rules! java_call {
     ) => {{
 		tracing::debug!(target: "java_call", "Invoking manual Java call for method `{:?}`", $method);
 		let max_locals = $method.code.max_locals;
-		let __ret = $thread.invoke_method_scoped($method, $crate::stack::local_stack::LocalStack::new(max_locals as usize));
+		let __thread = $thread;
+		let __ret = __thread.invoke_method_scoped($method, $crate::stack::local_stack::LocalStack::new(max_locals as usize));
 		tracing::debug!(target: "java_call", "Manual Java call finished for method `{:?}`", $method);
-		__ret
+
+		// Exception thrown, nothing left to do
+		if __thread.has_pending_exception() {
+			$crate::calls::jcall::JavaCallResult::PendingException
+		} else {
+			$crate::calls::jcall::JavaCallResult::Ok(__ret)
+		}
 	}};
 }

@@ -14,6 +14,7 @@ use std::ffi::VaList;
 use std::fmt::{Debug, Formatter};
 use std::sync::RwLock;
 
+use crate::calls::jcall::JavaCallResult;
 use classfile::accessflags::MethodAccessFlags;
 use classfile::attribute::resolved::ResolvedAnnotation;
 use classfile::attribute::{Code, LineNumber};
@@ -264,7 +265,7 @@ impl Method {
 	/// the current thread.
 	pub fn method_type_for(class: &'static Class, descriptor: &str) -> Throws<Reference> {
 		let descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes()).unwrap(); // TODO: Error handling
-		let mut parameters = ArrayInstance::new_reference(
+		let parameters = ArrayInstance::new_reference(
 			descriptor.parameters.len() as s4,
 			crate::globals::classes::java_lang_Class(),
 		)?;
@@ -333,14 +334,22 @@ impl Method {
 			find_method_handle_type_method,
 			Operand::Reference(return_type),
 			Operand::Reference(Reference::array(parameters))
-		)
-		.expect("method should return something")
-		.expect_reference();
+		);
 
-		// TODO: Need a way to take the pending exception from the thread to pass it up the Throws chain instead
-		assert!(!JavaThread::current().has_pending_exception());
+		let method_type;
+		match result {
+			JavaCallResult::Ok(op) => {
+				method_type = op
+					.expect("method should return something")
+					.expect_reference();
+			},
+			JavaCallResult::PendingException => {
+				JavaThread::current().throw_pending_exception(false);
+				todo!();
+			},
+		}
 
-		Throws::Ok(result)
+		Throws::Ok(method_type)
 	}
 }
 

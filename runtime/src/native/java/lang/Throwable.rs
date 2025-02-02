@@ -108,7 +108,7 @@ pub fn fillInStackTrace(
 	let this_class_instance = this.extract_class();
 	let this_class = this_class_instance.get().class();
 
-	let stack_depth = current_thread.frame_stack().depth();
+	let stack_depth = current_thread.frame_stack().visible_depth();
 
 	// We need to skip the current frame at the very least
 	let mut frames_to_skip = 1;

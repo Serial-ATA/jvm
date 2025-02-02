@@ -7,10 +7,10 @@ use crate::thread::JavaThread;
 
 use std::os::raw::c_int;
 
+use crate::calls::jcall::JavaCallResult;
 use classfile::accessflags::MethodAccessFlags;
 use instructions::Operand;
 use symbols::sym;
-
 // The JNI specification defines the mapping from a Java native method name to
 // a C native library implementation function name as follows:
 //
@@ -226,14 +226,23 @@ fn lookup_style(
 		)
 		.unwrap();
 
-	let address = java_call!(
+	let result = java_call!(
 		thread,
 		findNative_method,
 		Operand::Reference(Reference::null()),
 		Operand::Reference(Reference::class(name_arg))
-	)
-	.unwrap()
-	.expect_long();
+	);
+
+	let address;
+	match result {
+		JavaCallResult::Ok(op) => {
+			address = op.unwrap().expect_long();
+		},
+		JavaCallResult::PendingException => {
+			thread.throw_pending_exception(false);
+			return None;
+		},
+	}
 
 	if address == 0 {
 		todo!("Agent library search");

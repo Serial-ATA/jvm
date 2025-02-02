@@ -23,6 +23,7 @@ use std::cell::{Cell, SyncUnsafeCell, UnsafeCell};
 use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 use std::thread::JoinHandle;
 
+use crate::calls::jcall::JavaCallResult;
 use classfile::accessflags::MethodAccessFlags;
 use instructions::{Operand, StackLike};
 use java_lang_Thread::ThreadStatus;
@@ -172,8 +173,16 @@ impl JavaThread {
 			.resolve_method_step_two(sym!(run_name), sym!(void_method_signature))
 			.unwrap();
 
-		let ret = java_call!(self, run_method, Operand::Reference(obj));
-		assert!(ret.is_none());
+		let result = java_call!(self, run_method, Operand::Reference(obj));
+
+		match result {
+			JavaCallResult::Ok(op) => {
+				assert!(op.is_none());
+			},
+			JavaCallResult::PendingException => {
+				todo!();
+			},
+		}
 	}
 
 	/// Allocates a new `java.lang.Thread` for this `JavaThread`
@@ -452,6 +461,10 @@ impl JavaThread {
 
 	pub fn has_pending_exception(&self) -> bool {
 		unsafe { (*self.pending_exception.get()).is_some() }
+	}
+
+	pub fn take_pending_exception(&self) -> Option<Reference> {
+		unsafe { std::ptr::replace(self.pending_exception.get(), None) }
 	}
 
 	fn set_exiting(&self) {

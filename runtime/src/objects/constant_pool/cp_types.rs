@@ -1,6 +1,6 @@
 use super::entry::ResolvedEntry;
 use crate::java_call;
-use crate::objects::array::ArrayInstance;
+use crate::objects::array::{ArrayContent, ArrayInstance};
 use crate::objects::class::Class as ClassObj;
 use crate::objects::constant_pool::ConstantPool;
 use crate::objects::field::Field;
@@ -10,15 +10,12 @@ use crate::string_interner::StringInterner;
 use crate::thread::exceptions::{throw, Throws};
 use crate::thread::JavaThread;
 
+use crate::calls::jcall::JavaCallResult;
 use crate::native::java::lang::invoke::MethodHandleNatives;
-use crate::objects::class_instance::ClassInstance;
-use crate::objects::instance::Instance;
 use classfile::constant_pool::types::{raw as raw_types, CpEntry, ReferenceEntry, ReferenceKind};
-use classfile::{FieldType, MethodDescriptor};
-use common::int_types::{s4, s8, u1, u2};
+use common::int_types::{s4, s8, u2};
 use common::traits::PtrType;
 use instructions::Operand;
-use jni::sys::jint;
 use symbols::{sym, Symbol};
 
 /// A constant pool entry of any type
@@ -341,8 +338,7 @@ impl EntryType for InvokeDynamic {
 
 	#[inline]
 	fn resolved_entry(entry: ResolvedEntry) -> Self::Resolved {
-		// unsafe { entry.invoke_dynamic }
-		todo!()
+		unsafe { entry.invoke_dynamic }.clone()
 	}
 
 	fn resolve(
@@ -384,7 +380,8 @@ impl EntryType for InvokeDynamic {
 		let bootstrap_method = &bootstrap_methods[value.bootstrap_method_attr_index as usize];
 		let bsm_handle = cp.get::<MethodHandle>(bootstrap_method.method_handle_index)?;
 
-		panic!("got the bsm");
+		let static_args_obj = todo!();
+
 		let link_call_site_method = crate::globals::classes::java_lang_invoke_MethodHandleNatives()
 			.resolve_method(sym!(linkCallSite), sym!(linkCallSite_signature))?;
 
@@ -395,17 +392,27 @@ impl EntryType for InvokeDynamic {
 			Operand::Reference(bsm_handle),
 			Operand::Reference(Reference::class(name_arg)),
 			Operand::Reference(type_arg),
-			// TODO: /* static args*/,
+			Operand::Reference(static_args_obj),
 			Operand::Reference(Reference::array(appendix)),
-		)
-		.expect("method should return something")
-		.expect_reference();
+		);
 
-		if result.is_null() {
+		let call_site;
+		match result {
+			JavaCallResult::Ok(op) => {
+				call_site = op
+					.expect("method should return something")
+					.expect_reference();
+			},
+			JavaCallResult::PendingException => {},
+		}
+
+		if call_site.is_null() {
 			throw!(@DEFER LinkageError, "MethodHandleNatives produced a bad value");
 		}
 
-		todo!("invoke_dynamic resolution")
+		Throws::Ok(ResolvedEntry {
+			invoke_dynamic: Box::leak(Box::new(call_site)),
+		})
 	}
 }
 
@@ -490,8 +497,7 @@ impl EntryType for MethodHandle {
 				sym!(linkMethodHandleConstant_signature),
 			)?;
 
-		// TODO: Handle throws
-		let method_handle = java_call!(
+		let result = java_call!(
 			JavaThread::current(),
 			link_method_handle_constant_method,
 			Operand::Reference(Reference::mirror(invoking_class.mirror())),
@@ -499,9 +505,20 @@ impl EntryType for MethodHandle {
 			Operand::Reference(Reference::mirror(callee_class.mirror())),
 			Operand::Reference(Reference::class(StringInterner::intern_symbol(name))),
 			Operand::Reference(ty_arg),
-		)
-		.expect("method should return something")
-		.expect_reference();
+		);
+
+		let method_handle;
+		match result {
+			JavaCallResult::Ok(op) => {
+				method_handle = op
+					.expect("method should return something")
+					.expect_reference()
+			},
+			JavaCallResult::PendingException => {
+				JavaThread::current().throw_pending_exception(false);
+				todo!()
+			},
+		}
 
 		Throws::Ok(ResolvedEntry {
 			method_handle: Box::leak(Box::new(method_handle)),

@@ -458,7 +458,7 @@ pub fn compareAndExchangeReference(
 	if object.is_mirror() {
 		let instance = object.extract_mirror();
 		unsafe {
-			let mut current_field_value = instance
+			let current_field_value = instance
 				.get_mut()
 				.get_field_value_raw(offset as usize)
 				.as_ptr();

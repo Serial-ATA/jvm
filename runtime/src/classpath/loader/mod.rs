@@ -18,7 +18,7 @@ use classfile::constant_pool::types::raw as raw_types;
 use classfile::{ClassFile, FieldType};
 use common::int_types::u1;
 use common::traits::PtrType;
-use symbols::{sym, Symbol};
+use symbols::Symbol;
 
 const SUPPORTED_MAJOR_LOWER_BOUND: u1 = 45;
 const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 69;

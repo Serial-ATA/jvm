@@ -159,7 +159,7 @@ pub fn resolve_member_name(
 				Operand::Reference(Reference::null()),
 			);
 
-			let field = calling_class.resolve_field(name, descriptor)?;
+			let field = defining_class.resolve_field(name, descriptor)?;
 
 			flags = field.access_flags.as_u2() as jint;
 			flags |= MethodHandleNatives::MN_IS_FIELD;
@@ -217,6 +217,10 @@ pub fn resolve_member_name(
 				_ => unreachable!(),
 			}
 
+			if !is_valid {
+				throw!(@DEFER IllegalAccessError);
+			}
+
 			if method.is_caller_sensitive() {
 				flags |= MethodHandleNatives::MN_CALLER_SENSITIVE;
 			}
@@ -234,10 +238,6 @@ pub fn resolve_member_name(
 		ReferenceKind::InvokeInterface => {
 			todo!("MH of kind interface method");
 		},
-	}
-
-	if !is_valid {
-		throw!(@DEFER IllegalAccessError);
 	}
 
 	Throws::Ok(())

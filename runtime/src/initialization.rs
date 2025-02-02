@@ -1,3 +1,4 @@
+use crate::calls::jcall::JavaCallResult;
 use crate::classpath::loader::ClassLoader;
 use crate::java_call;
 use crate::modules::Module;
@@ -231,11 +232,16 @@ fn create_thread_object(thread: &JavaThread) {
 		.expect("java.lang.ThreadGroup should have an initializer");
 
 	let name = StringInterner::intern_str("main");
-	java_call!(
+	let result = java_call!(
 		thread,
 		init_method,
 		Operand::Reference(Reference::clone(&system_thread_group_instance))
 	);
+
+	if let JavaCallResult::PendingException = result {
+		thread.throw_pending_exception(false);
+		return;
+	}
 
 	unsafe {
 		crate::globals::threads::set_main_thread_group(Reference::clone(
@@ -285,21 +291,23 @@ fn init_phase_2(thread: &JavaThread) -> Result<(), JniError> {
 		.resolve_method_step_two(sym!(initPhase2_name), sym!(bool_bool_int_signature))
 		.unwrap();
 
-	let ret = java_call!(
+	let result = java_call!(
 		thread,
 		init_phase_2,
 		display_vm_output_to_stderr as s4,
 		print_stacktrace_on_exception as s4
-	)
-	.unwrap()
-	.expect_int();
+	);
+
+	let ret;
+	match result {
+		JavaCallResult::Ok(op) => ret = op.unwrap().expect_int(),
+		JavaCallResult::PendingException => {
+			return Err(JniError::ExceptionThrown);
+		},
+	}
 
 	if ret != JNI_OK {
 		return Err(JniError::Unknown);
-	}
-
-	if thread.has_pending_exception() {
-		return Err(JniError::ExceptionThrown);
 	}
 
 	unsafe {

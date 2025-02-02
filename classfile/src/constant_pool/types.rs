@@ -5,6 +5,7 @@ use std::borrow::Cow;
 use common::int_types::{s4, s8, u1, u2, u4};
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4-310
+#[derive(Clone, Debug)]
 pub enum LoadableConstantPoolValue<'a> {
 	Integer(s4),
 	Float(f32),
@@ -43,6 +44,7 @@ impl<'a> LoadableConstantPoolValue<'a> {
 	}
 }
 
+#[derive(Clone, Debug)]
 pub struct FieldRefEntry<'a> {
 	pub class_index: u2,
 	pub class: <raw::RawClassName as super::CpEntry<'a>>::Entry,
@@ -125,6 +127,7 @@ impl ReferenceKind {
 	}
 }
 
+#[derive(Clone, Debug)]
 pub enum ReferenceEntry<'a> {
 	FieldRef(<raw::RawFieldRef as CpEntry<'a>>::Entry),
 	MethodRef(<raw::RawMethodRef as CpEntry<'a>>::Entry),
@@ -139,6 +142,7 @@ impl<'a> ReferenceEntry<'a> {
 	}
 }
 
+#[derive(Clone, Debug)]
 pub struct ClassNameEntry<'a> {
 	pub name_index: u2,
 	pub name: <raw::RawConstantUtf8 as CpEntry<'a>>::Entry,
@@ -153,6 +157,7 @@ impl<'a> ClassNameEntry<'a> {
 	}
 }
 
+#[derive(Clone, Debug)]
 pub struct MethodHandleEntry<'a> {
 	pub reference_kind: ReferenceKind,
 	pub reference_index: u2,
@@ -169,6 +174,7 @@ impl<'a> MethodHandleEntry<'a> {
 	}
 }
 
+#[derive(Clone, Debug)]
 pub struct MethodRefEntry<'a> {
 	pub is_interface: bool,
 	pub class_index: u2,
@@ -189,6 +195,7 @@ impl<'a> MethodRefEntry<'a> {
 	}
 }
 
+#[derive(Clone, Debug)]
 pub struct NameAndTypeEntry<'a> {
 	pub name_index: u2,
 	pub name: <raw::RawConstantUtf8 as CpEntry<'a>>::Entry,
@@ -207,6 +214,7 @@ impl<'a> NameAndTypeEntry<'a> {
 	}
 }
 
+#[derive(Clone, Debug)]
 pub struct InvokeDynamicEntry<'a> {
 	pub bootstrap_method_attr_index: u2,
 	pub name_and_type_index: u2,
@@ -223,6 +231,7 @@ impl<'a> InvokeDynamicEntry<'a> {
 	}
 }
 
+#[derive(Clone, Debug)]
 pub struct DynamicEntry<'a> {
 	pub bootstrap_method_attr_index: u2,
 	pub name_and_type_index: u2,

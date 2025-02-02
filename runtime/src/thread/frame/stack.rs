@@ -85,8 +85,14 @@ impl FrameStack {
 		}
 	}
 
+	/// The total number of frames in the stack *including* fake frames
 	pub fn depth(&self) -> usize {
 		self.__inner().len()
+	}
+
+	/// The number of frames in the stack *excluding* fake frames
+	pub fn visible_depth(&self) -> usize {
+		self.iter().count()
 	}
 
 	pub fn iter(&self) -> impl DoubleEndedIterator<Item = VisibleStackFrame<'_>> {

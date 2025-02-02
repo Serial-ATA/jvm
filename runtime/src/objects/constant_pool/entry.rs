@@ -23,7 +23,7 @@ pub(super) union ResolvedEntry {
 	pub(super) name_and_type: (Symbol, Symbol),
 	pub(super) constant_utf8: Symbol,
 	pub(super) field_ref: &'static Field,
-	pub(super) invoke_dynamic: u32, // TODO
+	pub(super) invoke_dynamic: &'static Reference,
 	pub(super) method_ref: &'static Method,
 	pub(super) method_handle: &'static Reference,
 	pub(super) string: Symbol,
