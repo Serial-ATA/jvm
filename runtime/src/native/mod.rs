@@ -34,6 +34,9 @@ pub(crate) mod java {
 			pub(crate) mod Reference;
 			pub(crate) mod Finalizer;
 		}
+		pub(crate) mod reflect {
+			pub(crate) mod Array;
+		}
 		pub(crate) mod StringBuilder;
 		pub(crate) mod Runtime;
 		pub(crate) mod StringUTF16;
