@@ -98,6 +98,9 @@ pub enum ExceptionKind {
 	/// java.lang.ArrayIndexOutOfBoundsException
 	ArrayIndexOutOfBoundsException,
 
+	/// java.lang.CloneNotSupportedException
+	CloneNotSupportedException,
+
 	/// java.lang.NullPointerException
 	NullPointerException,
 	/// java.lang.IllegalArgumentException
@@ -135,6 +138,8 @@ impl ExceptionKind {
 			ExceptionKind::ArrayIndexOutOfBoundsException => {
 				sym!(java_lang_ArrayIndexOutOfBoundsException)
 			},
+
+			ExceptionKind::CloneNotSupportedException => sym!(java_lang_CloneNotSupportedException),
 
 			ExceptionKind::NullPointerException => sym!(java_lang_NullPointerException),
 			ExceptionKind::IllegalArgumentException => sym!(java_lang_IllegalArgumentException),
@@ -251,6 +256,16 @@ macro_rules! throw_with_ret {
 	};
 }
 
+macro_rules! throw_and_return_null {
+	($thread:expr, $($tt:tt)*) => {
+		crate::thread::exceptions::throw_with_ret!(
+			 $crate::objects::reference::Reference::null(),
+			 $thread,
+			 $($tt)*
+		);
+	};
+}
+
 macro_rules! handle_exception {
 	($thread:expr, $throwsy_expr:expr) => {{
 		crate::thread::exceptions::handle_exception!((), $thread, $throwsy_expr)
@@ -266,7 +281,7 @@ macro_rules! handle_exception {
 	}};
 }
 
-pub(crate) use {handle_exception, throw, throw_with_ret};
+pub(crate) use {handle_exception, throw, throw_and_return_null, throw_with_ret};
 
 /// See [`JavaThread::throw_exception`]
 #[must_use = "must know whether the exception was thrown"]

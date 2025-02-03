@@ -597,7 +597,66 @@ pub mod jdk_internal_misc_UnsafeConstants {
 }
 
 pub mod java_lang_invoke_MemberName {
+	use crate::objects::class_instance::ClassInstance;
+	use crate::objects::instance::Instance;
+	use crate::objects::reference::{MirrorInstanceRef, Reference};
 	use classfile::FieldType;
+	use instructions::Operand;
+	use jni::sys::jint;
+
+	/// `java.lang.invoke.MemberName#clazz` field
+	pub fn clazz(instance: &ClassInstance) -> MirrorInstanceRef {
+		instance
+			.get_field_value0(clazz_field_offset())
+			.expect_reference()
+			.extract_mirror()
+	}
+
+	pub fn set_clazz(instance: &mut ClassInstance, value: Reference) {
+		instance.put_field_value0(clazz_field_offset(), Operand::Reference(value))
+	}
+
+	/// `java.lang.invoke.MemberName#name` field
+	pub fn name(instance: &ClassInstance) -> Reference {
+		instance
+			.get_field_value0(name_field_offset())
+			.expect_reference()
+	}
+
+	pub fn set_name(instance: &mut ClassInstance, value: Reference) {
+		instance.put_field_value0(name_field_offset(), Operand::Reference(value))
+	}
+
+	/// `java.lang.invoke.MemberName#type` field
+	pub fn type_(instance: &ClassInstance) -> Reference {
+		instance
+			.get_field_value0(type_field_offset())
+			.expect_reference()
+	}
+
+	pub fn set_type(instance: &mut ClassInstance, value: Reference) {
+		instance.put_field_value0(type_field_offset(), Operand::Reference(value));
+	}
+
+	/// `java.lang.invoke.MemberName#flags` field
+	pub fn flags(instance: &ClassInstance) -> jint {
+		instance.get_field_value0(flags_field_offset()).expect_int()
+	}
+
+	pub fn set_flags(instance: &mut ClassInstance, value: jint) {
+		instance.put_field_value0(flags_field_offset(), Operand::Int(value));
+	}
+
+	/// `java.lang.invoke.MemberName#method` field
+	pub fn method(instance: &ClassInstance) -> Reference {
+		instance
+			.get_field_value0(flags_field_offset())
+			.expect_reference()
+	}
+
+	pub fn set_method(instance: &mut ClassInstance, value: Reference) {
+		instance.put_field_value0(method_field_offset(), Operand::Reference(value));
+	}
 
 	field_module! {
 		@CLASS java_lang_invoke_MemberName;

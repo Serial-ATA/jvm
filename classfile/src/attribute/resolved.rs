@@ -6,6 +6,8 @@ use crate::attribute::BootstrapMethod;
 use crate::constant_pool::types::{self, LoadableConstantPoolValue, MethodHandleEntry};
 use crate::constant_pool::ConstantPool;
 
+use std::fmt::{Debug, Formatter};
+
 use common::int_types::{s4, s8, u2};
 
 pub struct ResolvedAnnotation {
@@ -140,11 +142,20 @@ pub enum ResolvedElementValueType {
 	},
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ResolvedBootstrapMethod {
 	pub method_handle_index: u2,
 	pub method_handle_info: MethodHandleEntry<'static>,
 	pub arguments: Vec<LoadableConstantPoolValue<'static>>,
+}
+
+impl Debug for ResolvedBootstrapMethod {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("ResolvedBoostrapMethod")
+			.field("method_handle_info", &self.method_handle_info)
+			.field("arguments", &self.arguments)
+			.finish()
+	}
 }
 
 impl ResolvedBootstrapMethod {

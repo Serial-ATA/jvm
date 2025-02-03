@@ -909,7 +909,7 @@ impl Interpreter {
 
             return;
         }
-
+        
         match opcode {
             OpCode::instanceof => stack.push_int(0),
             OpCode::checkcast => panic!("ClassCastException"), // TODO

@@ -1,5 +1,6 @@
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
+use crate::thread::exceptions::throw_and_return_null;
 use crate::thread::JavaThread;
 
 use ::jni::env::JniEnv;
@@ -17,7 +18,7 @@ pub fn getCallerClass(env: JniEnv, _class: &'static Class) -> Reference {
 	// [1] [ @CallerSensitive API.method                                   ]
 	// [.] [ (skipped intermediate frames)                                 ]
 	// [n] [ caller                                                        ]
-	for (n, frame) in current_thread.frame_stack().iter().rev().enumerate() {
+	for (n, frame) in current_thread.frame_stack().iter().enumerate() {
 		let method = frame.method();
 
 		// TODO:
@@ -32,9 +33,10 @@ pub fn getCallerClass(env: JniEnv, _class: &'static Class) -> Reference {
 			}
 
 			if !method.is_caller_sensitive() {
-				// TODO
-				panic!(
-					"InternalError, `getCallerClass` is not called from a @CallerSensitive method"
+				throw_and_return_null!(
+					current_thread,
+					InternalError,
+					"`getCallerClass` is not called from a @CallerSensitive method"
 				);
 			}
 

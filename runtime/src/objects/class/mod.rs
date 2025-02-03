@@ -621,7 +621,7 @@ impl Class {
 		//
 		//     If T is a class type, then S must be the same class as T, or S must be a subclass of T;
 		if !T_class.is_interface() && !T_class.is_array() {
-			if S_class.name == T_class.name {
+			if S_class == T_class {
 				return true;
 			}
 
@@ -636,13 +636,12 @@ impl Class {
 		//
 		//     If T is a class type, then T must be Object.
 		if !T_class.is_interface() && !T_class.is_array() {
-			return T_class.name == sym!(java_lang_Object);
+			return T_class == crate::globals::classes::java_lang_Object();
 		}
 		//     If T is an interface type, then T must be one of the interfaces implemented by arrays (JLS §4.10.3).
 		if T_class.is_interface() {
-			let class_name = T_class.name;
-			return class_name == sym!(java_lang_Cloneable)
-				|| class_name == sym!(java_io_Serializable);
+			return T_class == crate::globals::classes::java_lang_Cloneable()
+				|| T_class == crate::globals::classes::java_io_Serializable();
 		}
 		//     If T is an array type TC[], that is, an array of components of type TC, then one of the following must be true:
 		if T_class.is_array() {
@@ -980,15 +979,19 @@ impl Class {
 	}
 
 	pub fn implements(&self, class: &Class) -> bool {
+		if self.is_interface() && self == class {
+			return true;
+		}
+
 		for interface in &self.interfaces {
-			if class.name == interface.name || class.implements(&interface) {
+			if class == *interface || class.implements(&interface) {
 				return true;
 			}
 		}
 
 		for parent in self.parent_iter() {
 			for interface in &parent.interfaces {
-				if class.name == interface.name || class.implements(&interface) {
+				if class == *interface || class.implements(&interface) {
 					return true;
 				}
 			}

@@ -2,6 +2,7 @@ use crate::objects::instance::CloneableInstance;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
+use crate::thread::exceptions::throw_and_return_null;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jint, jlong};
 use common::traits::PtrType;
@@ -31,20 +32,17 @@ pub fn clone(_: JniEnv, this: Reference /* java.lang.Object */) -> Reference /* 
 	if this.is_array() {
 		let array = this.extract_array();
 		let instance = array.get();
-		let cloned = unsafe { instance.clone() };
+		let cloned = unsafe { CloneableInstance::clone(instance) };
 		return Reference::array(cloned);
 	}
 
 	let instance_ref = this.extract_class();
 	let instance = instance_ref.get();
 	if !instance.class().is_cloneable() {
-		// TODO
-		panic!("CloneNotSupportedException");
+		throw_and_return_null!(JavaThread::current(), CloneNotSupportedException);
 	}
 
-	tracing::debug!(target: "method", "Cloning instance of {}", instance.class().name);
-
-	let cloned = unsafe { instance.clone() };
+	let cloned = unsafe { CloneableInstance::clone(instance) };
 	Reference::class(cloned)
 }
 

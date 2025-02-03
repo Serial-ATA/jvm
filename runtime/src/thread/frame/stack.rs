@@ -96,7 +96,7 @@ impl FrameStack {
 	}
 
 	pub fn iter(&self) -> impl DoubleEndedIterator<Item = VisibleStackFrame<'_>> {
-		self.__inner().iter().filter_map(|frame| match frame {
+		self.__inner().iter().rev().filter_map(|frame| match frame {
 			StackFrame::Real(frame) => Some(VisibleStackFrame::Regular(frame)),
 			StackFrame::Native(frame) => Some(VisibleStackFrame::Native(frame)),
 			StackFrame::Fake => None,

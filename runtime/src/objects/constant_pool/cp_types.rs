@@ -485,7 +485,7 @@ impl EntryType for MethodHandle {
 		MethodHandleNatives::resolve_member_name(
 			member_name.get_mut(),
 			value.reference_kind,
-			invoking_class,
+			Some(invoking_class),
 			0,
 		)?;
 

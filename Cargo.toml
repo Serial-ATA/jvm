@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
+    "generators/*",
+    "tools/*",
     "classfile",
     "instructions",
     "runtime",
@@ -13,7 +15,6 @@ members = [
     "jni",
     "jni/sys",
 ]
-exclude = ["tools", "generators"]
 
 [workspace.dependencies]
 classfile = { path = "classfile" }
@@ -34,6 +35,16 @@ tracing = "0.1.41"
 paste = "1.0.15"
 zip = { version = "2.2.1", default-features = false }
 
-# Nested workspace members
-tools = { path = "tools" }
-generators = { path = "generators" }
+# Generators
+combine = "4.6.7"
+bitflags = "2.6.0"
+indexmap = "2.7.0"
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", default-features = false }
+walkdir = "2.5.0"
+
+# Tools
+anyhow = "1.0.93"
+clap = "4.0.29"
+tracing-subscriber = "0.3.18"

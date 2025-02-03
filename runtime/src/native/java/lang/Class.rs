@@ -5,7 +5,9 @@ use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::{ArrayInstanceRef, MirrorInstanceRef, Reference};
 use crate::string_interner::StringInterner;
-use crate::thread::exceptions::{handle_exception, throw, throw_with_ret, Throws};
+use crate::thread::exceptions::{
+	handle_exception, throw, throw_and_return_null, throw_with_ret, Throws,
+};
 use crate::thread::JavaThread;
 
 use std::sync::Arc;
@@ -222,7 +224,7 @@ pub fn getDeclaringClass0(
 					handle_exception!(Reference::null(), thread, target_class.loader().load(outer));
 
 				if outer.is_array() {
-					throw_with_ret!(Reference::null(), thread, IncompatibleClassChangeError);
+					throw_and_return_null!(thread, IncompatibleClassChangeError);
 				}
 
 				declaring_class = Reference::mirror(outer.mirror());

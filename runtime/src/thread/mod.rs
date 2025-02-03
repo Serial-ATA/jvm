@@ -350,7 +350,7 @@ impl JavaThread {
 	pub fn invoke_method_with_local_stack(&self, method: &'static Method, locals: LocalStack) {
 		if method.is_native() {
 			self.invoke_native(method, locals);
-			tracing::debug!(target: "JavaThread", "Native method finished");
+			tracing::debug!(target: "JavaThread", "Native method `{method:?}` finished");
 			return;
 		}
 

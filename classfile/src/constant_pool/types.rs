@@ -1,6 +1,7 @@
 use super::{ConstantPool, ConstantPoolValueInfo};
 
 use std::borrow::Cow;
+use std::fmt::{Debug, Display, Formatter};
 
 use common::int_types::{s4, s8, u1, u2, u4};
 
@@ -76,12 +77,12 @@ pub enum ReferenceKind {
 	PutStatic = 4,
 	/// REF_invokeVirtual
 	InvokeVirtual = 5,
-	/// REF_newInvokeSpecial
-	NewInvokeSpecial = 6,
 	/// REF_invokeStatic
-	InvokeStatic = 7,
+	InvokeStatic = 6,
 	/// REF_invokeSpecial
-	InvokeSpecial = 8,
+	InvokeSpecial = 7,
+	/// REF_newInvokeSpecial
+	NewInvokeSpecial = 8,
 	/// REF_invokeInterface
 	InvokeInterface = 9,
 }
@@ -142,10 +143,18 @@ impl<'a> ReferenceEntry<'a> {
 	}
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ClassNameEntry<'a> {
 	pub name_index: u2,
 	pub name: <raw::RawConstantUtf8 as CpEntry<'a>>::Entry,
+}
+
+impl Debug for ClassNameEntry<'_> {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.debug_tuple("ClassNameEntry")
+			.field(&String::from_utf8_lossy(&self.name))
+			.finish()
+	}
 }
 
 impl<'a> ClassNameEntry<'a> {
@@ -195,12 +204,21 @@ impl<'a> MethodRefEntry<'a> {
 	}
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct NameAndTypeEntry<'a> {
 	pub name_index: u2,
 	pub name: <raw::RawConstantUtf8 as CpEntry<'a>>::Entry,
 	pub descriptor_index: u2,
 	pub descriptor: <raw::RawConstantUtf8 as CpEntry<'a>>::Entry,
+}
+
+impl Debug for NameAndTypeEntry<'_> {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.debug_tuple("NameAndTypeEntry")
+			.field(&String::from_utf8_lossy(&self.name))
+			.field(&String::from_utf8_lossy(&self.descriptor))
+			.finish()
+	}
 }
 
 impl<'a> NameAndTypeEntry<'a> {
