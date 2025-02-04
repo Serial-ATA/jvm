@@ -1,0 +1,5 @@
+import java.lang.String;
+
+public class NullPointerException {
+    private native String getExtendedNPEMessage();
+}

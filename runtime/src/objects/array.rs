@@ -142,7 +142,7 @@ impl ArrayInstance {
 	}
 
 	pub fn get(&self, index: s4) -> Throws<Operand<Reference>> {
-		if index.is_negative() || index as usize > self.elements.element_count() {
+		if index.is_negative() || index as usize > self.len() {
 			throw!(@DEFER ArrayIndexOutOfBoundsException);
 		}
 
@@ -150,7 +150,7 @@ impl ArrayInstance {
 	}
 
 	pub fn store(&mut self, index: s4, value: Operand<Reference>) -> Throws<()> {
-		if index.is_negative() || index as usize > self.elements.element_count() {
+		if index.is_negative() || index as usize > self.len() {
 			throw!(@DEFER ArrayIndexOutOfBoundsException);
 		}
 
@@ -182,6 +182,15 @@ impl ArrayInstance {
 			ArrayContent::Long(ref mut contents) => contents[index] = value.expect_long(),
 			ArrayContent::Reference(ref mut contents) => contents[index] = value.expect_reference(),
 		}
+	}
+
+	#[inline]
+	pub fn is_empty(&self) -> bool {
+		self.len() == 0
+	}
+
+	pub fn len(&self) -> usize {
+		self.elements.element_count()
 	}
 
 	pub fn header(&self) -> &Header {

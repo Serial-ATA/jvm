@@ -245,6 +245,10 @@ pub mod java_lang_Class {
 		///
 		/// Expected type: `Reference` to `java.lang.ClassLoader`
 		@FIELD classLoader: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/ClassLoader"),
+		/// `java.lang.Class#componentType` field offset
+		///
+		/// Expected type: `Reference` to `java.lang.Class`
+		@FIELD componentType: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/Class"),
 	}
 }
 
@@ -436,7 +440,22 @@ pub mod java_lang_StackTraceElement {
 }
 
 pub mod java_lang_Throwable {
+	use crate::objects::class_instance::ClassInstance;
+	use crate::objects::instance::Instance;
+	use crate::objects::reference::{ClassInstanceRef, Reference};
 	use classfile::FieldType;
+	use instructions::Operand;
+
+	/// `java.lang.Throwable#backtrace` field
+	pub fn backtrace(instance: &ClassInstance) -> Reference {
+		instance
+			.get_field_value0(backtrace_field_offset())
+			.expect_reference()
+	}
+
+	pub fn set_backtrace(instance: &mut ClassInstance, value: Reference) {
+		instance.put_field_value0(backtrace_field_offset(), Operand::Reference(value))
+	}
 
 	field_module! {
 		@CLASS java_lang_Throwable;

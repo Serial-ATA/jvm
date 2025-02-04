@@ -81,8 +81,8 @@ pub fn arraycopy(
 	if src_pos < 0
 		|| dest_pos < 0
 		|| length < 0
-		|| src_pos + length > src_array.get().elements.element_count() as jint
-		|| dest_pos + length > dest_array.get().elements.element_count() as jint
+		|| src_pos + length > src_array.get().len() as jint
+		|| dest_pos + length > dest_array.get().len() as jint
 	{
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(thread, IndexOutOfBoundsException);

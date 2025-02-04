@@ -49,9 +49,6 @@ fn initialize_thread(thread: &JavaThread) -> Result<(), JniError> {
 	load_global_classes();
 	init_field_offsets();
 
-	// Create the primitive mirrors (java.lang.Integer, etc...)
-	crate::globals::mirrors::init_primitive_mirrors();
-
 	// Init some important classes
 	initialize_global_classes(thread);
 
@@ -96,7 +93,14 @@ fn load_global_classes() {
 		java_lang_String,
 		java_lang_ClassLoader,
 		java_lang_Class,
+		java_lang_Module,
 	);
+
+	// Pre-fire java.lang.Class field offset initialization, as it's needed by mirrors. All other
+	// classes handle this in `init_field_offsets()`.
+	unsafe {
+		crate::globals::fields::java_lang_Class::init_offsets();
+	}
 
 	// Fixup mirrors, as we have classes that were loaded before java.lang.Class
 	ClassLoader::fixup_mirrors();
@@ -104,7 +108,6 @@ fn load_global_classes() {
 	load!(
 		jdk_internal_misc_UnsafeConstants,
 		java_lang_System,
-		java_lang_Module,
 		java_lang_Thread,
 		java_lang_Thread_FieldHolder,
 		java_lang_ThreadGroup,
@@ -137,6 +140,9 @@ fn load_global_classes() {
 		java_lang_Void,
 	);
 
+	// Create the primitive mirrors (java.lang.Integer, etc...)
+	crate::globals::mirrors::init_primitive_mirrors();
+
 	// Primitive arrays
 	load!(
 		bool_array,
@@ -148,15 +154,10 @@ fn load_global_classes() {
 		long_array,
 		short_array,
 		string_array,
-	)
+	);
 }
 
 fn init_field_offsets() {
-	// java.lang.Class
-	unsafe {
-		crate::globals::fields::java_lang_Class::init_offsets();
-	}
-
 	// java.lang.ClassLoader
 	unsafe {
 		crate::globals::fields::java_lang_ClassLoader::init_offsets();

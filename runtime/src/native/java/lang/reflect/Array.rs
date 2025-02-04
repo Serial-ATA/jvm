@@ -1,5 +1,7 @@
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
+use crate::thread::exceptions::throw_and_return_null;
+use crate::thread::JavaThread;
 
 use jni::env::JniEnv;
 use jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
@@ -208,9 +210,21 @@ pub fn setDouble(
 pub fn newArray(
 	_env: JniEnv,
 	_class: &'static Class,
-	_component_type: Reference, // java.lang.Class<?>
-	_length: jint,
+	component_type: Reference, // java.lang.Class<?>
+	length: jint,
 ) -> Reference /* java.lang.Object */ {
+	if component_type.is_null() {
+		throw_and_return_null!(JavaThread::current(), NullPointerException);
+	}
+
+	if length.is_negative() {
+		throw_and_return_null!(
+			JavaThread::current(),
+			NegativeArraySizeException,
+			"{length}"
+		);
+	}
+
 	unimplemented!("java.lang.reflect.Array#newArray");
 }
 

@@ -295,7 +295,7 @@ pub fn getPrimitiveClass(
 	let string_class = name.extract_class();
 	let name_string = StringInterner::rust_string_from_java_string(string_class);
 
-	for (name, ty) in crate::globals::TYPES {
+	for (name, ty) in crate::globals::PRIMITIVE_TYPE_NAMES_TO_FIELD_TYPES {
 		if &name_string == name {
 			return crate::globals::mirrors::primitive_mirror_for(ty);
 		}

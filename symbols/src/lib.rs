@@ -1,7 +1,6 @@
 use std::fmt::Display;
 use std::sync::{LazyLock, Mutex};
 
-use common::int_types::u1;
 use fxhash::FxBuildHasher;
 use indexmap::IndexSet;
 
@@ -124,7 +123,7 @@ impl Internable for Box<[u8]> {
 
 impl Internable for Vec<u8> {
 	fn as_bytes(&self) -> &[u8] {
-		<Vec<u8>>::as_bytes(self)
+		&*self
 	}
 }
 
@@ -297,6 +296,7 @@ vm_symbols::define_symbols! {
 	name,
 	module,
 	classLoader,
+	componentType,
 	referent,
 	loader,
 	holder,

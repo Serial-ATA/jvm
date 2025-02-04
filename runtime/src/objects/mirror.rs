@@ -1,4 +1,5 @@
 use super::instance::{Header, Instance};
+use crate::globals::{BASE_TYPES_TO_FIELD_TYPES, PRIMITIVES};
 use crate::objects::class::Class;
 use crate::objects::field::Field;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
@@ -60,7 +61,29 @@ impl MirrorInstance {
 
 	pub fn new_array(target: &'static Class) -> MirrorInstanceRef {
 		let mirror_class = crate::globals::classes::java_lang_Class();
-		let fields = Self::initialize_fields(mirror_class, target);
+		let mut fields = Self::initialize_fields(mirror_class, target);
+
+		let component_type_mirror;
+
+		let component_type = target.array_component_name();
+		if PRIMITIVES.contains(&component_type) {
+			let component_str = component_type.as_str();
+			let (_, field_type) = BASE_TYPES_TO_FIELD_TYPES
+				.iter()
+				.find(|(ty, _)| *ty == component_str)
+				.expect("all primitives are covered");
+			component_type_mirror = crate::globals::mirrors::primitive_mirror_for(&field_type);
+		} else {
+			let component_class = target.loader().load(component_type).unwrap(); // TODO: handle throws
+			component_type_mirror = Reference::mirror(component_class.mirror());
+		}
+
+		let component_type_offset =
+			crate::globals::fields::java_lang_Class::componentType_field_offset();
+		unsafe {
+			*fields[component_type_offset].get() = Operand::Reference(component_type_mirror);
+		}
+
 		MirrorInstancePtr::new(Self {
 			header: Header::new(),
 			class: mirror_class,
@@ -146,11 +169,24 @@ impl MirrorInstance {
 	pub fn set_module(&self, module: Reference) {
 		let module_offset = crate::globals::fields::java_lang_Class::module_field_offset();
 		let ptr = self.fields[module_offset].get();
+
 		unsafe {
 			assert!(
 				(&*ptr).expect_reference().is_null(),
 				"Attempt to set a module twice"
 			);
+		}
+
+		// Early in initialization, even before java.lang.Module is loaded, this will
+		// be called with a null reference. Since the mirror is already default initialized with null,
+		// there's nothing to do. Return early to preserve the assertion below.
+		if module.is_null() {
+			return;
+		}
+
+		assert!(module.is_instance_of(crate::globals::classes::java_lang_Module()));
+
+		unsafe {
 			*ptr = Operand::Reference(module);
 		}
 	}

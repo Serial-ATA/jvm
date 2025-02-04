@@ -662,7 +662,7 @@ impl Interpreter {
                     let object_ref = stack.pop_reference();
                     let array_ref = object_ref.extract_array();
                     
-                    let array_len = array_ref.get().elements.element_count();
+                    let array_len = array_ref.get().len();
                     stack.push_int(array_len as s4);
                 },
                 OpCode::athrow => {

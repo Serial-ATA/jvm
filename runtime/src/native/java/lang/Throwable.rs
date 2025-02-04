@@ -8,6 +8,7 @@ use crate::thread::JavaThread;
 use std::sync::atomic::Ordering;
 use std::sync::Once;
 
+use crate::globals::fields;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jint, jlong};
 use common::int_types::s4;
@@ -63,7 +64,7 @@ impl BackTrace {
 	fn push(&mut self, frame: VisibleStackFrame<'_>) {
 		let method = frame.method();
 		let pc = match frame {
-			VisibleStackFrame::Regular(frame) => frame.thread().pc.load(Ordering::Relaxed) - 1,
+			VisibleStackFrame::Regular(frame) => frame.stashed_pc(),
 			_ => -1,
 		};
 
@@ -97,8 +98,10 @@ pub fn fillInStackTrace(
 	unsafe { initialize() };
 
 	// Reset the current fields
-	let backtrace_offset = crate::globals::fields::java_lang_Throwable::backtrace_field_offset();
-	this.put_field_value0(backtrace_offset, Operand::Reference(Reference::null()));
+	let backtrace_offset = fields::java_lang_Throwable::set_backtrace(
+		this.extract_class().get_mut(),
+		Reference::null(),
+	);
 
 	let stack_trace_offset = crate::globals::fields::java_lang_Throwable::stackTrace_field_offset();
 	this.put_field_value0(stack_trace_offset, Operand::Reference(Reference::null()));
@@ -149,8 +152,10 @@ pub fn fillInStackTrace(
 		backtrace.push(frame);
 	}
 
-	let backtrace_offset = crate::globals::fields::java_lang_Throwable::backtrace_field_offset();
-	this.put_field_value0(backtrace_offset, Operand::Reference(backtrace.into_obj()));
+	let backtrace_offset = fields::java_lang_Throwable::set_backtrace(
+		this.extract_class().get_mut(),
+		backtrace.into_obj(),
+	);
 
 	let depth_field_offset = crate::globals::fields::java_lang_Throwable::depth_field_offset();
 	this.put_field_value0(depth_field_offset, Operand::Int(backtrace_depth as jint));
