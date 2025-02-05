@@ -156,15 +156,15 @@ fn create_method_mappings<'a>(
 		r#"
 impl IntrinsicId {
 	/// Attempt to map the method to an `IntrinsicId`
-	pub fn for_method(class: symbols::Symbol, method_name: symbols::Symbol, signature: symbols::Symbol, flags: MethodAccessFlags) -> Self {
-		use symbols::sym;
+	pub fn for_method(class: crate::symbols::Symbol, method_name: crate::symbols::Symbol, signature: crate::symbols::Symbol, flags: MethodAccessFlags) -> Self {
+		use crate::symbols::sym;
 
 		// Creates a unique ID for a method using its class, name, and signature
 		macro_rules! intrinsics_id3 {
 			($class:expr, $method_name:expr, $method_signature:expr) => {
 				(($method_signature.as_u32() as u64) +
-					(($method_name.as_u32()  as u64) <<    symbols::Symbol::PRE_INTERNED_LIMIT_LOG2) +
-					(($class .as_u32()       as u64) << (2*symbols::Symbol::PRE_INTERNED_LIMIT_LOG2)))
+					(($method_name.as_u32()  as u64) <<    crate::symbols::Symbol::PRE_INTERNED_LIMIT_LOG2) +
+					(($class .as_u32()       as u64) << (2*crate::symbols::Symbol::PRE_INTERNED_LIMIT_LOG2)))
 			};
 		}
 

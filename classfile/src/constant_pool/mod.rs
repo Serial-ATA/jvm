@@ -1,6 +1,8 @@
 pub mod types;
 
-use crate::constant_pool::types::{CpEntry, LoadableConstantPoolValue};
+use crate::constant_pool::types::{
+	CpEntry, LoadableConstantPoolValue, LoadableConstantPoolValueInner,
+};
 
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, Index};
@@ -38,42 +40,45 @@ impl ConstantPool {
 	pub fn get_loadable_entry(&self, index: u2) -> LoadableConstantPoolValue {
 		let constant = &self[index];
 
-		match constant {
+		let value = match constant {
 			ConstantPoolValueInfo::Integer { bytes } => {
-				LoadableConstantPoolValue::Integer(types::raw::Integer::handle(self, *bytes))
+				LoadableConstantPoolValueInner::Integer(types::raw::Integer::handle(self, *bytes))
 			},
 			ConstantPoolValueInfo::Float { bytes } => {
-				LoadableConstantPoolValue::Float(types::raw::Float::handle(self, *bytes))
+				LoadableConstantPoolValueInner::Float(types::raw::Float::handle(self, *bytes))
 			},
 			ConstantPoolValueInfo::Long {
 				high_bytes,
 				low_bytes,
-			} => LoadableConstantPoolValue::Long(types::raw::Long::handle(
+			} => LoadableConstantPoolValueInner::Long(types::raw::Long::handle(
 				self,
 				(*high_bytes, *low_bytes),
 			)),
 			ConstantPoolValueInfo::Double {
 				high_bytes,
 				low_bytes,
-			} => LoadableConstantPoolValue::Double(types::raw::Double::handle(
+			} => LoadableConstantPoolValueInner::Double(types::raw::Double::handle(
 				self,
 				(*high_bytes, *low_bytes),
 			)),
-			ConstantPoolValueInfo::Class { name_index } => LoadableConstantPoolValue::Class(
+			ConstantPoolValueInfo::Class { name_index } => LoadableConstantPoolValueInner::Class(
 				types::raw::RawClassName::handle(self, *name_index),
 			),
-			ConstantPoolValueInfo::String { string_index } => LoadableConstantPoolValue::String(
-				types::raw::RawString::handle(self, *string_index),
-			),
+			ConstantPoolValueInfo::String { string_index } => {
+				LoadableConstantPoolValueInner::String(types::raw::RawString::handle(
+					self,
+					*string_index,
+				))
+			},
 			ConstantPoolValueInfo::MethodHandle {
 				reference_kind,
 				reference_index,
-			} => LoadableConstantPoolValue::MethodHandle(types::raw::RawMethodHandle::handle(
+			} => LoadableConstantPoolValueInner::MethodHandle(types::raw::RawMethodHandle::handle(
 				self,
 				(*reference_kind, *reference_index),
 			)),
 			ConstantPoolValueInfo::MethodType { descriptor_index } => {
-				LoadableConstantPoolValue::MethodType(types::raw::RawMethodType::handle(
+				LoadableConstantPoolValueInner::MethodType(types::raw::RawMethodType::handle(
 					self,
 					*descriptor_index,
 				))
@@ -81,12 +86,14 @@ impl ConstantPool {
 			ConstantPoolValueInfo::Dynamic {
 				bootstrap_method_attr_index,
 				name_and_type_index,
-			} => LoadableConstantPoolValue::Dynamic(types::raw::RawDynamic::handle(
+			} => LoadableConstantPoolValueInner::Dynamic(types::raw::RawDynamic::handle(
 				self,
 				(*bootstrap_method_attr_index, *name_and_type_index),
 			)),
 			_ => panic!("Expected a loadable constant pool entry"),
-		}
+		};
+
+		LoadableConstantPoolValue { index, value }
 	}
 }
 

@@ -7,21 +7,24 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-classfile = { path = "../classfile" }
-common = { path = "../common" }
-instructions = { path = "../instructions" }
-jimage = { path = "../jimage" }
-jni = { path = "../jni" }
+classfile.workspace = true
+common.workspace = true
+instructions.workspace = true
+jimage.workspace = true
+jni.workspace = true
+vm_symbols.workspace = true
 
 bytemuck = "1.20.0"
-byte-slice-cast = { workspace = true }
-tracing = { workspace = true }
+byte-slice-cast.workspace = true
+fxhash.workspace = true
+tracing.workspace = true
 libc.workspace = true
 num_cpus = "1.16.0"
 paste = { workspace = true }
-platform = { path = "../platform" }
-symbols = { path = "../symbols" }
-zip = { workspace = true }
+platform.workspace = true
+zip.workspace = true
+indexmap = "2.7.0"
+bumpalo = "3.16.0"
 
 [build-dependencies]
 native_methods = { path = "../generators/native_methods" }

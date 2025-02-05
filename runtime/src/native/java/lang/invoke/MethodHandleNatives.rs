@@ -6,6 +6,7 @@ use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::string_interner::StringInterner;
+use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{throw, throw_and_return_null, Throws};
 use crate::thread::JavaThread;
 
@@ -16,7 +17,6 @@ use ::jni::sys::{jboolean, jint, jlong};
 use classfile::constant_pool::types::ReferenceKind;
 use common::traits::PtrType;
 use instructions::Operand;
-use symbols::{sym, Symbol};
 
 include_generated!("native/java/lang/invoke/def/MethodHandleNatives.registerNatives.rs");
 include_generated!("native/java/lang/invoke/def/MethodHandleNatives.definitions.rs");

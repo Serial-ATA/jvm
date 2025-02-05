@@ -4,11 +4,11 @@ mod method;
 mod type_system;
 
 use crate::objects::class::Class;
+use crate::symbols::sym;
 use crate::verifier::accessors::ClassAccessorExt;
 use crate::verifier::method::MethodTypeCheckExt;
-use error::{Error, Result};
 
-use symbols::sym;
+use error::{Error, Result};
 
 // classIsTypeSafe(Class) :-
 //     classClassName(Class, Name),

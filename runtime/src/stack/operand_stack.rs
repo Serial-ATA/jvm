@@ -233,7 +233,40 @@ impl StackLike<Reference> for OperandStack {
 	}
 
 	fn dup_x2(&mut self) {
-		todo!()
+		let value1 = self.pop();
+		let value2 = self.pop();
+
+		// Form 1:
+		//
+		// ..., value3, value2, value1 →
+		//
+		// ..., value1, value3, value2, value1
+		//
+		// where value1, value2, and value3 are all values of a category 1 computational type (§2.11.1).
+		if !matches!(value1, Operand::Long(_) | Operand::Double(_))
+			&& !matches!(value2, Operand::Long(_) | Operand::Double(_))
+		{
+			let value3 = self.pop();
+			self.inner.push(value1.clone());
+			self.inner.push(value3);
+			self.inner.push(value2);
+			self.inner.push(value1);
+			return;
+		}
+
+		// Form 2:
+		//
+		// ..., value2, value1 →
+		//
+		// ..., value1, value2, value1
+		//
+		// where value1 is a value of a category 1 computational type and value2 is a value of a category 2 computational type (§2.11.1).
+		assert!(!matches!(value1, Operand::Long(_) | Operand::Double(_)));
+		assert!(matches!(value2, Operand::Long(_) | Operand::Double(_)));
+
+		self.inner.push(value1.clone());
+		self.inner.push(value2);
+		self.inner.push(value1);
 	}
 
 	fn dup2(&mut self) {

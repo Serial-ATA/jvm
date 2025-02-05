@@ -2,6 +2,7 @@ use crate::objects::class::Class;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::stack::local_stack::LocalStack;
+use crate::symbols::Symbol;
 
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -9,7 +10,6 @@ use std::sync::{LazyLock, RwLock};
 
 use ::jni::env::JniEnv;
 use instructions::Operand;
-use symbols::Symbol;
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub struct NativeMethodDef {

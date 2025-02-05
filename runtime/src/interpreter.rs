@@ -10,6 +10,7 @@ use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::string_interner::StringInterner;
+use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::handle_exception;
 use crate::thread::frame::Frame;
 use crate::thread::JavaThread;
@@ -22,7 +23,6 @@ use classfile::constant_pool::ConstantPoolValueInfo;
 use common::int_types::{s2, s4, s8, u2};
 use common::traits::PtrType;
 use instructions::{ConstOperandType, OpCode, Operand, StackLike};
-use symbols::{sym, Symbol};
 
 macro_rules! trace_instruction {
     (@START $instruction:tt, $category:ident) => {{

@@ -1,15 +1,15 @@
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
+use crate::symbols::sym;
+use crate::thread::exceptions::throw;
 use crate::thread::JavaThread;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::thread::exceptions::throw;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jint, jlong};
 use common::traits::PtrType;
 use instructions::Operand;
-use symbols::sym;
 
 include_generated!("native/java/lang/def/System.registerNatives.rs");
 include_generated!("native/java/lang/def/System.definitions.rs");

@@ -6,12 +6,14 @@
 const MAX_FIELD_COUNT: usize = 8;
 
 macro_rules! get_sym {
-	($specified_sym_name:ident $_fallback:ident) => {
-		symbols::sym!($specified_sym_name)
-	};
-	($fallback:ident) => {
-		symbols::sym!($fallback)
-	};
+	($specified_sym_name:ident $_fallback:ident) => {{
+		use crate::symbols::sym;
+		sym!($specified_sym_name)
+	}};
+	($fallback:ident) => {{
+		use crate::symbols::sym;
+		sym!($fallback)
+	}};
 }
 
 macro_rules! instance_field_count {
@@ -442,7 +444,7 @@ pub mod java_lang_StackTraceElement {
 pub mod java_lang_Throwable {
 	use crate::objects::class_instance::ClassInstance;
 	use crate::objects::instance::Instance;
-	use crate::objects::reference::{ClassInstanceRef, Reference};
+	use crate::objects::reference::Reference;
 	use classfile::FieldType;
 	use instructions::Operand;
 

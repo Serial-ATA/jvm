@@ -13,6 +13,7 @@ use crate::globals::PRIMITIVES;
 use crate::modules::{Module, Package};
 use crate::objects::constant_pool::cp_types;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
+use crate::symbols::{sym, Symbol};
 use crate::thread::JavaThread;
 
 use std::cell::{Cell, UnsafeCell};
@@ -30,7 +31,6 @@ use common::box_slice;
 use common::int_types::{u1, u2, u4};
 use common::traits::PtrType;
 use instructions::Operand;
-use symbols::{sym, Symbol};
 
 /// A cache for miscellaneous fields
 #[derive(Default, Debug)]
@@ -39,6 +39,7 @@ struct MiscCache {
 	array_component_name: Option<Symbol>,
 	package_name: Option<Option<Symbol>>,
 	signature: Option<Symbol>,
+	modifier_flags: Option<u2>,
 }
 
 struct FieldContainer {
@@ -568,6 +569,41 @@ impl Class {
 	/// * This is only true for classes that implement the `java.lang.Cloneable`
 	pub fn is_cloneable(&self) -> bool {
 		self.is_array() || self.implements(&crate::globals::classes::java_lang_Cloneable())
+	}
+
+	/// Get the [access flags] for this class
+	///
+	/// [access flags]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.1-200-E.1
+	#[inline]
+	pub fn access_flags(&self) -> ClassAccessFlags {
+		self.access_flags
+	}
+
+	/// Get the modifier flags, as returned by `java.lang.Class#getModifiers()`
+	///
+	/// This is different from the [`access_flags()`](Self::access_flags), as this checks the
+	/// `InnerClasses` attribute, in the case that this class is a member class.
+	pub fn modifier_flags(&self) -> u2 {
+		if let Some(modifier_flags) = unsafe { (*self.misc_cache.get()).modifier_flags } {
+			return modifier_flags;
+		};
+
+		let mut access_flags = self.access_flags.as_u2();
+		if let Some(inner_classes) = self.unwrap_class_instance().inner_classes() {
+			for inner_class in inner_classes {
+				if inner_class.inner_class_name == Some(self.name) {
+					access_flags = inner_class.inner_class_access_flags;
+				}
+			}
+		};
+
+		// Make sure `ACC_SUPER` isn't set
+		access_flags &= (!ClassAccessFlags::ACC_SUPER).as_u2();
+		unsafe {
+			(*self.misc_cache.get()).modifier_flags = Some(access_flags);
+		}
+
+		access_flags
 	}
 
 	/// Whether the class represents an array

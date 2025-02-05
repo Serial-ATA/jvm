@@ -1,20 +1,19 @@
+use crate::globals::fields;
 use crate::objects::array::{ArrayContent, ArrayInstance};
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
+use crate::symbols::sym;
 use crate::thread::frame::stack::VisibleStackFrame;
 use crate::thread::JavaThread;
 
-use std::sync::atomic::Ordering;
 use std::sync::Once;
 
-use crate::globals::fields;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jint, jlong};
 use common::int_types::s4;
 use common::traits::PtrType;
 use instructions::Operand;
-use symbols::sym;
 
 include_generated!("native/java/lang/def/Throwable.definitions.rs");
 

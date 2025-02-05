@@ -157,6 +157,25 @@ impl FieldType {
 			Self::Array(component) => format!("[{}", component.as_signature()).into(),
 		}
 	}
+
+	/// Get the [array type code] for this field type
+	///
+	/// This is only applicable for primitive types
+	///
+	/// [array type code]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.newarray
+	pub fn as_array_type_code(&self) -> Option<u8> {
+		match self {
+			FieldType::Boolean => Some(4),
+			FieldType::Char => Some(5),
+			FieldType::Float => Some(6),
+			FieldType::Double => Some(7),
+			FieldType::Byte => Some(8),
+			FieldType::Short => Some(9),
+			FieldType::Int => Some(10),
+			FieldType::Long => Some(11),
+			_ => None,
+		}
+	}
 }
 
 impl Display for FieldType {

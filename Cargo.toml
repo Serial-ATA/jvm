@@ -11,7 +11,6 @@ members = [
     "jmod",
     "versioning",
     "platform",
-    "symbols",
     "jni",
     "jni/sys",
 ]
@@ -20,15 +19,18 @@ members = [
 classfile = { path = "classfile" }
 common = { path = "common" }
 instructions = { path = "instructions" }
+jimage = { path = "jimage" }
 jni = { path = "jni" }
 jni_sys = { path = "jni/sys" }
-symbols = { path = "symbols" }
+platform = { path = "platform" }
+vm_symbols = { path = "generators/vm_symbols" }
 
 byteorder = "1.5.0"
 byte-slice-cast = "1.2.2"
 cesu8 = "1.1.0"
 cfg-if = "1.0.0"
 const_format = "0.2.33"
+fxhash = "0.2.1"
 libc = "0.2"
 libloading = "0.8.5"
 tracing = "0.1.41"

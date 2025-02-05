@@ -3,6 +3,7 @@ use crate::objects::class::Class;
 use crate::objects::field::Field;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
+use crate::symbols::Symbol;
 use crate::thread::exceptions::Throws;
 
 use std::cell::UnsafeCell;
@@ -10,7 +11,6 @@ use std::sync::Mutex;
 
 use classfile::constant_pool::types::CpEntry;
 use common::int_types::{s4, s8, u2};
-use symbols::Symbol;
 
 #[derive(Copy, Clone)]
 pub(super) union ResolvedEntry {

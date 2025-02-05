@@ -2,12 +2,12 @@ use crate::modules::{Module, Package};
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
+use crate::symbols::Symbol;
 use crate::thread::exceptions::{handle_exception, throw};
 use crate::thread::JavaThread;
 
 use ::jni::env::JniEnv;
 use common::traits::PtrType;
-use symbols::Symbol;
 
 include_generated!("native/java/lang/def/Module.definitions.rs");
 

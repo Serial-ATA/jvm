@@ -1,11 +1,10 @@
 use super::entry::Module;
 use crate::modules::ModuleLockGuard;
+use crate::symbols::Symbol;
 
 use std::cell::SyncUnsafeCell;
 use std::collections::HashSet;
 use std::fmt::Debug;
-
-use symbols::Symbol;
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
 pub enum PackageExportType {

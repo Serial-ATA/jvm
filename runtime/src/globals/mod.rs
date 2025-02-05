@@ -4,8 +4,9 @@ pub mod mirrors;
 pub mod modules;
 pub mod threads;
 
+use crate::symbols::{sym, Symbol};
+
 use classfile::FieldType;
-use symbols::{sym, Symbol};
 
 /// Primitive type names, as they would appear in Java source code
 ///

@@ -2,6 +2,7 @@ use super::class::Class;
 use super::instance::{CloneableInstance, Header};
 use super::reference::{ArrayInstanceRef, Reference};
 use crate::classpath::loader::ClassLoader;
+use crate::symbols::sym;
 use crate::thread::exceptions::{throw, Throws};
 
 use std::fmt::{Debug, Formatter};
@@ -11,7 +12,6 @@ use common::box_slice;
 use common::int_types::{s1, s2, s4, s8, u1, u2};
 use common::traits::PtrType;
 use instructions::Operand;
-use symbols::sym;
 
 /// An instance of an array
 ///

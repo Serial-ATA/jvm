@@ -6,16 +6,16 @@ use crate::objects::field::Field;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
+use crate::symbols::{sym, Symbol};
+use crate::thread::exceptions::{throw, Throws};
 use crate::thread::JavaThread;
 
 use std::cell::UnsafeCell;
 use std::sync::{Condvar, Mutex, MutexGuard};
 
-use crate::thread::exceptions::{throw, Throws};
 use classfile::accessflags::MethodAccessFlags;
 use classfile::FieldType;
 use instructions::Operand;
-use symbols::{sym, Symbol};
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.5
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]

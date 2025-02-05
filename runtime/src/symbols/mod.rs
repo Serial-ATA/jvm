@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt::Display;
 use std::sync::{LazyLock, Mutex};
 
@@ -115,6 +116,12 @@ impl Internable for String {
 	}
 }
 
+impl Internable for Cow<'_, str> {
+	fn as_bytes(&self) -> &[u8] {
+		str::as_bytes(&*self)
+	}
+}
+
 impl Internable for Box<[u8]> {
 	fn as_bytes(&self) -> &[u8] {
 		&*self
@@ -122,6 +129,12 @@ impl Internable for Box<[u8]> {
 }
 
 impl Internable for Vec<u8> {
+	fn as_bytes(&self) -> &[u8] {
+		&*self
+	}
+}
+
+impl Internable for Cow<'_, [u8]> {
 	fn as_bytes(&self) -> &[u8] {
 		&*self
 	}
@@ -155,12 +168,13 @@ impl Display for Symbol {
 }
 
 /// Gets a generated symbol using the names defined in `vm_symbols::define_symbols!`
-#[macro_export]
 macro_rules! sym {
 	($symbol:ident) => {
-		$crate::generated_symbols::$symbol
+		$crate::symbols::generated_symbols::$symbol
 	};
 }
+
+pub(crate) use sym;
 
 // Defined in $ROOT/generators/vm_symbols
 //
@@ -238,9 +252,15 @@ vm_symbols::define_symbols! {
 	ClassLoader_string_long_signature: "(Ljava/lang/ClassLoader;Ljava/lang/String;)J",
 	ThreadGroup_String_void_signature: "(Ljava/lang/ThreadGroup;Ljava/lang/String;)V",
 	ThreadGroup_Runnable_void_signature: "(Ljava/lang/ThreadGroup;Ljava/lang/Runnable;)V",
-	linkCallSite_signature: "(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;[Ljava/lang/Object;)",
+	linkCallSite_signature: "(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/invoke/MemberName;",
 	findMethodHandleType_signature: "(Ljava/lang/Class;[Ljava/lang/Class;)Ljava/lang/invoke/MethodType;",
 	linkMethodHandleConstant_signature: "(Ljava/lang/Class;ILjava/lang/Class;Ljava/lang/String;Ljava/lang/Object;)Ljava/lang/invoke/MethodHandle;",
+
+	Boolean_valueOf_signature: "(Z)Ljava/lang/Boolean;",
+	Integer_valueOf_signature: "(I)Ljava/lang/Integer;",
+	Long_valueOf_signature: "(J)Ljava/lang/Long;",
+	Double_valueOf_signature: "(Z)Ljava/lang/Double;",
+	Float_valueOf_signature: "(Z)Ljava/lang/Float;",
 	// -- GENERATED METHOD SIGNATURE MARKER, DO NOT DELETE --
 
 	// Types
@@ -282,6 +302,8 @@ vm_symbols::define_symbols! {
 	printStackTrace_name: "printStackTrace",
 	findNative_name: "findNative",
 	run_name: "run",
+
+	valueOf_name: "valueOf",
 	// -- GENERATED METHOD NAME MARKER, DO NOT DELETE --
 
 	// Modules

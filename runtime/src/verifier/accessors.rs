@@ -4,11 +4,11 @@ use super::type_system::VerificationType;
 use crate::objects::class::Class;
 use crate::objects::method::Method;
 use crate::objects::vtable::VTable;
+use crate::symbols::{sym, Symbol};
 
 use classfile::accessflags::MethodAccessFlags;
 use classfile::attribute::Attribute;
 use classfile::MethodDescriptor;
-use symbols::{sym, Symbol};
 
 pub(super) trait ClassAccessorExt {
 	/// Extracts the name, `ClassName`, of the class `Class`.

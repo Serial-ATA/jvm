@@ -7,7 +7,7 @@ use common::int_types::{s4, s8, u1, u2, u4};
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4-310
 #[derive(Clone, Debug)]
-pub enum LoadableConstantPoolValue<'a> {
+pub enum LoadableConstantPoolValueInner<'a> {
 	Integer(s4),
 	Float(f32),
 	Long(s8),
@@ -19,28 +19,49 @@ pub enum LoadableConstantPoolValue<'a> {
 	Dynamic(<raw::RawDynamic as CpEntry<'a>>::Entry),
 }
 
+impl<'a> LoadableConstantPoolValueInner<'a> {
+	pub fn into_owned(self) -> LoadableConstantPoolValueInner<'static> {
+		match self {
+			LoadableConstantPoolValueInner::Integer(val) => {
+				LoadableConstantPoolValueInner::Integer(val)
+			},
+			LoadableConstantPoolValueInner::Float(val) => {
+				LoadableConstantPoolValueInner::Float(val)
+			},
+			LoadableConstantPoolValueInner::Long(val) => LoadableConstantPoolValueInner::Long(val),
+			LoadableConstantPoolValueInner::Double(val) => {
+				LoadableConstantPoolValueInner::Double(val)
+			},
+			LoadableConstantPoolValueInner::Class(val) => {
+				LoadableConstantPoolValueInner::Class(val.into_owned())
+			},
+			LoadableConstantPoolValueInner::String(val) => {
+				LoadableConstantPoolValueInner::String(Cow::Owned(val.into_owned()))
+			},
+			LoadableConstantPoolValueInner::MethodHandle(val) => {
+				LoadableConstantPoolValueInner::MethodHandle(val.into_owned())
+			},
+			LoadableConstantPoolValueInner::MethodType(val) => {
+				LoadableConstantPoolValueInner::MethodType(Cow::Owned(val.into_owned()))
+			},
+			LoadableConstantPoolValueInner::Dynamic(val) => {
+				LoadableConstantPoolValueInner::Dynamic(val.into_owned())
+			},
+		}
+	}
+}
+
+#[derive(Clone, Debug)]
+pub struct LoadableConstantPoolValue<'a> {
+	pub index: u2,
+	pub value: LoadableConstantPoolValueInner<'a>,
+}
+
 impl<'a> LoadableConstantPoolValue<'a> {
 	pub fn into_owned(self) -> LoadableConstantPoolValue<'static> {
-		match self {
-			LoadableConstantPoolValue::Integer(val) => LoadableConstantPoolValue::Integer(val),
-			LoadableConstantPoolValue::Float(val) => LoadableConstantPoolValue::Float(val),
-			LoadableConstantPoolValue::Long(val) => LoadableConstantPoolValue::Long(val),
-			LoadableConstantPoolValue::Double(val) => LoadableConstantPoolValue::Double(val),
-			LoadableConstantPoolValue::Class(val) => {
-				LoadableConstantPoolValue::Class(val.into_owned())
-			},
-			LoadableConstantPoolValue::String(val) => {
-				LoadableConstantPoolValue::String(Cow::Owned(val.into_owned()))
-			},
-			LoadableConstantPoolValue::MethodHandle(val) => {
-				LoadableConstantPoolValue::MethodHandle(val.into_owned())
-			},
-			LoadableConstantPoolValue::MethodType(val) => {
-				LoadableConstantPoolValue::MethodType(Cow::Owned(val.into_owned()))
-			},
-			LoadableConstantPoolValue::Dynamic(val) => {
-				LoadableConstantPoolValue::Dynamic(val.into_owned())
-			},
+		LoadableConstantPoolValue {
+			index: self.index,
+			value: self.value.into_owned(),
 		}
 	}
 }

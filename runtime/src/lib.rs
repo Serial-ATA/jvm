@@ -23,6 +23,7 @@ pub mod native;
 pub mod objects;
 pub mod stack;
 mod string_interner;
+mod symbols;
 pub mod thread;
 pub mod verifier;
 

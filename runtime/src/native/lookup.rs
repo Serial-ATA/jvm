@@ -1,16 +1,16 @@
+use crate::calls::jcall::JavaCallResult;
 use crate::java_call;
 use crate::native::method::NativeMethodPtr;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
+use crate::symbols::sym;
 use crate::thread::JavaThread;
 
 use std::os::raw::c_int;
 
-use crate::calls::jcall::JavaCallResult;
 use classfile::accessflags::MethodAccessFlags;
 use instructions::Operand;
-use symbols::sym;
 // The JNI specification defines the mapping from a Java native method name to
 // a C native library implementation function name as follows:
 //

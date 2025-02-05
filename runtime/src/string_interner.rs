@@ -2,6 +2,7 @@ use crate::objects::array::{ArrayContent, ArrayInstance};
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
 use crate::objects::reference::{ClassInstanceRef, Reference};
+use crate::symbols::Symbol;
 
 use std::collections::HashMap;
 use std::ptr::slice_from_raw_parts;
@@ -11,7 +12,6 @@ use byte_slice_cast::AsSliceOf;
 use common::int_types::{s1, s4, u2};
 use common::traits::PtrType;
 use instructions::Operand;
-use symbols::Symbol;
 
 // Possible coders for Strings
 const CODER_LATIN1: s4 = 0;

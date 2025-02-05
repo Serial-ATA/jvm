@@ -4,6 +4,7 @@ use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
+use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{throw, Throws};
 
 use std::cell::SyncUnsafeCell;
@@ -14,7 +15,6 @@ use std::hash::Hash;
 use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::jlong;
-use symbols::{sym, Symbol};
 
 struct ModuleFlags {
 	can_read_all_unnamed: bool,

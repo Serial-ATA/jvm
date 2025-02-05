@@ -6,6 +6,7 @@ use crate::native::jni::invocation_api::main_java_vm;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
+use crate::symbols::sym;
 use crate::thread::{JavaThread, JavaThreadBuilder};
 
 use classfile::accessflags::MethodAccessFlags;
@@ -14,7 +15,6 @@ use instructions::Operand;
 use jni::error::JniError;
 use jni::java_vm::JavaVm;
 use jni::sys::{JavaVMInitArgs, JNI_OK};
-use symbols::sym;
 
 pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> Result<JavaVm, JniError> {
 	let thread = JavaThreadBuilder::new().finish();

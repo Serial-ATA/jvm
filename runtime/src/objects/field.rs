@@ -1,6 +1,7 @@
 use super::reference::Reference;
 use crate::objects::class::Class;
 use crate::objects::constant_pool::{cp_types, ConstantPool};
+use crate::symbols::{sym, Symbol};
 
 use std::cell::SyncUnsafeCell;
 use std::fmt::{Debug, Formatter};
@@ -9,7 +10,6 @@ use classfile::accessflags::FieldAccessFlags;
 use classfile::{FieldInfo, FieldType};
 use common::int_types::u2;
 use instructions::Operand;
-use symbols::{sym, Symbol};
 
 // TODO: Make more fields private
 pub struct Field {

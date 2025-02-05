@@ -8,6 +8,7 @@ mod hash;
 pub mod java_lang_Thread;
 pub mod pool;
 
+use crate::calls::jcall::JavaCallResult;
 use crate::interpreter::Interpreter;
 use crate::java_call;
 use crate::native::jni::invocation_api::new_env;
@@ -16,6 +17,7 @@ use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::string_interner::StringInterner;
+use crate::symbols::sym;
 use crate::thread::frame::native::NativeFrame;
 use crate::thread::frame::Frame;
 
@@ -23,13 +25,11 @@ use std::cell::{Cell, SyncUnsafeCell, UnsafeCell};
 use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 use std::thread::JoinHandle;
 
-use crate::calls::jcall::JavaCallResult;
 use classfile::accessflags::MethodAccessFlags;
 use instructions::{Operand, StackLike};
 use java_lang_Thread::ThreadStatus;
 use jni::env::JniEnv;
 use jni::sys::JNIEnv;
-use symbols::sym;
 
 #[thread_local]
 static CURRENT_JAVA_THREAD: SyncUnsafeCell<Option<&'static JavaThread>> = SyncUnsafeCell::new(None);

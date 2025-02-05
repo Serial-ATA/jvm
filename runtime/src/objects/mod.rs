@@ -1,4 +1,5 @@
 pub mod array;
+mod boxing;
 pub mod class;
 pub mod class_instance;
 pub mod constant_pool;

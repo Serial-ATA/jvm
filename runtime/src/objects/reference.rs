@@ -5,6 +5,7 @@ use super::field::Field;
 use super::instance::{Header, Instance};
 use super::mirror::MirrorInstancePtr;
 use super::monitor::Monitor;
+use crate::symbols::Symbol;
 use crate::thread::JavaThread;
 
 use std::ffi::c_void;
@@ -14,7 +15,6 @@ use std::sync::Arc;
 use ::jni::sys::jint;
 use common::traits::PtrType;
 use instructions::Operand;
-use symbols::Symbol;
 
 pub type ClassInstanceRef = Arc<ClassInstancePtr>;
 pub type ArrayInstanceRef = Arc<ArrayInstancePtr>;

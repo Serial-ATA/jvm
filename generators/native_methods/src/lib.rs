@@ -23,7 +23,7 @@ use std::path::{Path, PathBuf};
 static CRATE_ROOT: &str = env!("CARGO_MANIFEST_DIR");
 static INIT_FN_FILE_HEADER: &str = r#"#[allow(trivial_casts)]
 fn init_native_method_table() -> HashMap<NativeMethodDef, NativeMethodPtr> {
-	use symbols::sym;
+	use crate::symbols::sym;
 	
 	fn insert(map: &mut HashMap<NativeMethodDef, NativeMethodPtr>, key: NativeMethodDef, value: NativeMethodPtr) {
 		let existing = map.insert(key, value);
@@ -59,7 +59,7 @@ impl SymbolCollector {
 	}
 
 	/// Generates additional symbols, injecting them into the `vm_symbols::define_symbols!` call
-	/// in `runtime/src/symbols.rs`
+	/// in `runtime/src/symbols/mod.rs`
 	fn generate_symbols<'a>(&self, generated_directory: &Path) {
 		// ../../symbols/src/lib.rs
 		let symbols_project_dir = generated_directory
@@ -67,8 +67,10 @@ impl SymbolCollector {
 			.unwrap()
 			.parent()
 			.unwrap()
+			.join("runtime")
+			.join("src")
 			.join("symbols");
-		let symbols_file_path = symbols_project_dir.join("src").join("lib.rs");
+		let symbols_file_path = symbols_project_dir.join("mod.rs");
 
 		let symbols_file_contents = std::fs::read_to_string(&symbols_file_path).unwrap();
 

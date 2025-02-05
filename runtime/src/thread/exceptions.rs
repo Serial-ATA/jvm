@@ -5,6 +5,7 @@ use crate::objects::class_instance::ClassInstance;
 use crate::objects::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::string_interner::StringInterner;
+use crate::symbols::sym;
 
 use std::ops::{ControlFlow, FromResidual, Try};
 use std::sync::atomic::Ordering;
@@ -12,9 +13,9 @@ use std::sync::atomic::Ordering;
 use classfile::accessflags::MethodAccessFlags;
 use common::traits::PtrType;
 use instructions::{Operand, StackLike};
-use symbols::sym;
 
 #[must_use]
+#[derive(Debug)]
 pub enum Throws<T> {
 	Ok(T),
 	Exception(Exception),

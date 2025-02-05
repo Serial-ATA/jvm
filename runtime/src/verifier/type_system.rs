@@ -26,11 +26,11 @@
 //!                                                     null
 //! ```
 
-use symbols::{sym, Symbol};
+use crate::symbols::{sym, Symbol};
 
 pub mod types {
 	use super::VerificationType;
-	use symbols::Symbol;
+	use crate::symbols::Symbol;
 
 	macro_rules! make_types {
 		(

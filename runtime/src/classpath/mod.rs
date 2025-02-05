@@ -2,6 +2,8 @@ pub mod jar;
 pub mod jimage;
 pub mod loader;
 
+use crate::symbols::Symbol;
+
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -9,8 +11,6 @@ use std::sync::{LazyLock, Mutex, RwLock};
 
 use common::int_types::u1;
 use zip::ZipArchive;
-
-use symbols::Symbol;
 
 static CLASSPATH: LazyLock<RwLock<ClassPath>> = LazyLock::new(|| RwLock::new(ClassPath::default()));
 

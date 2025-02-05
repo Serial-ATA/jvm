@@ -13,7 +13,7 @@ static NATIVES_REGISTERED: std::sync::atomic::AtomicBool = std::sync::atomic::At
 
 #[allow(trivial_casts, unused_imports)]
 pub fn registerNatives(_: ::jni::env::JniEnv, _: &'static crate::objects::class::Class) {{
-	use symbols::sym;
+	use crate::symbols::sym;
 	
 	if NATIVES_REGISTERED.compare_exchange(false, true, std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::Acquire) != Ok(false) {{
 		return;

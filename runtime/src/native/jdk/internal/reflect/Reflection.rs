@@ -5,6 +5,8 @@ use crate::thread::JavaThread;
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint};
+use classfile::accessflags::ClassAccessFlags;
+use common::traits::PtrType;
 
 include_generated!("native/jdk/internal/reflect/def/Reflection.definitions.rs");
 
@@ -51,8 +53,18 @@ pub fn getCallerClass(env: JniEnv, _class: &'static Class) -> Reference {
 	Reference::null()
 }
 
-pub fn getClassAccessFlags(_env: JniEnv, _this_class: &'static Class, _class: Reference) -> jint {
-	unimplemented!("jdk.internal.reflect.Reflection#getClassAccessFlags")
+pub fn getClassAccessFlags(_env: JniEnv, _this_class: &'static Class, class: Reference) -> jint {
+	let mirror_instance = class.extract_mirror();
+	let mirror = mirror_instance.get();
+	if mirror.is_primitive() {
+		return (ClassAccessFlags::ACC_ABSTRACT
+			| ClassAccessFlags::ACC_FINAL
+			| ClassAccessFlags::ACC_PUBLIC)
+			.as_u2() as jint;
+	}
+
+	let class = mirror.target_class();
+	class.access_flags().as_u2() as jint
 }
 
 pub fn areNestMates(

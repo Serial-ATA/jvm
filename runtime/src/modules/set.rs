@@ -1,6 +1,7 @@
 use super::{Module, ModuleLockGuard};
 use crate::classpath::loader::ClassLoader;
 use crate::objects::instance::Instance;
+use crate::symbols::Symbol;
 
 use std::cell::SyncUnsafeCell;
 use std::collections::LinkedList;
@@ -8,7 +9,6 @@ use std::collections::LinkedList;
 use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::jlong;
-use symbols::Symbol;
 
 /// A list of [`Module`]s, synchronized with the global [module lock]
 ///

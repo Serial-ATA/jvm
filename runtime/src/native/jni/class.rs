@@ -1,6 +1,7 @@
 use super::{classref_from_jclass, IntoJni};
 use crate::classpath::loader::ClassLoader;
 use crate::objects::class::Class;
+use crate::symbols::Symbol;
 use crate::thread::exceptions::{throw_with_ret, Throws};
 use crate::thread::JavaThread;
 
@@ -8,7 +9,6 @@ use core::ffi::{c_char, CStr};
 
 use ::jni::sys::{jboolean, jbyte, jclass, jobject, jsize, JNIEnv};
 use common::traits::PtrType;
-use symbols::Symbol;
 
 #[no_mangle]
 pub unsafe extern "system" fn DefineClass(

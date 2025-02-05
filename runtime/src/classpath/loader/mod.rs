@@ -6,6 +6,7 @@ use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
+use crate::symbols::Symbol;
 use crate::thread::exceptions::{throw, Throws};
 
 use std::cell::SyncUnsafeCell;
@@ -18,7 +19,6 @@ use classfile::constant_pool::types::raw as raw_types;
 use classfile::{ClassFile, FieldType};
 use common::int_types::u1;
 use common::traits::PtrType;
-use symbols::Symbol;
 
 const SUPPORTED_MAJOR_LOWER_BOUND: u1 = 45;
 const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 69;

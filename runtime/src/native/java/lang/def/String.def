@@ -1,0 +1,6 @@
+public final class String {
+    public native String intern();
+
+    @Native static final byte LATIN1 = 0;
+    @Native static final byte UTF16  = 1;
+}

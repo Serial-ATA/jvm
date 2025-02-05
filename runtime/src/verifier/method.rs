@@ -4,10 +4,10 @@ use super::type_system::{types, IsAssignable, VerificationType};
 use crate::objects::class::Class;
 use crate::objects::constant_pool::cp_types;
 use crate::objects::method::Method;
+use crate::symbols::{sym, Symbol};
 
 use classfile::attribute::{Attribute, CodeException, StackMapTable};
 use common::int_types::{u1, u2};
-use symbols::{sym, Symbol};
 
 pub(super) trait MethodTypeCheckExt {
 	fn is_type_safe(&self) -> Result<()>;

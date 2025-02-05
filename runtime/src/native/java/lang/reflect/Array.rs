@@ -1,12 +1,17 @@
+use crate::objects::array::ArrayInstance;
 use crate::objects::class::Class;
-use crate::objects::reference::Reference;
-use crate::thread::exceptions::throw_and_return_null;
+use crate::objects::reference::{ArrayInstanceRef, Reference};
+use crate::thread::exceptions::{handle_exception, throw_and_return_null};
 use crate::thread::JavaThread;
 
+use common::traits::PtrType;
 use jni::env::JniEnv;
 use jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 
 include_generated!("native/java/lang/reflect/def/Array.definitions.rs");
+
+/// Maximum number of array dimensions
+pub const MAX_DIM: u8 = 255;
 
 // throws IllegalArgumentException
 pub fn getLength(
@@ -208,24 +213,43 @@ pub fn setDouble(
 
 // throws NegativeArraySizeException
 pub fn newArray(
-	_env: JniEnv,
+	env: JniEnv,
 	_class: &'static Class,
 	component_type: Reference, // java.lang.Class<?>
 	length: jint,
 ) -> Reference /* java.lang.Object */ {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
 	if component_type.is_null() {
-		throw_and_return_null!(JavaThread::current(), NullPointerException);
+		throw_and_return_null!(thread, NullPointerException);
 	}
 
 	if length.is_negative() {
-		throw_and_return_null!(
-			JavaThread::current(),
-			NegativeArraySizeException,
-			"{length}"
-		);
+		throw_and_return_null!(thread, NegativeArraySizeException, "{length}");
 	}
 
-	unimplemented!("java.lang.reflect.Array#newArray");
+	let mirror_instance = component_type.extract_mirror();
+	let mirror = mirror_instance.get();
+
+	if mirror.is_primitive() {
+		let type_code = mirror
+			.primitive_target()
+			.as_array_type_code()
+			.expect("should be a valid array type code");
+
+		let array = ArrayInstance::new_from_type(type_code, length);
+		let array_instance: ArrayInstanceRef = handle_exception!(Reference::null(), thread, array);
+		return Reference::array(array_instance);
+	}
+
+	let class = mirror.target_class();
+	if class.is_array() && class.unwrap_array_instance().dimensions >= MAX_DIM {
+		throw_and_return_null!(thread, IllegalArgumentException);
+	}
+
+	let array = ArrayInstance::new_reference(length, class);
+	let array_instance = handle_exception!(Reference::null(), thread, array);
+	Reference::array(array_instance)
 }
 
 // throws IllegalArgumentException, NegativeArraySizeException

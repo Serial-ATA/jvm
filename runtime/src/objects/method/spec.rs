@@ -1,7 +1,7 @@
 use crate::objects::method::Method;
+use crate::symbols::sym;
 
 use classfile::{FieldType, MethodDescriptor};
-use symbols::sym;
 
 impl Method {
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.9.3

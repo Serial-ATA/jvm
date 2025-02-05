@@ -1,22 +1,25 @@
 use super::entry::ResolvedEntry;
+use crate::calls::jcall::JavaCallResult;
 use crate::java_call;
-use crate::objects::array::{ArrayContent, ArrayInstance};
+use crate::native::java::lang::invoke::MethodHandleNatives;
+use crate::objects::array::ArrayInstance;
+use crate::objects::boxing::Boxable;
 use crate::objects::class::Class as ClassObj;
 use crate::objects::constant_pool::ConstantPool;
 use crate::objects::field::Field;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::string_interner::StringInterner;
+use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{throw, Throws};
 use crate::thread::JavaThread;
 
-use crate::calls::jcall::JavaCallResult;
-use crate::native::java::lang::invoke::MethodHandleNatives;
-use classfile::constant_pool::types::{raw as raw_types, CpEntry, ReferenceEntry, ReferenceKind};
+use classfile::constant_pool::types::{
+	raw as raw_types, CpEntry, LoadableConstantPoolValueInner, ReferenceEntry, ReferenceKind,
+};
 use common::int_types::{s4, s8, u2};
 use common::traits::PtrType;
 use instructions::Operand;
-use symbols::{sym, Symbol};
 
 /// A constant pool entry of any type
 pub enum Entry {
@@ -92,7 +95,7 @@ impl EntryType for Class {
 	fn resolve_with(
 		class: &'static ClassObj,
 		cp: &ConstantPool,
-		index: u2,
+		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
 	) -> Throws<ResolvedEntry> {
 		let name = unsafe { cp.resolve_entry_with::<ConstantUtf8>(value.name_index, value.name)? };
@@ -353,7 +356,7 @@ impl EntryType for InvokeDynamic {
 	fn resolve_with(
 		class: &'static ClassObj,
 		cp: &ConstantPool,
-		index: u2,
+		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
 	) -> Throws<ResolvedEntry> {
 		let (name, descriptor) = unsafe {
@@ -380,19 +383,53 @@ impl EntryType for InvokeDynamic {
 		let bootstrap_method = &bootstrap_methods[value.bootstrap_method_attr_index as usize];
 		let bsm_handle = cp.get::<MethodHandle>(bootstrap_method.method_handle_index)?;
 
-		let static_args_obj = todo!();
+		let static_args_obj = ArrayInstance::new_reference(
+			bootstrap_method.arguments.len() as s4,
+			crate::globals::classes::java_lang_Object(),
+		)?;
+
+		let thread = JavaThread::current();
+		for (index, arg) in bootstrap_method.arguments.iter().enumerate() {
+			let r;
+			match arg.value {
+				LoadableConstantPoolValueInner::Integer(val) => r = val.into_box(thread)?,
+				LoadableConstantPoolValueInner::Float(val) => r = val.into_box(thread)?,
+				LoadableConstantPoolValueInner::Long(val) => r = val.into_box(thread)?,
+				LoadableConstantPoolValueInner::Double(val) => r = val.into_box(thread)?,
+				LoadableConstantPoolValueInner::Class(_) => todo!("Class static argument"),
+				LoadableConstantPoolValueInner::String(ref val) => {
+					let sym = Symbol::intern(val);
+					r = Reference::class(StringInterner::intern_symbol(sym));
+				},
+				LoadableConstantPoolValueInner::MethodHandle(_) => {
+					r = cp.get::<MethodHandle>(arg.index)?;
+				},
+				LoadableConstantPoolValueInner::MethodType(ref val) => {
+					let sym = Symbol::intern(val);
+					r = Method::method_type_for(class, sym.as_str())?;
+				},
+				LoadableConstantPoolValueInner::Dynamic(_) => todo!("Dynamic static argument"),
+			}
+
+			// SAFETY: We just created the array, we know that none of the indexes will be out of bounds
+			unsafe {
+				static_args_obj
+					.get_mut()
+					.store_unchecked(index as s4, Operand::Reference(r))
+			};
+		}
 
 		let link_call_site_method = crate::globals::classes::java_lang_invoke_MethodHandleNatives()
 			.resolve_method(sym!(linkCallSite), sym!(linkCallSite_signature))?;
 
 		let result = java_call!(
-			JavaThread::current(),
+			thread,
 			link_call_site_method,
 			Operand::Reference(Reference::mirror(class.mirror())),
 			Operand::Reference(bsm_handle),
 			Operand::Reference(Reference::class(name_arg)),
 			Operand::Reference(type_arg),
-			Operand::Reference(static_args_obj),
+			Operand::Reference(Reference::array(static_args_obj)),
 			Operand::Reference(Reference::array(appendix)),
 		);
 
@@ -403,7 +440,9 @@ impl EntryType for InvokeDynamic {
 					.expect("method should return something")
 					.expect_reference();
 			},
-			JavaCallResult::PendingException => {},
+			JavaCallResult::PendingException => {
+				todo!()
+			},
 		}
 
 		if call_site.is_null() {

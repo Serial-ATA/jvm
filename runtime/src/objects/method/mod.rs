@@ -1,5 +1,6 @@
 pub mod spec;
 
+use crate::calls::jcall::JavaCallResult;
 use crate::java_call;
 use crate::native::jni::reference_from_jobject;
 use crate::native::method::NativeMethodPtr;
@@ -7,6 +8,7 @@ use crate::objects::array::ArrayInstance;
 use crate::objects::class::Class;
 use crate::objects::constant_pool::cp_types;
 use crate::objects::reference::Reference;
+use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::Throws;
 use crate::thread::JavaThread;
 
@@ -14,7 +16,6 @@ use std::ffi::VaList;
 use std::fmt::{Debug, Formatter};
 use std::sync::RwLock;
 
-use crate::calls::jcall::JavaCallResult;
 use classfile::accessflags::MethodAccessFlags;
 use classfile::attribute::resolved::ResolvedAnnotation;
 use classfile::attribute::{Code, LineNumber};
@@ -23,7 +24,6 @@ use common::int_types::{s4, u1};
 use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::{jdouble, jint, jlong, jobject, jvalue};
-use symbols::{sym, Symbol};
 
 #[derive(Default, PartialEq, Eq, Debug)]
 struct ExtraFlags {

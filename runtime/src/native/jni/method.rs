@@ -1,17 +1,18 @@
 use super::{classref_from_jclass, method_ref_from_jmethodid, IntoJni};
 use crate::objects::method::Method;
 use crate::stack::local_stack::LocalStack;
+use crate::symbols::Symbol;
+use crate::thread::exceptions::Throws;
 use crate::thread::JavaThread;
 
 use core::ffi::c_char;
 use std::ffi::CStr;
 
-use crate::thread::exceptions::Throws;
 use jni::sys::{
 	jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, jobject, jshort,
 	jvalue, va_list, JNIEnv,
 };
-use symbols::Symbol;
+
 // --------------
 //   NON-STATIC
 // --------------

@@ -5,6 +5,7 @@ use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::{ArrayInstanceRef, MirrorInstanceRef, Reference};
 use crate::string_interner::StringInterner;
+use crate::symbols::Symbol;
 use crate::thread::exceptions::{
 	handle_exception, throw, throw_and_return_null, throw_with_ret, Throws,
 };
@@ -14,9 +15,9 @@ use std::sync::Arc;
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint};
+use classfile::accessflags::ClassAccessFlags;
 use common::traits::PtrType;
 use instructions::Operand;
-use symbols::sym;
 
 include_generated!("native/java/lang/def/Class.registerNatives.rs");
 include_generated!("native/java/lang/def/Class.definitions.rs");
@@ -118,8 +119,18 @@ pub fn getInterfaces0(
 {
 	unimplemented!("Class#getInterfaces0");
 }
-pub fn getModifiers(_env: JniEnv, _this: Reference /* java.lang.Class */) -> jint {
-	unimplemented!("Class#getModifiers");
+pub fn getModifiers(_env: JniEnv, this: Reference /* java.lang.Class */) -> jint {
+	let mirror_instance = this.extract_mirror();
+	let mirror = mirror_instance.get();
+	if mirror.is_primitive() {
+		return (ClassAccessFlags::ACC_ABSTRACT
+			| ClassAccessFlags::ACC_FINAL
+			| ClassAccessFlags::ACC_PUBLIC)
+			.as_u2() as jint;
+	}
+
+	let class = mirror.target_class();
+	class.modifier_flags() as jint
 }
 pub fn getSigners(_env: JniEnv, _this: Reference /* java.lang.Class */) -> Reference /* Object[] */
 {

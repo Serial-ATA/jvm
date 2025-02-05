@@ -1,7 +1,7 @@
 use crate::objects::method::Method;
+use crate::symbols::Symbol;
 
 use classfile::accessflags::MethodAccessFlags;
-use symbols::Symbol;
 
 #[derive(Debug)]
 pub struct VTable<'a> {
