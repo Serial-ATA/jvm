@@ -1,9 +1,9 @@
 pub mod Raw {
 	use crate::include_generated;
+	use crate::native::java::lang::String::StringInterner;
 	use crate::objects::array::ArrayInstance;
 	use crate::objects::class::Class;
 	use crate::objects::reference::Reference;
-	use crate::string_interner::StringInterner;
 	use crate::thread::exceptions::Throws;
 	use crate::thread::JavaThread;
 
@@ -26,8 +26,8 @@ pub mod Raw {
 			($prop_array:ident; $($key:literal => $value:expr),+ $(,)?) => {
 				let mut index = 0;
 				$(
-					let interned_key_string = StringInterner::intern_str($key);
-					let interned_value_string = StringInterner::intern_string(String::from($value));
+					let interned_key_string = StringInterner::intern($key);
+					let interned_value_string = StringInterner::intern(&*String::from($value));
 					$prop_array.store(index, Operand::Reference(Reference::class(interned_key_string)));
 					index += 1;
 					$prop_array.store(index, Operand::Reference(Reference::class(interned_value_string)));
@@ -77,7 +77,7 @@ pub mod Raw {
 			($prop_array:ident; $($index:expr => $value:expr),+ $(,)?) => {
 				$(
 				if let Some(val) = Option::<String>::from($value) {
-					let interned_string = StringInterner::intern_string(val);
+					let interned_string = StringInterner::intern(&*val);
 					$prop_array.store($index, Operand::Reference(Reference::class(interned_string)));
 				}
 				)+

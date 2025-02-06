@@ -11,12 +11,12 @@ pub mod pool;
 use crate::calls::jcall::JavaCallResult;
 use crate::interpreter::Interpreter;
 use crate::java_call;
+use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::invocation_api::new_env;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::stack::local_stack::LocalStack;
-use crate::string_interner::StringInterner;
 use crate::symbols::sym;
 use crate::thread::frame::native::NativeFrame;
 use crate::thread::frame::Frame;
@@ -195,7 +195,7 @@ impl JavaThread {
 		let thread_instance = ClassInstance::new(thread_class);
 
 		if let Some(name) = name {
-			let string_object = StringInterner::intern_string(name.to_string());
+			let string_object = StringInterner::intern(name);
 			let init_method = thread_class
 				.vtable()
 				.find(
@@ -255,7 +255,7 @@ impl JavaThread {
 			)
 			.expect("method should exist");
 
-		let thread_name = StringInterner::intern_str("main");
+		let thread_name = StringInterner::intern("main");
 
 		java_call!(
 			self,

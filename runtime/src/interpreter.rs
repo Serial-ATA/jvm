@@ -1,6 +1,7 @@
 #![allow(unused_imports)] // Intellij-Rust doesn't like this file much, the imports used in macros are not recognized
 
 use crate::method_invoker::MethodInvoker;
+use crate::native::java::lang::String::StringInterner;
 use crate::objects::array::ArrayInstance;
 use crate::objects::class::{Class, ClassInitializationState};
 use crate::objects::class_instance::ClassInstance;
@@ -9,7 +10,6 @@ use crate::objects::field::Field;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, Reference};
-use crate::string_interner::StringInterner;
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::handle_exception;
 use crate::thread::frame::Frame;
@@ -775,7 +775,7 @@ impl Interpreter {
             // Otherwise, if the run-time constant pool entry is a string constant, that is,
             // a reference to an instance of class String, then value, a reference to that instance, is pushed onto the operand stack.
             Entry::String(string) => {
-                let interned_string = StringInterner::intern_symbol(string);
+                let interned_string = StringInterner::intern(string);
                 frame.stack_mut().push_reference(Reference::class(interned_string));
             },
 

@@ -1,11 +1,11 @@
 use crate::globals::{classes, fields};
 use crate::native::java::lang::invoke::MethodHandleNatives;
+use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
 use crate::objects::class::Class;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, Reference};
-use crate::string_interner::StringInterner;
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{throw, throw_and_return_null, Throws};
 use crate::thread::JavaThread;
@@ -37,12 +37,12 @@ pub fn new_member_name(
 	);
 	fields::java_lang_invoke_MemberName::set_name(
 		member_name,
-		Reference::class(StringInterner::intern_symbol(name)),
+		Reference::class(StringInterner::intern(name)),
 	);
 	// TODO: Not correct for field members
 	fields::java_lang_invoke_MemberName::set_type(
 		member_name,
-		Reference::class(StringInterner::intern_symbol(descriptor)),
+		Reference::class(StringInterner::intern(descriptor)),
 	);
 
 	Throws::Ok(member_name_instance)
@@ -128,15 +128,14 @@ pub fn resolve_member_name(
 	let defining_class = defining_class_field.get().target_class();
 
 	let name_field = fields::java_lang_invoke_MemberName::name(member_name);
-	let name_str = StringInterner::rust_string_from_java_string(name_field.extract_class());
+	let name_str = rust_string_from_java_string(name_field.extract_class());
 	let name = Symbol::intern(name_str);
 
 	let type_field = fields::java_lang_invoke_MemberName::type_(member_name);
 
 	let descriptor: Symbol;
 	if type_field.is_instance_of(classes::java_lang_String()) {
-		let descriptor_str =
-			StringInterner::rust_string_from_java_string(type_field.extract_class());
+		let descriptor_str = rust_string_from_java_string(type_field.extract_class());
 		descriptor = Symbol::intern(descriptor_str);
 	} else if type_field.is_instance_of(classes::java_lang_Class()) {
 		descriptor = type_field.extract_target_class().as_signature();

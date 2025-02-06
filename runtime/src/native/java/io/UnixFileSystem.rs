@@ -1,13 +1,15 @@
 #![allow(non_upper_case_globals)]
 
+use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
-use crate::string_interner::StringInterner;
 use crate::symbols::sym;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use crate::thread::exceptions::throw_and_return_null;
+use crate::thread::JavaThread;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
 use common::traits::PtrType;
@@ -22,7 +24,7 @@ fn get_file_path(file: Reference) -> String {
 		.get_field_value0(path_field_offset)
 		.expect_reference();
 
-	StringInterner::rust_string_from_java_string(value.extract_class())
+	rust_string_from_java_string(value.extract_class())
 }
 
 pub fn canonicalize0(
@@ -31,18 +33,16 @@ pub fn canonicalize0(
 	path: Reference, // java.lang.String
 ) -> Reference /* java.lang.String */ {
 	if path.is_null() {
-		panic!("NullPointerException"); // TODO
+		throw_and_return_null!(JavaThread::current(), NullPointerException);
 	}
 
-	let path_str = StringInterner::rust_string_from_java_string(path.extract_class());
-
+	let path_str = rust_string_from_java_string(path.extract_class());
 	let Ok(path) = std::path::Path::new(&path_str).canonicalize() else {
 		panic!("IOException"); // TODO
 	};
 
-	Reference::class(StringInterner::intern_string(
-		path.to_string_lossy().into_owned(),
-	))
+	let new_path = path.to_string_lossy().into_owned();
+	Reference::class(StringInterner::intern(new_path.as_str()))
 }
 
 #[cfg(unix)]

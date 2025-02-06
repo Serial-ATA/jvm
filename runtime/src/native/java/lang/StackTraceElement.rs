@@ -1,10 +1,10 @@
+use crate::native::java::lang::String::StringInterner;
 use crate::objects::array::ArrayContent;
 use crate::objects::class::Class;
 use crate::objects::constant_pool::cp_types;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, Reference};
-use crate::string_interner::StringInterner;
 use crate::thread::exceptions::throw;
 use crate::thread::JavaThread;
 
@@ -50,7 +50,7 @@ fn fill_in_stack_trace(stacktrace_element: ClassInstanceRef, method: &Method, pc
 	// TODO: moduleVersion
 	let declaring_class_field_offset =
 		crate::globals::fields::java_lang_StackTraceElement::declaringClass_field_offset();
-	let declaring_class = StringInterner::intern_symbol(method.class().name);
+	let declaring_class = StringInterner::intern(method.class().name);
 	stacktrace_element.get_mut().put_field_value0(
 		declaring_class_field_offset,
 		Operand::Reference(Reference::class(declaring_class)),
@@ -58,7 +58,7 @@ fn fill_in_stack_trace(stacktrace_element: ClassInstanceRef, method: &Method, pc
 
 	let method_name_field_offset =
 		crate::globals::fields::java_lang_StackTraceElement::methodName_field_offset();
-	let method_name = StringInterner::intern_symbol(method.name);
+	let method_name = StringInterner::intern(method.name);
 	stacktrace_element.get_mut().put_field_value0(
 		method_name_field_offset,
 		Operand::Reference(Reference::class(method_name)),
@@ -73,7 +73,7 @@ fn fill_in_stack_trace(stacktrace_element: ClassInstanceRef, method: &Method, pc
 				.get::<cp_types::ConstantUtf8>(idx)
 				.expect("file name should always resolve");
 
-			let file_name = StringInterner::intern_symbol(file_name_sym);
+			let file_name = StringInterner::intern(file_name_sym);
 			stacktrace_element.get_mut().put_field_value0(
 				file_name_field_offset,
 				Operand::Reference(Reference::class(file_name)),

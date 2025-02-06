@@ -1,7 +1,7 @@
 use crate::globals::fields;
+use crate::native::java::lang::String::StringInterner;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
-use crate::string_interner::StringInterner;
 
 use common::traits::PtrType;
 use instructions::OpCode;
@@ -51,7 +51,7 @@ pub fn getExtendedNPEMessage(
 		return Reference::null();
 	};
 
-	Reference::class(StringInterner::intern_string(description))
+	Reference::class(StringInterner::intern(description.as_str()))
 }
 
 #[rustfmt::skip]

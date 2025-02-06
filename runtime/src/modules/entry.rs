@@ -1,9 +1,9 @@
 use super::package::{Package, PackageExportType};
 use crate::classpath::jimage;
 use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
+use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
-use crate::string_interner::StringInterner;
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{throw, Throws};
 
@@ -188,7 +188,7 @@ impl Module {
 			throw!(@DEFER IllegalArgumentException, "Module name cannot be null");
 		}
 
-		let module_name = StringInterner::rust_string_from_java_string(name_obj.extract_class());
+		let module_name = rust_string_from_java_string(name_obj.extract_class());
 		let loader = obj
 			.get_field_value0(crate::globals::fields::java_lang_Module::loader_field_offset())
 			.expect_reference();

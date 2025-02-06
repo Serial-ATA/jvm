@@ -1,11 +1,11 @@
 use crate::java_call;
 use crate::method_invoker::MethodInvoker;
+use crate::native::java::lang::String::StringInterner;
 use crate::objects::class::Class;
 use crate::objects::constant_pool::cp_types;
 use crate::objects::field::Field;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
-use crate::string_interner::StringInterner;
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{throw, Throws};
 use crate::thread::JavaThread;
@@ -468,7 +468,7 @@ impl Class {
 						.constant_pool
 						.get::<cp_types::String>(constant_value_index)
 						.expect("string constants should always resolve");
-					let string_instance = StringInterner::intern_symbol(string);
+					let string_instance = StringInterner::intern(string);
 					let value = Operand::Reference(Reference::class(string_instance));
 					unsafe {
 						self.set_static_field(field.index(), value);

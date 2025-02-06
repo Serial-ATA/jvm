@@ -2,10 +2,10 @@ use crate::calls::jcall::JavaCallResult;
 use crate::classpath::loader::ClassLoader;
 use crate::java_call;
 use crate::modules::Module;
+use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::invocation_api::main_java_vm;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::reference::Reference;
-use crate::string_interner::StringInterner;
 use crate::symbols::sym;
 use crate::thread::{JavaThread, JavaThreadBuilder};
 
@@ -232,7 +232,7 @@ fn create_thread_object(thread: &JavaThread) {
 		)
 		.expect("java.lang.ThreadGroup should have an initializer");
 
-	let name = StringInterner::intern_str("main");
+	let name = StringInterner::intern("main");
 	let result = java_call!(
 		thread,
 		init_method,

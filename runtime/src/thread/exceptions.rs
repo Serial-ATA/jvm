@@ -1,10 +1,10 @@
 use super::JavaThread;
 use crate::classpath::loader::ClassLoader;
 use crate::java_call;
+use crate::native::java::lang::String::StringInterner;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::reference::Reference;
 use crate::stack::local_stack::LocalStack;
-use crate::string_interner::StringInterner;
 use crate::symbols::sym;
 
 use std::ops::{ControlFlow, FromResidual, Try};
@@ -198,7 +198,7 @@ impl Exception {
 					)
 					.expect("method should exist");
 
-				let string_object = StringInterner::intern_string(message);
+				let string_object = StringInterner::intern(message.as_str());
 				java_call!(
 					thread,
 					init_method,

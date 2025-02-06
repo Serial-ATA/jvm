@@ -13,7 +13,7 @@ use crate::globals::PRIMITIVES;
 use crate::modules::{Module, Package};
 use crate::objects::constant_pool::cp_types;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
-use crate::symbols::{sym, Symbol};
+use crate::symbols::Symbol;
 use crate::thread::JavaThread;
 
 use std::cell::{Cell, UnsafeCell};
@@ -1014,20 +1014,28 @@ impl Class {
 		this_pkg.unwrap() == other_pkg.unwrap()
 	}
 
-	pub fn implements(&self, class: &Class) -> bool {
-		if self.is_interface() && self == class {
+	pub fn implements(&self, target_interface: &Class) -> bool {
+		if !target_interface.is_interface() {
+			// TODO: Assertion maybe?
+			return false;
+		}
+
+		if self.is_interface() && self == target_interface {
 			return true;
 		}
 
-		for interface in &self.interfaces {
-			if class == *interface || class.implements(&interface) {
+		for super_interface in &self.interfaces {
+			if target_interface == *super_interface || super_interface.implements(&target_interface)
+			{
 				return true;
 			}
 		}
 
 		for parent in self.parent_iter() {
-			for interface in &parent.interfaces {
-				if class == *interface || class.implements(&interface) {
+			for super_interface in &parent.interfaces {
+				if target_interface == *super_interface
+					|| super_interface.implements(&target_interface)
+				{
 					return true;
 				}
 			}

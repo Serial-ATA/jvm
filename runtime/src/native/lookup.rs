@@ -1,9 +1,9 @@
 use crate::calls::jcall::JavaCallResult;
 use crate::java_call;
+use crate::native::java::lang::String::StringInterner;
 use crate::native::method::NativeMethodPtr;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
-use crate::string_interner::StringInterner;
 use crate::symbols::sym;
 use crate::thread::JavaThread;
 
@@ -214,7 +214,7 @@ fn lookup_style(
 	);
 
 	let jni_name = name_converter.compute_complete_jni_name(num_args, include_long, os_style);
-	let name_arg = StringInterner::intern_string(jni_name);
+	let name_arg = StringInterner::intern(jni_name.as_str());
 
 	let classloader_class = crate::globals::classes::java_lang_ClassLoader();
 	let findNative_method = classloader_class

@@ -1,8 +1,8 @@
+use crate::native::java::lang::String::rust_string_from_java_string;
 use crate::objects::array::ArrayInstance;
 use crate::objects::class::ClassInitializationState;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
-use crate::string_interner::StringInterner;
 use crate::thread::JavaThread;
 
 use std::marker::PhantomData;
@@ -722,7 +722,7 @@ pub fn objectFieldOffset1(
 ) -> jlong {
 	let class = class.extract_mirror();
 
-	let name_str = StringInterner::rust_string_from_java_string(name.extract_class());
+	let name_str = rust_string_from_java_string(name.extract_class());
 	let classref = class.get().target_class();
 
 	let mut offset = 0;
@@ -759,10 +759,13 @@ pub fn staticFieldBase0(
 }
 pub fn shouldBeInitialized0(
 	_env: JniEnv,
-	_this: Reference,  // jdk.internal.misc.Unsafe
-	_class: Reference, // java.lang.Class
+	_this: Reference, // jdk.internal.misc.Unsafe
+	class: Reference, // java.lang.Class
 ) -> bool {
-	unimplemented!("jdk.internal.misc.Unsafe#shouldBeInitialized0")
+	assert!(!class.is_null(), "should be checked in the jdk");
+
+	let class = class.extract_target_class();
+	class.initialization_state() != ClassInitializationState::Init
 }
 pub fn ensureClassInitialized0(
 	env: JniEnv,

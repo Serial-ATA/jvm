@@ -1,6 +1,6 @@
+use crate::native::java::lang::String::rust_string_from_java_string;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
-use crate::string_interner::StringInterner;
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jint, jlong};
@@ -13,7 +13,7 @@ pub fn findSignal0(
 	sig_name: Reference, // java.lang.String
 ) -> jint {
 	let sig_name_string = sig_name.extract_class();
-	let sig_name = StringInterner::rust_string_from_java_string(sig_name_string);
+	let sig_name = rust_string_from_java_string(sig_name_string);
 
 	match platform::Signal::from_name(sig_name) {
 		Some(signal) => signal.value(),

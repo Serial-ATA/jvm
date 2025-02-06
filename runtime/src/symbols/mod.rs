@@ -2,6 +2,8 @@ use std::borrow::Cow;
 use std::fmt::Display;
 use std::sync::{LazyLock, Mutex};
 
+use byte_slice_cast::AsByteSlice;
+use common::traits::PtrType;
 use fxhash::FxBuildHasher;
 use indexmap::IndexSet;
 
@@ -161,6 +163,15 @@ where
 	}
 }
 
+impl<T> From<T> for Symbol
+where
+	T: Internable,
+{
+	fn from(value: T) -> Self {
+		Symbol::intern(value)
+	}
+}
+
 impl Display for Symbol {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(f, "{}", self.as_str())
@@ -174,6 +185,8 @@ macro_rules! sym {
 	};
 }
 
+use crate::globals::fields;
+use crate::objects::reference::ClassInstanceRef;
 pub(crate) use sym;
 
 // Defined in $ROOT/generators/vm_symbols
@@ -329,6 +342,8 @@ vm_symbols::define_symbols! {
 	threadStatus,
 	value,
 	coder,
+	hash,
+	hashIsZero,
 	fd,
 	path,
 	r#in: "in",

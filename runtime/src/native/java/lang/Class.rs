@@ -1,11 +1,10 @@
 use crate::include_generated;
+use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
 use crate::native::jni::{safe_classref_from_jclass, IntoJni};
 use crate::objects::array::ArrayInstance;
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::{ArrayInstanceRef, MirrorInstanceRef, Reference};
-use crate::string_interner::StringInterner;
-use crate::symbols::Symbol;
 use crate::thread::exceptions::{
 	handle_exception, throw, throw_and_return_null, throw_with_ret, Throws,
 };
@@ -89,7 +88,7 @@ pub fn initClassName(
 	let this_mirror = this.extract_mirror();
 	let this_mirror_target = this_mirror.get().target_class();
 	let this_name = this_mirror_target.name;
-	let name_string = StringInterner::intern_symbol(this_name);
+	let name_string = StringInterner::intern(this_name);
 
 	this_mirror.get_mut().put_field_value0(
 		crate::globals::fields::java_lang_Class::name_field_offset(),
@@ -189,14 +188,14 @@ pub fn getEnclosingMethod0(
 	unsafe {
 		array_instance.get_mut().store_unchecked(
 			1,
-			Operand::Reference(Reference::class(StringInterner::intern_symbol(
+			Operand::Reference(Reference::class(StringInterner::intern(
 				enclosing_method.name,
 			))),
 		);
 
 		array_instance.get_mut().store_unchecked(
 			2,
-			Operand::Reference(Reference::class(StringInterner::intern_symbol(
+			Operand::Reference(Reference::class(StringInterner::intern(
 				enclosing_method.descriptor_sym,
 			))),
 		);
@@ -282,7 +281,7 @@ pub fn getSimpleBinaryName0(
 		}
 
 		if let Some(name) = inner_class.inner_class_name {
-			return Reference::class(StringInterner::intern_symbol(name));
+			return Reference::class(StringInterner::intern(name));
 		}
 
 		break;
@@ -304,7 +303,7 @@ pub fn getPrimitiveClass(
 ) -> Reference /* Class */
 {
 	let string_class = name.extract_class();
-	let name_string = StringInterner::rust_string_from_java_string(string_class);
+	let name_string = rust_string_from_java_string(string_class);
 
 	for (name, ty) in crate::globals::PRIMITIVE_TYPE_NAMES_TO_FIELD_TYPES {
 		if &name_string == name {

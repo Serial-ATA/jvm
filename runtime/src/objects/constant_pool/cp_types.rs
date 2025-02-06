@@ -2,6 +2,7 @@ use super::entry::ResolvedEntry;
 use crate::calls::jcall::JavaCallResult;
 use crate::java_call;
 use crate::native::java::lang::invoke::MethodHandleNatives;
+use crate::native::java::lang::String::StringInterner;
 use crate::objects::array::ArrayInstance;
 use crate::objects::boxing::Boxable;
 use crate::objects::class::Class as ClassObj;
@@ -9,7 +10,6 @@ use crate::objects::constant_pool::ConstantPool;
 use crate::objects::field::Field;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
-use crate::string_interner::StringInterner;
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{throw, Throws};
 use crate::thread::JavaThread;
@@ -363,7 +363,7 @@ impl EntryType for InvokeDynamic {
 			cp.resolve_entry_with::<NameAndType>(value.name_and_type_index, value.name_and_type)?
 		};
 
-		let name_arg = StringInterner::intern_symbol(name);
+		let name_arg = StringInterner::intern(name);
 		let descriptor_str = descriptor.as_str();
 
 		let type_arg;
@@ -399,7 +399,7 @@ impl EntryType for InvokeDynamic {
 				LoadableConstantPoolValueInner::Class(_) => todo!("Class static argument"),
 				LoadableConstantPoolValueInner::String(ref val) => {
 					let sym = Symbol::intern(val);
-					r = Reference::class(StringInterner::intern_symbol(sym));
+					r = Reference::class(StringInterner::intern(sym));
 				},
 				LoadableConstantPoolValueInner::MethodHandle(_) => {
 					r = cp.get::<MethodHandle>(arg.index)?;
@@ -542,7 +542,7 @@ impl EntryType for MethodHandle {
 			Operand::Reference(Reference::mirror(invoking_class.mirror())),
 			Operand::Int(value.reference_kind as i32),
 			Operand::Reference(Reference::mirror(callee_class.mirror())),
-			Operand::Reference(Reference::class(StringInterner::intern_symbol(name))),
+			Operand::Reference(Reference::class(StringInterner::intern(name))),
 			Operand::Reference(ty_arg),
 		);
 

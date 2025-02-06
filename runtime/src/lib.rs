@@ -10,6 +10,7 @@
 #![feature(array_chunks)]
 #![feature(try_trait_v2)]
 #![feature(associated_type_defaults)]
+#![feature(hash_raw_entry)]
 
 pub mod calls;
 pub mod classpath;
@@ -22,7 +23,6 @@ pub mod modules;
 pub mod native;
 pub mod objects;
 pub mod stack;
-mod string_interner;
 mod symbols;
 pub mod thread;
 pub mod verifier;
