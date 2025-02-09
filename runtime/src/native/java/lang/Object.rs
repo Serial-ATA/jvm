@@ -29,11 +29,18 @@ pub fn hashCode(env: JniEnv, this: Reference /* java.lang.Object */) -> jint {
 pub fn clone(_: JniEnv, this: Reference /* java.lang.Object */) -> Reference /* java.lang.Object */
 {
 	// An array is always cloneable
-	if this.is_array() {
-		let array = this.extract_array();
-		let instance = array.get();
-		let cloned = unsafe { CloneableInstance::clone(instance) };
-		return Reference::array(cloned);
+	{
+		if this.is_primitive_array() {
+			let array = this.extract_primitive_array();
+			let cloned = unsafe { CloneableInstance::clone(array.get()) };
+			return Reference::array(cloned);
+		}
+
+		if this.is_object_array() {
+			let array = this.extract_object_array();
+			let cloned = unsafe { CloneableInstance::clone(array.get()) };
+			return Reference::object_array(cloned);
+		}
 	}
 
 	let instance_ref = this.extract_class();

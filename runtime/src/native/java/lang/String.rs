@@ -1,7 +1,6 @@
 use crate::globals::{classes, fields};
-use crate::objects::array::{ArrayContent, ArrayInstance};
+use crate::objects::array::PrimitiveArrayInstance;
 use crate::objects::class_instance::ClassInstance;
-use crate::objects::instance::Instance;
 use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::symbols::Symbol;
 
@@ -11,11 +10,10 @@ use std::ptr::slice_from_raw_parts;
 use std::sync::{Arc, LazyLock, RwLock};
 
 use byte_slice_cast::{AsByteSlice, AsSliceOf};
-use common::int_types::{s1, s2, s4, u1, u2};
+use common::int_types::{s1, u1, u2};
 use common::traits::PtrType;
-use instructions::Operand;
 use jni::env::JniEnv;
-use jni::sys::jint;
+use jni::sys::{jbyte, jint};
 
 include_generated!("native/java/lang/def/String.definitions.rs");
 include_generated!("native/java/lang/def/String.constants.rs");
@@ -39,10 +37,10 @@ pub fn intern(_env: JniEnv, this: Reference /* java.lang.String */) -> Reference
 	}
 
 	let coder = fields::java_lang_String::coder(string.get());
-	let value_field = fields::java_lang_String::value(string.get()).extract_array();
+	let value_field = fields::java_lang_String::value(string.get()).extract_primitive_array();
 	let value = value_field.get();
 
-	let value = value.elements.expect_byte();
+	let value = value.as_slice::<jbyte>();
 	let value_unsigned = value.as_byte_slice();
 
 	let computed_hash;
@@ -76,20 +74,21 @@ static STRING_POOL: LazyLock<RwLock<HashMap<StringHash, ClassInstanceRef>>> =
 	LazyLock::new(|| RwLock::new(HashMap::new()));
 
 fn lookup(hash: StringHash) -> Option<ClassInstanceRef> {
-	if let Some((_, entry)) = STRING_POOL
-		.read()
-		.unwrap()
-		.raw_entry()
-		.from_hash(hash.0, |k| k == &hash)
-	{
+	if let Some(entry) = STRING_POOL.read().unwrap().get(&hash) {
 		return Some(entry.clone());
 	}
 
 	None
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 struct StringHash(u64);
+
+impl Hash for StringHash {
+	fn hash<H: Hasher>(&self, state: &mut H) {
+		state.write_u64(self.0)
+	}
+}
 
 pub trait StringHashDerivable<T> {
 	fn hash(value: &T) -> StringHash;
@@ -99,7 +98,7 @@ impl<'a> StringHashDerivable<&'a str> for &'a str {
 	fn hash(value: &Self) -> StringHash {
 		let mut h = 0;
 		for b in value.chars() {
-			h = (31 * h) + (b as u64);
+			h = (31_u64.overflowing_mul(h).0) + (b as u64);
 		}
 		StringHash(h)
 	}
@@ -108,7 +107,7 @@ impl<'a> StringHashDerivable<&'a [u1]> for &'a [u1] {
 	fn hash(value: &Self) -> StringHash {
 		let mut h = 0;
 		for b in value.iter() {
-			h = (31 * h) + (*b as u64);
+			h = (31_u64.overflowing_mul(h).0) + (*b as u64);
 		}
 		StringHash(h)
 	}
@@ -117,7 +116,7 @@ impl<'a> StringHashDerivable<&'a [u2]> for &'a [u2] {
 	fn hash(value: &Self) -> StringHash {
 		let mut h = 0;
 		for b in value.iter() {
-			h = (31 * h) + (*b as u64);
+			h = (31_u64.overflowing_mul(h).0) + (*b as u64);
 		}
 		StringHash(h)
 	}
@@ -182,10 +181,9 @@ fn do_intern(hash: StringHash, string: &[u8], is_utf8_symbol: bool) -> ClassInst
 	// Set `private byte[] value`
 	fields::java_lang_String::set_value(
 		new_java_string_instance.get_mut(),
-		Reference::array(ArrayInstance::new(
-			classes::byte_array(),
-			ArrayContent::Byte(encoded_str),
-		)),
+		Reference::array(unsafe {
+			PrimitiveArrayInstance::new::<jbyte>(classes::byte_array(), encoded_str)
+		}),
 	);
 
 	// Set `private final byte coder`
@@ -206,11 +204,11 @@ pub fn rust_string_from_java_string(class: ClassInstanceRef) -> String {
 	let value = fields::java_lang_String::value(class.get());
 	let coder = fields::java_lang_String::coder(class.get());
 
-	let char_array = value.extract_array();
-	let chars = char_array.get().elements.expect_byte();
+	let value = value.extract_primitive_array();
+	let value = value.get().as_slice::<jbyte>();
 
 	let unsigned_chars =
-		unsafe { &*slice_from_raw_parts(chars.as_ptr().cast::<u8>(), chars.len()) };
+		unsafe { &*slice_from_raw_parts(value.as_ptr().cast::<u8>(), value.len()) };
 	match coder {
 		LATIN1 => String::from_utf8_lossy(unsigned_chars).into_owned(),
 		UTF16 => String::from_utf16_lossy(unsigned_chars.as_slice_of::<u2>().unwrap()),
@@ -222,7 +220,7 @@ fn str_is_latin1(string: &[u8]) -> bool {
 	let mut prev = 0;
 	for byte in string {
 		// 0x80 denotes a multibyte sequence, but could also be a valid Latin-1 character
-		if *byte == 0x80 && prev <= 0xC3 {
+		if (*byte & 0xC0) == 0x80 && prev <= 0xC3 {
 			return false;
 		}
 		prev = *byte;

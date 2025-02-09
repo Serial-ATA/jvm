@@ -40,6 +40,7 @@ struct MiscCache {
 	package_name: Option<Option<Symbol>>,
 	signature: Option<Symbol>,
 	modifier_flags: Option<u2>,
+	is_hidden: bool,
 }
 
 struct FieldContainer {
@@ -238,7 +239,7 @@ impl Class {
 	}
 
 	/// Get a reference to the `ClassLoader` that loaded this class
-	pub fn loader(&self) -> &ClassLoader {
+	pub fn loader(&self) -> &'static ClassLoader {
 		self.loader
 	}
 
@@ -629,6 +630,13 @@ impl Class {
 		}
 	}
 
+	/// Whether the class is hidden
+	///
+	/// A hidden class is simply a class created by `java.lang.invoke.MethodHandles.Lookup#defineHiddenClass()`
+	pub fn is_hidden(&self) -> bool {
+		unsafe { &*self.misc_cache.get() }.is_hidden
+	}
+
 	/// Whether this class is a subclass of `class`
 	pub fn is_subclass_of(&self, class: &Class) -> bool {
 		let mut current_class = self;
@@ -840,7 +848,7 @@ impl Class {
 		}
 
 		// Create our vtable...
-		let vtable = new_vtable(Some(&parsed_file.methods), class);
+		let vtable = new_vtable(Some(parsed_file.methods), class);
 		unsafe {
 			*class.vtable.get() = MaybeUninit::new(vtable);
 		}
@@ -1078,13 +1086,13 @@ impl Iterator for ClassParentIterator {
 	}
 }
 
-fn new_vtable(class_methods: Option<&[MethodInfo]>, class: &'static Class) -> VTable<'static> {
+fn new_vtable(class_methods: Option<Vec<MethodInfo>>, class: &'static Class) -> VTable<'static> {
 	let mut vtable;
 	match class_methods {
 		// Initialize the vtable with the new `ClassFile`'s parsed methods
 		Some(class_methods) => {
 			vtable = class_methods
-				.iter()
+				.into_iter()
 				.map(|mi| &*Method::new(class, mi))
 				.collect::<Vec<_>>();
 		},

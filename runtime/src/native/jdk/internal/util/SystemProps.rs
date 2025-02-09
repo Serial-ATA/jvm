@@ -1,7 +1,7 @@
 pub mod Raw {
 	use crate::include_generated;
 	use crate::native::java::lang::String::StringInterner;
-	use crate::objects::array::ArrayInstance;
+	use crate::objects::array::{Array, ObjectArrayInstance};
 	use crate::objects::class::Class;
 	use crate::objects::reference::Reference;
 	use crate::thread::exceptions::Throws;
@@ -9,7 +9,6 @@ pub mod Raw {
 
 	use ::jni::env::JniEnv;
 	use common::traits::PtrType;
-	use instructions::Operand;
 
 	include_generated!("native/jdk/internal/util/def/SystemProps$Raw.constants.rs");
 	include_generated!("native/jdk/internal/util/def/SystemProps.definitions.rs");
@@ -28,9 +27,9 @@ pub mod Raw {
 				$(
 					let interned_key_string = StringInterner::intern($key);
 					let interned_value_string = StringInterner::intern(&*String::from($value));
-					$prop_array.store(index, Operand::Reference(Reference::class(interned_key_string)));
+					$prop_array.store(index, Reference::class(interned_key_string));
 					index += 1;
-					$prop_array.store(index, Operand::Reference(Reference::class(interned_value_string)));
+					$prop_array.store(index, Reference::class(interned_value_string));
 					index += 1;
 					let _ = index;
 				)+
@@ -40,7 +39,7 @@ pub mod Raw {
 		// TODO: FIXED_LENGTH is not the correct size here
 		let string_array_class = crate::globals::classes::string_array();
 		let prop_array;
-		match ArrayInstance::new_reference(FIXED_LENGTH, string_array_class) {
+		match ObjectArrayInstance::new(FIXED_LENGTH, string_array_class) {
 			Throws::Ok(array) => prop_array = array,
 			Throws::Exception(e) => {
 				let thread = unsafe { &*JavaThread::for_env(env.raw()) };
@@ -66,9 +65,12 @@ pub mod Raw {
 			"java.home" => std::env::var("JAVA_HOME").unwrap(),
 
 			"sj.debug" => "true",
+			"java.lang.invoke.MethodHandle.TRACE_RESOLVE" => "true",
+			"java.lang.invoke.MethodHandle.TRACE_METHOD_LINKAGE" => "true",
+			"java.lang.invoke.MethodHandle.TRACE_INTERPRETER" => "true",
 		);
 
-		Reference::array(prop_array)
+		Reference::object_array(prop_array)
 	}
 
 	pub fn platformProperties(env: JniEnv, _class: &'static Class) -> Reference /* [Ljava/lang/String; */
@@ -78,7 +80,7 @@ pub mod Raw {
 				$(
 				if let Some(val) = Option::<String>::from($value) {
 					let interned_string = StringInterner::intern(&*val);
-					$prop_array.store($index, Operand::Reference(Reference::class(interned_string)));
+					$prop_array.store($index, Reference::class(interned_string));
 				}
 				)+
 			};
@@ -86,7 +88,7 @@ pub mod Raw {
 
 		let string_array_class = crate::globals::classes::string_array();
 		let prop_array;
-		match ArrayInstance::new_reference(FIXED_LENGTH, string_array_class) {
+		match ObjectArrayInstance::new(FIXED_LENGTH, string_array_class) {
 			Throws::Ok(array) => prop_array = array,
 			Throws::Exception(e) => {
 				let thread = unsafe { &*JavaThread::for_env(env.raw()) };
@@ -144,6 +146,6 @@ pub mod Raw {
 			_user_name_NDX               => system_properties.user_name,
 		);
 
-		Reference::array(prop_array)
+		Reference::object_array(prop_array)
 	}
 }

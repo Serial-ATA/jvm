@@ -5,22 +5,7 @@ use std::ops::Neg;
 use common::int_types::{s1, s2, s4, s8, u2, u4, u8};
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ConstOperandType {
-	Int,
-	Long,
-	Float,
-	Double,
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub enum Operand<Reference> {
-	Constm1,
-	Const0(ConstOperandType),
-	Const1(ConstOperandType),
-	Const2(ConstOperandType),
-	Const3,
-	Const4,
-	Const5,
 	Int(s4),
 	Float(f32),
 	Double(f64),
@@ -34,461 +19,406 @@ pub enum Operand<Reference> {
 impl<Reference: Debug + Clone> Operand<Reference> {
 	/// Add rhs to self
 	pub fn add(&mut self, rhs: Self) {
-		if self.is_int() {
-			let lhs = self.expect_int();
-			let rhs = rhs.expect_int();
-			*self = Operand::Int(lhs.overflowing_add(rhs).0);
-			return;
+		match self {
+			Operand::Int(lhs) => {
+				let rhs = rhs.expect_int();
+				*self = Operand::Int(lhs.overflowing_add(rhs).0);
+				return;
+			},
+			Operand::Float(lhs) => {
+				let rhs = rhs.expect_float();
+				*self = Operand::Float((*lhs) + rhs);
+				return;
+			},
+			Operand::Double(lhs) => {
+				let rhs = rhs.expect_double();
+				*self = Operand::Double((*lhs) + rhs);
+				return;
+			},
+			Operand::Long(lhs) => {
+				let rhs = rhs.expect_long();
+				*self = Operand::Long(lhs.overflowing_add(rhs).0);
+				return;
+			},
+			_ => panic!("Invalid operand type for `add` instruction"),
 		}
-
-		if self.is_long() {
-			let lhs = self.expect_long();
-			let rhs = rhs.expect_long();
-			*self = Operand::Long(lhs.overflowing_add(rhs).0);
-			return;
-		}
-
-		if self.is_float() {
-			let lhs = self.expect_float();
-			let rhs = rhs.expect_float();
-			*self = Operand::Float(lhs + rhs);
-			return;
-		}
-
-		if self.is_double() {
-			let lhs = self.expect_double();
-			let rhs = rhs.expect_double();
-			*self = Operand::Double(lhs + rhs);
-			return;
-		}
-
-		panic!("Invalid operand type for `add` instruction");
 	}
 
 	/// Subtract rhs from self
 	pub fn sub(&mut self, rhs: Self) {
-		if self.is_int() {
-			let lhs = self.expect_int();
-			let rhs = rhs.expect_int();
-			*self = Operand::Int(lhs.overflowing_sub(rhs).0);
-			return;
+		match self {
+			Operand::Int(lhs) => {
+				let rhs = rhs.expect_int();
+				*self = Operand::Int(lhs.overflowing_sub(rhs).0);
+				return;
+			},
+			Operand::Float(lhs) => {
+				let rhs = rhs.expect_float();
+				*self = Operand::Float((*lhs) - rhs);
+				return;
+			},
+			Operand::Double(lhs) => {
+				let rhs = rhs.expect_double();
+				*self = Operand::Double((*lhs) - rhs);
+				return;
+			},
+			Operand::Long(lhs) => {
+				let rhs = rhs.expect_long();
+				*self = Operand::Long(lhs.overflowing_sub(rhs).0);
+				return;
+			},
+			_ => panic!("Invalid operand type for `sub` instruction"),
 		}
-
-		if self.is_long() {
-			let lhs = self.expect_long();
-			let rhs = rhs.expect_long();
-			*self = Operand::Long(lhs.overflowing_sub(rhs).0);
-			return;
-		}
-
-		if self.is_float() {
-			let lhs = self.expect_float();
-			let rhs = rhs.expect_float();
-			*self = Operand::Float(lhs - rhs);
-			return;
-		}
-
-		if self.is_double() {
-			let lhs = self.expect_double();
-			let rhs = rhs.expect_double();
-			*self = Operand::Double(lhs - rhs);
-			return;
-		}
-
-		panic!("Invalid operand type for `sub` instruction");
 	}
 
 	/// Multiply self by rhs
 	pub fn mul(&mut self, rhs: Self) {
-		if self.is_int() {
-			let lhs = self.expect_int();
-			let rhs = rhs.expect_int();
-			*self = Operand::Int(lhs.overflowing_mul(rhs).0);
-			return;
+		match self {
+			Operand::Int(lhs) => {
+				let rhs = rhs.expect_int();
+				*self = Operand::Int(lhs.overflowing_mul(rhs).0);
+				return;
+			},
+			Operand::Float(lhs) => {
+				let rhs = rhs.expect_float();
+				*self = Operand::Float((*lhs) * rhs);
+				return;
+			},
+			Operand::Double(lhs) => {
+				let rhs = rhs.expect_double();
+				*self = Operand::Double((*lhs) * rhs);
+				return;
+			},
+			Operand::Long(lhs) => {
+				let rhs = rhs.expect_long();
+				*self = Operand::Long(lhs.overflowing_mul(rhs).0);
+				return;
+			},
+			_ => panic!("Invalid operand type for `mul` instruction"),
 		}
-
-		if self.is_long() {
-			let lhs = self.expect_long();
-			let rhs = rhs.expect_long();
-			*self = Operand::Long(lhs.overflowing_mul(rhs).0);
-			return;
-		}
-
-		if self.is_float() {
-			let lhs = self.expect_float();
-			let rhs = rhs.expect_float();
-			*self = Operand::Float(lhs * rhs);
-			return;
-		}
-
-		if self.is_double() {
-			let lhs = self.expect_double();
-			let rhs = rhs.expect_double();
-			*self = Operand::Double(lhs * rhs);
-			return;
-		}
-
-		panic!("Invalid operand type for `mul` instruction");
 	}
 
 	/// Divide self by rhs
 	pub fn div(&mut self, rhs: Self) {
-		if self.is_int() {
-			let lhs = self.expect_int();
-			let rhs = rhs.expect_int();
-			*self = Operand::Int(lhs.overflowing_div(rhs).0);
-			return;
+		match self {
+			Operand::Int(lhs) => {
+				let rhs = rhs.expect_int();
+				*self = Operand::Int(lhs.overflowing_div(rhs).0);
+				return;
+			},
+			Operand::Float(lhs) => {
+				let rhs = rhs.expect_float();
+				*self = Operand::Float((*lhs) / rhs);
+				return;
+			},
+			Operand::Double(lhs) => {
+				let rhs = rhs.expect_double();
+				*self = Operand::Double((*lhs) / rhs);
+				return;
+			},
+			Operand::Long(lhs) => {
+				let rhs = rhs.expect_long();
+				*self = Operand::Long(lhs.overflowing_div(rhs).0);
+				return;
+			},
+			_ => panic!("Invalid operand type for `div` instruction"),
 		}
-
-		if self.is_long() {
-			let lhs = self.expect_long();
-			let rhs = rhs.expect_long();
-			*self = Operand::Long(lhs.overflowing_div(rhs).0);
-			return;
-		}
-
-		if self.is_float() {
-			let lhs = self.expect_float();
-			let rhs = rhs.expect_float();
-			*self = Operand::Float(lhs / rhs);
-			return;
-		}
-
-		if self.is_double() {
-			let lhs = self.expect_double();
-			let rhs = rhs.expect_double();
-			*self = Operand::Double(lhs / rhs);
-			return;
-		}
-
-		panic!("Invalid operand type for `div` instruction");
 	}
 
 	/// Remainder of self / rhs
 	pub fn rem(&mut self, rhs: Self) {
-		if self.is_int() {
-			let lhs = self.expect_int();
-			let rhs = rhs.expect_int();
-			*self = Operand::Int(lhs.overflowing_rem(rhs).0);
-			return;
+		match self {
+			Operand::Int(lhs) => {
+				let rhs = rhs.expect_int();
+				*self = Operand::Int(lhs.overflowing_rem(rhs).0);
+				return;
+			},
+			Operand::Float(lhs) => {
+				let rhs = rhs.expect_float();
+				*self = Operand::Float((*lhs) % rhs);
+				return;
+			},
+			Operand::Double(lhs) => {
+				let rhs = rhs.expect_double();
+				*self = Operand::Double((*lhs) % rhs);
+				return;
+			},
+			Operand::Long(lhs) => {
+				let rhs = rhs.expect_long();
+				*self = Operand::Long(lhs.overflowing_rem(rhs).0);
+				return;
+			},
+			_ => panic!("Invalid operand type for `rem` instruction"),
 		}
-
-		if self.is_long() {
-			let lhs = self.expect_long();
-			let rhs = rhs.expect_long();
-			*self = Operand::Long(lhs.overflowing_rem(rhs).0);
-			return;
-		}
-
-		if self.is_float() {
-			let lhs = self.expect_float();
-			let rhs = rhs.expect_float();
-			*self = Operand::Float(lhs % rhs);
-			return;
-		}
-
-		if self.is_double() {
-			let lhs = self.expect_double();
-			let rhs = rhs.expect_double();
-			*self = Operand::Double(lhs % rhs);
-			return;
-		}
-
-		panic!("Invalid operand type for `rem` instruction");
 	}
 
 	/// Negates self
 	pub fn neg(&mut self) {
-		if self.is_int() {
-			let value = self.expect_int();
-			*self = Operand::Int(value.neg());
-			return;
+		match self {
+			Operand::Int(value) => {
+				*self = Operand::Int(value.neg());
+				return;
+			},
+			Operand::Float(value) => {
+				*self = Operand::Float(value.neg());
+				return;
+			},
+			Operand::Double(value) => {
+				*self = Operand::Double(value.neg());
+				return;
+			},
+			Operand::Long(value) => {
+				*self = Operand::Long(value.neg());
+				return;
+			},
+			_ => panic!("Invalid operand type for `neg` instruction"),
 		}
-
-		if self.is_long() {
-			let value = self.expect_long();
-			*self = Operand::Long(value.neg());
-			return;
-		}
-
-		if self.is_float() {
-			let value = self.expect_float();
-			*self = Operand::Float(value.neg());
-			return;
-		}
-
-		if self.is_double() {
-			let value = self.expect_double();
-			*self = Operand::Double(value.neg());
-			return;
-		}
-
-		panic!("Invalid operand type for `neg` instruction");
 	}
 
 	/// Shifts self left
 	pub fn shl(&mut self, rhs: Self) {
 		let rhs = rhs.expect_int();
 
-		if self.is_int() {
-			let lhs = self.expect_int();
-			*self = Operand::Int(lhs << (rhs & 0x1F));
-			return;
+		match self {
+			Operand::Int(lhs) => {
+				*self = Operand::Int((*lhs) << (rhs & 0x1F));
+				return;
+			},
+			Operand::Long(lhs) => {
+				*self = Operand::Long((*lhs) << s8::from(rhs & 0x3F));
+				return;
+			},
+			_ => panic!("Invalid operand type for `shl` instruction"),
 		}
-
-		if self.is_long() {
-			let lhs = self.expect_long();
-			*self = Operand::Long(lhs << s8::from(rhs & 0x3F));
-			return;
-		}
-
-		panic!("Invalid operand type for `shl` instruction")
 	}
 
 	/// Shifts self right
 	pub fn shr(&mut self, rhs: Self) {
 		let rhs = rhs.expect_int();
 
-		if self.is_int() {
-			let lhs = self.expect_int();
-			*self = Operand::Int(lhs >> (rhs & 0x1F));
-			return;
+		match self {
+			Operand::Int(lhs) => {
+				*self = Operand::Int((*lhs) >> (rhs & 0x1F));
+				return;
+			},
+			Operand::Long(lhs) => {
+				*self = Operand::Long((*lhs) >> s8::from(rhs & 0x3F));
+				return;
+			},
+			_ => panic!("Invalid operand type for `shr` instruction"),
 		}
-
-		if self.is_long() {
-			let lhs = self.expect_long();
-			*self = Operand::Long(lhs >> s8::from(rhs & 0x3F));
-			return;
-		}
-
-		panic!("Invalid operand type for `shr` instruction")
 	}
 
 	/// Bitwise AND of self and rhs
 	pub fn and(&mut self, rhs: Self) {
-		if self.is_int() {
-			let lhs = self.expect_int();
-			let rhs = rhs.expect_int();
-			*self = Operand::Int(lhs & rhs);
-			return;
+		match self {
+			Operand::Int(lhs) => {
+				let rhs = rhs.expect_int();
+				*self = Operand::Int((*lhs) & rhs);
+				return;
+			},
+			Operand::Long(lhs) => {
+				let rhs = rhs.expect_long();
+				*self = Operand::Long((*lhs) & rhs);
+				return;
+			},
+			_ => panic!("Invalid operand type for `and` instruction"),
 		}
-
-		if self.is_long() {
-			let lhs = self.expect_long();
-			let rhs = rhs.expect_long();
-			*self = Operand::Long(lhs & rhs);
-			return;
-		}
-
-		panic!("Invalid operand type for `and` instruction")
 	}
 
 	/// Bitwise OR of self and rhs
 	pub fn or(&mut self, rhs: Self) {
-		if self.is_int() {
-			let lhs = self.expect_int();
-			let rhs = rhs.expect_int();
-			*self = Operand::Int(lhs | rhs);
-			return;
+		match self {
+			Operand::Int(lhs) => {
+				let rhs = rhs.expect_int();
+				*self = Operand::Int((*lhs) | rhs);
+				return;
+			},
+			Operand::Long(lhs) => {
+				let rhs = rhs.expect_long();
+				*self = Operand::Long((*lhs) | rhs);
+				return;
+			},
+			_ => panic!("Invalid operand type for `or` instruction"),
 		}
-
-		if self.is_long() {
-			let lhs = self.expect_long();
-			let rhs = rhs.expect_long();
-			*self = Operand::Long(lhs | rhs);
-			return;
-		}
-
-		panic!("Invalid operand type for `or` instruction")
 	}
 
 	/// Logical shift right
 	pub fn ushr(&mut self, rhs: Self) {
-		if self.is_int() {
-			let lhs = self.expect_int();
-			let rhs = rhs.expect_int();
-			*self = Operand::Int(((lhs as u4) >> (rhs & 0x1F) as u4) as s4);
-			return;
-		}
+		let rhs = rhs.expect_int();
 
-		if self.is_long() {
-			let lhs = self.expect_long();
-			let rhs = rhs.expect_int();
-			*self = Operand::Long(((lhs as u8) >> (rhs & 0x3F) as u8) as s8);
-			return;
+		match self {
+			Operand::Int(lhs) => {
+				*self = Operand::Int((((*lhs) as u4) >> (rhs & 0x1F) as u4) as s4);
+				return;
+			},
+			Operand::Long(lhs) => {
+				*self = Operand::Long((((*lhs) as u8) >> (rhs & 0x3F) as u8) as s8);
+				return;
+			},
+			_ => panic!("Invalid operand type for `ushr` instruction"),
 		}
-
-		panic!("Invalid operand type for `ushr` instruction")
 	}
 
 	/// Bitwise XOR of self and rhs
 	pub fn xor(&mut self, rhs: Self) {
-		if self.is_int() {
-			let lhs = self.expect_int();
-			let rhs = rhs.expect_int();
-			*self = Operand::Int(lhs ^ rhs);
-			return;
+		match self {
+			Operand::Int(lhs) => {
+				let rhs = rhs.expect_int();
+				*self = Operand::Int((*lhs) ^ rhs);
+				return;
+			},
+			Operand::Long(lhs) => {
+				let rhs = rhs.expect_long();
+				*self = Operand::Long((*lhs) ^ rhs);
+				return;
+			},
+			_ => panic!("Invalid operand type for `xor` instruction"),
 		}
-
-		if self.is_long() {
-			let lhs = self.expect_long();
-			let rhs = rhs.expect_long();
-			*self = Operand::Long(lhs ^ rhs);
-			return;
-		}
-
-		panic!("Invalid operand type for `xor` instruction")
 	}
 
 	/// Convert int to byte
 	pub fn i2b(&mut self) {
-		if !self.is_int() {
+		let Operand::Int(value) = self else {
 			panic!("Invalid operand type for `i2b` instruction: {:?}", self);
-		}
+		};
 
 		// The value on the top of the operand stack must be of type int.
 		// It is popped from the operand stack, truncated to a byte, then sign-extended to an int result.
-		*self = Operand::Int(s4::from(self.expect_int() as s1));
+		*value = s4::from((*value) as s1);
 	}
 
 	/// Convert int to char
 	pub fn i2c(&mut self) {
-		if !self.is_int() {
+		let Operand::Int(value) = self else {
 			panic!("Invalid operand type for `i2c` instruction: {:?}", self);
-		}
+		};
 
-		*self = Operand::Int(s4::from(self.expect_int() as u2));
+		*value = s4::from((*value) as u2);
 	}
 
 	/// Convert int to double
 	pub fn i2d(&mut self) {
-		if !self.is_int() {
+		let Operand::Int(value) = self else {
 			panic!("Invalid operand type for `i2d` instruction: {:?}", self);
-		}
+		};
 
-		*self = Operand::Double(f64::from(self.expect_int()));
+		*self = Operand::Double(f64::from(*value));
 	}
 
 	/// Convert int to float
 	pub fn i2f(&mut self) {
-		if !self.is_int() {
+		let Operand::Int(value) = self else {
 			panic!("Invalid operand type for `i2f` instruction: {:?}", self);
-		}
+		};
 
-		*self = Operand::Float(self.expect_int() as f32);
+		*self = Operand::Float((*value) as f32);
 	}
 
 	/// Convert int to long
 	pub fn i2l(&mut self) {
-		if !self.is_int() {
+		let Operand::Int(value) = self else {
 			panic!("Invalid operand type for `i2l` instruction: {:?}", self);
-		}
+		};
 
-		*self = Operand::Long(s8::from(self.expect_int()));
+		*self = Operand::Long(s8::from(*value));
 	}
 
 	/// Convert int to short
 	pub fn i2s(&mut self) {
-		if !self.is_int() {
+		let Operand::Int(value) = self else {
 			panic!("Invalid operand type for `i2s` instruction: {:?}", self);
-		}
+		};
 
 		// The value on the top of the operand stack must be of type int.
 		// It is popped from the operand stack, truncated to a short, then sign-extended to an int result.
-		*self = Operand::Int(s4::from(self.expect_int() as s2));
+		*value = s4::from((*value) as s2);
 	}
 
 	/// Convert long to int
 	pub fn l2i(&mut self) {
-		if !self.is_long() {
+		let Operand::Long(value) = self else {
 			panic!("Invalid operand type for `l2i` instruction: {:?}", self);
-		}
+		};
 
-		*self = Operand::Int(self.expect_long() as s4);
+		*self = Operand::Int((*value) as s4);
 	}
 
 	/// Convert long to double
 	pub fn l2d(&mut self) {
-		if !self.is_long() {
+		let Operand::Long(value) = self else {
 			panic!("Invalid operand type for `l2d` instruction: {:?}", self);
-		}
+		};
 
-		*self = Operand::Double(self.expect_long() as f64);
+		*self = Operand::Double((*value) as f64);
 	}
 
 	/// Convert long to float
 	pub fn l2f(&mut self) {
-		if !self.is_long() {
+		let Operand::Long(value) = self else {
 			panic!("Invalid operand type for `l2f` instruction: {:?}", self);
-		}
+		};
 
-		*self = Operand::Float(self.expect_long() as f32);
+		*self = Operand::Float((*value) as f32);
 	}
 
 	/// Convert double to float
 	pub fn d2f(&mut self) {
-		if !self.is_double() {
+		let Operand::Double(value) = self else {
 			panic!("Invalid operand type for `d2f` instruction: {:?}", self);
-		}
+		};
 
-		*self = Operand::Float(self.expect_double() as f32);
+		*self = Operand::Float((*value) as f32);
 	}
 
 	/// Convert double to int
 	pub fn d2i(&mut self) {
-		if !self.is_double() {
+		let Operand::Double(value) = self else {
 			panic!("Invalid operand type for `d2i` instruction: {:?}", self);
-		}
+		};
 
-		*self = Operand::Int(self.expect_double() as s4);
+		*self = Operand::Int((*value) as s4);
 	}
 
 	/// Convert double to long
 	pub fn d2l(&mut self) {
-		if !self.is_double() {
+		let Operand::Double(value) = self else {
 			panic!("Invalid operand type for `d2l` instruction: {:?}", self);
-		}
+		};
 
-		*self = Operand::Long(self.expect_double() as s8);
+		*self = Operand::Long((*value) as s8);
 	}
 
 	/// Convert float to double
 	pub fn f2d(&mut self) {
-		if !self.is_float() {
+		let Operand::Float(value) = self else {
 			panic!("Invalid operand type for `f2d` instruction: {:?}", self);
-		}
+		};
 
-		*self = Operand::Double(f64::from(self.expect_float()));
+		*self = Operand::Double(f64::from(*value));
 	}
 
 	/// Convert float to int
 	pub fn f2i(&mut self) {
-		if !self.is_float() {
+		let Operand::Float(value) = self else {
 			panic!("Invalid operand type for `f2i` instruction: {:?}", self);
-		}
+		};
 
-		*self = Operand::Int(self.expect_float() as s4);
+		*self = Operand::Int((*value) as s4);
 	}
 
 	/// Convert float to long
 	pub fn f2l(&mut self) {
-		if !self.is_float() {
+		let Operand::Float(value) = self else {
 			panic!("Invalid operand type for `f2l` instruction: {:?}", self);
-		}
+		};
 
-		*self = Operand::Long(self.expect_float() as s8);
+		*self = Operand::Long((*value) as s8);
 	}
 
 	/// Unwrap an Operand of type `int`
 	pub fn expect_int(&self) -> s4 {
 		match self {
-			Operand::Constm1 => -1,
-			Operand::Const0(ConstOperandType::Int) => 0,
-			Operand::Const1(ConstOperandType::Int) => 1,
-			Operand::Const2(ConstOperandType::Int) => 2,
-			Operand::Const3 => 3,
-			Operand::Const4 => 4,
-			Operand::Const5 => 5,
 			Operand::Int(i) => *i,
 			_ => panic!("Expected operand type `int`"),
 		}
@@ -497,8 +427,6 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 	/// Unwrap an Operand of type `long`
 	pub fn expect_long(&self) -> s8 {
 		match self {
-			Operand::Const0(ConstOperandType::Long) => 0,
-			Operand::Const1(ConstOperandType::Long) => 1,
 			Operand::Long(l) => *l,
 			_ => panic!("Expected operand type `long`"),
 		}
@@ -507,9 +435,6 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 	/// Unwrap an Operand of type `float`
 	pub fn expect_float(&self) -> f32 {
 		match self {
-			Operand::Const0(ConstOperandType::Float) => 0.,
-			Operand::Const1(ConstOperandType::Float) => 1.,
-			Operand::Const2(ConstOperandType::Float) => 2.,
 			Operand::Float(f) => *f,
 			_ => panic!("Expected operand type `float`"),
 		}
@@ -518,8 +443,6 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 	/// Unwrap an Operand of type `double`
 	pub fn expect_double(&self) -> f64 {
 		match self {
-			Operand::Const0(ConstOperandType::Double) => 0.,
-			Operand::Const1(ConstOperandType::Double) => 1.,
 			Operand::Double(d) => *d,
 			_ => panic!("Expected operand type `double`"),
 		}
@@ -534,52 +457,31 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 	}
 
 	/// Operand is an `int`
+	#[inline]
 	pub fn is_int(&self) -> bool {
-		matches!(
-			self,
-			Self::Int(_)
-				| Self::Constm1
-				| Self::Const0(ConstOperandType::Int)
-				| Self::Const1(ConstOperandType::Int)
-				| Self::Const2(ConstOperandType::Int)
-				| Self::Const3
-				| Self::Const4
-				| Self::Const5
-		)
+		matches!(self, Self::Int(_))
 	}
 
 	/// Operand is a `long`
+	#[inline]
 	pub fn is_long(&self) -> bool {
-		matches!(
-			self,
-			Self::Long(_)
-				| Self::Const0(ConstOperandType::Long)
-				| Self::Const1(ConstOperandType::Long)
-		)
+		matches!(self, Self::Long(_))
 	}
 
 	/// Operand is a `float`
+	#[inline]
 	pub fn is_float(&self) -> bool {
-		matches!(
-			self,
-			Self::Float(_)
-				| Self::Const0(ConstOperandType::Float)
-				| Self::Const1(ConstOperandType::Float)
-				| Self::Const2(ConstOperandType::Float)
-		)
+		matches!(self, Self::Float(_))
 	}
 
 	/// Operand is a `double`
+	#[inline]
 	pub fn is_double(&self) -> bool {
-		matches!(
-			self,
-			Self::Double(_)
-				| Self::Const0(ConstOperandType::Double)
-				| Self::Const1(ConstOperandType::Double)
-		)
+		matches!(self, Self::Double(_))
 	}
 
 	/// Operand is a `reference`
+	#[inline]
 	pub fn is_reference(&self) -> bool {
 		matches!(self, Self::Reference(_))
 	}

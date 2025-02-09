@@ -228,5 +228,6 @@ pub fn define_symbols(input: TokenStream) -> TokenStream {
 				]);
 			}
 		}
-	}.into()
+	}
+	.into()
 }

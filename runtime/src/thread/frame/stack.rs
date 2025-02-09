@@ -33,6 +33,7 @@ impl StackFrame {
 	}
 }
 
+#[derive(Debug)]
 pub enum VisibleStackFrame<'a> {
 	Regular(&'a Frame),
 	Native(&'a NativeFrame),

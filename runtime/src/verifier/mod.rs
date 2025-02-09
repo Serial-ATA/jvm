@@ -29,7 +29,6 @@ pub fn class_is_type_safe(class: &Class) -> Result<()> {
 		return object_class_is_type_safe(class);
 	}
 
-	let loader = class.defining_loader();
 	let super_class = class
 		.super_class
 		.as_ref()
@@ -52,8 +51,10 @@ pub fn class_is_type_safe(class: &Class) -> Result<()> {
 //     classMethods(Class, Methods),
 //     checklist(methodIsTypeSafe(Class), Methods).
 fn object_class_is_type_safe(class: &Class) -> Result<()> {
-	let loader = class.defining_loader();
-	todo!("isBootstrapLoader");
+	if !class.is_bootstrap_loader() {
+		return Err(Error::NotBootstrapLoader);
+	}
+
 	for method in class.methods() {
 		method.is_type_safe()?;
 	}

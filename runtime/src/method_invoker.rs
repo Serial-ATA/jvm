@@ -55,10 +55,6 @@ impl MethodInvoker {
 	/// This is identical to `MethodInvoker::invoke`, except it will attempt to find
 	/// the implementation of the method on the `objectref` class.
 	pub fn invoke_virtual(frame: &mut Frame, method: &'static Method) {
-		if method.is_polymorphic() {
-			unimplemented!("polymorphic virtual method invocation");
-		}
-
 		Self::invoke_(frame, method, true)
 	}
 
@@ -88,11 +84,15 @@ impl MethodInvoker {
 
 			if reresolve_method {
 				let class = this.extract_instance_class();
-				method = class.map_interface_method(method);
+				method = class.select_method(method);
 				max_locals = method.code.max_locals;
 			}
 
 			this_argument = Some(Operand::Reference(this));
+		}
+
+		if method.is_abstract() {
+			panic!("AbstractMethodError") // TODO
 		}
 
 		let mut local_stack = Self::construct_local_stack(

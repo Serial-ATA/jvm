@@ -1,7 +1,7 @@
 use super::{ConstantPool, ConstantPoolValueInfo};
 
 use std::borrow::Cow;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Formatter};
 
 use common::int_types::{s4, s8, u1, u2, u4};
 

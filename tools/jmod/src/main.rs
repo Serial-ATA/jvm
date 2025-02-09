@@ -1,3 +1,6 @@
+mod error;
+use error::Error;
+
 use std::path::PathBuf;
 
 use clap::Parser;
@@ -111,7 +114,7 @@ enum SubCommand {
 	},
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<(), Error> {
 	let args = Command::parse();
 
 	match args.command {
@@ -129,9 +132,10 @@ fn main() -> anyhow::Result<()> {
 }
 
 // TODO: excludes
-fn extract(_exclude: Option<String>, dir: PathBuf, jmod_file: PathBuf) -> anyhow::Result<()> {
+fn extract(_exclude: Option<String>, dir: PathBuf, jmod_file: PathBuf) -> Result<(), Error> {
 	let mut jmod = JmodFile::read_from_path(jmod_file)?;
-	jmod.for_each_entry(|mut entry| {
+
+	jmod.try_for_each_entry(|mut entry| -> Result<(), Error> {
 		let name = entry.path();
 		if let Some(last_slash_pos) = name.rfind('/') {
 			let path = dir.join(&name[..last_slash_pos]);
@@ -142,10 +146,12 @@ fn extract(_exclude: Option<String>, dir: PathBuf, jmod_file: PathBuf) -> anyhow
 
 		let entry_path = dir.join(name);
 		std::fs::write(entry_path, entry.content().unwrap())?;
-	});
+
+		Ok(())
+	})
 }
 
-fn list(jmod_file: PathBuf) -> anyhow::Result<()> {
+fn list(jmod_file: PathBuf) -> Result<(), Error> {
 	let mut jmod = JmodFile::read_from_path(jmod_file)?;
 	jmod.for_each_entry(|entry| println!("{}", entry.path()));
 	Ok(())

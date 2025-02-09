@@ -2,8 +2,6 @@ use std::borrow::Cow;
 use std::fmt::Display;
 use std::sync::{LazyLock, Mutex};
 
-use byte_slice_cast::AsByteSlice;
-use common::traits::PtrType;
 use fxhash::FxBuildHasher;
 use indexmap::IndexSet;
 
@@ -185,8 +183,6 @@ macro_rules! sym {
 	};
 }
 
-use crate::globals::fields;
-use crate::objects::reference::ClassInstanceRef;
 pub(crate) use sym;
 
 // Defined in $ROOT/generators/vm_symbols
@@ -225,6 +221,8 @@ vm_symbols::define_symbols! {
 	java_lang_invoke_MemberName: "java/lang/invoke/MemberName",
 	java_lang_invoke_ResolvedMethodName: "java/lang/invoke/ResolvedMethodName",
 	java_lang_invoke_MethodType: "java/lang/invoke/MethodType",
+	java_lang_reflect_Constructor: "java/lang/reflect/Constructor",
+	java_lang_reflect_Method: "java/lang/reflect/Method",
 	java_lang_Thread: "java/lang/Thread",
 	java_lang_ThreadGroup: "java/lang/ThreadGroup",
 	java_lang_Thread_FieldHolder: "java/lang/Thread$FieldHolder",
@@ -307,6 +305,8 @@ vm_symbols::define_symbols! {
 	linkCallSite,
 	findMethodHandleType,
 	linkMethodHandleConstant,
+	invoke,
+	invokeExact,
 
 	initPhase1_name: "initPhase1",
 	initPhase2_name: "initPhase2",
@@ -369,6 +369,13 @@ vm_symbols::define_symbols! {
 	vmholder,
 	ptypes,
 	rtype,
+	slot,
+	parameterTypes,
+	exceptionTypes,
+	modifiers,
+	signature,
+	annotations,
+	parameterAnnotations,
 
 	// Injected fields
 	loader_ptr,

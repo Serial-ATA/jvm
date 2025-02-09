@@ -1,14 +1,14 @@
-use super::array::ArrayInstancePtr;
+use super::array::{ObjectArrayInstancePtr, PrimitiveArrayInstancePtr};
 use super::class::Class;
 use super::class_instance::ClassInstancePtr;
 use super::field::Field;
 use super::instance::{Header, Instance};
 use super::mirror::MirrorInstancePtr;
 use super::monitor::Monitor;
+use crate::objects::array::Array;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
 
-use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
@@ -17,7 +17,8 @@ use common::traits::PtrType;
 use instructions::Operand;
 
 pub type ClassInstanceRef = Arc<ClassInstancePtr>;
-pub type ArrayInstanceRef = Arc<ArrayInstancePtr>;
+pub type PrimitiveArrayInstanceRef = Arc<PrimitiveArrayInstancePtr>;
+pub type ObjectArrayInstanceRef = Arc<ObjectArrayInstancePtr>;
 pub type MirrorInstanceRef = Arc<MirrorInstancePtr>;
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.4
@@ -32,6 +33,7 @@ pub type MirrorInstanceRef = Arc<MirrorInstancePtr>;
 ///
 /// [`CloneableInstance::clone`]: super::instance::CloneableInstance::clone
 #[derive(Debug, Clone)]
+#[repr(C)]
 pub struct Reference {
 	instance: ReferenceInstance,
 	monitor: Arc<Monitor>,
@@ -43,12 +45,36 @@ impl PartialEq for Reference {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
+#[repr(C)]
 enum ReferenceInstance {
 	Class(ClassInstanceRef),
-	Array(ArrayInstanceRef),
+	Array(PrimitiveArrayInstanceRef),
+	ObjectArray(ObjectArrayInstanceRef),
 	Mirror(MirrorInstanceRef),
 	Null,
+}
+
+impl PartialEq for ReferenceInstance {
+	fn eq(&self, other: &Self) -> bool {
+		match (self, other) {
+			(ReferenceInstance::Class(val), ReferenceInstance::Class(other)) => {
+				val.as_raw() == other.as_raw()
+			},
+			(ReferenceInstance::Array(val), ReferenceInstance::Array(other)) => {
+				val.as_raw() == other.as_raw()
+			},
+			(ReferenceInstance::ObjectArray(val), ReferenceInstance::ObjectArray(other)) => {
+				val.as_raw() == other.as_raw()
+			},
+			(ReferenceInstance::Mirror(val), ReferenceInstance::Mirror(other)) => {
+				val.as_raw() == other.as_raw()
+			},
+			// All null references are equal
+			(ReferenceInstance::Null, ReferenceInstance::Null) => true,
+			_ => false,
+		}
+	}
 }
 
 impl Reference {
@@ -59,9 +85,16 @@ impl Reference {
 		}
 	}
 
-	pub fn array(instance: ArrayInstanceRef) -> Reference {
+	pub fn array(instance: PrimitiveArrayInstanceRef) -> Reference {
 		Self {
 			instance: ReferenceInstance::Array(instance),
+			monitor: Arc::new(Monitor::new()),
+		}
+	}
+
+	pub fn object_array(instance: ObjectArrayInstanceRef) -> Reference {
+		Self {
+			instance: ReferenceInstance::ObjectArray(instance),
 			monitor: Arc::new(Monitor::new()),
 		}
 	}
@@ -86,8 +119,12 @@ impl Reference {
 		matches!(self.instance, ReferenceInstance::Class(_))
 	}
 
-	pub fn is_array(&self) -> bool {
+	pub fn is_primitive_array(&self) -> bool {
 		matches!(self.instance, ReferenceInstance::Array(_))
+	}
+
+	pub fn is_object_array(&self) -> bool {
+		matches!(self.instance, ReferenceInstance::ObjectArray(_))
 	}
 
 	pub fn is_mirror(&self) -> bool {
@@ -120,15 +157,6 @@ impl Reference {
 
 		self.header().generate_hash(thread)
 	}
-
-	pub fn ptr(&self) -> *const c_void {
-		match &self.instance {
-			ReferenceInstance::Class(val) => val.as_raw() as _,
-			ReferenceInstance::Array(val) => val.as_raw() as _,
-			ReferenceInstance::Mirror(val) => val.as_raw() as _,
-			ReferenceInstance::Null => core::ptr::null(),
-		}
-	}
 }
 
 impl Reference {
@@ -154,16 +182,34 @@ impl Reference {
 		match &self.instance {
 			ReferenceInstance::Class(class_instance) => class_instance.get().class().name,
 			ReferenceInstance::Array(array_instance) => array_instance.get().class.name,
+			ReferenceInstance::ObjectArray(array_instance) => array_instance.get().class.name,
 			ReferenceInstance::Mirror(mirror_instance) => mirror_instance.get().target_class().name,
 			ReferenceInstance::Null => panic!("NullPointerException"),
 		}
 	}
 
-	pub fn extract_array(&self) -> ArrayInstanceRef {
+	pub fn array_length(&self) -> usize {
+		match &self.instance {
+			ReferenceInstance::Array(arr) => arr.get().len(),
+			ReferenceInstance::ObjectArray(arr) => arr.get().len(),
+			ReferenceInstance::Null => panic!("NullPointerException"),
+			_ => panic!("Expected an array reference!"),
+		}
+	}
+
+	pub fn extract_primitive_array(&self) -> PrimitiveArrayInstanceRef {
 		match &self.instance {
 			ReferenceInstance::Array(arr) => Arc::clone(arr),
 			ReferenceInstance::Null => panic!("NullPointerException"),
 			_ => panic!("Expected an array reference!"),
+		}
+	}
+
+	pub fn extract_object_array(&self) -> ObjectArrayInstanceRef {
+		match &self.instance {
+			ReferenceInstance::ObjectArray(arr) => Arc::clone(arr),
+			ReferenceInstance::Null => panic!("NullPointerException"),
+			_ => panic!("Expected an object array reference!"),
 		}
 	}
 
@@ -195,6 +241,7 @@ impl Reference {
 			ReferenceInstance::Class(class) => class.get().class(),
 			ReferenceInstance::Mirror(mirror) => mirror.get().target_class(),
 			ReferenceInstance::Array(arr) => arr.get().class,
+			ReferenceInstance::ObjectArray(arr) => arr.get().class,
 			ReferenceInstance::Null => panic!("NullPointerException"),
 		}
 	}
@@ -213,6 +260,7 @@ impl Reference {
 			ReferenceInstance::Class(class) => class.get().class(),
 			ReferenceInstance::Mirror(mirror) => &mirror.get().class(),
 			ReferenceInstance::Array(arr) => &arr.get().class,
+			ReferenceInstance::ObjectArray(arr) => &arr.get().class,
 			ReferenceInstance::Null => panic!("NullPointerException"),
 		}
 	}
@@ -230,6 +278,7 @@ impl Reference {
 		match &self.instance {
 			ReferenceInstance::Class(class) => class.get().class().mirror(),
 			ReferenceInstance::Array(arr) => arr.get().class.mirror(),
+			ReferenceInstance::ObjectArray(arr) => arr.get().class.mirror(),
 			ReferenceInstance::Null => panic!("NullPointerException"),
 			_ => panic!("Expected a class/array reference!"),
 		}
@@ -242,6 +291,7 @@ impl Instance for Reference {
 		match &self.instance {
 			ReferenceInstance::Class(instance) => instance.get().header(),
 			ReferenceInstance::Array(instance) => instance.get().header(),
+			ReferenceInstance::ObjectArray(instance) => instance.get().header(),
 			ReferenceInstance::Mirror(instance) => instance.get().header(),
 			ReferenceInstance::Null => {
 				unreachable!("Should never attempt to retrieve the header of a null object")

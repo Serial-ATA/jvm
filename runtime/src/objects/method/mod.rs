@@ -1,13 +1,16 @@
 pub mod spec;
 
 use crate::calls::jcall::JavaCallResult;
+use crate::globals::{classes, fields};
 use crate::java_call;
+use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::reference_from_jobject;
 use crate::native::method::NativeMethodPtr;
-use crate::objects::array::ArrayInstance;
+use crate::objects::array::{Array, ObjectArrayInstance};
 use crate::objects::class::Class;
+use crate::objects::class_instance::ClassInstance;
 use crate::objects::constant_pool::cp_types;
-use crate::objects::reference::Reference;
+use crate::objects::reference::{ObjectArrayInstanceRef, Reference};
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::Throws;
 use crate::thread::JavaThread;
@@ -18,7 +21,7 @@ use std::sync::RwLock;
 
 use classfile::accessflags::MethodAccessFlags;
 use classfile::attribute::resolved::ResolvedAnnotation;
-use classfile::attribute::{Code, LineNumber};
+use classfile::attribute::{Attribute, Code, LineNumber};
 use classfile::{FieldType, MethodDescriptor, MethodInfo};
 use common::int_types::{s4, u1};
 use common::traits::PtrType;
@@ -52,6 +55,7 @@ impl ExtraFlags {
 
 pub struct Method {
 	class: &'static Class,
+	attributes: Box<[Attribute]>,
 	pub access_flags: MethodAccessFlags,
 	extra_flags: ExtraFlags,
 	pub name: Symbol,
@@ -87,7 +91,7 @@ impl Method {
 	///
 	/// NOTE: This will leak the `Method` and return a reference. It is important that this only
 	///       be called once per method. It should never be used outside of class loading.
-	pub(super) fn new(class: &'static Class, method_info: &MethodInfo) -> &'static mut Self {
+	pub(super) fn new(class: &'static Class, method_info: MethodInfo) -> &'static mut Self {
 		let constant_pool = class.constant_pool().unwrap();
 
 		let access_flags = method_info.access_flags;
@@ -125,6 +129,7 @@ impl Method {
 
 		let method = Self {
 			class,
+			attributes: method_info.attributes,
 			access_flags,
 			extra_flags,
 			name,
@@ -202,6 +207,45 @@ impl Method {
 	pub fn class(&self) -> &'static Class {
 		self.class
 	}
+
+	pub fn generic_signature(&self) -> Option<Symbol> {
+		self.attributes
+			.iter()
+			.find_map(|attr| attr.signature())
+			.map(|signature_attr| {
+				self.class
+					.constant_pool()
+					.unwrap()
+					.get::<cp_types::ConstantUtf8>(signature_attr.signature_index)
+					.expect("resolution of method signatures should not fail")
+			})
+	}
+
+	pub fn exception_types(&self) -> Throws<ObjectArrayInstanceRef> {
+		let Some(exceptions) = self.attributes.iter().find_map(|attr| attr.exceptions()) else {
+			return ObjectArrayInstance::new(0, classes::java_lang_Class());
+		};
+
+		let constant_pool = self.class.constant_pool().unwrap();
+
+		let array = ObjectArrayInstance::new(
+			exceptions.exception_index_table.len() as jint,
+			classes::java_lang_Class(),
+		)?;
+
+		for (index, exception_class_index) in exceptions.exception_index_table.iter().enumerate() {
+			let class = constant_pool.get::<cp_types::Class>(*exception_class_index)?;
+
+			// SAFETY: The array is known to have the correct length
+			unsafe {
+				array
+					.get_mut()
+					.store_unchecked(index, Reference::mirror(class.mirror()))
+			}
+		}
+
+		Throws::Ok(array)
+	}
 }
 
 // Flags
@@ -226,6 +270,10 @@ impl Method {
 		self.access_flags.is_static()
 	}
 
+	pub fn is_final(&self) -> bool {
+		self.access_flags.is_final()
+	}
+
 	pub fn is_abstract(&self) -> bool {
 		self.access_flags.is_abstract()
 	}
@@ -236,6 +284,23 @@ impl Method {
 
 	pub fn is_default(&self) -> bool {
 		self.class.is_interface() && (!self.is_abstract() && !self.is_public())
+	}
+
+	/// Whether this method is [signature polymorphic]
+	///
+	/// [signature polymorphic]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.9.3
+	pub fn is_signature_polymorphic(&self) -> bool {
+		// A method is signature polymorphic if all of the following are true:
+		//
+		//     It is declared in the java.lang.invoke.MethodHandle class or the java.lang.invoke.VarHandle class.
+		(self.class == crate::globals::classes::java_lang_invoke_MethodHandle()
+            || self.class == crate::globals::classes::java_lang_invoke_VarHandle()) &&
+
+            //     It has a single formal parameter of type Object[].
+            (self.descriptor.parameters.len() == 1 && self.descriptor.parameters[0].is_array_of_class(b"java/lang/Object")) &&
+
+            //     It has the ACC_VARARGS and ACC_NATIVE flags set.
+            (self.is_var_args() && self.is_native())
 	}
 
 	/// Whether the method has the @CallerSensitive annotation
@@ -265,39 +330,7 @@ impl Method {
 	/// the current thread.
 	pub fn method_type_for(class: &'static Class, descriptor: &str) -> Throws<Reference> {
 		let descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes()).unwrap(); // TODO: Error handling
-		let parameters = ArrayInstance::new_reference(
-			descriptor.parameters.len() as s4,
-			crate::globals::classes::java_lang_Class(),
-		)?;
-
-		for (index, parameter) in descriptor.parameters.iter().enumerate() {
-			match parameter {
-				FieldType::Byte
-				| FieldType::Char
-				| FieldType::Double
-				| FieldType::Float
-				| FieldType::Int
-				| FieldType::Long
-				| FieldType::Short
-				| FieldType::Boolean => {
-					let mirror = crate::globals::mirrors::primitive_mirror_for(&parameter);
-					parameters
-						.get_mut()
-						.store(index as s4, Operand::Reference(mirror))?;
-				},
-				FieldType::Void => {
-					panic!("Void parameter"); // TODO: Exception
-				},
-				FieldType::Object(class_name) => {
-					let class = class.loader().load(Symbol::intern(&*class_name))?;
-					parameters.get_mut().store(
-						index as s4,
-						Operand::Reference(Reference::mirror(class.mirror())),
-					)?;
-				},
-				FieldType::Array(_) => todo!("Array parameters"),
-			}
-		}
+		let parameters = Self::parameter_types_array(class, &descriptor)?;
 
 		let return_type;
 		match descriptor.return_type {
@@ -333,7 +366,7 @@ impl Method {
 			JavaThread::current(),
 			find_method_handle_type_method,
 			Operand::Reference(return_type),
-			Operand::Reference(Reference::array(parameters))
+			Operand::Reference(Reference::object_array(parameters))
 		);
 
 		let method_type;
@@ -350,6 +383,104 @@ impl Method {
 		}
 
 		Throws::Ok(method_type)
+	}
+
+	/// Create a `java.lang.Class[]` of this method's parameter types
+	///
+	/// This takes a `Class`, as this process may load classes
+	fn parameter_types_array(
+		class: &'static Class,
+		descriptor: &MethodDescriptor,
+	) -> Throws<ObjectArrayInstanceRef> {
+		let parameters = ObjectArrayInstance::new(
+			descriptor.parameters.len() as s4,
+			crate::globals::classes::java_lang_Class(),
+		)?;
+
+		for (index, parameter) in descriptor.parameters.iter().enumerate() {
+			match parameter {
+				FieldType::Byte
+				| FieldType::Char
+				| FieldType::Double
+				| FieldType::Float
+				| FieldType::Int
+				| FieldType::Long
+				| FieldType::Short
+				| FieldType::Boolean => {
+					let mirror = crate::globals::mirrors::primitive_mirror_for(&parameter);
+					parameters.get_mut().store(index as s4, mirror)?;
+				},
+				FieldType::Void => {
+					panic!("Void parameter"); // TODO: Exception
+				},
+				FieldType::Object(class_name) => {
+					let class = class.loader().load(Symbol::intern(&*class_name))?;
+					parameters
+						.get_mut()
+						.store(index as s4, Reference::mirror(class.mirror()))?;
+				},
+				FieldType::Array(_) => todo!("Array parameters"),
+			}
+		}
+
+		Throws::Ok(parameters)
+	}
+
+	/// Create a `java.lang.reflect.Constructor` instance for this method
+	pub fn as_reflect_constructor(&self) -> Throws<Reference> {
+		assert!(
+			self.name == sym!(object_initializer_name) || self.name == sym!(class_initializer_name)
+		);
+
+		let constructor = ClassInstance::new(classes::java_lang_reflect_Constructor());
+
+		// The slot is the method's position in the vtable
+		let slot = self
+			.class
+			.vtable()
+			.iter()
+			.position(|m| m == self)
+			.expect("a method must be present in a class vtable");
+
+		let parameter_types = Self::parameter_types_array(self.class, &self.descriptor)?;
+		let exception_types = self.exception_types()?;
+
+		fields::java_lang_reflect_Constructor::set_clazz(
+			constructor.get_mut(),
+			Reference::mirror(self.class().mirror()),
+		);
+		fields::java_lang_reflect_Constructor::set_slot(constructor.get_mut(), slot as jint);
+		fields::java_lang_reflect_Constructor::set_parameterTypes(
+			constructor.get_mut(),
+			Reference::object_array(parameter_types),
+		);
+		fields::java_lang_reflect_Constructor::set_exceptionTypes(
+			constructor.get_mut(),
+			Reference::object_array(exception_types),
+		);
+		fields::java_lang_reflect_Constructor::set_modifiers(
+			constructor.get_mut(),
+			self.access_flags.as_u2() as jint,
+		);
+		if let Some(generic_signature) = self.generic_signature() {
+			let signature = StringInterner::intern(generic_signature);
+			fields::java_lang_reflect_Constructor::set_signature(
+				constructor.get_mut(),
+				Reference::class(signature),
+			);
+		}
+		// // TODO
+		// fields::java_lang_reflect_Constructor::set_annotations(
+		// 	constructor.get_mut(),
+		// 	Reference::null(),
+		// );
+		// // TODO
+		// fields::java_lang_reflect_Constructor::set_parameterAnnotations(
+		// 	constructor.get_mut(),
+		// 	Reference::null(),
+		// );
+
+		Throws::Ok(Reference::class(constructor))
 	}
 }
 

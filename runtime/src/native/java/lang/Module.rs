@@ -36,8 +36,8 @@ pub fn defineModule0(
 
 	let mut package_names = Vec::new();
 	if !pns.is_null() {
-		let package_names_obj = pns.extract_array();
-		let package_names_ref = package_names_obj.get().get_content().expect_reference();
+		let package_names_obj = pns.extract_object_array();
+		let package_names_ref = package_names_obj.get().as_slice();
 
 		for package_name in package_names_ref {
 			if package_name.is_null() {

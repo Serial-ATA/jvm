@@ -1,6 +1,6 @@
 use super::{
 	Annotation, ElementValue, ElementValuePair, ElementValueTag, ElementValueType, EnclosingMethod,
-	InnerClass, InnerClasses,
+	InnerClass,
 };
 use crate::attribute::BootstrapMethod;
 use crate::constant_pool::types::{self, LoadableConstantPoolValue, MethodHandleEntry};

@@ -35,7 +35,7 @@ struct HeaderFlags {
 	locked: bool,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Header {
 	flags: Cell<HeaderFlags>,
 	hash: Cell<Option<jint>>,

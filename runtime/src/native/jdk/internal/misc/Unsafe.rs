@@ -1,5 +1,5 @@
 use crate::native::java::lang::String::rust_string_from_java_string;
-use crate::objects::array::ArrayInstance;
+use crate::objects::array::{Array, PrimitiveType};
 use crate::objects::class::ClassInitializationState;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
@@ -42,6 +42,7 @@ impl<T, A> UnsafeMemoryOp<T, A> {
 impl<T, A> UnsafeMemoryOp<T, A>
 where
 	T: UnsafeOpImpl<Output = T>,
+	T: PrimitiveType,
 	A: Atomic<Output = T>,
 {
 	unsafe fn get(&self) -> T {
@@ -49,7 +50,7 @@ where
 			return self.__get_raw();
 		}
 
-		if self.object.is_array() {
+		if self.object.is_primitive_array() {
 			return self.__get_array();
 		}
 
@@ -67,9 +68,9 @@ where
 	#[doc(hidden)]
 	unsafe fn __get_array(&self) -> T {
 		let offset = self.offset;
-		let instance = self.object.extract_array();
-		let array_mut = instance.get_mut();
-		unsafe { <T as UnsafeOpImpl>::get_array_impl(array_mut, offset) }
+		let instance = self.object.extract_primitive_array();
+		let array = instance.get();
+		unsafe { array.get_unchecked_type::<T>(offset) }
 	}
 
 	#[doc(hidden)]
@@ -87,7 +88,7 @@ where
 			return unsafe { self.__get_raw_volatile() };
 		}
 
-		if self.object.is_array() {
+		if self.object.is_primitive_array() {
 			return unsafe { self.__get_array_volatile() };
 		}
 
@@ -123,7 +124,7 @@ where
 			return unsafe { self.__put_raw(value) };
 		}
 
-		if self.object.is_array() {
+		if self.object.is_primitive_array() {
 			return unsafe { self.__put_array(value) };
 		}
 
@@ -143,9 +144,9 @@ where
 	#[doc(hidden)]
 	unsafe fn __put_array(&self, value: T) {
 		let offset = self.offset;
-		let instance = self.object.extract_array();
+		let instance = self.object.extract_primitive_array();
 		let array_mut = instance.get_mut();
-		unsafe { <T as UnsafeOpImpl>::put_array_impl(array_mut, offset, value) }
+		let _old = unsafe { array_mut.put_unchecked_type::<T>(offset, value) };
 	}
 
 	#[doc(hidden)]
@@ -163,7 +164,7 @@ where
 			return unsafe { self.__put_raw_volatile(value) };
 		}
 
-		if self.object.is_array() {
+		if self.object.is_primitive_array() {
 			return unsafe { self.__put_array_volatile(value) };
 		}
 
@@ -189,8 +190,7 @@ where
 
 trait UnsafeOpImpl: Sized {
 	type Output;
-	unsafe fn get_array_impl(array: &mut ArrayInstance, offset: usize) -> Self::Output;
-	unsafe fn put_array_impl(array: &mut ArrayInstance, offset: usize, value: Self::Output);
+
 	unsafe fn get_field_impl(field_value: *mut Operand<Reference>) -> Self::Output;
 	unsafe fn get_field_volatile_impl(field_value: *mut Operand<Reference>) -> Self::Output;
 	unsafe fn put_field_impl(field_value: *mut Operand<Reference>, value: Self::Output);
@@ -199,18 +199,6 @@ trait UnsafeOpImpl: Sized {
 // bool implemented separated due to `get_field_impl` cast
 impl UnsafeOpImpl for jboolean {
 	type Output = jboolean;
-
-	unsafe fn get_array_impl(array: &mut ArrayInstance, offset: usize) -> jboolean {
-		let raw = array.get_content_mut().get_boolean_raw(offset).as_ptr();
-		unsafe { (&*raw).clone() }
-	}
-
-	#[allow(dropping_copy_types)]
-	unsafe fn put_array_impl(array: &mut ArrayInstance, offset: usize, value: jboolean) {
-		let raw = array.get_content_mut().get_boolean_raw(offset);
-		let old = unsafe { raw.replace(value) };
-		drop(old);
-	}
 
 	unsafe fn get_field_impl(field_value: *mut Operand<Reference>) -> jboolean {
 		unsafe { (*field_value).expect_int() != 0 }
@@ -236,26 +224,6 @@ macro_rules! unsafe_ops {
 			$(
 			impl UnsafeOpImpl for [<j $ty>] {
 				type Output = [<j $ty>];
-
-				unsafe fn get_array_impl(array: &mut ArrayInstance, offset: usize) -> Self::Output {
-					let raw = array
-						.get_content_mut()
-						.[<get_ $ty _raw>](offset).as_ptr();
-					unsafe { (&*raw).clone() }
-				}
-
-				#[allow(dropping_copy_types)]
-				unsafe fn put_array_impl(
-					array: &mut ArrayInstance,
-					offset: usize,
-					value: Self::Output,
-				) {
-					let raw = array
-						.get_content_mut()
-						.[<get_ $ty _raw>](offset);
-					let old = unsafe { raw.replace(value) };
-					drop(old);
-				}
 
 				#[allow(trivial_numeric_casts)]
 				unsafe fn get_field_impl(field_value: *mut Operand<Reference>) -> Self::Output {
@@ -439,19 +407,17 @@ pub fn compareAndExchangeReference(
 	expected: Reference, // Object
 	value: Reference,    // Object
 ) -> Reference {
-	if object.is_array() {
-		let instance = object.extract_array();
+	if object.is_object_array() {
+		let instance = object.extract_object_array();
+		let array_mut = instance.get_mut();
+		let current_value = array_mut.get_unchecked_raw(offset as usize);
 		unsafe {
-			let array_mut = instance.get_mut();
-			let mut current_field_value = array_mut
-				.get_content_mut()
-				.get_reference_raw(offset as usize);
-			if current_field_value.as_ref() == &expected {
-				*current_field_value.as_mut() = Reference::clone(&value);
+			if &*current_value == &expected {
+				*current_value = Reference::clone(&value);
 				return expected;
 			}
 
-			return Reference::clone(current_field_value.as_ref());
+			return Reference::clone(&*current_value);
 		}
 	}
 
@@ -494,17 +460,10 @@ pub fn getReference(
 	object: Reference, // Object
 	offset: jlong,
 ) -> Reference /* Object */ {
-	if object.is_array() {
-		let instance = object.extract_array();
-		unsafe {
-			let array_mut = instance.get_mut();
-			return Reference::clone(
-				array_mut
-					.get_content_mut()
-					.get_reference_raw(offset as usize)
-					.as_ref(),
-			);
-		}
+	if object.is_object_array() {
+		let instance = object.extract_object_array();
+		let array_mut = instance.get_mut();
+		return unsafe { array_mut.get_unchecked(offset as usize) };
 	}
 
 	let instance = object.extract_class();
@@ -524,16 +483,12 @@ pub fn putReference(
 	offset: jlong,
 	value: Reference, // Object
 ) {
-	if object.is_array() {
-		let instance = object.extract_array();
+	if object.is_object_array() {
+		let instance = object.extract_object_array();
+		let array_mut = instance.get_mut();
 		unsafe {
-			let array_mut = instance.get_mut();
-			let mut current_field_value = array_mut
-				.get_content_mut()
-				.get_reference_raw(offset as usize);
-			*current_field_value.as_mut() = Reference::clone(&value);
+			array_mut.store_unchecked(offset as usize, value);
 		}
-
 		return;
 	}
 

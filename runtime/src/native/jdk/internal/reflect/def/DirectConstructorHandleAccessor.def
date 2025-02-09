@@ -1,0 +1,9 @@
+import java.lang.Object;
+import java.lang.reflect.Constructor;
+
+public class DirectConstructorHandleAccessor {
+    static class NativeAccessor {
+        private static native Object newInstance0(Constructor<?> c, Object[] args)
+                throws InstantiationException, InvocationTargetException;
+    }
+}

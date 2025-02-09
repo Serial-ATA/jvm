@@ -13,6 +13,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint};
 use common::traits::PtrType;
+use jni::sys::jbyte;
 
 include_generated!("native/java/io/def/FileOutputStream.definitions.rs");
 
@@ -49,8 +50,8 @@ pub fn writeBytes(
 		panic!("NullPointerException"); // TODO
 	}
 
-	let array_instance = b.extract_array();
-	let array_content = array_instance.get().get_content().expect_byte();
+	let array_instance = b.extract_primitive_array();
+	let array_content = array_instance.get().as_slice::<jbyte>();
 	if off < 0 || len < 0 || (off + len) as usize > array_content.len() {
 		let _thread = unsafe { JavaThread::for_env(env.raw()) };
 		panic!("IndexOutOfBoundsException"); // TODO

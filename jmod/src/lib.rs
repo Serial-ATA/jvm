@@ -1,6 +1,5 @@
-mod error;
-
-use crate::error::{JmodError, Result};
+pub mod error;
+pub use crate::error::{JmodError, Result};
 
 use std::fs::File;
 use std::io::Read;
@@ -171,5 +170,19 @@ impl JmodFile {
 			let file_entry = self.0.by_index(i).unwrap();
 			map(JmodEntry::new(file_entry, None))
 		}
+	}
+
+	/// Iterate each entry in the JMOD file, and perform a fallible action on them
+	pub fn try_for_each_entry<F, E>(&mut self, mut map: F) -> core::result::Result<(), E>
+	where
+		F: FnMut(JmodEntry<'_>) -> core::result::Result<(), E>,
+		E: core::error::Error,
+	{
+		for i in 0..self.0.len() {
+			let file_entry = self.0.by_index(i).unwrap();
+			map(JmodEntry::new(file_entry, None))?
+		}
+
+		Ok(())
 	}
 }

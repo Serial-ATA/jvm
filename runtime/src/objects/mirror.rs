@@ -61,7 +61,7 @@ impl MirrorInstance {
 
 	pub fn new_array(target: &'static Class) -> MirrorInstanceRef {
 		let mirror_class = crate::globals::classes::java_lang_Class();
-		let mut fields = Self::initialize_fields(mirror_class, target);
+		let fields = Self::initialize_fields(mirror_class, target);
 
 		let component_type_mirror;
 

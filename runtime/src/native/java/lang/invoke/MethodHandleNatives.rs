@@ -4,7 +4,6 @@ use crate::native::java::lang::String::{rust_string_from_java_string, StringInte
 use crate::objects::class::Class;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
-use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{throw, throw_and_return_null, Throws};
@@ -53,15 +52,13 @@ pub fn method_type_signature(method_type: Reference) -> Throws<Symbol> {
 		throw!(@DEFER InternalError, "not a MethodType");
 	}
 
+	let method_type = method_type.extract_class();
+
 	let mut signature = String::new();
 	signature.push('(');
 
-	let parameters = method_type
-		.get_field_value0(fields::java_lang_invoke_MethodType::ptypes_field_offset())
-		.expect_reference()
-		.extract_array();
-
-	for param in parameters.get().elements.expect_reference() {
+	let parameters = fields::java_lang_invoke_MethodType::ptypes(&method_type.get());
+	for param in parameters.get().as_slice() {
 		if param.is_null() {
 			signature.push_str("null");
 			continue;
@@ -80,9 +77,7 @@ pub fn method_type_signature(method_type: Reference) -> Throws<Symbol> {
 
 	signature.push(')');
 
-	let return_type = method_type
-		.get_field_value0(fields::java_lang_invoke_MethodType::rtype_field_offset())
-		.expect_reference();
+	let return_type = fields::java_lang_invoke_MethodType::rtype(&method_type.get());
 
 	if return_type.is_null() {
 		signature.push_str("null");

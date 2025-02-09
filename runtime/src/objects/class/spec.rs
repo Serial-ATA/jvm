@@ -403,7 +403,7 @@ impl Class {
 
 		// 6. Otherwise, record the fact that initialization of the Class object for C is in progress
 		//    by the current thread, and release LC.
-		tracing::debug!(target: "class-init", "Starting initialization of class `{}`", self.name.as_str());
+		tracing::debug!(target: "class-init-start", "Starting initialization of class `{}`", self.name.as_str());
 
 		guard.set_initialization_state(ClassInitializationState::InProgress);
 		guard.set_initializing_thread();
@@ -508,26 +508,28 @@ impl Class {
 		// 8. Next, determine whether assertions are enabled for C by querying its defining loader.
 
 		// 9. Next, execute the class or interface initialization method of C.
-		Self::clinit(self, thread);
+		if Self::clinit(self, thread) {
+			// 10. If the execution of the class or interface initialization method completes normally,
+			//     then acquire LC, label the Class object for C as fully initialized, notify all waiting threads,
+			//     release LC, and complete this procedure normally.
+			let guard = init.lock();
+			guard.set_initialization_state(ClassInitializationState::Init);
+			init.notify_all();
 
-		// TODO: We have no way of telling if the method successfully executed
-		// 10. If the execution of the class or interface initialization method completes normally,
-		//     then acquire LC, label the Class object for C as fully initialized, notify all waiting threads,
-		//     release LC, and complete this procedure normally.
-		let guard = init.lock();
-		guard.set_initialization_state(ClassInitializationState::Init);
-		init.notify_all();
+			tracing::debug!(target: "class-init", "Finished initialization of class `{}`", self.name.as_str());
+			return;
+		}
 
-		tracing::debug!(target: "class-init", "Finished initialization of class `{}`", self.name.as_str());
-		return;
-
-		// TODO:
 		// 11. Otherwise, the class or interface initialization method must have completed abruptly by throwing some exception E.
 
 		// 12. Acquire LC, label the Class object for C as erroneous, notify all waiting threads, release LC, and complete this
 		//     procedure abruptly with reason E or its replacement as determined in the previous step.
+		let guard = init.lock();
 		guard.set_initialization_state(ClassInitializationState::Failed);
 		init.notify_all();
+
+		thread.throw_pending_exception(false);
+		return;
 	}
 
 	// Instance initialization method
@@ -564,7 +566,7 @@ impl Class {
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.9.2
     #[rustfmt::skip]
 	#[tracing::instrument(skip_all)]
-	fn clinit(&self, thread: &JavaThread) {
+	fn clinit(&self, thread: &JavaThread) -> bool {
 		// A class or interface has at most one class or interface initialization method and is initialized
 		// by the Java Virtual Machine invoking that method (§5.5).
 
@@ -579,14 +581,18 @@ impl Class {
 		if let Some(method) = method {
 			java_call!(thread, method);
 		}
+
+		!thread.has_pending_exception()
 	}
 
-	/// Find an implementation of an interface method on the target class
+	/// Finds an implementation of a method via [method selection]
+	///
+	/// This is used in both `invokeinterface` and `invokevirtual`
+	///
+	/// [method selection]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.6
 	#[tracing::instrument(skip_all)]
 	#[allow(non_snake_case)]
-	pub fn map_interface_method(&self, method: &'static Method) -> &'static Method {
-		// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.6
-
+	pub fn select_method(&self, method: &'static Method) -> &'static Method {
 		// During execution of an invokeinterface or invokevirtual instruction, a method is
 		// selected with respect to:
 		//

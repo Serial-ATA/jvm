@@ -3,11 +3,10 @@ use crate::objects::reference::Reference;
 use std::fmt::Debug;
 
 use common::int_types::{s4, s8};
-use instructions::{ConstOperandType, Operand, StackLike};
+use instructions::{Operand, StackLike};
 
 macro_rules! trace_stack {
 	($operation:ident, $value:ident) => {{
-		#[cfg(debug_assertions)]
 		{
 			tracing::trace!(
 				target: "stack",
@@ -18,7 +17,6 @@ macro_rules! trace_stack {
 		}
 	}};
 	($operation:ident) => {{
-		#[cfg(debug_assertions)]
 		{
 			tracing::trace!(target: "stack", "{}", stringify!($operation));
 		}
@@ -28,7 +26,7 @@ macro_rules! trace_stack {
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.6.2
 #[derive(Clone, PartialEq)]
 pub struct OperandStack {
-	inner: Vec<Operand<Reference>>,
+	pub inner: Vec<Operand<Reference>>,
 }
 
 impl Debug for OperandStack {
@@ -90,12 +88,13 @@ impl StackLike<Reference> for OperandStack {
 		match self.inner.pop() {
 			Some(op @ Operand::Empty) => {
 				trace_stack!(pop, op);
-				match self.inner.pop() {
-					Some(op) if op.is_long() || op.is_double() => {
-						trace_stack!(pop, op);
-						op
+				let op = self.inner.pop();
+				trace_stack!(pop, op);
+				match op {
+					Some(op) if op.is_long() || op.is_double() => op,
+					_ => {
+						panic!("Expected long or double to occupy stack slot!");
 					},
-					_ => panic!("Expected long or double to occupy stack slot!"),
 				}
 			},
 			Some(op) => {
@@ -139,13 +138,6 @@ impl StackLike<Reference> for OperandStack {
 		trace_stack!(pop_int);
 		let op = self.pop();
 		match op {
-			Operand::Constm1 => -1,
-			Operand::Const0(ConstOperandType::Int) => 0,
-			Operand::Const1(ConstOperandType::Int) => 1,
-			Operand::Const2(ConstOperandType::Int) => 2,
-			Operand::Const3 => 3,
-			Operand::Const4 => 4,
-			Operand::Const5 => 5,
 			Operand::Int(int) => int,
 			_ => panic!("Unexpected operand type, wanted `int` got {:?}", op),
 		}
@@ -155,13 +147,6 @@ impl StackLike<Reference> for OperandStack {
 		trace_stack!(pop_float);
 		let op = self.pop();
 		match op {
-			Operand::Constm1 => -1.0,
-			Operand::Const0(ConstOperandType::Float) => 0.0,
-			Operand::Const1(ConstOperandType::Float) => 1.0,
-			Operand::Const2(ConstOperandType::Float) => 2.0,
-			Operand::Const3 => 3.0,
-			Operand::Const4 => 4.0,
-			Operand::Const5 => 5.0,
 			Operand::Float(float) => float,
 			_ => panic!("Unexpected operand type, wanted `float` got {:?}", op),
 		}
@@ -171,13 +156,6 @@ impl StackLike<Reference> for OperandStack {
 		trace_stack!(pop_double);
 		let op = self.pop();
 		match op {
-			Operand::Constm1 => -1.0,
-			Operand::Const0(ConstOperandType::Double) => 0.0,
-			Operand::Const1(ConstOperandType::Double) => 1.0,
-			Operand::Const2(ConstOperandType::Double) => 2.0,
-			Operand::Const3 => 3.0,
-			Operand::Const4 => 4.0,
-			Operand::Const5 => 5.0,
 			Operand::Double(double) => double,
 			_ => panic!("Unexpected operand type, wanted `double` got {:?}", op),
 		}
@@ -187,13 +165,6 @@ impl StackLike<Reference> for OperandStack {
 		trace_stack!(pop_long);
 		let op = self.pop();
 		match op {
-			Operand::Constm1 => -1,
-			Operand::Const0(ConstOperandType::Long) => 0,
-			Operand::Const1(ConstOperandType::Long) => 1,
-			Operand::Const2(ConstOperandType::Long) => 2,
-			Operand::Const3 => 3,
-			Operand::Const4 => 4,
-			Operand::Const5 => 5,
 			Operand::Long(long) => long,
 			_ => panic!("Unexpected operand type, wanted `long` got {:?}", op),
 		}

@@ -454,7 +454,54 @@ pub mod java_lang_Thread {
 }
 
 pub mod java_lang_StackTraceElement {
+	use crate::objects::class_instance::ClassInstance;
+	use crate::objects::instance::Instance;
+	use crate::objects::reference::Reference;
 	use classfile::FieldType;
+	use instructions::Operand;
+	use jni::sys::jint;
+
+	pub fn set_declaringClassObject(instance: &mut ClassInstance, value: Reference) {
+		assert!(value.is_instance_of(crate::globals::classes::java_lang_Class()));
+		instance.put_field_value0(
+			declaringClassObject_field_offset(),
+			Operand::Reference(value),
+		)
+	}
+
+	pub fn set_classLoaderName(instance: &mut ClassInstance, value: Reference) {
+		assert!(value.is_instance_of(crate::globals::classes::java_lang_String()));
+		instance.put_field_value0(classLoaderName_field_offset(), Operand::Reference(value))
+	}
+
+	pub fn set_moduleName(instance: &mut ClassInstance, value: Reference) {
+		assert!(value.is_instance_of(crate::globals::classes::java_lang_String()));
+		instance.put_field_value0(moduleName_field_offset(), Operand::Reference(value))
+	}
+
+	pub fn set_moduleVersion(instance: &mut ClassInstance, value: Reference) {
+		assert!(value.is_instance_of(crate::globals::classes::java_lang_String()));
+		instance.put_field_value0(moduleVersion_field_offset(), Operand::Reference(value))
+	}
+
+	pub fn set_declaringClass(instance: &mut ClassInstance, value: Reference) {
+		assert!(value.is_instance_of(crate::globals::classes::java_lang_String()));
+		instance.put_field_value0(declaringClass_field_offset(), Operand::Reference(value))
+	}
+
+	pub fn set_methodName(instance: &mut ClassInstance, value: Reference) {
+		assert!(value.is_instance_of(crate::globals::classes::java_lang_String()));
+		instance.put_field_value0(methodName_field_offset(), Operand::Reference(value))
+	}
+
+	pub fn set_fileName(instance: &mut ClassInstance, value: Reference) {
+		assert!(value.is_instance_of(crate::globals::classes::java_lang_String()));
+		instance.put_field_value0(fileName_field_offset(), Operand::Reference(value))
+	}
+
+	pub fn set_lineNumber(instance: &mut ClassInstance, value: jint) {
+		instance.put_field_value0(lineNumber_field_offset(), Operand::Int(value))
+	}
 
 	field_module! {
 		@CLASS java_lang_StackTraceElement;
@@ -761,7 +808,40 @@ pub mod java_lang_invoke_MemberName {
 }
 
 pub mod java_lang_invoke_MethodType {
+	use crate::objects::class_instance::ClassInstance;
+	use crate::objects::instance::Instance;
+	use crate::objects::reference::{MirrorInstanceRef, ObjectArrayInstanceRef, Reference};
 	use classfile::FieldType;
+	use instructions::Operand;
+
+	/// `java.lang.invoke.MethodType#ptypes` field
+	pub fn ptypes(instance: &ClassInstance) -> ObjectArrayInstanceRef {
+		instance
+			.get_field_value0(ptypes_field_offset())
+			.expect_reference()
+			.extract_object_array()
+	}
+
+	pub fn set_ptypes(instance: &mut ClassInstance, value: ObjectArrayInstanceRef) {
+		instance.put_field_value0(
+			ptypes_field_offset(),
+			Operand::Reference(Reference::object_array(value)),
+		)
+	}
+
+	/// `java.lang.invoke.MethodType#ptypes` field
+	pub fn rtype(instance: &ClassInstance) -> Reference {
+		instance
+			.get_field_value0(rtype_field_offset())
+			.expect_reference()
+	}
+
+	pub fn set_rtype(instance: &mut ClassInstance, value: MirrorInstanceRef) {
+		instance.put_field_value0(
+			rtype_field_offset(),
+			Operand::Reference(Reference::mirror(value)),
+		)
+	}
 
 	field_module! {
 		@CLASS java_lang_invoke_MethodType;
@@ -789,5 +869,93 @@ pub mod java_lang_invoke_ResolvedMethodName {
 		///
 		/// Expected field type: `Reference` to `java.lang.Class`
 		@FIELD vmholder: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/Class"),
+	}
+}
+
+pub mod java_lang_reflect_Constructor {
+	use crate::objects::class_instance::ClassInstance;
+	use crate::objects::instance::Instance;
+	use crate::objects::reference::Reference;
+	use classfile::FieldType;
+	use instructions::Operand;
+	use jni::sys::jint;
+
+	pub fn set_clazz(instance: &mut ClassInstance, value: Reference) {
+		assert!(value.is_mirror());
+		instance.put_field_value0(clazz_field_offset(), Operand::Reference(value))
+	}
+
+	pub fn set_slot(instance: &mut ClassInstance, value: jint) {
+		instance.put_field_value0(slot_field_offset(), Operand::Int(value))
+	}
+
+	pub fn set_parameterTypes(instance: &mut ClassInstance, value: Reference) {
+		assert!(value.is_object_array());
+		instance.put_field_value0(parameterTypes_field_offset(), Operand::Reference(value))
+	}
+
+	pub fn set_exceptionTypes(instance: &mut ClassInstance, value: Reference) {
+		assert!(value.is_object_array());
+		instance.put_field_value0(exceptionTypes_field_offset(), Operand::Reference(value))
+	}
+
+	pub fn set_modifiers(instance: &mut ClassInstance, value: jint) {
+		instance.put_field_value0(modifiers_field_offset(), Operand::Int(value))
+	}
+
+	pub fn set_signature(instance: &mut ClassInstance, value: Reference) {
+		assert!(value.is_instance_of(crate::globals::classes::java_lang_String()));
+		instance.put_field_value0(signature_field_offset(), Operand::Reference(value))
+	}
+
+	pub fn set_annotations(instance: &mut ClassInstance, value: Reference) {
+		assert!(value.is_object_array());
+		instance.put_field_value0(annotations_field_offset(), Operand::Reference(value))
+	}
+
+	pub fn set_parameterAnnotations(instance: &mut ClassInstance, value: Reference) {
+		assert!(value.is_object_array());
+		instance.put_field_value0(
+			parameterAnnotations_field_offset(),
+			Operand::Reference(value),
+		)
+	}
+
+	field_module! {
+		@CLASS java_lang_reflect_Constructor;
+
+		@FIELDSTART
+		/// `java.lang.reflect.Constructor#clazz` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.Class`
+		@FIELD clazz: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/Class"),
+		/// `java.lang.reflect.Constructor#slot` field offset
+		///
+		/// Expected field type: `jint`
+		@FIELD slot: FieldType::Int,
+		/// `java.lang.reflect.Constructor#parameterTypes` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.Class[]`
+		@FIELD parameterTypes: ty @ FieldType::Array(ref val) if val.is_class(b"java/lang/Class"),
+		/// `java.lang.reflect.Constructor#exceptionTypes` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.Class[]`
+		@FIELD exceptionTypes: ty @ FieldType::Array(ref val) if val.is_class(b"java/lang/Class"),
+		/// `java.lang.reflect.Constructor#modifiers` field offset
+		///
+		/// Expected field type: `jint`
+		@FIELD modifiers: FieldType::Int,
+		/// `java.lang.reflect.Constructor#signature` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.String`
+		@FIELD signature: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
+		/// `java.lang.reflect.Constructor#annotations` field offset
+		///
+		/// Expected field type: `Reference` to `byte[]`
+		@FIELD annotations: ty @ FieldType::Array(ref val) if **val == FieldType::Byte,
+		/// `java.lang.reflect.Constructor#parameterAnnotations` field offset
+		///
+		/// Expected field type: `Reference` to `byte[]`
+		@FIELD parameterAnnotations: ty @ FieldType::Array(ref val) if **val == FieldType::Byte,
 	}
 }

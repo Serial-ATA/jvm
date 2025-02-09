@@ -2,7 +2,7 @@
 
 use crate::method_invoker::MethodInvoker;
 use crate::native::java::lang::String::StringInterner;
-use crate::objects::array::ArrayInstance;
+use crate::objects::array::{Array, ObjectArrayInstance, PrimitiveArrayInstance};
 use crate::objects::class::{Class, ClassInitializationState};
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::constant_pool::cp_types::{self, Entry};
@@ -22,15 +22,13 @@ use std::sync::Arc;
 use classfile::constant_pool::ConstantPoolValueInfo;
 use common::int_types::{s2, s4, s8, u2};
 use common::traits::PtrType;
-use instructions::{ConstOperandType, OpCode, Operand, StackLike};
+use instructions::{OpCode, Operand, StackLike};
 
 macro_rules! trace_instruction {
     (@START $instruction:tt, $category:ident) => {{
-		#[cfg(debug_assertions)]
 		{ tracing::trace!(target: "instruction", "[{}] {} START", stringify!($category), stringify!($instruction)) }
 	}};
     (@END $instruction:tt, $category:ident) => {{
-		#[cfg(debug_assertions)]
 		{ tracing::trace!(target: "instruction", "[{}] {} SUCCEEDED", stringify!($category), stringify!($instruction)) }
 	}};
     (@BLOCK $category:ident, $instruction:tt, $expr:expr) => {{
@@ -70,24 +68,11 @@ macro_rules! define_instructions {
 }
 
 macro_rules! push_const {
-	($frame:ident, $opcode:ident, $value:tt $(, $const_value:ident)?) => {{
+	($frame:ident, $opcode:ident, $value:literal, $const_value:ident) => {{
 		paste::paste! {
-			{ $frame.stack_mut().push_op(Operand:: [<Const $value>] $((ConstOperandType:: $const_value))?); }
-		};
-        push_const!($frame, $($const_value)?)
-	}};
-    // Add `Empty` slots for long/double
-    ($frame:ident, Long) => {{
-		paste::paste! {
-			{ $frame.stack_mut().push_op(Operand::Empty); }
+			{ $frame.stack_mut().push_op(Operand::$const_value($value)); }
 		};
 	}};
-    ($frame:ident, Double) => {{
-		paste::paste! {
-			{ $frame.stack_mut().push_op(Operand::Empty); }
-		};
-	}};
-    ($_frame:ident, $($_const_value:ident)?) => {{}};
 }
 
 macro_rules! local_variable_load {
@@ -121,7 +106,7 @@ macro_rules! load_from_array {
 		let index = stack.pop_int();
 
 		let object_ref = stack.pop_reference();
-		let array_ref = object_ref.extract_array();
+		let array_ref = object_ref.extract_primitive_array();
 
 		// TODO: Validate the type, right now the output is just trusted
 		//       to be correct
@@ -160,7 +145,7 @@ macro_rules! store_into_array {
 		let index = stack.pop_int();
 
 		let object_ref = stack.pop_reference();
-		let array_ref = object_ref.extract_array();
+		let array_ref = object_ref.extract_primitive_array();
 
 		array_ref.get_mut().store(index, value);
 	}};
@@ -274,7 +259,7 @@ impl Interpreter {
         // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-7.html
 
         let opcode = OpCode::from(frame.read_byte());
-
+        
         define_instructions! {
             frame: frame,
             match opcode {
@@ -284,25 +269,27 @@ impl Interpreter {
                 OpCode::aconst_null => {
                     frame.stack_mut().push_reference(Reference::null());
                 },
+                OpCode::iconst_m1 => {
+                    frame.stack_mut().push_int(-1);
+                },
                 @GROUP {
                     [
-                        iconst_m1 (m1),
-                        iconst_0 (0, Int),
-                        iconst_1 (1, Int),
-                        iconst_2 (2, Int),
-                        iconst_3 (3),
-                        iconst_4 (4),
-                        iconst_5 (5),
+                        iconst_0  (0, Int),
+                        iconst_1  (1, Int),
+                        iconst_2  (2, Int),
+                        iconst_3  (3, Int),
+                        iconst_4  (4, Int),
+                        iconst_5  (5, Int),
                         
-                        lconst_0 (0, Long),
-                        lconst_1 (1, Long),
+                        lconst_0  (0, Long),
+                        lconst_1  (1, Long),
                         
-                        fconst_0 (0, Float),
-                        fconst_1 (1, Float),
-                        fconst_2 (2, Float),
+                        fconst_0  (0.0, Float),
+                        fconst_1  (1.0, Float),
+                        fconst_2  (2.0, Float),
                         
-                        dconst_0 (0, Double),
-                        dconst_1 (1, Double),
+                        dconst_0  (0.0, Double),
+                        dconst_1  (1.0, Double),
                     ]
                 } => push_const,
                 OpCode::bipush => {
@@ -358,13 +345,23 @@ impl Interpreter {
                         aload_3 (Reference, 3),
                     ]
                 } => local_variable_load,
+                OpCode::aaload => {
+                    let stack = frame.stack_mut();
+                    let index = stack.pop_int();
+            
+                    let object_ref = stack.pop_reference();
+                    let array_ref = object_ref.extract_object_array();
+        
+                    // TODO: actually handle throws
+                    let op = array_ref.get().get(index).unwrap();
+                    stack.push_reference(op);
+                },
                 @GROUP {
                     [
                         iaload,
                         laload,
                         faload,
                         daload,
-                        aaload,
                         baload,
                         caload,
                         saload,
@@ -406,13 +403,22 @@ impl Interpreter {
                         astore_3 (reference, 3),
                     ]
                 } => local_variable_store,
+                OpCode::aastore => {
+                    let stack = frame.stack_mut();
+                    let value = stack.pop_reference();
+                    let index = stack.pop_int();
+            
+                    let object_ref = stack.pop_reference();
+                    let array_ref = object_ref.extract_object_array();
+            
+                    array_ref.get_mut().store(index, value);
+                },
                 @GROUP {
                     [
                         iastore,
                         lastore,
                         fastore,
                         dastore,
-                        aastore,
                         bastore,
                         castore,
                         sastore,
@@ -607,10 +613,7 @@ impl Interpreter {
                 OpCode::invokedynamic => {
                     Self::invoke_dynamic(frame);
                 },
-                OpCode::invokevirtual => {
-                    let method = Self::fetch_method(frame, false);
-                    MethodInvoker::invoke_virtual(frame, method);
-                },
+                OpCode::invokevirtual => { Self::invoke_virtual(frame) },
                 OpCode::invokespecial => {
                     let method = Self::fetch_method(frame, false);
                     MethodInvoker::invoke(frame, method);
@@ -641,7 +644,7 @@ impl Interpreter {
                     let count = stack.pop_int();
                     
                     // TODO: Handle throws
-                    let array_ref = ArrayInstance::new_from_type(type_code, count).unwrap();
+                    let array_ref = PrimitiveArrayInstance::new_from_type(type_code, count).unwrap();
                     stack.push_reference(Reference::array(array_ref));
                 },
                 // TODO: Handle throws
@@ -654,15 +657,13 @@ impl Interpreter {
                     let stack = frame.stack_mut();
                     let count = stack.pop_int();
         
-                    let array_ref = ArrayInstance::new_reference(count, array_class).unwrap();
-                    stack.push_reference(Reference::array(array_ref));
+                    let array_ref = ObjectArrayInstance::new(count, array_class).unwrap();
+                    stack.push_reference(Reference::object_array(array_ref));
                 },
                 OpCode::arraylength => {
                     let stack = frame.stack_mut();
                     let object_ref = stack.pop_reference();
-                    let array_ref = object_ref.extract_array();
-                    
-                    let array_len = array_ref.get().len();
+                    let array_len = object_ref.array_length();
                     stack.push_int(array_len as s4);
                 },
                 OpCode::athrow => {
@@ -930,6 +931,121 @@ impl Interpreter {
 		unimplemented!("invokedynamic")
     }
 
+    // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.invokevirtual
+    #[allow(non_snake_case)]
+    fn invoke_virtual(frame: &mut Frame) {
+        let method = Self::fetch_method(frame, false);
+        
+        // Nothing special to do if the method isn't signature polymorphic
+        if !method.is_signature_polymorphic() {
+            MethodInvoker::invoke_virtual(frame, method);
+            return;
+        }
+        
+        if method.class() == crate::globals::classes::java_lang_invoke_MethodHandle() {
+            // If the resolved method is signature polymorphic (§2.9.3), and declared in the
+            // java.lang.invoke.MethodHandle class, then the invokevirtual instruction proceeds as follows,
+            // where D is the descriptor of the method symbolically referenced by the instruction.
+            let D = method.descriptor_sym;
+            
+            // First, a reference to an instance of java.lang.invoke.MethodType is obtained as if by
+            // resolution of a symbolic reference to a method type (§5.4.3.5) with the same parameter
+            // and return types as D.
+            let method_type = Method::method_type_for(method.class(), D.as_str()).unwrap(); // TODO: handle throws
+            
+            //     If the named method is invokeExact, the instance of java.lang.invoke.MethodType must
+            //     be semantically equal to the type descriptor of the receiving method handle objectref.
+            //     The method handle to be invoked is objectref.
+            let method_handle: Reference;
+            if method.name == sym!(invokeExact) {
+                todo!();
+            } else {
+                assert_eq!(method.name, sym!(invoke));
+                
+                // If the named method is invoke, and the instance of java.lang.invoke.MethodType is
+                // semantically equal to the type descriptor of the receiving method handle objectref,
+                // then the method handle to be invoked is objectref.
+                todo!();
+                
+                // If the named method is invoke, and the instance of java.lang.invoke.MethodType is
+                // not semantically equal to the type descriptor of the receiving method handle objectref,
+                // then the Java Virtual Machine attempts to adjust the type descriptor of the receiving
+                // method handle, as if by invocation of the asType method of java.lang.invoke.MethodHandle,
+                // to obtain an exactly invokable method handle m. The method handle to be invoked is m.
+                todo!();
+            }
+            
+            // The objectref must be followed on the operand stack by nargs argument values, where
+            // the number, type, and order of the values must be consistent with the type descriptor
+            // of the method handle to be invoked.
+            // (This type descriptor will correspond to the method descriptor appropriate for the kind of the method handle to be invoked, as specified in §5.4.3.5.)
+            todo!();
+            
+            // Then, if the method handle to be invoked has bytecode behavior, the Java Virtual Machine
+            // invokes the method handle as if by execution of the bytecode behavior associated with
+            // the method handle's kind. If the kind is 5 (REF_invokeVirtual), 6 (REF_invokeStatic),
+            // 7 (REF_invokeSpecial), 8 (REF_newInvokeSpecial), or 9 (REF_invokeInterface), then a frame
+            // will be created and made current in the course of executing the bytecode behavior; however,
+            // this frame is not visible, and when the method invoked by the bytecode behavior
+            // completes (normally or abruptly), the frame of its invoker is considered to be the
+            // frame for the method containing this invokevirtual instruction.
+            todo!();
+            
+            // Otherwise, if the method handle to be invoked has no bytecode behavior, the
+            // Java Virtual Machine invokes it in an implementation-dependent manner. 
+            todo!();
+        }
+
+        
+        if method.class() == crate::globals::classes::java_lang_invoke_VarHandle() {
+            // If the resolved method is signature polymorphic and declared in the
+            // java.lang.invoke.VarHandle class, then the invokevirtual instruction proceeds as follows,
+            // where N and D are the name and descriptor of the method symbolically referenced by the instruction.
+            let N = method.name;
+            let D = method.descriptor_sym;
+            
+            // First, a reference to an instance of java.lang.invoke.VarHandle.AccessMode is obtained
+            // as if by invocation of the valueFromMethodName method of java.lang.invoke.VarHandle.AccessMode
+            // with a String argument denoting N.
+            todo!();
+            
+            // Second, a reference to an instance of java.lang.invoke.MethodType is obtained as if by
+            // invocation of the accessModeType method of java.lang.invoke.VarHandle on the instance
+            // objectref, with the instance of java.lang.invoke.VarHandle.AccessMode as the argument.
+            todo!();
+            
+            // Third, a reference to an instance of java.lang.invoke.MethodHandle is obtained as if by
+            // invocation of the varHandleExactInvoker method of java.lang.invoke.MethodHandles with
+            // the instance of java.lang.invoke.VarHandle.AccessMode as the first argument and the
+            // instance of java.lang.invoke.MethodType as the second argument. The resulting instance
+            // is called the invoker method handle.
+            todo!();
+            
+            // Finally, the nargs argument values and objectref are popped from the operand stack, and
+            // the invoker method handle is invoked. The invocation occurs as if by execution of an
+            // invokevirtual instruction that indicates a run-time constant pool index to a symbolic
+            // reference R where:
+            // 
+            //     * R is a symbolic reference to a method of a class;
+            // 
+            //     * for the symbolic reference to the class in which the method is to be found, R specifies java.lang.invoke.MethodHandle;
+            // 
+            //     * for the name of the method, R specifies invoke;
+            // 
+            //     * for the descriptor of the method, R specifies a return type indicated by the return
+            //       descriptor of D, and specifies a first parameter type of java.lang.invoke.VarHandle
+            //       followed by the parameter types indicated by the parameter descriptors of D (if any) in order.
+            // 
+            // and where it is as if the following items were pushed, in order, onto the operand stack:
+            // 
+            //     * a reference to the instance of java.lang.invoke.MethodHandle (the invoker method handle);
+            // 
+            //     * objectref;
+            // 
+            //     * the nargs argument values, where the number, type, and order of the values must be consistent with the type descriptor of the invoker method handle.
+        }
+    }
+    
     fn fetch_field(frame: &mut Frame, is_static: bool) -> &'static Field {
         let field_ref_idx = frame.read_byte2();
 
@@ -955,7 +1071,7 @@ impl Interpreter {
             // On successful resolution of the method, the class or interface that declared the resolved method is initialized if that class or interface has not already been initialized
             ret.class().initialize(frame.thread());
         }
-
+        
         ret
     }
 
@@ -1044,7 +1160,7 @@ impl Interpreter {
 		let counts = frame.stack_mut().popn(dimensions as usize);
 		
 		// TODO: Handle throws
-        let array_ref = ArrayInstance::new_multidimensional(counts.into_iter().map(|op| op.expect_int()), class).unwrap();
-        frame.stack_mut().push_reference(Reference::array(array_ref));
+        let array_ref = ObjectArrayInstance::new_multidimensional(counts.into_iter().map(|op| op.expect_int()), class).unwrap();
+        frame.stack_mut().push_reference(Reference::object_array(array_ref));
 	}
 }

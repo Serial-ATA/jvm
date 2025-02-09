@@ -1,6 +1,6 @@
-use crate::objects::array::ArrayInstance;
+use crate::objects::array::{ObjectArrayInstance, PrimitiveArrayInstance};
 use crate::objects::class::Class;
-use crate::objects::reference::{ArrayInstanceRef, Reference};
+use crate::objects::reference::{PrimitiveArrayInstanceRef, Reference};
 use crate::thread::exceptions::{handle_exception, throw_and_return_null};
 use crate::thread::JavaThread;
 
@@ -237,8 +237,9 @@ pub fn newArray(
 			.as_array_type_code()
 			.expect("should be a valid array type code");
 
-		let array = ArrayInstance::new_from_type(type_code, length);
-		let array_instance: ArrayInstanceRef = handle_exception!(Reference::null(), thread, array);
+		let array = PrimitiveArrayInstance::new_from_type(type_code, length);
+		let array_instance: PrimitiveArrayInstanceRef =
+			handle_exception!(Reference::null(), thread, array);
 		return Reference::array(array_instance);
 	}
 
@@ -247,9 +248,9 @@ pub fn newArray(
 		throw_and_return_null!(thread, IllegalArgumentException);
 	}
 
-	let array = ArrayInstance::new_reference(length, class);
+	let array = ObjectArrayInstance::new(length, class);
 	let array_instance = handle_exception!(Reference::null(), thread, array);
-	Reference::array(array_instance)
+	Reference::object_array(array_instance)
 }
 
 // throws IllegalArgumentException, NegativeArraySizeException

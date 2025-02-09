@@ -3,7 +3,7 @@ use crate::calls::jcall::JavaCallResult;
 use crate::java_call;
 use crate::native::java::lang::invoke::MethodHandleNatives;
 use crate::native::java::lang::String::StringInterner;
-use crate::objects::array::ArrayInstance;
+use crate::objects::array::{Array, ObjectArrayInstance};
 use crate::objects::boxing::Boxable;
 use crate::objects::class::Class as ClassObj;
 use crate::objects::constant_pool::ConstantPool;
@@ -373,8 +373,7 @@ impl EntryType for InvokeDynamic {
 			todo!()
 		}
 
-		let appendix =
-			ArrayInstance::new_reference(1, crate::globals::classes::java_lang_Object())?;
+		let appendix = ObjectArrayInstance::new(1, crate::globals::classes::java_lang_Object())?;
 
 		let Some(bootstrap_methods) = class.bootstrap_methods() else {
 			panic!("No bootstrap methods found"); // TODO?
@@ -383,7 +382,7 @@ impl EntryType for InvokeDynamic {
 		let bootstrap_method = &bootstrap_methods[value.bootstrap_method_attr_index as usize];
 		let bsm_handle = cp.get::<MethodHandle>(bootstrap_method.method_handle_index)?;
 
-		let static_args_obj = ArrayInstance::new_reference(
+		let static_args_obj = ObjectArrayInstance::new(
 			bootstrap_method.arguments.len() as s4,
 			crate::globals::classes::java_lang_Object(),
 		)?;
@@ -411,12 +410,8 @@ impl EntryType for InvokeDynamic {
 				LoadableConstantPoolValueInner::Dynamic(_) => todo!("Dynamic static argument"),
 			}
 
-			// SAFETY: We just created the array, we know that none of the indexes will be out of bounds
-			unsafe {
-				static_args_obj
-					.get_mut()
-					.store_unchecked(index as s4, Operand::Reference(r))
-			};
+			// SAFETY: We just created the array, we know that none of the indices will be out of bounds
+			unsafe { static_args_obj.get_mut().store_unchecked(index, r) };
 		}
 
 		let link_call_site_method = crate::globals::classes::java_lang_invoke_MethodHandleNatives()
@@ -429,8 +424,8 @@ impl EntryType for InvokeDynamic {
 			Operand::Reference(bsm_handle),
 			Operand::Reference(Reference::class(name_arg)),
 			Operand::Reference(type_arg),
-			Operand::Reference(Reference::array(static_args_obj)),
-			Operand::Reference(Reference::array(appendix)),
+			Operand::Reference(Reference::object_array(static_args_obj)),
+			Operand::Reference(Reference::object_array(appendix)),
 		);
 
 		let call_site;

@@ -1,7 +1,8 @@
 //! (§4.10.1.1) Accessors for Java Virtual Machine Artifacts
 
 use super::type_system::VerificationType;
-use crate::objects::class::Class;
+use crate::classpath::loader::ClassLoader;
+use crate::objects::class::{Class, ClassInitializationState};
 use crate::objects::method::Method;
 use crate::objects::vtable::VTable;
 use crate::symbols::{sym, Symbol};
@@ -26,7 +27,7 @@ pub(super) trait ClassAccessorExt {
 	/// Extracts a list, `Attributes`, of the attributes of the class `Class`.
 	fn attributes(&self) -> &[Attribute];
 	/// Extracts the defining class loader, `Loader`, of the class `Class`.
-	fn defining_loader(&self) -> &'static Class;
+	fn defining_loader(&self) -> &'static ClassLoader;
 	/// True iff the class loader `Loader` is the bootstrap class loader.
 	fn is_bootstrap_loader(&self) -> bool;
 	/// True iff there exists a class named `Name` whose representation (in accordance with this specification) when loaded by the class loader `InitiatingLoader` is `ClassDefinition`.
@@ -62,7 +63,7 @@ impl ClassAccessorExt for Class {
 	}
 
 	fn interfaces(&self) -> &[&'static Class] {
-		todo!()
+		self.interfaces.as_slice()
 	}
 
 	fn methods(&self) -> &VTable<'_> {
@@ -73,12 +74,12 @@ impl ClassAccessorExt for Class {
 		todo!()
 	}
 
-	fn defining_loader(&self) -> &'static Class {
-		todo!()
+	fn defining_loader(&self) -> &'static ClassLoader {
+		self.loader()
 	}
 
 	fn is_bootstrap_loader(&self) -> bool {
-		todo!()
+		self.loader().is_bootstrap()
 	}
 
 	fn loaded_class(&self) -> bool {
@@ -152,7 +153,7 @@ impl MethodAccessorExt for Method {
 
 	#[inline]
 	fn attributes(&self) -> &[Attribute] {
-		self.attributes()
+		todo!()
 	}
 
 	#[inline]
@@ -165,24 +166,24 @@ impl MethodAccessorExt for Method {
 		!self.is_init()
 	}
 
-	fn is_not_final(&self, class: &'static Class) -> bool {
-		todo!()
+	fn is_not_final(&self, _: &'static Class) -> bool {
+		!self.is_final()
 	}
 
-	fn is_static(&self, class: &'static Class) -> bool {
-		todo!()
+	fn is_static(&self, _: &'static Class) -> bool {
+		self.is_static()
 	}
 
-	fn is_not_static(&self, class: &'static Class) -> bool {
-		todo!()
+	fn is_not_static(&self, _: &'static Class) -> bool {
+		!self.is_static()
 	}
 
-	fn is_private(&self, class: &'static Class) -> bool {
-		todo!()
+	fn is_private(&self, _: &'static Class) -> bool {
+		self.is_private()
 	}
 
-	fn is_not_private(&self, class: &'static Class) -> bool {
-		todo!()
+	fn is_not_private(&self, _: &'static Class) -> bool {
+		!self.is_private()
 	}
 
 	fn is_protected(

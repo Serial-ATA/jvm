@@ -1,5 +1,5 @@
 use crate::globals::fields;
-use crate::objects::array::{ArrayContent, ArrayInstance};
+use crate::objects::array::PrimitiveArrayInstance;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
@@ -72,10 +72,10 @@ impl BackTrace {
 	}
 
 	fn into_obj(self) -> Reference {
-		let content = ArrayContent::Long(self.inner.into_boxed_slice());
+		let content = self.inner.into_boxed_slice();
 
 		let long_array_class = crate::globals::classes::long_array();
-		let array = ArrayInstance::new(long_array_class, content);
+		let array = unsafe { PrimitiveArrayInstance::new::<jlong>(long_array_class, content) };
 		Reference::array(array)
 	}
 }
@@ -97,10 +97,7 @@ pub fn fillInStackTrace(
 	unsafe { initialize() };
 
 	// Reset the current fields
-	let backtrace_offset = fields::java_lang_Throwable::set_backtrace(
-		this.extract_class().get_mut(),
-		Reference::null(),
-	);
+	fields::java_lang_Throwable::set_backtrace(this.extract_class().get_mut(), Reference::null());
 
 	let stack_trace_offset = crate::globals::fields::java_lang_Throwable::stackTrace_field_offset();
 	this.put_field_value0(stack_trace_offset, Operand::Reference(Reference::null()));
@@ -151,7 +148,7 @@ pub fn fillInStackTrace(
 		backtrace.push(frame);
 	}
 
-	let backtrace_offset = fields::java_lang_Throwable::set_backtrace(
+	fields::java_lang_Throwable::set_backtrace(
 		this.extract_class().get_mut(),
 		backtrace.into_obj(),
 	);

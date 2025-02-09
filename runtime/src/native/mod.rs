@@ -75,6 +75,7 @@ pub(crate) mod jdk {
 			pub(crate) mod BootLoader;
 		}
 		pub(crate) mod reflect {
+			pub(crate) mod DirectConstructorHandleAccessor;
 			pub(crate) mod Reflection;
 		}
 	}

@@ -4,6 +4,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
+	NotBootstrapLoader,
 	SuperClassFinal,
 	FinalMethodOverridden,
 	BadExceptionHandlerRange(u2, u2),
@@ -14,6 +15,7 @@ pub enum Error {
 impl core::fmt::Display for Error {
 	fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
 		match self {
+			Error::NotBootstrapLoader => write!(f, "ClassLoader is not bootstrap"),
 			Error::SuperClassFinal => write!(f, "Super class is declared final"),
 			Error::FinalMethodOverridden => write!(f, "A method marked `final` was overridden"),
 			Error::BadExceptionHandlerRange(start, end) => {

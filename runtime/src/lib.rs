@@ -11,6 +11,8 @@
 #![feature(try_trait_v2)]
 #![feature(associated_type_defaults)]
 #![feature(hash_raw_entry)]
+#![feature(ptr_as_ref_unchecked)]
+extern crate core;
 
 pub mod calls;
 pub mod classpath;

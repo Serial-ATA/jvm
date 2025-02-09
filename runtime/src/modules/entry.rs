@@ -1,7 +1,7 @@
 use super::package::{Package, PackageExportType};
 use crate::classpath::jimage;
 use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
-use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
+use crate::native::java::lang::String::rust_string_from_java_string;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::symbols::{sym, Symbol};

@@ -1,3 +1,4 @@
+use crate::objects::array::Array;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
@@ -70,34 +71,98 @@ pub fn arraycopy(
 	dest_pos: jint,
 	length: jint,
 ) {
+	unsafe fn do_copy<T: Array>(
+		src: &T,
+		src_pos: usize,
+		dest: &mut T,
+		dest_pos: usize,
+		length: usize,
+	) {
+		unsafe {
+			src.copy_into(src_pos, dest, dest_pos, length);
+		}
+	}
+
+	unsafe fn do_copy_within<T: Array>(
+		src: &mut T,
+		src_pos: usize,
+		dest_pos: usize,
+		length: usize,
+	) {
+		unsafe {
+			src.copy_within(src_pos, dest_pos, length);
+		}
+	}
+
 	if src.is_null() || dest.is_null() {
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(thread, NullPointerException);
 	}
 
-	let src_array = src.extract_array();
-	let dest_array = dest.extract_array();
+	let src_len = src.array_length();
+	let dest_len = dest.array_length();
+
+	// TODO: Verify component types
 
 	if src_pos < 0
 		|| dest_pos < 0
 		|| length < 0
-		|| src_pos + length > src_array.get().len() as jint
-		|| dest_pos + length > dest_array.get().len() as jint
+		|| src_pos + length > src_len as jint
+		|| dest_pos + length > dest_len as jint
 	{
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(thread, IndexOutOfBoundsException);
 	}
 
-	if src_array.as_raw() == dest_array.as_raw() {
+	if length == 0 {
+		return;
+	}
+
+	if src == dest {
+		if src.is_object_array() {
+			unsafe {
+				do_copy_within(
+					src.extract_object_array().get_mut(),
+					src_pos as usize,
+					dest_pos as usize,
+					length as usize,
+				)
+			}
+		} else {
+			unsafe {
+				do_copy_within(
+					src.extract_primitive_array().get_mut(),
+					src_pos as usize,
+					dest_pos as usize,
+					length as usize,
+				)
+			}
+		}
+
 		unimplemented!("arraycopy on same instance")
 	}
 
-	src_array.get().elements.copy_into(
-		src_pos as usize,
-		&mut dest_array.get_mut().elements,
-		dest_pos as usize,
-		length as usize,
-	);
+	if src.is_object_array() {
+		unsafe {
+			do_copy(
+				src.extract_object_array().get(),
+				src_pos as usize,
+				dest.extract_object_array().get_mut(),
+				dest_pos as usize,
+				length as usize,
+			)
+		}
+	} else {
+		unsafe {
+			do_copy(
+				src.extract_primitive_array().get(),
+				src_pos as usize,
+				dest.extract_primitive_array().get_mut(),
+				dest_pos as usize,
+				length as usize,
+			)
+		}
+	}
 }
 
 pub fn identityHashCode(

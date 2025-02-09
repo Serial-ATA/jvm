@@ -142,6 +142,18 @@ impl FieldType {
 		matches!(self, Self::Array(_))
 	}
 
+	pub fn is_array_of_class(&self, name: &[u1]) -> bool {
+		let FieldType::Array(component) = self else {
+			return false;
+		};
+
+		let FieldType::Object(component_class_name) = &**component else {
+			return false;
+		};
+
+		name == &**component_class_name
+	}
+
 	pub fn as_signature(&self) -> Cow<'static, str> {
 		match self {
 			Self::Byte => "B".into(),

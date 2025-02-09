@@ -1,11 +1,13 @@
 use crate::globals::fields;
 use crate::native::java::lang::String::StringInterner;
+use crate::objects::array::Array;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 
 use common::traits::PtrType;
 use instructions::OpCode;
 use jni::env::JniEnv;
+use jni::sys::jlong;
 
 include_generated!("native/java/lang/def/NullPointerException.definitions.rs");
 
@@ -19,7 +21,7 @@ pub fn getExtendedNPEMessage(
 		return Reference::null();
 	}
 
-	let backtrace_array_instance = backtrace.extract_array();
+	let backtrace_array_instance = backtrace.extract_primitive_array();
 	let backtrace_array = backtrace_array_instance.get();
 	if backtrace_array.is_empty() {
 		// No backtrace, nothing to do
@@ -27,7 +29,7 @@ pub fn getExtendedNPEMessage(
 	}
 
 	// See the format of `BackTrace` in `native/java/lang/Throwable.rs`
-	let backtrace_array = backtrace_array.elements.expect_long();
+	let backtrace_array = backtrace_array.as_slice::<jlong>();
 
 	let method_ptr = backtrace_array[0];
 	let pc = backtrace_array[1] as usize;

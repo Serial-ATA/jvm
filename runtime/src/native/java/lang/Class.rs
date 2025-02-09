@@ -1,10 +1,15 @@
+use crate::classpath::loader::ClassLoaderSet;
+use crate::globals::{classes, fields};
 use crate::include_generated;
 use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
 use crate::native::jni::{safe_classref_from_jclass, IntoJni};
-use crate::objects::array::ArrayInstance;
+use crate::objects::array::{Array, ObjectArrayInstance};
 use crate::objects::class::Class;
+use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
-use crate::objects::reference::{ArrayInstanceRef, MirrorInstanceRef, Reference};
+use crate::objects::method::Method;
+use crate::objects::reference::{MirrorInstanceRef, ObjectArrayInstanceRef, Reference};
+use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{
 	handle_exception, throw, throw_and_return_null, throw_with_ret, Throws,
 };
@@ -38,14 +43,31 @@ fn ensure_class_mirror(this: Reference) -> Throws<Option<MirrorInstanceRef>> {
 
 // throws ClassNotFoundException
 pub fn forName0(
-	_env: JniEnv,
+	env: JniEnv,
 	_class: &'static Class,
-	_name: Reference, // java.lang.String
-	_initialize: jboolean,
-	_loader: Reference, // java.lang.ClassLoader
+	name: Reference, // java.lang.String
+	initialize: jboolean,
+	loader: Reference,  // java.lang.ClassLoader
 	_caller: Reference, // java.lang.Class
 ) -> Reference /* java.lang.Class */ {
-	unimplemented!("Class#forName0");
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	if name.is_null() {
+		throw_and_return_null!(thread, NullPointerException);
+	}
+
+	let name = rust_string_from_java_string(name.extract_class());
+	let name = name.replace('.', "/");
+	let name_sym = Symbol::intern(name);
+
+	let loader = ClassLoaderSet::find_or_add(loader);
+	let class: &'static Class = handle_exception!(Reference::null(), thread, loader.load(name_sym));
+
+	if initialize {
+		class.initialize(thread);
+	}
+
+	Reference::mirror(class.mirror())
 }
 
 pub fn isInstance(
@@ -160,8 +182,9 @@ pub fn getEnclosingMethod0(
 		return Reference::null();
 	};
 
-	let array = ArrayInstance::new_reference(3, crate::globals::classes::java_lang_Object());
-	let array_instance: ArrayInstanceRef = handle_exception!(Reference::null(), thread, array);
+	let array = ObjectArrayInstance::new(3, crate::globals::classes::java_lang_Object());
+	let array_instance: ObjectArrayInstanceRef =
+		handle_exception!(Reference::null(), thread, array);
 
 	let target_class = mirror.get().target_class();
 
@@ -174,34 +197,29 @@ pub fn getEnclosingMethod0(
 
 	// SAFETY: We know that the array has a length of 3
 	unsafe {
-		array_instance.get_mut().store_unchecked(
-			0,
-			Operand::Reference(Reference::mirror(enclosing_class.mirror())),
-		);
+		array_instance
+			.get_mut()
+			.store_unchecked(0, Reference::mirror(enclosing_class.mirror()));
 	}
 
 	let Some(enclosing_method) = enclosing_method.method else {
 		// There is no immediate enclosing method
-		return Reference::array(array_instance);
+		return Reference::object_array(array_instance);
 	};
 
 	unsafe {
 		array_instance.get_mut().store_unchecked(
 			1,
-			Operand::Reference(Reference::class(StringInterner::intern(
-				enclosing_method.name,
-			))),
+			Reference::class(StringInterner::intern(enclosing_method.name)),
 		);
 
 		array_instance.get_mut().store_unchecked(
 			2,
-			Operand::Reference(Reference::class(StringInterner::intern(
-				enclosing_method.descriptor_sym,
-			))),
+			Reference::class(StringInterner::intern(enclosing_method.descriptor_sym)),
 		);
 	}
 
-	Reference::array(array_instance)
+	Reference::object_array(array_instance)
 }
 pub fn getDeclaringClass0(
 	env: JniEnv,
@@ -351,16 +369,70 @@ pub fn getDeclaredFields0(
 pub fn getDeclaredMethods0(
 	_env: JniEnv,
 	_this: Reference, // java.lang.Class
-	_public_only: jboolean,
+	public_only: jboolean,
 ) -> Reference /* Method[] */ {
 	unimplemented!("Class#getDeclaredMethods0");
 }
 pub fn getDeclaredConstructors0(
-	_env: JniEnv,
-	_this: Reference, // java.lang.Class
-	_public_only: jboolean,
+	env: JniEnv,
+	this: Reference, // java.lang.Class
+	public_only: jboolean,
 ) -> Reference /* Constructor<T>[] */ {
-	unimplemented!("Class#getDeclaredConstructors0");
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let this_mirror_instance = this.extract_mirror();
+	let this_mirror = this_mirror_instance.get();
+
+	// Not applicable for primitive and array mirrors
+	if this_mirror.is_primitive() || this_mirror.is_array() {
+		let ret = handle_exception!(
+			Reference::null(),
+			thread,
+			ObjectArrayInstance::new(0, classes::java_lang_reflect_Constructor())
+		);
+		return Reference::object_array(ret);
+	}
+
+	let target = this_mirror.target_class();
+	let constructors = target
+		.vtable()
+		.iter()
+		.filter_map(|method| {
+			if !method.is_public() && public_only {
+				return None;
+			}
+
+			if method.name == sym!(object_initializer_name)
+				|| method.name == sym!(class_initializer_name)
+			{
+				Some(method)
+			} else {
+				None
+			}
+		})
+		.collect::<Vec<&'static Method>>();
+
+	let ret: ObjectArrayInstanceRef = handle_exception!(
+		Reference::null(),
+		thread,
+		ObjectArrayInstance::new(
+			constructors.len() as jint,
+			classes::java_lang_reflect_Constructor()
+		)
+	);
+
+	for (i, constructor) in constructors.into_iter().enumerate() {
+		let constructor: Reference = handle_exception!(
+			Reference::null(),
+			thread,
+			constructor.as_reflect_constructor()
+		);
+
+		// SAFETY: The array is known to have the correct length
+		unsafe { ret.get_mut().store_unchecked(i, constructor) };
+	}
+
+	Reference::object_array(ret)
 }
 pub fn getDeclaredClasses0(
 	_env: JniEnv,
@@ -410,8 +482,9 @@ pub fn getNestMembers0(
 	unimplemented!("Class#getNestMembers0");
 }
 
-pub fn isHidden(_env: JniEnv, _this: Reference /* java.lang.Class */) -> jboolean {
-	unimplemented!("Class#isHidden");
+pub fn isHidden(_env: JniEnv, this: Reference /* java.lang.Class */) -> jboolean {
+	let mirror = this.extract_mirror();
+	mirror.get().target_class().is_hidden()
 }
 
 pub fn getPermittedSubclasses0(
