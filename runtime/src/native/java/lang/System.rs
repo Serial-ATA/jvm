@@ -138,6 +138,8 @@ pub fn arraycopy(
 				)
 			}
 		}
+
+		return;
 	}
 
 	if src.is_object_array() {

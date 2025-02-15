@@ -318,24 +318,38 @@ impl super::Array for PrimitiveArrayInstance {
 		match value {
 			Operand::Int(val) => match self.ty {
 				TypeCode::Boolean => {
-					ptr::write::<jboolean>(self.base.add(index) as *mut _, (val & 1) == 1)
+					let base = self.base as *mut jboolean;
+					ptr::write::<jboolean>(base, (val & 1) == 1)
 				},
-				TypeCode::Byte => ptr::write::<jbyte>(self.base.add(index) as *mut _, val as jbyte),
+				TypeCode::Byte => {
+					let base = self.base as *mut jbyte;
+					ptr::write::<jbyte>(base.add(index), val as jbyte)
+				},
 				TypeCode::Short => {
-					ptr::write::<jshort>(self.base.add(index) as *mut _, val as jshort)
+					let base = self.base as *mut jshort;
+					ptr::write::<jshort>(base.add(index), val as jshort)
 				},
-				TypeCode::Char => ptr::write::<jchar>(self.base.add(index) as *mut _, val as jchar),
-				TypeCode::Int => ptr::write::<jint>(self.base.add(index) as *mut _, val),
+				TypeCode::Char => {
+					let base = self.base as *mut jchar;
+					ptr::write::<jchar>(base.add(index), val as jchar)
+				},
+				TypeCode::Int => {
+					let base = self.base as *mut jint;
+					ptr::write::<jint>(base.add(index), val)
+				},
 				_ => unreachable!(),
 			},
 			Operand::Float(val) => {
-				ptr::write::<jfloat>(self.base.add(index) as *mut _, val);
+				let base = self.base as *mut jfloat;
+				ptr::write::<jfloat>(base.add(index), val);
 			},
 			Operand::Double(val) => {
-				ptr::write::<jdouble>(self.base.add(index) as *mut _, val);
+				let base = self.base as *mut jdouble;
+				ptr::write::<jdouble>(base.add(index), val);
 			},
 			Operand::Long(val) => {
-				ptr::write::<jlong>(self.base.add(index) as *mut _, val);
+				let base = self.base as *mut jlong;
+				ptr::write::<jlong>(base.add(index), val);
 			},
 			_ => unreachable!(),
 		}
@@ -389,7 +403,50 @@ impl super::Array for PrimitiveArrayInstance {
 	}
 
 	unsafe fn copy_within(&mut self, src_pos: usize, dest_pos: usize, length: usize) {
-		todo!()
+		// This will only check the type of `self`, the safety conditions of this method require that the caller
+		// verify these arrays to be of the same type.
+		match self.ty {
+			TypeCode::Boolean => unsafe {
+				let src_ptr = (self.base as *mut jboolean).add(src_pos);
+				let dest_ptr = (self.base as *mut jboolean).add(dest_pos);
+				src_ptr.copy_to(dest_ptr, length);
+			},
+			TypeCode::Char => unsafe {
+				let src_ptr = (self.base as *mut jchar).add(src_pos);
+				let dest_ptr = (self.base as *mut jchar).add(dest_pos);
+				src_ptr.copy_to(dest_ptr, length);
+			},
+			TypeCode::Float => unsafe {
+				let src_ptr = (self.base as *mut jfloat).add(src_pos);
+				let dest_ptr = (self.base as *mut jfloat).add(dest_pos);
+				src_ptr.copy_to(dest_ptr, length);
+			},
+			TypeCode::Double => unsafe {
+				let src_ptr = (self.base as *mut jdouble).add(src_pos);
+				let dest_ptr = (self.base as *mut jdouble).add(dest_pos);
+				src_ptr.copy_to(dest_ptr, length);
+			},
+			TypeCode::Byte => unsafe {
+				let src_ptr = (self.base as *mut jbyte).add(src_pos);
+				let dest_ptr = (self.base as *mut jbyte).add(dest_pos);
+				src_ptr.copy_to(dest_ptr, length);
+			},
+			TypeCode::Short => unsafe {
+				let src_ptr = (self.base as *mut jshort).add(src_pos);
+				let dest_ptr = (self.base as *mut jshort).add(dest_pos);
+				src_ptr.copy_to(dest_ptr, length);
+			},
+			TypeCode::Int => unsafe {
+				let src_ptr = (self.base as *mut jint).add(src_pos);
+				let dest_ptr = (self.base as *mut jint).add(dest_pos);
+				src_ptr.copy_to(dest_ptr, length);
+			},
+			TypeCode::Long => unsafe {
+				let src_ptr = (self.base as *mut jlong).add(src_pos);
+				let dest_ptr = (self.base as *mut jlong).add(dest_pos);
+				src_ptr.copy_to(dest_ptr, length);
+			},
+		}
 	}
 }
 
