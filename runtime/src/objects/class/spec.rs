@@ -528,7 +528,6 @@ impl Class {
 		guard.set_initialization_state(ClassInitializationState::Failed);
 		init.notify_all();
 
-		thread.throw_pending_exception(false);
 		return;
 	}
 

@@ -4,13 +4,14 @@ use crate::objects::class::Class;
 use crate::objects::field::Field;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
 
-use std::cell::UnsafeCell;
-use std::fmt::{Debug, Formatter};
-use std::ptr::NonNull;
-
+use crate::objects::monitor::Monitor;
 use classfile::FieldType;
 use common::traits::PtrType;
 use instructions::Operand;
+use std::cell::UnsafeCell;
+use std::fmt::{Debug, Formatter};
+use std::ptr::NonNull;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq)]
 enum MirrorTarget {
@@ -32,6 +33,7 @@ enum MirrorTarget {
 /// `c` is a mirror instance, with a target of `java.lang.String`.
 pub struct MirrorInstance {
 	header: Header,
+	monitor: Arc<Monitor>,
 	class: &'static Class,
 	fields: Box<[UnsafeCell<Operand<Reference>>]>,
 	target: MirrorTarget,
@@ -53,6 +55,7 @@ impl MirrorInstance {
 		let fields = Self::initialize_fields(mirror_class, target);
 		MirrorInstancePtr::new(Self {
 			header: Header::new(),
+			monitor: Arc::new(Monitor::new()),
 			class: mirror_class,
 			fields,
 			target: MirrorTarget::Class(target),
@@ -86,6 +89,7 @@ impl MirrorInstance {
 
 		MirrorInstancePtr::new(Self {
 			header: Header::new(),
+			monitor: Arc::new(Monitor::new()),
 			class: mirror_class,
 			fields,
 			target: MirrorTarget::Class(target),
@@ -111,6 +115,7 @@ impl MirrorInstance {
 		let fields = Self::initialize_fields(mirror_class, target_class);
 		MirrorInstancePtr::new(Self {
 			header: Header::new(),
+			monitor: Arc::new(Monitor::new()),
 			class: mirror_class,
 			fields,
 			target: MirrorTarget::Primitive(target),
@@ -233,6 +238,10 @@ impl MirrorInstance {
 impl Instance for MirrorInstance {
 	fn header(&self) -> &Header {
 		&self.header
+	}
+
+	fn monitor(&self) -> Arc<Monitor> {
+		self.monitor.clone()
 	}
 
 	fn get_field_value(&self, field: &Field) -> Operand<Reference> {

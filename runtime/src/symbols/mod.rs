@@ -247,6 +247,8 @@ vm_symbols::define_symbols! {
 
 	java_lang_CloneNotSupportedException: "java/lang/CloneNotSupportedException",
 
+	java_lang_InvalidClassException: "java/lang/InvalidClassException",
+
 	java_lang_NullPointerException: "java/lang/NullPointerException",
 	java_lang_IllegalAccessError: "java/lang/IllegalAccessError",
 	java_lang_IllegalArgumentException: "java/lang/IllegalArgumentException",
@@ -307,6 +309,9 @@ vm_symbols::define_symbols! {
 	linkMethodHandleConstant,
 	invoke,
 	invokeExact,
+
+	dispatchUncaughtException,
+	exit_name: "exit",
 
 	initPhase1_name: "initPhase1",
 	initPhase2_name: "initPhase2",

@@ -1,5 +1,4 @@
 use super::entry::ResolvedEntry;
-use crate::calls::jcall::JavaCallResult;
 use crate::java_call;
 use crate::native::java::lang::invoke::MethodHandleNatives;
 use crate::native::java::lang::String::StringInterner;
@@ -428,17 +427,13 @@ impl EntryType for InvokeDynamic {
 			Operand::Reference(Reference::object_array(appendix)),
 		);
 
-		let call_site;
-		match result {
-			JavaCallResult::Ok(op) => {
-				call_site = op
-					.expect("method should return something")
-					.expect_reference();
-			},
-			JavaCallResult::PendingException => {
-				todo!()
-			},
+		if thread.has_pending_exception() {
+			todo!();
 		}
+
+		let call_site = result
+			.expect("method should return something")
+			.expect_reference();
 
 		if call_site.is_null() {
 			throw!(@DEFER LinkageError, "MethodHandleNatives produced a bad value");
@@ -531,8 +526,9 @@ impl EntryType for MethodHandle {
 				sym!(linkMethodHandleConstant_signature),
 			)?;
 
+		let thread = JavaThread::current();
 		let result = java_call!(
-			JavaThread::current(),
+			thread,
 			link_method_handle_constant_method,
 			Operand::Reference(Reference::mirror(invoking_class.mirror())),
 			Operand::Int(value.reference_kind as i32),
@@ -541,18 +537,13 @@ impl EntryType for MethodHandle {
 			Operand::Reference(ty_arg),
 		);
 
-		let method_handle;
-		match result {
-			JavaCallResult::Ok(op) => {
-				method_handle = op
-					.expect("method should return something")
-					.expect_reference()
-			},
-			JavaCallResult::PendingException => {
-				JavaThread::current().throw_pending_exception(false);
-				todo!()
-			},
+		if thread.has_pending_exception() {
+			todo!();
 		}
+
+		let method_handle = result
+			.expect("method should return something")
+			.expect_reference();
 
 		Throws::Ok(ResolvedEntry {
 			method_handle: Box::leak(Box::new(method_handle)),

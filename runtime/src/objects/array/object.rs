@@ -1,22 +1,25 @@
 use crate::objects::array::Array;
 use crate::objects::class::Class;
 use crate::objects::instance::{CloneableInstance, Header};
+use crate::objects::monitor::Monitor;
 use crate::objects::reference::{ObjectArrayInstanceRef, Reference};
 use crate::thread::exceptions::{throw, Throws};
 
 use std::alloc::{alloc, Layout};
+use std::fmt::{Debug, Formatter};
+use std::sync::Arc;
+use std::{iter, ptr, slice};
 
 use common::int_types::s4;
 use common::traits::PtrType;
-use std::fmt::{Debug, Formatter};
-use std::{iter, ptr, slice};
 
 /// An instance of an array
 ///
 /// This covers all array types, including primitives and objects.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct ObjectArrayInstance {
 	header: Header,
+	monitor: Arc<Monitor>,
 	pub class: &'static Class,
 	length: u32,
 	base: *mut Reference,
@@ -41,6 +44,7 @@ impl ObjectArrayInstance {
 
 		Throws::Ok(ObjectArrayInstancePtr::new(Self {
 			header: Header::new(),
+			monitor: Arc::new(Monitor::new()),
 			class: array_class,
 			length: count as u32,
 			base: new_array,
@@ -110,11 +114,33 @@ impl ObjectArrayInstance {
 
 	/// Get a pointer to the value at `offset`
 	///
+	/// **NOTE**: The `offset` is a **BYTE OFFSET**! Do not attempt to use this as a normal getter.
+	///           This should never be used outside of `jdk.internal.misc.Unsafe` natives.
+	///
 	/// # Safety
 	///
 	/// The caller must ensure that `offset` is within bounds.
-	pub fn get_unchecked_raw(&mut self, offset: usize) -> *mut Reference {
-		unsafe { self.base.add(offset) }
+	pub unsafe fn get_unchecked_raw(&mut self, offset: isize) -> *mut Reference {
+		let start = unsafe { (self.base as *const u8).offset(offset) };
+		start as *mut Reference
+	}
+
+	/// Replace the reference at `offset`
+	///
+	/// This will drop the value previously at `offset`.
+	///
+	/// **NOTE**: The `offset` is a **BYTE OFFSET**! Do not attempt to use this as a normal getter.
+	///           This should never be used outside of `jdk.internal.misc.Unsafe` natives.
+	///
+	/// # Safety
+	///
+	/// The caller must ensure that `offset` is within bounds.
+	pub unsafe fn store_unchecked_raw(&mut self, offset: isize, value: Reference) {
+		let old = unsafe {
+			let start = (self.base as *const u8).offset(offset);
+			ptr::replace(start as *mut Reference, value)
+		};
+		drop(old);
 	}
 
 	unsafe fn alloc_array(
@@ -123,7 +149,7 @@ impl ObjectArrayInstance {
 	) -> *mut Reference {
 		assert_eq!(count, components.len());
 
-		let layout = Layout::array::<Reference>(count as usize).expect("should always be valid");
+		let layout = Layout::array::<Reference>(count).expect("should always be valid");
 		let array = unsafe { alloc(layout) } as *mut Reference;
 
 		let mut ptr = array;
@@ -136,6 +162,11 @@ impl ObjectArrayInstance {
 
 		array
 	}
+
+	// TODO: Make arrays implement `Instance`
+	pub fn monitor(&self) -> Arc<Monitor> {
+		self.monitor.clone()
+	}
 }
 
 impl CloneableInstance for ObjectArrayInstance {
@@ -147,6 +178,7 @@ impl CloneableInstance for ObjectArrayInstance {
 
 		ObjectArrayInstancePtr::new(Self {
 			header: self.header.clone(),
+			monitor: Arc::new(Monitor::new()),
 			class: self.class,
 			length: self.length,
 			base: new_array,
@@ -156,6 +188,8 @@ impl CloneableInstance for ObjectArrayInstance {
 
 impl super::Array for ObjectArrayInstance {
 	type Component = Reference;
+
+	const BASE_OFFSET: usize = 0;
 
 	fn header(&self) -> &Header {
 		&self.header

@@ -3,6 +3,7 @@ use crate::error::Result;
 use std::ops::Deref;
 
 use jni::env::JniEnv;
+use jni::error::JniError;
 use jni::java_vm::{JavaVm, JavaVmBuilder, VmInitArgs};
 use jni::objects::{JClass, JObjectArray};
 use jni::sys::jsize;
@@ -10,7 +11,6 @@ use jni::version::JniVersion;
 
 const MAIN_METHOD_SIGNATURE: &str = "([Ljava/lang/String;)V";
 
-#[tracing::instrument(skip_all)]
 pub fn init_java_vm(
 	system_properties: impl IntoIterator<Item = String>,
 ) -> Result<(JavaVm, JniEnv)> {
@@ -43,6 +43,9 @@ pub fn invoke_main_method(env: JniEnv, main_class: JClass, args: Vec<String>) ->
 	let args = args_as_jstring_array(*env, args)?;
 
 	env.call_static_void_method(*main_class, method_id, [args])?;
+	if env.exception_check() {
+		return Err(JniError::ExceptionThrown.into());
+	}
 
 	Ok(())
 }

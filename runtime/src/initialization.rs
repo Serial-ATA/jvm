@@ -1,4 +1,3 @@
-use crate::calls::jcall::JavaCallResult;
 use crate::classpath::loader::ClassLoader;
 use crate::java_call;
 use crate::modules::Module;
@@ -52,7 +51,10 @@ fn initialize_thread(thread: &JavaThread) -> Result<(), JniError> {
 	// Init some important classes
 	initialize_global_classes(thread);
 
-	create_thread_object(thread);
+	if !create_thread_object(thread) {
+		// An exception was thrown, this thread is NOT safe to use.
+		return Err(JniError::ExceptionThrown);
+	}
 
 	// SAFETY: Preconditions filled in `init_field_offsets` & `initialize_global_classes`
 	unsafe {
@@ -230,7 +232,7 @@ fn initialize_global_classes(thread: &JavaThread) {
 	crate::globals::classes::java_lang_reflect_Method().initialize(thread);
 }
 
-fn create_thread_object(thread: &JavaThread) {
+fn create_thread_object(thread: &JavaThread) -> bool {
 	let thread_group_class = crate::globals::classes::java_lang_ThreadGroup();
 	let system_thread_group_instance = Reference::class(ClassInstance::new(thread_group_class));
 
@@ -250,9 +252,8 @@ fn create_thread_object(thread: &JavaThread) {
 		Operand::Reference(Reference::clone(&system_thread_group_instance))
 	);
 
-	if let JavaCallResult::PendingException = result {
-		thread.throw_pending_exception(false);
-		return;
+	if thread.has_pending_exception() {
+		return false;
 	}
 
 	unsafe {
@@ -262,6 +263,7 @@ fn create_thread_object(thread: &JavaThread) {
 	}
 
 	thread.init_obj(system_thread_group_instance);
+	true
 }
 
 /// Call `java.lang.System#initPhase1`
@@ -310,14 +312,11 @@ fn init_phase_2(thread: &JavaThread) -> Result<(), JniError> {
 		print_stacktrace_on_exception as s4
 	);
 
-	let ret;
-	match result {
-		JavaCallResult::Ok(op) => ret = op.unwrap().expect_int(),
-		JavaCallResult::PendingException => {
-			return Err(JniError::ExceptionThrown);
-		},
+	if thread.has_pending_exception() {
+		return Err(JniError::ExceptionThrown);
 	}
 
+	let ret = result.unwrap().expect_int();
 	if ret != JNI_OK {
 		return Err(JniError::Unknown);
 	}

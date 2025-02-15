@@ -10,7 +10,7 @@ use std::ptr::slice_from_raw_parts;
 use std::sync::{Arc, LazyLock, RwLock};
 
 use byte_slice_cast::{AsByteSlice, AsSliceOf};
-use common::int_types::{s1, u1, u2};
+use common::int_types::{u1, u2};
 use common::traits::PtrType;
 use jni::env::JniEnv;
 use jni::sys::{jbyte, jint};
@@ -155,7 +155,7 @@ fn do_intern(hash: StringHash, string: &[u8], is_utf8_symbol: bool) -> ClassInst
 
 	let encoded_str;
 	if is_latin1 {
-		let byte_slice: &[s1] = bytemuck::cast_slice(string);
+		let byte_slice: &[jbyte] = bytemuck::cast_slice(string);
 		encoded_str = byte_slice.to_vec().into_boxed_slice();
 	} else {
 		if is_utf8_symbol {
@@ -171,7 +171,7 @@ fn do_intern(hash: StringHash, string: &[u8], is_utf8_symbol: bool) -> ClassInst
 		} else {
 			// Otherwise, the source is a UTF-16 encoded string (hopefully)
 			assert!(string.len() % 2 == 0);
-			let byte_slice: &[s1] = bytemuck::cast_slice(string);
+			let byte_slice: &[jbyte] = bytemuck::cast_slice(string);
 			encoded_str = byte_slice.to_vec().into_boxed_slice();
 		}
 	}
@@ -181,9 +181,7 @@ fn do_intern(hash: StringHash, string: &[u8], is_utf8_symbol: bool) -> ClassInst
 	// Set `private byte[] value`
 	fields::java_lang_String::set_value(
 		new_java_string_instance.get_mut(),
-		Reference::array(unsafe {
-			PrimitiveArrayInstance::new::<jbyte>(classes::byte_array(), encoded_str)
-		}),
+		Reference::array(unsafe { PrimitiveArrayInstance::new::<jbyte>(encoded_str) }),
 	);
 
 	// Set `private final byte coder`

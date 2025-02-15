@@ -138,8 +138,6 @@ pub fn arraycopy(
 				)
 			}
 		}
-
-		unimplemented!("arraycopy on same instance")
 	}
 
 	if src.is_object_array() {

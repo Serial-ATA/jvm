@@ -1,17 +1,19 @@
 use super::instance::{CloneableInstance, Header, Instance};
 use crate::objects::class::Class;
 use crate::objects::field::Field;
+use crate::objects::monitor::Monitor;
 use crate::objects::reference::{ClassInstanceRef, Reference};
-
-use std::fmt::{Debug, Formatter};
-use std::ptr::NonNull;
 
 use common::traits::PtrType;
 use instructions::Operand;
+use std::fmt::{Debug, Formatter};
+use std::ptr::NonNull;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct ClassInstance {
 	header: Header,
+	monitor: Arc<Monitor>,
 	super_class: Option<ClassInstanceRef>,
 	class: &'static Class,
 	pub fields: Box<[Operand<Reference>]>,
@@ -41,6 +43,7 @@ impl ClassInstance {
 
 		ClassInstancePtr::new(Self {
 			header: Header::new(),
+			monitor: Arc::new(Monitor::new()),
 			super_class,
 			class,
 			fields: fields.into_boxed_slice(),
@@ -72,6 +75,7 @@ impl CloneableInstance for ClassInstance {
 
 		ClassInstancePtr::new(ClassInstance {
 			header: Header::new(),
+			monitor: Arc::new(Monitor::new()),
 			super_class: cloned_super,
 			class: self.class,
 			fields: self.fields.clone(),
@@ -82,6 +86,10 @@ impl CloneableInstance for ClassInstance {
 impl Instance for ClassInstance {
 	fn header(&self) -> &Header {
 		&self.header
+	}
+
+	fn monitor(&self) -> Arc<Monitor> {
+		self.monitor.clone()
 	}
 
 	fn get_field_value(&self, field: &Field) -> Operand<Reference> {

@@ -8,10 +8,10 @@ mod hash;
 pub mod java_lang_Thread;
 pub mod pool;
 
-use crate::calls::jcall::JavaCallResult;
+use crate::globals::{classes, fields};
 use crate::interpreter::Interpreter;
 use crate::java_call;
-use crate::native::java::lang::String::StringInterner;
+use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
 use crate::native::jni::invocation_api::new_env;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::method::Method;
@@ -26,6 +26,7 @@ use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 use std::thread::JoinHandle;
 
 use classfile::accessflags::MethodAccessFlags;
+use common::traits::PtrType;
 use instructions::{Operand, StackLike};
 use java_lang_Thread::ThreadStatus;
 use jni::env::JniEnv;
@@ -41,6 +42,12 @@ pub struct JVMOptions {
 	pub show_version: bool,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum ControlFlow {
+	Continue,
+	ExceptionThrown,
+}
+
 #[repr(C)]
 pub struct JavaThread {
 	env: JNIEnv,
@@ -48,6 +55,8 @@ pub struct JavaThread {
 	os_thread: UnsafeCell<Option<JoinHandle<()>>>,
 
 	hash_state: Cell<hash::HashState>,
+
+	control_flow: UnsafeCell<ControlFlow>,
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.5.1
 	// Each Java Virtual Machine thread has its own pc (program counter) register [...]
@@ -81,6 +90,8 @@ impl JavaThread {
 			os_thread: UnsafeCell::new(None),
 
 			hash_state: Cell::new(hash::HashState::new(seed)),
+
+			control_flow: UnsafeCell::new(ControlFlow::Continue),
 
 			pc: AtomicIsize::new(0),
 			frame_stack: FrameStack::new(),
@@ -156,6 +167,21 @@ impl JavaThread {
 			*current = Some(thread);
 		}
 	}
+
+	pub unsafe fn unset_current_thread() {
+		let current = CURRENT_JAVA_THREAD.get();
+
+		// SAFETY: The thread is an `Option`, so it's always initialized with *something*
+		let opt = unsafe { &*current };
+		assert!(
+			opt.is_some(),
+			"JavaThread already unset (how was this called?)"
+		);
+
+		unsafe {
+			*current = None;
+		}
+	}
 }
 
 // Actions for the related `java.lang.Thread` instance
@@ -173,16 +199,7 @@ impl JavaThread {
 			.resolve_method_step_two(sym!(run_name), sym!(void_method_signature))
 			.unwrap();
 
-		let result = java_call!(self, run_method, Operand::Reference(obj));
-
-		match result {
-			JavaCallResult::Ok(op) => {
-				assert!(op.is_none());
-			},
-			JavaCallResult::PendingException => {
-				todo!();
-			},
-		}
+		java_call!(self, run_method, Operand::Reference(obj));
 	}
 
 	/// Allocates a new `java.lang.Thread` for this `JavaThread`
@@ -287,6 +304,19 @@ impl JavaThread {
 		let obj_opt = unsafe { &*obj_ptr };
 		obj_opt.as_ref().map(Reference::clone)
 	}
+
+	pub fn name(&self) -> String {
+		let Some(obj) = self.obj() else {
+			return String::from("Unknown thread");
+		};
+
+		let name = fields::java_lang_Thread::name(obj.extract_class().get());
+		if name.is_null() {
+			return String::from("<un-named>");
+		}
+
+		rust_string_from_java_string(name.extract_class())
+	}
 }
 
 impl JavaThread {
@@ -338,7 +368,31 @@ impl JavaThread {
 
 		self.frame_stack.push(StackFrame::Fake);
 		self.invoke_method_with_local_stack(method, locals);
-		self.run();
+
+		loop {
+			match self.control_flow() {
+				ControlFlow::Continue => {
+					if let Some(current_frame) = self.frame_stack.current() {
+						Interpreter::instruction(current_frame);
+						continue;
+					}
+
+					// Thread finished execution normally
+					break;
+				},
+				ControlFlow::ExceptionThrown => {
+					self.handle_pending_exception();
+					if self.has_pending_exception() {
+						// Uncaught exception, nothing further we can do
+						self.set_exiting();
+						break;
+					}
+
+					// Exception handled, good to continue
+					self.set_control_flow(ControlFlow::Continue);
+				},
+			}
+		}
 
 		let ret = self.take_remaining_operand();
 		// Will pop the dummy frame for us
@@ -383,16 +437,16 @@ impl JavaThread {
 			ret = fn_ptr(self.env(), locals);
 		}
 
+		// Exception from native code, nothing left to do
+		if self.has_pending_exception() {
+			return;
+		}
+
+		// The frame may have been consumed in the search for an exemption handler
 		assert!(
 			self.frame_stack.pop_native().is_some(),
 			"native frame consumed",
 		);
-
-		// Exception from native code, nothing left to do
-		if self.has_pending_exception() {
-			self.throw_pending_exception(false);
-			return;
-		}
 
 		// Push the return value onto the previous frame's stack
 		if let Some(ret) = ret {
@@ -446,16 +500,51 @@ impl JavaThread {
 		}
 	}
 
-	pub fn run(&self) {
-		while let Some(current_frame) = self.frame_stack.current() {
-			Interpreter::instruction(current_frame);
+	pub fn control_flow(&self) -> ControlFlow {
+		unsafe { *self.control_flow.get() }
+	}
+
+	fn set_control_flow(&self, control_flow: ControlFlow) {
+		unsafe { *self.control_flow.get() = control_flow }
+	}
+
+	pub fn exit(&self, exception_check: bool) {
+		let obj = self.obj().expect("thread object should exist");
+
+		if exception_check && self.has_pending_exception() {
+			let exception = self.take_pending_exception().unwrap();
+			let dispatch_uncaught_exception_method = classes::java_lang_Thread()
+				.resolve_method(sym!(dispatchUncaughtException), sym!(void_method_signature))
+				.expect("dispatchUncaughtException method should exist");
+
+			java_call!(
+				self,
+				dispatch_uncaught_exception_method,
+				Operand::Reference(obj.clone()),
+				Operand::Reference(exception)
+			);
+
+			if self.has_pending_exception() {
+				let exception = self.take_pending_exception().unwrap();
+				eprintln!(
+					"Exception: {} thrown from the UncaughtExceptionHandler in thread \"{}\"",
+					exception.extract_target_class().name,
+					self.name()
+				);
+			}
 		}
+
+		let exit_method = classes::java_lang_Thread()
+			.resolve_method(sym!(exit_name), sym!(void_method_signature))
+			.expect("exit method should exist");
+		let _result = java_call!(&self, exit_method, Operand::Reference(obj));
 	}
 }
 
 // Exceptions
 impl JavaThread {
 	pub fn set_pending_exception(&self, exception: Reference) {
+		self.set_control_flow(ControlFlow::ExceptionThrown);
 		unsafe { *self.pending_exception.get() = Some(exception) }
 	}
 
@@ -464,7 +553,12 @@ impl JavaThread {
 	}
 
 	pub fn take_pending_exception(&self) -> Option<Reference> {
+		self.set_control_flow(ControlFlow::Continue);
 		unsafe { std::ptr::replace(self.pending_exception.get(), None) }
+	}
+
+	pub fn discard_pending_exception(&self) {
+		let _ = self.take_pending_exception();
 	}
 
 	fn set_exiting(&self) {
@@ -477,35 +571,50 @@ impl JavaThread {
 		self.exiting.load(Ordering::Relaxed)
 	}
 
-	/// Throw an exception on this thread
-	///
-	/// `object_ref` can be [`Reference::Null`], in which case a `NullPointerException` is thrown
-	///
-	/// # Panics
-	///
-	/// This will panic if `object_ref` is non-null, but not a subclass of `java/lang/Throwable`.
-	/// This should never occur post-verification.
-	pub fn throw_exception(&self, object_ref: Reference) {
-		// `throw_exception` is only ever called while the thread is guaranteed to be running, so
-		// we don't care whether the exception was handled or not here.
-		let _ = exceptions::handle_throw(self, object_ref);
-	}
-
-	/// Throw the pending exception on this thread
-	pub fn throw_pending_exception(&self, during_vm_init: bool) {
-		let pending_exception = unsafe { (*self.pending_exception.get()).take() };
+	/// Handle the pending exception on this thread
+	pub fn handle_pending_exception(&self) {
+		let pending_exception = self.take_pending_exception();
 		let Some(exception) = pending_exception else {
 			return;
 		};
 
-		if !exceptions::handle_throw(self, exception) {
-			// The exception was handled, nothing to do.
-			return;
+		// https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-6.html#jvms-6.5.athrow
+		// The objectref must be of type reference and must refer to an object that is an instance of class Throwable or of a subclass of Throwable.
+
+		let class_instance = exception.extract_class();
+
+		let throwable_class = crate::globals::classes::java_lang_Throwable();
+		assert!(
+			class_instance.get().class() == throwable_class
+				|| class_instance.get().is_subclass_of(&throwable_class)
+		);
+
+		// Search each frame for an exception handler
+		self.stash_and_reset_pc();
+		while let Some(current_frame) = self.frame_stack.current() {
+			let current_frame_pc = current_frame.stashed_pc();
+
+			// If an exception handler that matches objectref is found, it contains the location of the code intended to handle this exception.
+			if let Some(handler_pc) = current_frame
+				.method()
+				.find_exception_handler(class_instance.get().class(), current_frame_pc)
+			{
+				// The pc register is reset to that location, the operand stack of the current frame is cleared, objectref
+				// is pushed back onto the operand stack, and execution continues.
+				self.pc.store(handler_pc, Ordering::Relaxed);
+
+				let stack = current_frame.stack_mut();
+				stack.clear();
+				stack.push_reference(exception);
+
+				// The exception was caught
+				return;
+			}
+
+			let _ = self.frame_stack.pop();
 		}
 
-		// An exception thrown during VM init will stop the thread, need to start it back up to print the stack trace.
-		if during_vm_init {
-			self.run();
-		}
+		// Wasn't caught, re-set the exception
+		self.set_pending_exception(exception);
 	}
 }

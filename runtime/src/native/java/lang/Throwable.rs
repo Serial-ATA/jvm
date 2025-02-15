@@ -74,8 +74,7 @@ impl BackTrace {
 	fn into_obj(self) -> Reference {
 		let content = self.inner.into_boxed_slice();
 
-		let long_array_class = crate::globals::classes::long_array();
-		let array = unsafe { PrimitiveArrayInstance::new::<jlong>(long_array_class, content) };
+		let array = unsafe { PrimitiveArrayInstance::new::<jlong>(content) };
 		Reference::array(array)
 	}
 }

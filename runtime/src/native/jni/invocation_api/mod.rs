@@ -19,7 +19,14 @@ pub mod library;
 
 #[no_mangle]
 pub extern "system" fn DestroyJavaVM(vm: *mut JavaVM) -> jint {
-	unimplemented!("jni::DestroyJavaVM")
+	{
+		JavaThread::current().exit(false)
+	}
+
+	// SAFETY: No active references to the thread exist now
+	unsafe { JavaThread::unset_current_thread() };
+
+	JNI_OK
 }
 
 #[no_mangle]
@@ -75,7 +82,7 @@ pub extern "system" fn JNI_CreateJavaVM(
 		Ok(java_vm) => vm = java_vm,
 		Err(e) => {
 			if let JniError::ExceptionThrown = e {
-				JavaThread::current().throw_pending_exception(true);
+				todo!();
 			}
 
 			// All errors result in an abort

@@ -1,15 +1,19 @@
 use crate::native::java::lang::String::rust_string_from_java_string;
-use crate::objects::array::{Array, PrimitiveType};
+use crate::objects::array::{
+	Array, ObjectArrayInstance, PrimitiveArrayInstance, PrimitiveType, TypeCode,
+};
 use crate::objects::class::ClassInitializationState;
 use crate::objects::instance::Instance;
-use crate::objects::reference::Reference;
+use crate::objects::reference::{MirrorInstanceRef, Reference};
 use crate::thread::JavaThread;
 
 use std::marker::PhantomData;
+use std::ptr;
 use std::sync::atomic::{
 	AtomicBool, AtomicI16, AtomicI32, AtomicI64, AtomicI8, AtomicU16, Ordering,
 };
 
+use crate::thread::exceptions::{throw, Throws};
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 use common::atomic::{Atomic, AtomicF32, AtomicF64};
@@ -24,13 +28,13 @@ include_generated!("native/jdk/internal/misc/def/Unsafe.registerNatives.rs");
 /// This does all the work of checking the object type (class, array, or null) and performing gets/sets.
 struct UnsafeMemoryOp<T, A> {
 	object: Reference,
-	offset: usize,
+	offset: isize,
 	_phantom: PhantomData<(T, A)>,
 }
 
 impl<T, A> UnsafeMemoryOp<T, A> {
 	fn new(object: Reference, offset: jlong) -> Self {
-		let offset = offset as usize;
+		let offset = offset as isize;
 		Self {
 			object,
 			offset,
@@ -70,12 +74,18 @@ where
 		let offset = self.offset;
 		let instance = self.object.extract_primitive_array();
 		let array = instance.get();
-		unsafe { array.get_unchecked_type::<T>(offset) }
+
+		unsafe {
+			let base = array.base();
+
+			let start = (base as *const u8).offset(offset);
+			*(start as *const T)
+		}
 	}
 
 	#[doc(hidden)]
 	unsafe fn __get_field(&self) -> T {
-		let offset = self.offset;
+		let offset = self.offset as usize;
 		let instance = self.object.extract_class();
 		unsafe {
 			let field_value = instance.get_mut().get_field_value_raw(offset).as_ptr();
@@ -111,7 +121,7 @@ where
 
 	#[doc(hidden)]
 	unsafe fn __get_field_volatile(&self) -> T {
-		let offset = self.offset;
+		let offset = self.offset as usize;
 		let instance = self.object.extract_class();
 		unsafe {
 			let field_value = instance.get_mut().get_field_value_raw(offset).as_ptr();
@@ -145,13 +155,18 @@ where
 	unsafe fn __put_array(&self, value: T) {
 		let offset = self.offset;
 		let instance = self.object.extract_primitive_array();
-		let array_mut = instance.get_mut();
-		let _old = unsafe { array_mut.put_unchecked_type::<T>(offset, value) };
+		let array = instance.get();
+
+		unsafe {
+			let base = array.base();
+			let start = (base as *const u8).offset(offset);
+			ptr::replace(start as *mut T, value);
+		}
 	}
 
 	#[doc(hidden)]
 	unsafe fn __put_field(&self, value: T) {
-		let offset = self.offset;
+		let offset = self.offset as usize;
 		let instance = self.object.extract_class();
 		unsafe {
 			let field_value = instance.get_mut().get_field_value_raw(offset).as_ptr();
@@ -410,8 +425,9 @@ pub fn compareAndExchangeReference(
 	if object.is_object_array() {
 		let instance = object.extract_object_array();
 		let array_mut = instance.get_mut();
-		let current_value = array_mut.get_unchecked_raw(offset as usize);
 		unsafe {
+			let current_value = array_mut.get_unchecked_raw(offset as isize);
+
 			if &*current_value == &expected {
 				*current_value = Reference::clone(&value);
 				return expected;
@@ -463,7 +479,7 @@ pub fn getReference(
 	if object.is_object_array() {
 		let instance = object.extract_object_array();
 		let array_mut = instance.get_mut();
-		return unsafe { array_mut.get_unchecked(offset as usize) };
+		return Reference::clone(unsafe { &*array_mut.get_unchecked_raw(offset as isize) });
 	}
 
 	let instance = object.extract_class();
@@ -487,7 +503,7 @@ pub fn putReference(
 		let instance = object.extract_object_array();
 		let array_mut = instance.get_mut();
 		unsafe {
-			array_mut.store_unchecked(offset as usize, value);
+			array_mut.store_unchecked_raw(offset as isize, value);
 		}
 		return;
 	}
@@ -738,29 +754,60 @@ pub fn ensureClassInitialized0(
 		ClassInitializationState::Failed => unreachable!("Failed to ensure class initialization"),
 	}
 }
+
+fn base_and_scale_of(array_class: Reference) -> Throws<(jint, jint)> {
+	if array_class.is_null() {
+		throw!(@DEFER InvalidClassException);
+	}
+
+	let array_class_mirror = array_class.extract_mirror();
+	let array_class = array_class_mirror.get().target_class();
+	if !array_class.is_array() {
+		throw!(@DEFER InvalidClassException);
+	}
+
+	let array_descriptor = array_class.unwrap_array_instance();
+	if array_descriptor.is_primitive() {
+		let base = PrimitiveArrayInstance::BASE_OFFSET;
+
+		// Safe to unwrap, just verified this is a primitive array
+		let component_type_code = array_descriptor.component.as_array_type_code().unwrap();
+		let type_code = TypeCode::from_u8(component_type_code);
+		Throws::Ok((base as jint, type_code.size() as jint))
+	} else {
+		let base = ObjectArrayInstance::BASE_OFFSET;
+		let scale = size_of::<Reference>() as jint;
+		Throws::Ok((base as jint, scale))
+	}
+}
+
 pub fn arrayBaseOffset0(
-	_env: JniEnv,
+	env: JniEnv,
 	_this: Reference,       // jdk.internal.misc.Unsafe
 	array_class: Reference, // java.lang.Class
 ) -> jint {
-	let mirror = array_class.extract_mirror();
-	// TODO: InvalidClassException
-	let _array = mirror.get().target_class().unwrap_array_instance();
-
-	// TODO: We don't do byte packing like Hotspot
-	0
+	match base_and_scale_of(array_class) {
+		Throws::Ok((base, _)) => base,
+		Throws::Exception(e) => {
+			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+			e.throw(thread);
+			0
+		},
+	}
 }
 pub fn arrayIndexScale0(
-	_env: JniEnv,
+	env: JniEnv,
 	_this: Reference,       // jdk.internal.misc.Unsafe
 	array_class: Reference, // java.lang.Class
 ) -> jint {
-	let mirror = array_class.extract_mirror();
-	// TODO: InvalidClassException
-	let _array = mirror.get().target_class().unwrap_array_instance();
-
-	// TODO: We don't do byte packing like Hotspot
-	1
+	match base_and_scale_of(array_class) {
+		Throws::Ok((_, scale)) => scale,
+		Throws::Exception(e) => {
+			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+			e.throw(thread);
+			0
+		},
+	}
 }
 pub fn getLoadAverage0(
 	_env: JniEnv,

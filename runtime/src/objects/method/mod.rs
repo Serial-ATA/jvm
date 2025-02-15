@@ -1,6 +1,5 @@
 pub mod spec;
 
-use crate::calls::jcall::JavaCallResult;
 use crate::globals::{classes, fields};
 use crate::java_call;
 use crate::native::java::lang::String::StringInterner;
@@ -145,6 +144,10 @@ impl Method {
 	}
 
 	pub fn get_line_number(&self, pc: isize) -> s4 {
+		if self.is_native() {
+			return -2;
+		}
+
 		if self.line_number_table.is_empty() {
 			return -1;
 		}
@@ -361,26 +364,23 @@ impl Method {
 			sym!(findMethodHandleType_signature),
 		)?;
 
+		let thread = JavaThread::current();
+
 		// static java.lang.invoke.MethodHandleNatives#findMethodHandleType(Class rt, Class[] pts) -> MethodType
 		let result = java_call!(
-			JavaThread::current(),
+			thread,
 			find_method_handle_type_method,
 			Operand::Reference(return_type),
 			Operand::Reference(Reference::object_array(parameters))
 		);
 
-		let method_type;
-		match result {
-			JavaCallResult::Ok(op) => {
-				method_type = op
-					.expect("method should return something")
-					.expect_reference();
-			},
-			JavaCallResult::PendingException => {
-				JavaThread::current().throw_pending_exception(false);
-				todo!();
-			},
+		if thread.has_pending_exception() {
+			todo!();
 		}
+
+		let method_type = result
+			.expect("method should return something")
+			.expect_reference();
 
 		Throws::Ok(method_type)
 	}

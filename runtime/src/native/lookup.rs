@@ -1,4 +1,3 @@
-use crate::calls::jcall::JavaCallResult;
 use crate::java_call;
 use crate::native::java::lang::String::StringInterner;
 use crate::native::method::NativeMethodPtr;
@@ -226,24 +225,20 @@ fn lookup_style(
 		)
 		.unwrap();
 
-	let result = java_call!(
+	let address = java_call!(
 		thread,
 		findNative_method,
 		Operand::Reference(Reference::null()),
 		Operand::Reference(Reference::class(name_arg))
 	);
 
-	let address;
-	match result {
-		JavaCallResult::Ok(op) => {
-			address = op.unwrap().expect_long();
-		},
-		JavaCallResult::PendingException => {
-			thread.throw_pending_exception(false);
-			return None;
-		},
+	if thread.has_pending_exception() {
+		return None;
 	}
 
+	let address = address
+		.expect("method should return something")
+		.expect_long();
 	if address == 0 {
 		todo!("Agent library search");
 	}
@@ -341,7 +336,7 @@ fn lookup_base(method: &Method, thread: &JavaThread) -> NativeMethodPtr {
 
 pub fn lookup_native_method(method: &Method, thread: &JavaThread) {
 	let native_method = method.native_method();
-	if !native_method.is_some() {
+	if native_method.is_some() {
 		return;
 	}
 

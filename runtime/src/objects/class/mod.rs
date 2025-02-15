@@ -230,6 +230,12 @@ pub struct ArrayDescriptor {
 	pub component: FieldType,
 }
 
+impl ArrayDescriptor {
+	pub fn is_primitive(&self) -> bool {
+		self.component.is_primitive()
+	}
+}
+
 // Getters
 impl Class {
 	fn class_ty(&self) -> &'static ClassType {

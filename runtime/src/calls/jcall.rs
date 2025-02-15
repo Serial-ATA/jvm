@@ -1,12 +1,3 @@
-use crate::objects::reference::Reference;
-
-use instructions::Operand;
-
-pub enum JavaCallResult {
-	Ok(Option<Operand<Reference>>),
-	PendingException,
-}
-
 /// Call a Java method with arguments
 ///
 /// This will invoke `method` on `thread` with the provided arguments.
@@ -37,35 +28,29 @@ macro_rules! java_call {
         $method:ident,
 		$($arg:expr),+ $(,)?
     ) => {{
-		tracing::debug!(target: "java_call", "Invoking manual Java call for method `{:?}`", $method);
 		let max_locals = $method.code.max_locals;
-		let __thread = $thread;
-		let __ret = __thread.invoke_method_scoped($method, $crate::stack::local_stack::LocalStack::new_with_args(vec![$(::instructions::Operand::from($arg)),+], max_locals as usize));
-		tracing::debug!(target: "java_call", "Manual Java call finished for method `{:?}`", $method);
-
-		// Exception thrown, nothing left to do
-		if __thread.has_pending_exception() {
-			$crate::calls::jcall::JavaCallResult::PendingException
-		} else {
-			$crate::calls::jcall::JavaCallResult::Ok(__ret)
-		}
+		let local_stack = $crate::stack::local_stack::LocalStack::new_with_args(vec![$(::instructions::Operand::from($arg)),+], max_locals as usize);
+		java_call!(@WITH_ARGS_LIST $thread, $method, local_stack)
 	}};
 	// No arguments path, still needs to allocate a LocalStack for stores
 	(
         $thread:expr,
         $method:ident $(,)?
     ) => {{
-		tracing::debug!(target: "java_call", "Invoking manual Java call for method `{:?}`", $method);
 		let max_locals = $method.code.max_locals;
+		let local_stack = $crate::stack::local_stack::LocalStack::new(max_locals as usize);
+		java_call!(@WITH_ARGS_LIST $thread, $method, local_stack)
+	}};
+	(
+		@WITH_ARGS_LIST
+        $thread:expr,
+        $method:ident,
+		$args_list:ident $(,)?
+    ) => {{
+		tracing::debug!(target: "java_call", "Invoking manual Java call for method `{:?}`", $method);
 		let __thread = $thread;
-		let __ret = __thread.invoke_method_scoped($method, $crate::stack::local_stack::LocalStack::new(max_locals as usize));
+		let __ret = __thread.invoke_method_scoped($method, $args_list);
 		tracing::debug!(target: "java_call", "Manual Java call finished for method `{:?}`", $method);
-
-		// Exception thrown, nothing left to do
-		if __thread.has_pending_exception() {
-			$crate::calls::jcall::JavaCallResult::PendingException
-		} else {
-			$crate::calls::jcall::JavaCallResult::Ok(__ret)
-		}
+		__ret
 	}};
 }

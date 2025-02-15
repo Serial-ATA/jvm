@@ -36,8 +36,15 @@ pub type MirrorInstanceRef = Arc<MirrorInstancePtr>;
 #[repr(C)]
 pub struct Reference {
 	instance: ReferenceInstance,
-	monitor: Arc<Monitor>,
 }
+
+const _: () = {
+	let reference_size = size_of::<Reference>();
+	assert!(
+		reference_size & (reference_size - 1) == 0,
+		"size_of(`Reference`) is not a power of two"
+	);
+};
 
 impl PartialEq for Reference {
 	fn eq(&self, other: &Self) -> bool {
@@ -81,35 +88,30 @@ impl Reference {
 	pub fn class(instance: ClassInstanceRef) -> Reference {
 		Self {
 			instance: ReferenceInstance::Class(instance),
-			monitor: Arc::new(Monitor::new()),
 		}
 	}
 
 	pub fn array(instance: PrimitiveArrayInstanceRef) -> Reference {
 		Self {
 			instance: ReferenceInstance::Array(instance),
-			monitor: Arc::new(Monitor::new()),
 		}
 	}
 
 	pub fn object_array(instance: ObjectArrayInstanceRef) -> Reference {
 		Self {
 			instance: ReferenceInstance::ObjectArray(instance),
-			monitor: Arc::new(Monitor::new()),
 		}
 	}
 
 	pub fn mirror(instance: MirrorInstanceRef) -> Reference {
 		Self {
 			instance: ReferenceInstance::Mirror(instance),
-			monitor: Arc::new(Monitor::new()),
 		}
 	}
 
 	pub fn null() -> Reference {
 		Self {
 			instance: ReferenceInstance::Null,
-			monitor: Arc::new(Monitor::new()),
 		}
 	}
 }
@@ -156,20 +158,6 @@ impl Reference {
 		}
 
 		self.header().generate_hash(thread)
-	}
-}
-
-impl Reference {
-	pub fn monitor_enter(&self, thread: &'static JavaThread) {
-		self.monitor.enter(thread);
-	}
-
-	pub fn monitor_exit(&self, thread: &'static JavaThread) {
-		self.monitor.exit(thread);
-	}
-
-	pub fn notify_all(&self) {
-		self.monitor.notify_all();
 	}
 }
 
@@ -295,6 +283,18 @@ impl Instance for Reference {
 			ReferenceInstance::Mirror(instance) => instance.get().header(),
 			ReferenceInstance::Null => {
 				unreachable!("Should never attempt to retrieve the header of a null object")
+			},
+		}
+	}
+
+	fn monitor(&self) -> Arc<Monitor> {
+		match &self.instance {
+			ReferenceInstance::Class(instance) => instance.get().monitor(),
+			ReferenceInstance::Array(instance) => instance.get().monitor(),
+			ReferenceInstance::ObjectArray(instance) => instance.get().monitor(),
+			ReferenceInstance::Mirror(instance) => instance.get().monitor(),
+			ReferenceInstance::Null => {
+				unreachable!("Should never attempt to retrieve the monitor of a null object")
 			},
 		}
 	}

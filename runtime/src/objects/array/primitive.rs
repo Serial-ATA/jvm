@@ -1,13 +1,15 @@
 use crate::classpath::loader::ClassLoader;
 use crate::objects::class::Class;
 use crate::objects::instance::{CloneableInstance, Header};
+use crate::objects::monitor::Monitor;
 use crate::objects::reference::{PrimitiveArrayInstanceRef, Reference};
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{throw, Throws};
 
 use std::alloc::{alloc_zeroed, Layout};
 use std::fmt::{Debug, Formatter};
-use std::{ptr, slice};
+use std::sync::Arc;
+use std::{fmt, ptr, slice};
 
 use common::int_types::{s1, s2, s4, u1, u2};
 use common::traits::PtrType;
@@ -16,7 +18,7 @@ use jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(u32)]
-enum TypeCode {
+pub enum TypeCode {
 	Boolean = 4,
 	Char = 5,
 	Float = 6,
@@ -28,7 +30,7 @@ enum TypeCode {
 }
 
 impl TypeCode {
-	fn from_u8(val: u8) -> Self {
+	pub fn from_u8(val: u8) -> Self {
 		match val {
 			4 => Self::Boolean,
 			5 => Self::Char,
@@ -42,6 +44,19 @@ impl TypeCode {
 		}
 	}
 
+	pub fn size(self) -> usize {
+		match self {
+			TypeCode::Boolean => size_of::<jboolean>(),
+			TypeCode::Char => size_of::<jchar>(),
+			TypeCode::Float => size_of::<jfloat>(),
+			TypeCode::Double => size_of::<jdouble>(),
+			TypeCode::Byte => size_of::<jbyte>(),
+			TypeCode::Short => size_of::<jshort>(),
+			TypeCode::Int => size_of::<jint>(),
+			TypeCode::Long => size_of::<jlong>(),
+		}
+	}
+
 	fn array_signature(self) -> Symbol {
 		match self {
 			TypeCode::Boolean => sym!(bool_array),
@@ -52,6 +67,19 @@ impl TypeCode {
 			TypeCode::Short => sym!(short_array),
 			TypeCode::Int => sym!(int_array),
 			TypeCode::Long => sym!(long_array),
+		}
+	}
+
+	fn array_class(self) -> &'static Class {
+		match self {
+			TypeCode::Boolean => crate::globals::classes::bool_array(),
+			TypeCode::Byte => crate::globals::classes::byte_array(),
+			TypeCode::Char => crate::globals::classes::char_array(),
+			TypeCode::Double => crate::globals::classes::double_array(),
+			TypeCode::Float => crate::globals::classes::float_array(),
+			TypeCode::Int => crate::globals::classes::int_array(),
+			TypeCode::Long => crate::globals::classes::long_array(),
+			TypeCode::Short => crate::globals::classes::short_array(),
 		}
 	}
 
@@ -75,9 +103,10 @@ fn alloc_zeroed_array<T>(count: usize) -> *mut u8 {
 }
 
 /// An instance of a primitive array
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct PrimitiveArrayInstance {
 	header: Header,
+	monitor: Arc<Monitor>,
 	pub class: &'static Class,
 	length: u32,
 	ty: TypeCode,
@@ -152,6 +181,7 @@ impl CloneableInstance for PrimitiveArrayInstance {
 
 		PrimitiveArrayInstancePtr::new(Self {
 			header: self.header.clone(),
+			monitor: Arc::new(Monitor::new()),
 			class: self.class,
 			length: self.length,
 			ty: self.ty,
@@ -161,7 +191,7 @@ impl CloneableInstance for PrimitiveArrayInstance {
 }
 
 // Marker trait for Java primitive types, indicating they are safe to zero-initialize
-pub trait PrimitiveType: Copy {
+pub trait PrimitiveType: Copy + fmt::Debug {
 	const TYPE_CODE: TypeCode;
 }
 
@@ -191,12 +221,14 @@ impl PrimitiveType for jlong {
 }
 
 impl PrimitiveArrayInstance {
-	pub unsafe fn new<T>(class: &'static Class, elements: Box<[T]>) -> PrimitiveArrayInstanceRef
+	pub unsafe fn new<T>(elements: Box<[T]>) -> PrimitiveArrayInstanceRef
 	where
 		T: PrimitiveType,
 	{
 		let length = elements.len();
 		assert!(length <= s4::MAX as usize);
+
+		let ty = T::TYPE_CODE;
 
 		let base = alloc_zeroed_array::<T>(length);
 		let new_array_slice = slice::from_raw_parts_mut::<T>(base as *mut T, length);
@@ -204,9 +236,10 @@ impl PrimitiveArrayInstance {
 
 		PrimitiveArrayInstancePtr::new(Self {
 			header: Header::new(),
-			class,
+			monitor: Arc::new(Monitor::new()),
+			class: ty.array_class(),
 			length: length as u32,
-			ty: T::TYPE_CODE,
+			ty,
 			base,
 		})
 	}
@@ -225,6 +258,7 @@ impl PrimitiveArrayInstance {
 
 		Throws::Ok(PrimitiveArrayInstancePtr::new(Self {
 			header: Header::new(),
+			monitor: Arc::new(Monitor::new()),
 			class: array_class,
 			length: count as u32,
 			ty: type_code,
@@ -232,26 +266,11 @@ impl PrimitiveArrayInstance {
 		}))
 	}
 
-	/// Interpret the array contents as type `T` and get the value at `offset`
+	/// Get a pointer to the start of this array
 	///
-	/// # Safety
-	///
-	/// The caller must ensure that the array is actually of type `T`, and that `offset` is within
-	/// bounds.
-	pub unsafe fn get_unchecked_type<T: PrimitiveType>(&self, offset: usize) -> T {
-		unsafe { *(self.base as *const T).add(offset) }
-	}
-
-	/// Interpret the array contents as type `T` and replace the value at `offset`
-	///
-	/// This will return the value previously at `offset`.
-	///
-	/// # Safety
-	///
-	/// The caller must ensure that the array is actually of type `T`, and that `offset` is within
-	/// bounds.
-	pub unsafe fn put_unchecked_type<T: PrimitiveType>(&self, offset: usize, value: T) -> T {
-		unsafe { ptr::replace((self.base as *mut T).add(offset), value) }
+	/// This must be used with great care, with respect to the actual underlying type of the array.
+	pub unsafe fn base(&self) -> *mut u8 {
+		self.base
 	}
 
 	pub fn as_slice<T: PrimitiveType>(&self) -> &[T] {
@@ -260,10 +279,17 @@ impl PrimitiveArrayInstance {
 		// SAFETY: We just verified that the type is correct
 		unsafe { slice::from_raw_parts::<T>(self.base as *const _, self.length as usize) }
 	}
+
+	// TODO: Make arrays implement `Instance`
+	pub fn monitor(&self) -> Arc<Monitor> {
+		self.monitor.clone()
+	}
 }
 
 impl super::Array for PrimitiveArrayInstance {
 	type Component = Operand<Reference>;
+
+	const BASE_OFFSET: usize = 0;
 
 	fn header(&self) -> &Header {
 		&self.header
@@ -294,9 +320,11 @@ impl super::Array for PrimitiveArrayInstance {
 				TypeCode::Boolean => {
 					ptr::write::<jboolean>(self.base.add(index) as *mut _, (val & 1) == 1)
 				},
-				TypeCode::Byte => ptr::write::<jbyte>(self.base.add(index) as *mut _, val as s1),
-				TypeCode::Short => ptr::write::<jshort>(self.base.add(index) as *mut _, val as s2),
-				TypeCode::Char => ptr::write::<jchar>(self.base.add(index) as *mut _, val as u2),
+				TypeCode::Byte => ptr::write::<jbyte>(self.base.add(index) as *mut _, val as jbyte),
+				TypeCode::Short => {
+					ptr::write::<jshort>(self.base.add(index) as *mut _, val as jshort)
+				},
+				TypeCode::Char => ptr::write::<jchar>(self.base.add(index) as *mut _, val as jchar),
 				TypeCode::Int => ptr::write::<jint>(self.base.add(index) as *mut _, val),
 				_ => unreachable!(),
 			},

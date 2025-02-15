@@ -1,15 +1,32 @@
 use crate::objects::field::Field;
+use crate::objects::monitor::Monitor;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
 use std::cell::Cell;
 use std::ptr::NonNull;
+use std::sync::Arc;
 
 use instructions::Operand;
 use jni::sys::jint;
 
 pub trait Instance {
 	fn header(&self) -> &Header;
+
+	#[doc(hidden)] // Shouldn't ever need to be accessed directly
+	fn monitor(&self) -> Arc<Monitor>;
+
+	fn monitor_enter(&self, thread: &'static JavaThread) {
+		self.monitor().enter(thread);
+	}
+
+	fn monitor_exit(&self, thread: &'static JavaThread) {
+		self.monitor().exit(thread);
+	}
+
+	fn notify_all(&self) {
+		self.monitor().notify_all();
+	}
 
 	fn get_field_value(&self, field: &Field) -> Operand<Reference>;
 	fn get_field_value0(&self, field_idx: usize) -> Operand<Reference>;

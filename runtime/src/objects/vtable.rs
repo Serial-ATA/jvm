@@ -1,5 +1,6 @@
 use crate::objects::method::Method;
 use crate::symbols::Symbol;
+use std::ops::Index;
 
 use classfile::accessflags::MethodAccessFlags;
 
@@ -77,5 +78,13 @@ impl<'a> VTable<'a> {
 	/// Get an iterator over all the `VTable` methods
 	pub fn iter<'vtable>(&'vtable self) -> impl Iterator<Item = &'a Method> + 'vtable {
 		self.methods.iter().copied()
+	}
+}
+
+impl<'a> Index<usize> for VTable<'a> {
+	type Output = Method;
+
+	fn index(&self, index: usize) -> &Self::Output {
+		self.methods[index]
 	}
 }

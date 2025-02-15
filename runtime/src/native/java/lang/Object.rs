@@ -1,4 +1,4 @@
-use crate::objects::instance::CloneableInstance;
+use crate::objects::instance::{CloneableInstance, Instance};
 use crate::objects::reference::Reference;
 use crate::thread::exceptions::throw_and_return_null;
 use crate::thread::JavaThread;

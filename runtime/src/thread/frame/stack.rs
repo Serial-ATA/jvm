@@ -91,6 +91,10 @@ impl FrameStack {
 		self.__inner().len()
 	}
 
+	pub fn is_empty(&self) -> bool {
+		self.__inner().is_empty()
+	}
+
 	/// The number of frames in the stack *excluding* fake frames
 	pub fn visible_depth(&self) -> usize {
 		self.iter().count()

@@ -1,4 +1,3 @@
-use crate::calls::jcall::JavaCallResult;
 use crate::java_call;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
@@ -22,15 +21,7 @@ where
 		let value_of_method =
 			Self::class().resolve_method(sym!(valueOf_name), Self::VALUE_OF_SIGNATURE)?;
 		let result = java_call!(thread, value_of_method, self);
-
-		match result {
-			JavaCallResult::Ok(res) => {
-				Throws::Ok(res.expect("method should return").expect_reference())
-			},
-			JavaCallResult::PendingException => {
-				todo!()
-			},
-		}
+		Throws::Ok(result.expect("method should return").expect_reference())
 	}
 }
 

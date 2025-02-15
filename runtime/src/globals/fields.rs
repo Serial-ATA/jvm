@@ -2,6 +2,8 @@
 
 //! Various offsets for fields of frequently accessed classes
 
+use jni::sys::{jboolean, jbyte, jdouble, jfloat, jint, jlong, jshort};
+
 #[allow(dead_code)] // This is used in the `field_constructor!` macro
 const MAX_FIELD_COUNT: usize = 8;
 
@@ -356,7 +358,7 @@ pub mod java_lang_String {
 		@FIELD value: FieldType::Array(ref val) if **val == FieldType::Byte,
 		/// `java.lang.String#coder` field offset
 		///
-		/// Expected type: `jint`
+		/// Expected type: `jbyte`
 		@FIELD coder: FieldType::Byte,
 		/// `java.lang.String#hash` field offset
 		///
@@ -409,7 +411,24 @@ pub mod java_lang_Module {
 }
 
 pub mod java_lang_Thread {
+	use crate::objects::class_instance::ClassInstance;
+	use crate::objects::instance::Instance;
+	use crate::objects::reference::Reference;
 	use classfile::FieldType;
+
+	/// `java.lang.Thread#name` field
+	pub fn name(instance: &ClassInstance) -> Reference {
+		instance
+			.get_field_value0(name_field_offset())
+			.expect_reference()
+	}
+
+	/// `java.lang.Thread#holder` field
+	pub fn holder(instance: &ClassInstance) -> Reference {
+		instance
+			.get_field_value0(holder_field_offset())
+			.expect_reference()
+	}
 
 	field_module! {
 		@CLASS java_lang_Thread;
@@ -420,6 +439,10 @@ pub mod java_lang_Thread {
 		///
 		/// Expected type: `jlong`
 		@FIELD eetop: FieldType::Long,
+		/// `java.lang.Thread#name` field offset
+		///
+		/// Expected type: `Reference` to `java.lang.String`
+		@FIELD name: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
 		/// `java.lang.Thread#holder` field offset
 		///
 		/// Expected type: `Reference` to `java.lang.Thread$FieldHolder`
@@ -875,7 +898,7 @@ pub mod java_lang_invoke_ResolvedMethodName {
 pub mod java_lang_reflect_Constructor {
 	use crate::objects::class_instance::ClassInstance;
 	use crate::objects::instance::Instance;
-	use crate::objects::reference::Reference;
+	use crate::objects::reference::{MirrorInstanceRef, ObjectArrayInstanceRef, Reference};
 	use classfile::FieldType;
 	use instructions::Operand;
 	use jni::sys::jint;
@@ -885,13 +908,31 @@ pub mod java_lang_reflect_Constructor {
 		instance.put_field_value0(clazz_field_offset(), Operand::Reference(value))
 	}
 
+	pub fn clazz(instance: &ClassInstance) -> MirrorInstanceRef {
+		instance
+			.get_field_value0(clazz_field_offset())
+			.expect_reference()
+			.extract_mirror()
+	}
+
 	pub fn set_slot(instance: &mut ClassInstance, value: jint) {
 		instance.put_field_value0(slot_field_offset(), Operand::Int(value))
+	}
+
+	pub fn slot(instance: &ClassInstance) -> jint {
+		instance.get_field_value0(slot_field_offset()).expect_int()
 	}
 
 	pub fn set_parameterTypes(instance: &mut ClassInstance, value: Reference) {
 		assert!(value.is_object_array());
 		instance.put_field_value0(parameterTypes_field_offset(), Operand::Reference(value))
+	}
+
+	pub fn parameterTypes(instance: &ClassInstance) -> ObjectArrayInstanceRef {
+		instance
+			.get_field_value0(parameterTypes_field_offset())
+			.expect_reference()
+			.extract_object_array()
 	}
 
 	pub fn set_exceptionTypes(instance: &mut ClassInstance, value: Reference) {
@@ -936,11 +977,11 @@ pub mod java_lang_reflect_Constructor {
 		/// `java.lang.reflect.Constructor#parameterTypes` field offset
 		///
 		/// Expected field type: `Reference` to `java.lang.Class[]`
-		@FIELD parameterTypes: ty @ FieldType::Array(ref val) if val.is_class(b"java/lang/Class"),
+		@FIELD parameterTypes: FieldType::Array(ref val) if val.is_class(b"java/lang/Class"),
 		/// `java.lang.reflect.Constructor#exceptionTypes` field offset
 		///
 		/// Expected field type: `Reference` to `java.lang.Class[]`
-		@FIELD exceptionTypes: ty @ FieldType::Array(ref val) if val.is_class(b"java/lang/Class"),
+		@FIELD exceptionTypes: FieldType::Array(ref val) if val.is_class(b"java/lang/Class"),
 		/// `java.lang.reflect.Constructor#modifiers` field offset
 		///
 		/// Expected field type: `jint`
@@ -952,10 +993,50 @@ pub mod java_lang_reflect_Constructor {
 		/// `java.lang.reflect.Constructor#annotations` field offset
 		///
 		/// Expected field type: `Reference` to `byte[]`
-		@FIELD annotations: ty @ FieldType::Array(ref val) if **val == FieldType::Byte,
+		@FIELD annotations: FieldType::Array(ref val) if **val == FieldType::Byte,
 		/// `java.lang.reflect.Constructor#parameterAnnotations` field offset
 		///
 		/// Expected field type: `Reference` to `byte[]`
-		@FIELD parameterAnnotations: ty @ FieldType::Array(ref val) if **val == FieldType::Byte,
+		@FIELD parameterAnnotations: FieldType::Array(ref val) if **val == FieldType::Byte,
 	}
 }
+
+macro_rules! primitive_boxes {
+	($($mod_name:ident, $ty:ident, $field_ty:pat, $unwrapper:ident, $field:ident, $converter:expr);+ $(;)?) => {
+		$(
+		pub mod $mod_name {
+			use crate::objects::class_instance::ClassInstance;
+			use crate::objects::instance::Instance;
+
+			use jni::sys::$ty;
+			use classfile::FieldType;
+
+			pub fn value(instance: &ClassInstance) -> $ty {
+				assert_eq!(instance.class(), crate::globals::classes::$mod_name());
+				let $field = instance
+					.get_field_value0(value_field_offset())
+					.$unwrapper();
+				$converter
+			}
+
+			field_module! {
+				@CLASS $mod_name;
+
+				@FIELDSTART
+				@FIELD value: $field_ty,
+			}
+		}
+		)+
+	}
+}
+
+primitive_boxes!(
+	java_lang_Boolean,   jboolean, FieldType::Boolean, expect_int,    field, field != 0;
+	java_lang_Character, jchar,    FieldType::Char,    expect_int,    field, field as jchar;
+	java_lang_Float,     jfloat,   FieldType::Float,   expect_float,  field, field as jfloat;
+	java_lang_Double,    jdouble,  FieldType::Double,  expect_double, field, field as jdouble;
+	java_lang_Byte,      jbyte,    FieldType::Byte,    expect_int,    field, field as jbyte;
+	java_lang_Short,     jshort,   FieldType::Short,   expect_int,    field, field as jshort;
+	java_lang_Integer,   jint,     FieldType::Int,     expect_int,    field, field as jint;
+	java_lang_Long,      jlong,    FieldType::Long,    expect_long,   field, field as jlong;
+);

@@ -1,8 +1,11 @@
 fn main() {
 	init_logger();
 
-	if let Err(e) = sj_lib::launch() {
-		eprintln!("{}", e);
+	match sj_lib::launch() {
+		Ok(exit_code) => std::process::exit(exit_code),
+		Err(e) => {
+			eprintln!("{}", e);
+		},
 	}
 }
 

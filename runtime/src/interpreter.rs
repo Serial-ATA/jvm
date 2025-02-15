@@ -257,7 +257,7 @@ impl Interpreter {
 	pub fn instruction(frame: &mut Frame) {
         // The opcodes are broken into sections as defined here:
         // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-7.html
-
+        
         let opcode = OpCode::from(frame.read_byte());
         
         define_instructions! {
@@ -669,7 +669,9 @@ impl Interpreter {
                 OpCode::athrow => {
                     let object_ref = frame.stack_mut().pop_reference();
                     let thread = frame.thread();
-                    thread.throw_exception(object_ref);
+                    thread.set_pending_exception(object_ref);
+                    thread.handle_pending_exception();
+                    return;
                 },
                 OpCode::instanceof => { Self::instanceof_checkcast(frame, opcode) },
                 OpCode::checkcast => { Self::instanceof_checkcast(frame, opcode) },
