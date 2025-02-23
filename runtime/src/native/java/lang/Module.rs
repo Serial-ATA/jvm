@@ -3,7 +3,7 @@ use crate::native::java::lang::String::rust_string_from_java_string;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
-use crate::thread::exceptions::{handle_exception, throw};
+use crate::thread::exceptions::{handle_exception, throw, Throws};
 use crate::thread::JavaThread;
 
 use ::jni::env::JniEnv;
@@ -99,7 +99,9 @@ pub fn addReads0(
 		to_module = Some(unsafe { &*to_ptr });
 	}
 
-	from_module.add_reads(to_module);
+	if let Throws::Exception(e) = from_module.add_reads(to_module) {
+		e.throw(thread);
+	}
 }
 
 pub fn addExports0(

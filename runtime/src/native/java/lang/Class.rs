@@ -1,11 +1,10 @@
 use crate::classpath::loader::ClassLoaderSet;
-use crate::globals::{classes, fields};
+use crate::globals::classes;
 use crate::include_generated;
 use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
 use crate::native::jni::{safe_classref_from_jclass, IntoJni};
 use crate::objects::array::{Array, ObjectArrayInstance};
 use crate::objects::class::Class;
-use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::{MirrorInstanceRef, ObjectArrayInstanceRef, Reference};
@@ -215,7 +214,7 @@ pub fn getEnclosingMethod0(
 
 		array_instance.get_mut().store_unchecked(
 			2,
-			Reference::class(StringInterner::intern(enclosing_method.descriptor_sym)),
+			Reference::class(StringInterner::intern(enclosing_method.descriptor_sym())),
 		);
 	}
 

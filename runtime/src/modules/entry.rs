@@ -194,8 +194,7 @@ impl Module {
 			.expect_reference();
 
 		if &module_name == "java.base" {
-			init_java_base(obj, is_open, version, location, package_names, loader);
-			return Throws::Ok(());
+			return init_java_base(obj, is_open, version, location, package_names, loader);
 		}
 
 		// Only the bootstrap loader and PlatformClassLoader can load `java/` packages
@@ -411,6 +410,32 @@ impl Module {
 		let obj_ptr = self.obj.get();
 		let obj_ref = unsafe { &*obj_ptr };
 		!obj_ref.is_null()
+	}
+
+	/// Whether this module's version should be displayed in error messages and logs
+	///
+	/// This is `true` if:
+	///
+	/// * The [`version`] is non-null
+	/// * The module is named
+	/// * The module is upgradeable, meaning:
+	///   * The [`location`] is "jrt:/java." and its loader is boot or platform
+	///   * The [`location`] is "jrt:/jdk.", its loader is one of the builtin loaders and its version
+	///     is the same as module `java.base`'s version
+	///
+	/// [version]: Self::version
+	/// [location]: Self::location
+	pub fn should_show_version(&self) -> bool {
+		if self.version().is_none() || self.name().is_none() {
+			return false;
+		}
+
+		let Some(_location) = self.location() else {
+			return true;
+		};
+
+		// TODO: upgradeable module check
+		true
 	}
 
 	pub fn add_reads(&self, other: Option<&'static Self>) -> Throws<()> {

@@ -188,6 +188,16 @@ impl FieldType {
 			_ => None,
 		}
 	}
+
+	/// The number of slots this type takes up in the [operand stack]
+	///
+	/// [operand stack]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.6.2
+	pub fn stack_size(&self) -> u1 {
+		match self {
+			FieldType::Double | FieldType::Long => 2,
+			_ => 1,
+		}
+	}
 }
 
 impl Display for FieldType {

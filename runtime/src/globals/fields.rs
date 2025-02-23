@@ -747,7 +747,7 @@ pub mod java_lang_invoke_MemberName {
 	use crate::objects::reference::{MirrorInstanceRef, Reference};
 	use classfile::FieldType;
 	use instructions::Operand;
-	use jni::sys::jint;
+	use jni::sys::{jint, jlong};
 
 	/// `java.lang.invoke.MemberName#clazz` field
 	pub fn clazz(instance: &ClassInstance) -> MirrorInstanceRef {
@@ -803,6 +803,17 @@ pub mod java_lang_invoke_MemberName {
 		instance.put_field_value0(method_field_offset(), Operand::Reference(value));
 	}
 
+	/// Injected `java.lang.invoke.MemberName#vmindex` field
+	pub fn vmindex(instance: &ClassInstance) -> jlong {
+		instance
+			.get_field_value0(vmindex_field_offset())
+			.expect_long()
+	}
+
+	pub fn set_vmindex(instance: &mut ClassInstance, value: jlong) {
+		instance.put_field_value0(vmindex_field_offset(), Operand::Long(value));
+	}
+
 	field_module! {
 		@CLASS java_lang_invoke_MemberName;
 
@@ -827,6 +838,12 @@ pub mod java_lang_invoke_MemberName {
 		///
 		/// Expected field type: `Reference` to `java.lang.invoke.ResolvedMethodName`
 		@FIELD method: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/invoke/ResolvedMethodName"),
+		/// [`Method`] offset in target class [`VTable`]
+		///
+		/// Expected type: `jlong`
+		/// [`Method`]: crate::objects::method::Method
+		/// [`VTable`]: crate::objects::vtable::VTable
+		@INJECTED vmindex: FieldType::Long => jni::sys::jlong,
 	}
 }
 
@@ -882,7 +899,18 @@ pub mod java_lang_invoke_MethodType {
 }
 
 pub mod java_lang_invoke_ResolvedMethodName {
+	use crate::objects::class_instance::ClassInstance;
+	use crate::objects::instance::Instance;
+	use crate::objects::reference::{MirrorInstanceRef, Reference};
 	use classfile::FieldType;
+	use instructions::Operand;
+
+	pub fn set_vmholder(instance: &mut ClassInstance, value: MirrorInstanceRef) {
+		instance.put_field_value0(
+			vmholder_field_offset(),
+			Operand::Reference(Reference::mirror(value)),
+		)
+	}
 
 	field_module! {
 		@CLASS java_lang_invoke_ResolvedMethodName;
@@ -892,6 +920,63 @@ pub mod java_lang_invoke_ResolvedMethodName {
 		///
 		/// Expected field type: `Reference` to `java.lang.Class`
 		@FIELD vmholder: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/Class"),
+	}
+}
+
+pub mod java_lang_invoke_MethodHandle {
+	use crate::objects::class_instance::ClassInstance;
+	use crate::objects::instance::Instance;
+	use crate::objects::reference::{ClassInstanceRef, MirrorInstanceRef, Reference};
+	use classfile::FieldType;
+	use instructions::Operand;
+	use jni::sys::jint;
+
+	/// `java.lang.invoke.MethodHandle#form` field
+	pub fn form(instance: &ClassInstance) -> ClassInstanceRef {
+		assert!(instance
+			.class()
+			.is_subclass_of(crate::globals::classes::java_lang_invoke_MethodHandle()));
+		instance
+			.get_field_value0(form_field_offset())
+			.expect_reference()
+			.extract_class()
+	}
+
+	field_module! {
+		@CLASS java_lang_invoke_MethodHandle;
+
+		@FIELDSTART
+		/// `java.lang.invoke.MethodHandle#form` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.invoke.LambdaForm`
+		@FIELD form: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/invoke/LambdaForm"),
+	}
+}
+
+pub mod java_lang_invoke_LambdaForm {
+	use crate::objects::class_instance::ClassInstance;
+	use crate::objects::instance::Instance;
+	use crate::objects::reference::{ClassInstanceRef, MirrorInstanceRef, Reference};
+	use classfile::FieldType;
+	use instructions::Operand;
+	use jni::sys::jint;
+
+	/// `java.lang.invoke.LambdaForm#vmentry` field
+	pub fn vmentry(instance: &ClassInstance) -> ClassInstanceRef {
+		instance
+			.get_field_value0(vmentry_field_offset())
+			.expect_reference()
+			.extract_class()
+	}
+
+	field_module! {
+		@CLASS java_lang_invoke_LambdaForm;
+
+		@FIELDSTART
+		/// `java.lang.invoke.LambdaForm#form` field offset
+		///
+		/// Expected field type: `Reference` to `java.lang.invoke.MemberName`
+		@FIELD vmentry: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/invoke/MemberName"),
 	}
 }
 

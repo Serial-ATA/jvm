@@ -221,6 +221,7 @@ vm_symbols::define_symbols! {
 	java_lang_invoke_MemberName: "java/lang/invoke/MemberName",
 	java_lang_invoke_ResolvedMethodName: "java/lang/invoke/ResolvedMethodName",
 	java_lang_invoke_MethodType: "java/lang/invoke/MethodType",
+	java_lang_invoke_LambdaForm: "java/lang/invoke/LambdaForm",
 	java_lang_reflect_Constructor: "java/lang/reflect/Constructor",
 	java_lang_reflect_Method: "java/lang/reflect/Method",
 	java_lang_Thread: "java/lang/Thread",
@@ -236,6 +237,7 @@ vm_symbols::define_symbols! {
 	java_lang_ClassFormatError: "java/lang/ClassFormatError",
 	java_lang_UnsupportedClassVersionError: "java/lang/UnsupportedClassVersionError",
 	java_lang_NoClassDefFoundError: "java/lang/NoClassDefFoundError",
+	java_lang_ClassCastException: "java/lang/ClassCastException",
 
 	java_lang_LinkageError: "java/lang/LinkageError",
 	java_lang_IncompatibleClassChangeError: "java/lang/IncompatibleClassChangeError",
@@ -268,6 +270,7 @@ vm_symbols::define_symbols! {
 	linkCallSite_signature: "(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/invoke/MemberName;",
 	findMethodHandleType_signature: "(Ljava/lang/Class;[Ljava/lang/Class;)Ljava/lang/invoke/MethodType;",
 	linkMethodHandleConstant_signature: "(Ljava/lang/Class;ILjava/lang/Class;Ljava/lang/String;Ljava/lang/Object;)Ljava/lang/invoke/MethodHandle;",
+	ClassLoader_class_string_string_long_signature: "(Ljava/lang/ClassLoader;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)J",
 
 	Boolean_valueOf_signature: "(Z)Ljava/lang/Boolean;",
 	Integer_valueOf_signature: "(I)Ljava/lang/Integer;",
@@ -307,8 +310,6 @@ vm_symbols::define_symbols! {
 	linkCallSite,
 	findMethodHandleType,
 	linkMethodHandleConstant,
-	invoke,
-	invokeExact,
 
 	dispatchUncaughtException,
 	exit_name: "exit",
@@ -372,6 +373,7 @@ vm_symbols::define_symbols! {
 	clazz,
 	method,
 	vmholder,
+	vmentry,
 	ptypes,
 	rtype,
 	slot,
@@ -381,8 +383,10 @@ vm_symbols::define_symbols! {
 	signature,
 	annotations,
 	parameterAnnotations,
+	form,
 
 	// Injected fields
 	loader_ptr,
 	module_ptr,
+	vmindex,
 }

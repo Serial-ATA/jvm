@@ -29,6 +29,7 @@ pub(crate) mod java {
 	pub(crate) mod lang {
 		pub(crate) mod invoke {
 			pub(crate) mod MethodHandleNatives;
+			pub(crate) mod MethodHandle;
 		}
 		pub(crate) mod r#ref {
 			pub(crate) mod Reference;

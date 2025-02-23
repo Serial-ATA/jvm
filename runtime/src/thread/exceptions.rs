@@ -2,17 +2,15 @@ use super::JavaThread;
 use crate::classpath::loader::ClassLoader;
 use crate::java_call;
 use crate::native::java::lang::String::StringInterner;
+use crate::objects::class::Class;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::reference::Reference;
-use crate::stack::local_stack::LocalStack;
-use crate::symbols::sym;
+use crate::symbols::{sym, Symbol};
 
 use std::ops::{ControlFlow, FromResidual, Try};
-use std::sync::atomic::Ordering;
 
 use classfile::accessflags::MethodAccessFlags;
-use common::traits::PtrType;
-use instructions::{Operand, StackLike};
+use instructions::Operand;
 
 #[must_use]
 #[derive(Debug)]
@@ -22,6 +20,13 @@ pub enum Throws<T> {
 }
 
 impl<T> Throws<T> {
+	/// Used to indicate that an exception is pending on the current thread. For when we want to use
+	/// our exception control flow, but exceptions occur that are out of our control.
+	pub const PENDING_EXCEPTION: Self = Self::Exception(Exception {
+		kind: ExceptionKind::PendingException,
+		message: None,
+	});
+
 	pub fn threw(&self) -> bool {
 		matches!(self, Throws::Exception(_))
 	}
@@ -76,7 +81,7 @@ impl<T> FromResidual<Exception> for Throws<T> {
 	}
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ExceptionKind {
 	/// java.lang.ClassFormatError
 	ClassFormatError,
@@ -84,6 +89,8 @@ pub enum ExceptionKind {
 	UnsupportedClassVersionError,
 	/// java.lang.NoClassDefFoundError
 	NoClassDefFoundError,
+	/// java.lang.ClassCastException
+	ClassCastException,
 
 	/// java.lang.LinkageError
 	LinkageError,
@@ -120,16 +127,21 @@ pub enum ExceptionKind {
 
 	/// java.lang.InternalError
 	InternalError,
+
+	/// Used to indicate an exception is pending on the current thread. For when we want to use our
+	/// exception control flow, but exceptions occur that are out of our control.
+	PendingException,
 }
 
 impl ExceptionKind {
-	fn obj(&self) -> Reference {
+	fn obj(&self, thread: &JavaThread) -> Reference {
 		let class_name = match self {
 			ExceptionKind::ClassFormatError => sym!(java_lang_ClassFormatError),
 			ExceptionKind::UnsupportedClassVersionError => {
 				sym!(java_lang_UnsupportedClassVersionError)
 			},
 			ExceptionKind::NoClassDefFoundError => sym!(java_lang_NoClassDefFoundError),
+			ExceptionKind::ClassCastException => sym!(java_lang_ClassCastException),
 
 			ExceptionKind::LinkageError => sym!(java_lang_LinkageError),
 			ExceptionKind::IncompatibleClassChangeError => {
@@ -156,6 +168,8 @@ impl ExceptionKind {
 				sym!(java_lang_IllegalThreadStateException)
 			},
 			ExceptionKind::InternalError => sym!(java_lang_InternalError),
+
+			ExceptionKind::PendingException => unreachable!(),
 		};
 
 		let class = ClassLoader::bootstrap()
@@ -190,7 +204,12 @@ impl Exception {
 	}
 
 	pub fn throw(self, thread: &JavaThread) {
-		let this = self.kind.obj();
+		if self.kind == ExceptionKind::PendingException {
+			// The exception is already constructed and pending, will be handled eventually.
+			return;
+		}
+
+		let this = self.kind.obj(thread);
 
 		match self.message {
 			Some(message) => {
@@ -288,3 +307,89 @@ macro_rules! handle_exception {
 }
 
 pub(crate) use {handle_exception, throw, throw_and_return_null, throw_with_ret};
+
+pub fn class_cast_exception_message(from: &'static Class, to: &'static Class) -> String {
+	let from_class_description;
+	let to_class_description;
+	let class_separator;
+	if from.module() == to.module() {
+		let to_description = class_in_module_of_loader(to, true, false);
+		from_class_description = format!("{} and {to_description}", from.external_name());
+		to_class_description = String::new();
+		class_separator = "";
+	} else {
+		from_class_description = class_in_module_of_loader(from, false, false);
+		to_class_description = class_in_module_of_loader(to, false, false);
+		class_separator = "; "
+	}
+
+	format!(
+		"class {} cannot be cast to class {} \
+		 ({from_class_description}{class_separator}{to_class_description})",
+		from.name, to.name,
+	)
+}
+
+fn class_in_module_of_loader(
+	class: &'static Class,
+	use_are: bool,
+	include_parent_loader: bool,
+) -> String {
+	let are_or_is = if use_are { "are" } else { "is" };
+
+	// 1. fully-qualified external name of the class
+	let external_name = class.external_name();
+
+	let module_name_phrase;
+	let module_name;
+
+	let mut module_version_separator = "";
+	let mut module_version = "";
+
+	'module_info: {
+		let mut target_class = class;
+		if class.is_array() {
+			let array_descriptor = class.unwrap_array_instance();
+
+			// Simplest case, primitive arrays are in java.base
+			if array_descriptor.is_primitive() {
+				module_name_phrase = "module ";
+				module_name = "java.base";
+				break 'module_info;
+			}
+
+			target_class = todo!();
+		}
+
+		match target_class.module().name() {
+			Some(name) => {
+				module_name_phrase = "module ";
+				module_name = name.as_str();
+				if target_class.module().should_show_version() {
+					module_version_separator = "@";
+					module_version = target_class
+						.module()
+						.version()
+						.expect("version should exist")
+						.as_str();
+				}
+			},
+			None => {
+				module_name_phrase = "";
+				module_name = "unnamed module";
+			},
+		}
+	}
+
+	let loader_name_and_id = class.loader().name_and_id();
+
+	// TODO: set these
+	let mut parent_loader_phrase = "";
+	let mut parent_loader_name_and_id = "";
+
+	format!(
+		"{external_name} {are_or_is} in \
+		 {module_name_phrase}{module_name}{module_version_separator}{module_version} of loader \
+		 {loader_name_and_id}{parent_loader_phrase}{parent_loader_name_and_id}",
+	)
+}

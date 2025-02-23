@@ -81,7 +81,7 @@ impl Frame {
 
 	/// Get a reference to the associated operand stack
 	#[inline]
-	pub fn stack(&mut self) -> &OperandStack {
+	pub fn stack(&self) -> &OperandStack {
 		&self.stack
 	}
 

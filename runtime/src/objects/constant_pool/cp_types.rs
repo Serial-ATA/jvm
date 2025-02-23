@@ -428,7 +428,7 @@ impl EntryType for InvokeDynamic {
 		);
 
 		if thread.has_pending_exception() {
-			todo!();
+			return Throws::PENDING_EXCEPTION;
 		}
 
 		let call_site = result
@@ -538,7 +538,7 @@ impl EntryType for MethodHandle {
 		);
 
 		if thread.has_pending_exception() {
-			todo!();
+			return Throws::PENDING_EXCEPTION;
 		}
 
 		let method_handle = result
@@ -588,11 +588,20 @@ impl EntryType for FieldRef {
 	}
 }
 
+/// A resolved `CONSTANT_Methodref` entry
+///
+/// This resolves into a tuple of a [`Method`] and a [`Symbol`] representing the method's descriptor.
+///
+/// The descriptor is necessary for [signature polymorphic] methods, where the method's descriptor
+/// is used to determine the types of the parameters at runtime. Otherwise, the descriptor can be
+/// grabbed from [`Method::descriptor_sym()`].
+///
+/// [signature polymorphic]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.9.3
 pub struct MethodRef;
 
 #[expect(private_interfaces)]
 impl EntryType for MethodRef {
-	type Resolved = &'static Method;
+	type Resolved = (&'static Method, Symbol);
 	type RawEntryType = raw_types::RawMethodRef;
 
 	#[inline]
@@ -627,7 +636,9 @@ impl EntryType for MethodRef {
 			method_ref = class.resolve_method(name, descriptor)?;
 		}
 
-		Throws::Ok(ResolvedEntry { method_ref })
+		Throws::Ok(ResolvedEntry {
+			method_ref: (method_ref, descriptor),
+		})
 	}
 }
 

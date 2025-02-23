@@ -1,12 +1,10 @@
 use crate::java_call;
-use crate::native::java::lang::String::rust_string_from_java_string;
 use crate::symbols::sym;
 use crate::thread::JavaThread;
 
 use core::ffi::c_char;
 
 use classfile::accessflags::MethodAccessFlags;
-use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::{jboolean, jclass, jint, jthrowable, JNIEnv};
 

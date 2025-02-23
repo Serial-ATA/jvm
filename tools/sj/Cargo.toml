@@ -7,9 +7,8 @@ edition = "2021"
 
 [dependencies]
 clap = { workspace = true, features = ["derive", "env"] }
-jni = { path = "../../jni" }
-libloading.workspace = true
-runtime = { path = "../../runtime" }
+jni = { workspace = true }
+runtime = { workspace = true }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
 

@@ -62,6 +62,7 @@ define_classes!(
 	java_lang_invoke_ResolvedMethodName,
 	java_lang_invoke_MethodType,
 	java_lang_invoke_VarHandle,
+	java_lang_invoke_LambdaForm,
 	java_lang_reflect_Constructor,
 	java_lang_reflect_Method,
 	java_lang_ref_Reference,

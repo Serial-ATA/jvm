@@ -65,9 +65,6 @@ pub mod Raw {
 			"java.home" => std::env::var("JAVA_HOME").unwrap(),
 
 			"sj.debug" => "true",
-			"java.lang.invoke.MethodHandle.TRACE_RESOLVE" => "true",
-			"java.lang.invoke.MethodHandle.TRACE_METHOD_LINKAGE" => "true",
-			"java.lang.invoke.MethodHandle.TRACE_INTERPRETER" => "true",
 		);
 
 		Reference::object_array(prop_array)

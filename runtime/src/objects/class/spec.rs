@@ -13,6 +13,7 @@ use crate::thread::JavaThread;
 use std::cell::UnsafeCell;
 use std::sync::{Condvar, Mutex, MutexGuard};
 
+use crate::globals::PRIMITIVES;
 use classfile::accessflags::MethodAccessFlags;
 use classfile::FieldType;
 use instructions::Operand;
@@ -110,6 +111,62 @@ impl InitializationGuard {
 }
 
 impl Class {
+	/// Whether this class can be cast into `class`
+	#[allow(non_snake_case)]
+	pub fn can_cast_to(&self, other: &'static Class) -> bool {
+		// The following rules are used to determine whether an objectref that is not null can be cast to the resolved type
+		//
+		// S is the type of the object referred to by objectref, and T is the resolved class, array, or interface type
+
+		let S_class = self;
+		let T_class = other;
+
+		// If S is a class type, then:
+		//
+		//     If T is a class type, then S must be the same class as T, or S must be a subclass of T;
+		if !T_class.is_interface() && !T_class.is_array() {
+			if S_class == T_class {
+				return true;
+			}
+
+			return S_class.is_subclass_of(T_class);
+		}
+		//     If T is an interface type, then S must implement interface T.
+		if T_class.is_interface() {
+			return S_class.implements(T_class);
+		}
+
+		// If S is an array type SC[], that is, an array of components of type SC, then:
+		//
+		//     If T is a class type, then T must be Object.
+		if !T_class.is_interface() && !T_class.is_array() {
+			return T_class == crate::globals::classes::java_lang_Object();
+		}
+		//     If T is an interface type, then T must be one of the interfaces implemented by arrays (JLS §4.10.3).
+		if T_class.is_interface() {
+			return T_class == crate::globals::classes::java_lang_Cloneable()
+				|| T_class == crate::globals::classes::java_io_Serializable();
+		}
+		//     If T is an array type TC[], that is, an array of components of type TC, then one of the following must be true:
+		if T_class.is_array() {
+			//         TC and SC are the same primitive type.
+			let source_component = S_class.array_component_name();
+			let dest_component = T_class.array_component_name();
+			if PRIMITIVES.contains(&source_component) || PRIMITIVES.contains(&dest_component) {
+				return source_component == dest_component;
+			}
+
+			//         TC and SC are reference types, and type SC can be cast to TC by these run-time rules.
+
+			// It's impossible to get a reference to an unloaded class
+			let S_class = S_class.loader().lookup_class(source_component).unwrap();
+			let T_class = T_class.loader().lookup_class(dest_component).unwrap();
+			return S_class.can_cast_to(T_class);
+		}
+
+		false
+	}
+
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4
 	fn link(&self) {
 		// Linking a class or interface involves verifying and preparing that class or interface, its direct superclass,
@@ -218,21 +275,33 @@ impl Class {
 		//    2.1. If C declares exactly one method with the name specified by the method reference, and the declaration
 		//         is a signature polymorphic method (§2.9.3), then method lookup succeeds. All the class names mentioned
 		//         in the descriptor are resolved (§5.4.3.1).
-		let searched_method = self
+		let mut searched_method = None;
+		for method in self
 			.vtable()
 			.iter()
-			.find(|method| method.name == method_name);
-		if let Some(method) = searched_method {
-			if method.is_polymorphic() {
-				return Some(method);
+			.filter(|method| method.name == method_name)
+		{
+			match searched_method {
+				Some(_) => {
+					searched_method = None;
+					break;
+				},
+				None => {
+					if method.is_signature_polymorphic() {
+						searched_method = Some(method)
+					}
+				},
 			}
+		}
+		if let Some(method) = searched_method {
+			return Some(method);
 		}
 
 		// 	  2.2. Otherwise, if C declares a method with the name and descriptor specified by the method reference, method lookup succeeds.
 		let searched_method = self
 			.vtable()
 			.iter()
-			.find(|method| method.name == method_name && method.descriptor_sym == descriptor);
+			.find(|method| method.name == method_name && method.descriptor_sym() == descriptor);
 		if let Some(method) = searched_method {
 			return Some(method);
 		}
@@ -264,7 +333,7 @@ impl Class {
 
 		// 2. Otherwise, if C declares a method with the name and descriptor specified by the interface method reference, method lookup succeeds.
 		for method in self.vtable() {
-			if method.name == method_name && method.descriptor_sym == descriptor {
+			if method.name == method_name && method.descriptor_sym() == descriptor {
 				return Throws::Ok(method);
 			}
 		}
@@ -274,7 +343,7 @@ impl Class {
 		let object_class = crate::globals::classes::java_lang_Object();
 		for method in object_class.vtable() {
 			if method.name == method_name
-				&& method.descriptor_sym == descriptor
+				&& method.descriptor_sym() == descriptor
 				&& method.is_public()
 				&& !method.is_static()
 			{
@@ -361,12 +430,8 @@ impl Class {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.5
-	#[expect(
-		unreachable_code,
-		reason = "We have no way of checking of the <clinit> executed successfully yet"
-	)]
 	#[tracing::instrument(skip_all)]
-	pub fn initialization(&self, thread: &JavaThread) {
+	pub fn initialization(&self, thread: &JavaThread) -> Throws<()> {
 		// 1. Synchronize on the initialization lock, LC, for C. This involves waiting until the current thread can acquire LC.
 		let init = self.initialization_lock();
 		let mut guard = init.lock();
@@ -385,20 +450,20 @@ impl Class {
 		if guard.initialization_state() == ClassInitializationState::InProgress
 			&& guard.is_initialized_by(thread)
 		{
-			return;
+			return Throws::Ok(());
 		}
 
 		// 4. If the Class object for C indicates that C has already been initialized, then no further action
 		//    is required. Release LC and complete normally.
 		if guard.initialization_state() == ClassInitializationState::Init {
-			return;
+			return Throws::Ok(());
 		}
 
 		// TODO:
 		// 5. If the Class object for C is in an erroneous state, then initialization is not possible.
 		//    Release LC and throw a NoClassDefFoundError.
 		if guard.initialization_state() == ClassInitializationState::Failed {
-			panic!("NoClassDefFoundError");
+			throw!(@DEFER NoClassDefFoundError);
 		}
 
 		// 6. Otherwise, record the fact that initialization of the Class object for C is in progress
@@ -517,7 +582,7 @@ impl Class {
 			init.notify_all();
 
 			tracing::debug!(target: "class-init", "Finished initialization of class `{}`", self.name.as_str());
-			return;
+			return Throws::Ok(());
 		}
 
 		// 11. Otherwise, the class or interface initialization method must have completed abruptly by throwing some exception E.
@@ -528,7 +593,7 @@ impl Class {
 		guard.set_initialization_state(ClassInitializationState::Failed);
 		init.notify_all();
 
-		return;
+		Throws::PENDING_EXCEPTION
 	}
 
 	// Instance initialization method
@@ -624,7 +689,7 @@ impl Class {
 		//    Otherwise, the maximally-specific superinterface methods of C are determined (§5.4.3.3). If exactly one matches mR's name
 		//    and descriptor and is not abstract, then it is the selected method.
 		if let Some(superinterface_method) =
-			self.resolve_method_in_superinterfaces(mR.name, mR.descriptor_sym, true)
+			self.resolve_method_in_superinterfaces(mR.name, mR.descriptor_sym(), true)
 		{
 			return superinterface_method;
 		}

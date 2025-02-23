@@ -1,35 +1,21 @@
 use crate::objects::method::Method;
-use crate::symbols::sym;
-
-use classfile::{FieldType, MethodDescriptor};
 
 impl Method {
-	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.9.3
-	pub fn is_polymorphic(&self) -> bool {
-		let class = self.class;
-		let mut is_polymorphic = false;
-
+	/// Whether this method is [signature polymorphic]
+	///
+	/// [signature polymorphic]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.9.3
+	pub fn is_signature_polymorphic(&self) -> bool {
 		// A method is signature polymorphic if all of the following are true:
-
+		//
 		//     It is declared in the java.lang.invoke.MethodHandle class or the java.lang.invoke.VarHandle class.
-		is_polymorphic |= class.name == sym!(java_lang_invoke_MethodHandle)
-			|| class.name == sym!(java_lang_invoke_VarHandle);
+		(self.class == crate::globals::classes::java_lang_invoke_MethodHandle()
+			|| self.class == crate::globals::classes::java_lang_invoke_VarHandle()) &&
 
-		//     It has a single formal parameter of type Object[].
-		let parsed_descriptor =
-			MethodDescriptor::parse(&mut &self.descriptor_sym.as_str().as_bytes()[..]).unwrap(); // TODO: Error handling
-		match &*parsed_descriptor.parameters {
-			[FieldType::Array(arr_ty)] => match &**arr_ty {
-				FieldType::Object(ref obj) if &**obj == b"java/lang/Object" => {},
-				_ => return false,
-			},
-			_ => return false,
-		}
+			//     It has a single formal parameter of type Object[].
+			(self.descriptor.parameters.len() == 1 && self.descriptor.parameters[0].is_array_of_class(b"java/lang/Object")) &&
 
-		//     It has the ACC_VARARGS and ACC_NATIVE flags set.
-		is_polymorphic |= self.access_flags.is_varargs() && self.is_native();
-
-		is_polymorphic
+			//     It has the ACC_VARARGS and ACC_NATIVE flags set.
+			(self.is_var_args() && self.is_native())
 	}
 
 	/// Whether this method can override the provided instance method ([§5.4.3.3](https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.5))
@@ -41,7 +27,7 @@ impl Method {
 		let mA = other;
 
 		// mC has the same name and descriptor as mA.
-		if mC.name != mA.name || mC.descriptor_sym != mA.descriptor_sym {
+		if mC.name != mA.name || mC.descriptor_sym() != mA.descriptor_sym() {
 			return false;
 		}
 

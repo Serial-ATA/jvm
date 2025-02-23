@@ -3,7 +3,6 @@ use crate::native::java::lang::invoke::MethodHandleNatives;
 use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
 use crate::objects::class::Class;
 use crate::objects::class_instance::ClassInstance;
-use crate::objects::instance::Instance;
 use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{throw, throw_and_return_null, Throws};
@@ -222,15 +221,22 @@ pub fn resolve_member_name(
 			let resolved_method_name =
 				ClassInstance::new(classes::java_lang_invoke_ResolvedMethodName());
 
-			resolved_method_name.get_mut().put_field_value0(
-				fields::java_lang_invoke_ResolvedMethodName::vmholder_field_offset(),
-				Operand::Reference(Reference::mirror(method.class().mirror())),
+			fields::java_lang_invoke_ResolvedMethodName::set_vmholder(
+				resolved_method_name.get_mut(),
+				method.class().mirror(),
 			);
 
 			fields::java_lang_invoke_MemberName::set_method(
 				member_name,
 				Reference::class(resolved_method_name),
 			);
+
+			let vmindex = defining_class
+				.vtable()
+				.iter()
+				.position(|m| m == method)
+				.expect("method must exist in vtable");
+			fields::java_lang_invoke_MemberName::set_vmindex(member_name, vmindex as jlong);
 
 			fields::java_lang_invoke_MemberName::set_clazz(
 				member_name,
@@ -282,15 +288,13 @@ pub fn resolve(
 	let class_instance = self_.extract_class();
 
 	let flags = fields::java_lang_invoke_MemberName::flags(class_instance.get());
-	let reference_kind = match ReferenceKind::from_u8((flags >> MN_REFERENCE_KIND_SHIFT) as u8) {
-		Some(reference_kind) => reference_kind,
-		None => {
-			throw_and_return_null!(
-				JavaThread::current(),
-				InternalError,
-				"obsolete MemberName format"
-			);
-		},
+	let Some(reference_kind) = ReferenceKind::from_u8((flags >> MN_REFERENCE_KIND_SHIFT) as u8)
+	else {
+		throw_and_return_null!(
+			JavaThread::current(),
+			InternalError,
+			"obsolete MemberName format"
+		);
 	};
 
 	// `LM_TRUSTED` implies a `null` `calling_class`

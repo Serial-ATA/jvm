@@ -41,6 +41,12 @@ impl OperandStack {
 			inner: Vec::with_capacity(capacity),
 		}
 	}
+
+	/// Gets the value `offset` slots down from the top of the stack
+	pub fn at(&self, offset: usize) -> Operand<Reference> {
+		let top = self.inner.len() - 1;
+		self.inner[top - offset].clone()
+	}
 }
 
 impl StackLike<Reference> for OperandStack {

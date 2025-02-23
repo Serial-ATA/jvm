@@ -25,6 +25,25 @@ where
 	}
 }
 
+impl Boxable for Operand<Reference> {
+	const VALUE_OF_SIGNATURE: Symbol = sym!(EMPTY);
+
+	fn class() -> &'static Class {
+		unimplemented!()
+	}
+
+	fn into_box(self, thread: &JavaThread) -> Throws<Reference> {
+		match self {
+			Operand::Reference(reference) => Throws::Ok(reference),
+			Operand::Int(value) => jint::into_box(value, thread),
+			Operand::Long(value) => jlong::into_box(value, thread),
+			Operand::Double(value) => jdouble::into_box(value, thread),
+			Operand::Float(value) => jfloat::into_box(value, thread),
+			Operand::Empty => unreachable!(),
+		}
+	}
+}
+
 impl Boxable for jint {
 	const VALUE_OF_SIGNATURE: Symbol = sym!(Integer_valueOf_signature);
 

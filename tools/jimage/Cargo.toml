@@ -7,3 +7,7 @@ edition = "2021"
 clap = { workspace = true, features = ["derive"] }
 classfile = { path = "../../classfile" }
 jimage = { path = "../../jimage" }
+
+[[bin]]
+name = "jimage"
+path = "src/main.rs"

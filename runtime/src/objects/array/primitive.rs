@@ -11,7 +11,7 @@ use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use std::{fmt, ptr, slice};
 
-use common::int_types::{s1, s2, s4, u1, u2};
+use common::int_types::{s4, u1};
 use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};

@@ -4,7 +4,7 @@ use crate::objects::array::{
 };
 use crate::objects::class::ClassInitializationState;
 use crate::objects::instance::Instance;
-use crate::objects::reference::{MirrorInstanceRef, Reference};
+use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
 use std::marker::PhantomData;
@@ -748,7 +748,9 @@ pub fn ensureClassInitialized0(
 
 	let target_class = mirror.get().target_class();
 	match target_class.initialization_state() {
-		ClassInitializationState::Uninit => target_class.initialize(current_thread),
+		ClassInitializationState::Uninit => target_class
+			.initialize(current_thread)
+			.expect("Failed to ensure class initialization"),
 		ClassInitializationState::InProgress | ClassInitializationState::Init => {},
 		// TODO: Is this the best we can do?
 		ClassInitializationState::Failed => unreachable!("Failed to ensure class initialization"),

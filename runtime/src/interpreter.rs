@@ -1,6 +1,7 @@
 #![allow(unused_imports)] // Intellij-Rust doesn't like this file much, the imports used in macros are not recognized
 
 use crate::method_invoker::MethodInvoker;
+use crate::native::java::lang::invoke::MethodHandle;
 use crate::native::java::lang::String::StringInterner;
 use crate::objects::array::{Array, ObjectArrayInstance, PrimitiveArrayInstance};
 use crate::objects::class::{Class, ClassInitializationState};
@@ -9,17 +10,21 @@ use crate::objects::constant_pool::cp_types::{self, Entry};
 use crate::objects::field::Field;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
-use crate::objects::reference::{ClassInstanceRef, Reference};
+use crate::objects::reference::{ClassInstanceRef, ObjectArrayInstanceRef, Reference};
 use crate::symbols::{sym, Symbol};
-use crate::thread::exceptions::handle_exception;
+use crate::thread::exceptions::{handle_exception, Exception, ExceptionKind, Throws};
 use crate::thread::frame::Frame;
-use crate::thread::JavaThread;
+use crate::thread::{exceptions, JavaThread};
 
 use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
 use std::sync::Arc;
 
+use crate::globals::fields;
+use crate::java_call;
+use crate::stack::local_stack::LocalStack;
 use classfile::constant_pool::ConstantPoolValueInfo;
+use classfile::FieldType;
 use common::int_types::{s2, s4, s8, u2};
 use common::traits::PtrType;
 use instructions::{OpCode, Operand, StackLike};
@@ -571,19 +576,26 @@ impl Interpreter {
                 // ========= References =========
                 CATEGORY: references
                 OpCode::getstatic => {
-                    let field = Self::fetch_field(frame, true);
+                    let Some(field) = Self::fetch_field(frame, true) else {
+                        return;
+                    };
                     frame.stack_mut().push_op(field.get_static_value());
                 },
                 OpCode::putstatic => {
-                    let field = Self::fetch_field(frame, true);
+                    let Some(field) = Self::fetch_field(frame, true) else {
+                        return;
+                    };
                     let value = frame.stack_mut().pop();
 
                     field.set_static_value(value);
                 },
                 OpCode::getfield => {
-                    let field = Self::fetch_field(frame, false);
+                    let Some(field) = Self::fetch_field(frame, false) else {
+                        return;
+                    };
                     if field.is_static() {
-                        panic!("IncompatibleClassChangeError"); // TODO
+                        Exception::new(ExceptionKind::IncompatibleClassChangeError).throw(frame.thread());
+                        return;
                     }
 
                     let stack = frame.stack_mut();
@@ -594,9 +606,12 @@ impl Interpreter {
                     stack.push_op(field_value);
                 },
                 OpCode::putfield => {
-                    let field = Self::fetch_field(frame, false);
+                    let Some(field) = Self::fetch_field(frame, false) else {
+                        return;
+                    };
                     if field.is_static() {
-                        panic!("IncompatibleClassChangeError"); // TODO
+                        Exception::new(ExceptionKind::IncompatibleClassChangeError).throw(frame.thread());
+                        return;
                     }
 
                     // TODO: if the resolved field is final, it must be declared in the current class,
@@ -615,15 +630,22 @@ impl Interpreter {
                 },
                 OpCode::invokevirtual => { Self::invoke_virtual(frame) },
                 OpCode::invokespecial => {
-                    let method = Self::fetch_method(frame, false);
+                    let Some((method, _)) = Self::fetch_method(frame, false) else {
+                        return;
+                    };
                     MethodInvoker::invoke(frame, method);
                 },
                 OpCode::invokestatic => {
-                    let method = Self::fetch_method(frame, true);
+                    let Some((method, _)) = Self::fetch_method(frame, true) else {
+                        return;
+                    };
                     MethodInvoker::invoke(frame, method);
                 },
                 OpCode::invokeinterface => {
-                    let method = Self::fetch_method(frame, false);
+                    let Some((method, _)) = Self::fetch_method(frame, false) else {
+                        return;
+                    };
+                    
                     // The count operand is an unsigned byte that must not be zero.
                     let count = frame.read_byte();
                     assert!(count > 0);
@@ -634,8 +656,9 @@ impl Interpreter {
                     MethodInvoker::invoke_interface(frame, method);
                 },
                 OpCode::new => {
-                    let new_class_instance = Self::new(frame);
-                    frame.stack_mut().push_reference(Reference::class(new_class_instance));
+                    if let Some(new_class_instance) = Self::new(frame) {
+                        frame.stack_mut().push_reference(Reference::class(new_class_instance));
+                    }
                 },
                 OpCode::newarray => {
                     let type_code = frame.read_byte();
@@ -807,7 +830,7 @@ impl Interpreter {
 
         // The run-time constant pool entry at index must be loadable (§5.1),
         match constant {
-            // and not any of the following:
+            // and in particular one of the following: 
             Entry::Long(long) => {
                 frame.stack_mut().push_long(long)
             },
@@ -897,10 +920,10 @@ impl Interpreter {
         }
 
         let constant_pool = frame.constant_pool();
-        let class = constant_pool.get::<cp_types::Class>(index).unwrap(); // TODO: Handle throws
+        let target_class = constant_pool.get::<cp_types::Class>(index).unwrap(); // TODO: Handle throws
 
         let stack = frame.stack_mut();
-        if objectref.is_instance_of(class) {
+        if objectref.is_instance_of(target_class) {
             match opcode {
                 // If objectref is an instance of the resolved class or array type, or implements the resolved interface,
                 // the instanceof instruction pushes an int result of 1 as an int onto the operand stack
@@ -915,7 +938,11 @@ impl Interpreter {
         
         match opcode {
             OpCode::instanceof => stack.push_int(0),
-            OpCode::checkcast => panic!("ClassCastException"), // TODO
+            OpCode::checkcast => {
+                let from_class = objectref.extract_instance_class();
+                let message = exceptions::class_cast_exception_message(from_class, target_class);
+                Exception::with_message(ExceptionKind::ClassCastException, message).throw(frame.thread());
+            },
             _ => unreachable!()
         }
     }
@@ -928,7 +955,14 @@ impl Interpreter {
 		assert_eq!(frame.read_byte2(), 0);
 	    
         let constant_pool = frame.constant_pool();
-        let constant = constant_pool.get::<cp_types::InvokeDynamic>(index).unwrap(); // TODO: Handle throws
+        let constant;
+        match constant_pool.get::<cp_types::InvokeDynamic>(index) {
+            Throws::Ok(c) => constant = c,
+            Throws::Exception(e) => {
+                e.throw(frame.thread());
+                return;
+            },
+        }
 		
 		unimplemented!("invokedynamic")
     }
@@ -936,7 +970,9 @@ impl Interpreter {
     // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.invokevirtual
     #[allow(non_snake_case)]
     fn invoke_virtual(frame: &mut Frame) {
-        let method = Self::fetch_method(frame, false);
+        let Some((method, descriptor)) = Self::fetch_method(frame, false) else {
+            return;
+        };
         
         // Nothing special to do if the method isn't signature polymorphic
         if !method.is_signature_polymorphic() {
@@ -944,26 +980,25 @@ impl Interpreter {
             return;
         }
         
-        if method.class() == crate::globals::classes::java_lang_invoke_MethodHandle() {
+        if method.class().is_subclass_of(crate::globals::classes::java_lang_invoke_MethodHandle()) {
             // If the resolved method is signature polymorphic (§2.9.3), and declared in the
             // java.lang.invoke.MethodHandle class, then the invokevirtual instruction proceeds as follows,
             // where D is the descriptor of the method symbolically referenced by the instruction.
-            let D = method.descriptor_sym;
+            let D = descriptor;
             
             // First, a reference to an instance of java.lang.invoke.MethodType is obtained as if by
             // resolution of a symbolic reference to a method type (§5.4.3.5) with the same parameter
             // and return types as D.
             let method_type = Method::method_type_for(method.class(), D.as_str()).unwrap(); // TODO: handle throws
             
-            //     If the named method is invokeExact, the instance of java.lang.invoke.MethodType must
-            //     be semantically equal to the type descriptor of the receiving method handle objectref.
-            //     The method handle to be invoked is objectref.
-            let method_handle: Reference;
-            if method.name == sym!(invokeExact) {
+            let method_handle;
+            let parameter_count;
+            if method.name == sym!(invokeExact_name) {
+                //     If the named method is invokeExact, the instance of java.lang.invoke.MethodType must
+                //     be semantically equal to the type descriptor of the receiving method handle objectref.
+                //     The method handle to be invoked is objectref.
                 todo!();
-            } else {
-                assert_eq!(method.name, sym!(invoke));
-                
+            } else if method.name == sym!(invoke_name) {
                 // If the named method is invoke, and the instance of java.lang.invoke.MethodType is
                 // semantically equal to the type descriptor of the receiving method handle objectref,
                 // then the method handle to be invoked is objectref.
@@ -975,36 +1010,41 @@ impl Interpreter {
                 // method handle, as if by invocation of the asType method of java.lang.invoke.MethodHandle,
                 // to obtain an exactly invokable method handle m. The method handle to be invoked is m.
                 todo!();
+            } else {
+                let ptypes = fields::java_lang_invoke_MethodType::ptypes(method_type.extract_class().get());
+                let ptypes = ptypes.get().as_slice();
+                parameter_count = ptypes.len();
+
+                let mut parameters_stack_size = 0;
+                for r in ptypes.iter().map(Reference::extract_mirror) {
+                    let mirror = r.get();
+                    if mirror.is_primitive() {
+                        parameters_stack_size += mirror.primitive_target().stack_size();
+                        continue;
+                    }
+
+                    parameters_stack_size += 1;
+                }
+
+                method_handle = frame.stack().at(parameters_stack_size as usize).expect_reference();
             }
+
+            // TODO: The frame created should not be visible (stacktraces should end at the calling frame)
+            let target_method = MethodHandle::get_target_method(method_handle.extract_class()).unwrap(); // TODO: Handle throws
+
+            let call_args = frame.stack_mut().popn(parameter_count);
+            MethodInvoker::invoke_with_args(frame.thread(), target_method, call_args);
             
-            // The objectref must be followed on the operand stack by nargs argument values, where
-            // the number, type, and order of the values must be consistent with the type descriptor
-            // of the method handle to be invoked.
-            // (This type descriptor will correspond to the method descriptor appropriate for the kind of the method handle to be invoked, as specified in §5.4.3.5.)
-            todo!();
-            
-            // Then, if the method handle to be invoked has bytecode behavior, the Java Virtual Machine
-            // invokes the method handle as if by execution of the bytecode behavior associated with
-            // the method handle's kind. If the kind is 5 (REF_invokeVirtual), 6 (REF_invokeStatic),
-            // 7 (REF_invokeSpecial), 8 (REF_newInvokeSpecial), or 9 (REF_invokeInterface), then a frame
-            // will be created and made current in the course of executing the bytecode behavior; however,
-            // this frame is not visible, and when the method invoked by the bytecode behavior
-            // completes (normally or abruptly), the frame of its invoker is considered to be the
-            // frame for the method containing this invokevirtual instruction.
-            todo!();
-            
-            // Otherwise, if the method handle to be invoked has no bytecode behavior, the
-            // Java Virtual Machine invokes it in an implementation-dependent manner. 
-            todo!();
+            return;
         }
 
         
-        if method.class() == crate::globals::classes::java_lang_invoke_VarHandle() {
+        if method.class().is_subclass_of(crate::globals::classes::java_lang_invoke_VarHandle()) {
             // If the resolved method is signature polymorphic and declared in the
             // java.lang.invoke.VarHandle class, then the invokevirtual instruction proceeds as follows,
             // where N and D are the name and descriptor of the method symbolically referenced by the instruction.
             let N = method.name;
-            let D = method.descriptor_sym;
+            let D = method.descriptor_sym();
             
             // First, a reference to an instance of java.lang.invoke.VarHandle.AccessMode is obtained
             // as if by invocation of the valueFromMethodName method of java.lang.invoke.VarHandle.AccessMode
@@ -1048,7 +1088,7 @@ impl Interpreter {
         }
     }
     
-    fn fetch_field(frame: &mut Frame, is_static: bool) -> &'static Field {
+    fn fetch_field(frame: &mut Frame, is_static: bool) -> Option<&'static Field> {
         let field_ref_idx = frame.read_byte2();
 
         let constant_pool = frame.constant_pool();
@@ -1056,42 +1096,64 @@ impl Interpreter {
 	    // TODO: Handle throws
         let ret = constant_pool.get::<cp_types::FieldRef>(field_ref_idx).unwrap();
         if is_static {
-            ret.class.initialize(frame.thread());
+            if let Throws::Exception(e) = ret.class.initialize(frame.thread()) {
+                e.throw(frame.thread());
+                return None;
+            }
         }
 
-        ret
+        Some(ret)
     }
     
-    fn fetch_method(frame: &mut Frame, is_static: bool) -> &'static Method {
+    fn fetch_method(frame: &mut Frame, is_static: bool) -> Option<(&'static Method, Symbol)> {
         let method_ref_idx = frame.read_byte2();
 
         let constant_pool = frame.constant_pool();
 
-	    // TODO: Handle throws
-        let ret = constant_pool.get::<cp_types::MethodRef>(method_ref_idx).unwrap();
+        let (method, descriptor) = match constant_pool.get::<cp_types::MethodRef>(method_ref_idx) {
+            Throws::Ok(m) => m,
+            Throws::Exception(e) => {
+                e.throw(frame.thread());
+                return None;
+            }
+        };
+        
         if is_static {
             // On successful resolution of the method, the class or interface that declared the resolved method is initialized if that class or interface has not already been initialized
-            ret.class().initialize(frame.thread());
+            if let Throws::Exception(e) = method.class().initialize(frame.thread()) {
+                e.throw(frame.thread());
+                return None;
+            }
         }
         
-        ret
+        Some((method, descriptor))
     }
 
-    fn new(frame: &mut Frame) -> ClassInstanceRef {
+    fn new(frame: &mut Frame) -> Option<ClassInstanceRef> {
         let index = frame.read_byte2();
 
         let constant_pool = frame.constant_pool();
 
-	    // TODO: Handle throws
-        let class = constant_pool.get::<cp_types::Class>(index).unwrap();
+        let class;
+        match constant_pool.get::<cp_types::Class>(index) {
+            Throws::Ok(c) => class = c,
+            Throws::Exception(e) => {
+                e.throw(frame.thread());
+                return None;
+            }
+        }
+        
         if class.is_interface() || class.is_abstract() {
             panic!("InstantiationError") // TODO
         }
 
         // On successful resolution of the class, it is initialized if it has not already been initialized
-        class.initialize(frame.thread());
+        if let Throws::Exception(e) = class.initialize(frame.thread()) {
+            e.throw(frame.thread());
+            return None;
+        }
 
-        ClassInstance::new(class)
+        Some(ClassInstance::new(class))
     }
 
     fn tableswitch(frame: &mut Frame) {
@@ -1155,14 +1217,28 @@ impl Interpreter {
 		assert!(dimensions >= 1);
 		
         let constant_pool = frame.constant_pool();
-        let class = constant_pool.get::<cp_types::Class>(index).unwrap(); // TODO: Handle throws
+        let class;
+        match constant_pool.get::<cp_types::Class>(index) {
+            Throws::Ok(c) => class = c,
+            Throws::Exception(e) => {
+                e.throw(frame.thread());
+                return;
+            }
+        }
 		
 		class.initialize(frame.thread());
 		
-		let counts = frame.stack_mut().popn(dimensions as usize);
+		let counts = frame.stack_mut().popn(dimensions as usize).into_iter().map(|op| op.expect_int());
 		
-		// TODO: Handle throws
-        let array_ref = ObjectArrayInstance::new_multidimensional(counts.into_iter().map(|op| op.expect_int()), class).unwrap();
+        let array_ref;
+        match ObjectArrayInstance::new_multidimensional(counts, class) {
+            Throws::Ok(array) => array_ref = array,
+            Throws::Exception(e) => {
+                e.throw(frame.thread());
+                return;
+            }
+        }
+        
         frame.stack_mut().push_reference(Reference::object_array(array_ref));
 	}
 }

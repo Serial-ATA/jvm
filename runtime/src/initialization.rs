@@ -123,6 +123,7 @@ fn load_global_classes() {
 	// MethodHandle stuff
 	load!(
 		java_lang_invoke_MethodHandle,
+		java_lang_invoke_LambdaForm,
 		jdk_internal_reflect_MethodAccessorImpl,
 		java_lang_invoke_MethodHandleNatives,
 		java_lang_invoke_MemberName,
@@ -194,19 +195,32 @@ fn init_field_offsets() {
 		crate::globals::fields::java_lang_Thread::init_offsets();
 	}
 
-	// java.lang.invoke.MemberName
-	unsafe {
-		crate::globals::fields::java_lang_invoke_MemberName::init_offsets();
-	}
+	// MethodHandle stuff
+	{
+		// java.lang.invoke.MethodHandle
+		unsafe {
+			crate::globals::fields::java_lang_invoke_MethodHandle::init_offsets();
+		}
 
-	// java.lang.invoke.ResolvedMethodName
-	unsafe {
-		crate::globals::fields::java_lang_invoke_ResolvedMethodName::init_offsets();
-	}
+		// java.lang.invoke.LambdaForm
+		unsafe {
+			crate::globals::fields::java_lang_invoke_LambdaForm::init_offsets();
+		}
 
-	// java.lang.invoke.MethodType
-	unsafe {
-		crate::globals::fields::java_lang_invoke_MethodType::init_offsets();
+		// java.lang.invoke.MemberName
+		unsafe {
+			crate::globals::fields::java_lang_invoke_MemberName::init_offsets();
+		}
+
+		// java.lang.invoke.ResolvedMethodName
+		unsafe {
+			crate::globals::fields::java_lang_invoke_ResolvedMethodName::init_offsets();
+		}
+
+		// java.lang.invoke.MethodType
+		unsafe {
+			crate::globals::fields::java_lang_invoke_MethodType::init_offsets();
+		}
 	}
 
 	// java.lang.reflect.Constructor

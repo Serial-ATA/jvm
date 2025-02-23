@@ -1,7 +1,7 @@
 use super::reference::Reference;
 use crate::objects::class::Class;
 use crate::objects::constant_pool::{cp_types, ConstantPool};
-use crate::symbols::{sym, Symbol};
+use crate::symbols::Symbol;
 
 use std::cell::SyncUnsafeCell;
 use std::fmt::{Debug, Formatter};

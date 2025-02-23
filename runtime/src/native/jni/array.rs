@@ -77,7 +77,14 @@ pub extern "system" fn SetObjectArrayElement(
 	};
 
 	let instance = array.get_mut();
-	instance.store(index as s4, val); // TODO: This throws
+	match instance.store(index as s4, val) {
+		Throws::Ok(_) => {},
+		Throws::Exception(e) => {
+			let thread = JavaThread::current();
+			assert_eq!(thread.env().raw(), env);
+			e.throw(thread)
+		},
+	}
 }
 
 #[no_mangle]

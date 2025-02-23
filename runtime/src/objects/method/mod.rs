@@ -52,18 +52,35 @@ impl ExtraFlags {
 	}
 }
 
+struct ExtraFields {
+	parameter_stack_size: usize,
+	descriptor_sym: Symbol,
+	parameter_count: u1,
+	line_number_table: Vec<LineNumber>,
+	native_method: RwLock<Option<NativeMethodPtr>>,
+}
+
+impl PartialEq for ExtraFields {
+	fn eq(&self, other: &Self) -> bool {
+		self.parameter_stack_size == other.parameter_stack_size
+			&& self.descriptor_sym == other.descriptor_sym
+			&& self.parameter_count == other.parameter_count
+			&& self.line_number_table == other.line_number_table
+	}
+}
+
 pub struct Method {
 	class: &'static Class,
-	attributes: Box<[Attribute]>,
-	pub access_flags: MethodAccessFlags,
-	extra_flags: ExtraFlags,
+
 	pub name: Symbol,
-	pub descriptor_sym: Symbol,
 	pub descriptor: MethodDescriptor,
-	pub parameter_count: u1,
-	pub line_number_table: Vec<LineNumber>,
+	pub access_flags: MethodAccessFlags,
+	attributes: Box<[Attribute]>,
+
+	extra_flags: ExtraFlags,
+	extra_fields: ExtraFields,
+
 	pub code: Code,
-	native_method: RwLock<Option<NativeMethodPtr>>,
 }
 
 impl PartialEq for Method {
@@ -71,17 +88,21 @@ impl PartialEq for Method {
 		self.class == other.class
 			&& self.access_flags == other.access_flags
 			&& self.extra_flags == other.extra_flags
+			&& self.extra_fields == other.extra_fields
 			&& self.name == other.name
-			&& self.descriptor_sym == other.descriptor_sym
-			&& self.parameter_count == other.parameter_count
-			&& self.line_number_table == other.line_number_table
 			&& self.code == other.code
 	}
 }
 
 impl Debug for Method {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		write!(f, "{}#{}", self.class.name.as_str(), self.name.as_str())
+		write!(
+			f,
+			"{}#{}{}",
+			self.class.name.as_str(),
+			self.name.as_str(),
+			self.descriptor_sym().as_str()
+		)
 	}
 }
 
@@ -119,11 +140,29 @@ impl Method {
 
 		let descriptor = MethodDescriptor::parse(&mut descriptor_sym.as_bytes()).unwrap(); // TODO: Error handling
 
+		let mut parameter_stack_size = descriptor
+			.parameters
+			.iter()
+			.map(|ty| ty.stack_size() as usize)
+			.sum();
+		if !access_flags.is_static() {
+			parameter_stack_size += 1;
+		}
+
 		let parameter_count: u1 = descriptor.parameters.len().try_into().unwrap();
 
 		let line_number_table = method_info
 			.get_line_number_table_attribute()
 			.unwrap_or_default();
+
+		let extra_fields = ExtraFields {
+			parameter_stack_size,
+			descriptor_sym,
+			parameter_count,
+			line_number_table,
+			native_method: RwLock::new(None), // Initialized later (if necessary)
+		};
+
 		let code = method_info.get_code_attribute().unwrap_or_default();
 
 		let method = Self {
@@ -131,13 +170,10 @@ impl Method {
 			attributes: method_info.attributes,
 			access_flags,
 			extra_flags,
+			extra_fields,
 			name,
-			descriptor_sym,
 			descriptor,
-			parameter_count,
-			line_number_table,
 			code,
-			native_method: RwLock::new(None),
 		};
 
 		Box::leak(Box::new(method))
@@ -148,11 +184,11 @@ impl Method {
 			return -2;
 		}
 
-		if self.line_number_table.is_empty() {
+		if self.extra_fields.line_number_table.is_empty() {
 			return -1;
 		}
 
-		for line_number in self.line_number_table.iter().copied() {
+		for line_number in self.extra_fields.line_number_table.iter().copied() {
 			if (line_number.start_pc as isize) == pc {
 				return line_number.line_number as s4;
 			}
@@ -192,14 +228,33 @@ impl Method {
 		None
 	}
 
+	/// Get the method descriptor as a `Symbol`
+	pub fn descriptor_sym(&self) -> Symbol {
+		self.extra_fields.descriptor_sym
+	}
+
+	/// The number of parameters this method takes
+	pub fn parameter_count(&self) -> u1 {
+		self.extra_fields.parameter_count
+	}
+
+	/// The number of stack slots that the parameters take up
+	///
+	/// This is necessary, as `long`s and `double`s take up two slots
+	///
+	/// NOTE: This includes `this` for non-static methods
+	pub fn parameter_stack_size(&self) -> usize {
+		self.extra_fields.parameter_stack_size
+	}
+
 	pub fn native_method(&self) -> Option<NativeMethodPtr> {
 		assert!(self.is_native());
-		let native_method = self.native_method.read().unwrap();
+		let native_method = self.extra_fields.native_method.read().unwrap();
 		*native_method
 	}
 
 	pub fn set_native_method(&self, func: NativeMethodPtr) {
-		let mut lock = self.native_method.write().unwrap();
+		let mut lock = self.extra_fields.native_method.write().unwrap();
 		*lock = Some(func);
 	}
 }
@@ -289,23 +344,6 @@ impl Method {
 		self.class.is_interface() && (!self.is_abstract() && !self.is_public())
 	}
 
-	/// Whether this method is [signature polymorphic]
-	///
-	/// [signature polymorphic]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.9.3
-	pub fn is_signature_polymorphic(&self) -> bool {
-		// A method is signature polymorphic if all of the following are true:
-		//
-		//     It is declared in the java.lang.invoke.MethodHandle class or the java.lang.invoke.VarHandle class.
-		(self.class == crate::globals::classes::java_lang_invoke_MethodHandle()
-            || self.class == crate::globals::classes::java_lang_invoke_VarHandle()) &&
-
-            //     It has a single formal parameter of type Object[].
-            (self.descriptor.parameters.len() == 1 && self.descriptor.parameters[0].is_array_of_class(b"java/lang/Object")) &&
-
-            //     It has the ACC_VARARGS and ACC_NATIVE flags set.
-            (self.is_var_args() && self.is_native())
-	}
-
 	/// Whether the method has the @CallerSensitive annotation
 	pub fn is_caller_sensitive(&self) -> bool {
 		self.extra_flags.caller_sensitive
@@ -375,7 +413,7 @@ impl Method {
 		);
 
 		if thread.has_pending_exception() {
-			todo!();
+			return Throws::PENDING_EXCEPTION;
 		}
 
 		let method_type = result
@@ -419,7 +457,13 @@ impl Method {
 						.get_mut()
 						.store(index as s4, Reference::mirror(class.mirror()))?;
 				},
-				FieldType::Array(_) => todo!("Array parameters"),
+				parameter @ FieldType::Array(_) => {
+					let name = parameter.as_signature();
+					let array_class = class.loader().load(Symbol::intern(&*name))?;
+					parameters
+						.get_mut()
+						.store(index as s4, Reference::mirror(array_class.mirror()))?;
+				},
 			}
 		}
 
@@ -490,7 +534,7 @@ impl Method {
 		&self,
 		mut args: *const jvalue,
 	) -> Option<Vec<Operand<Reference>>> {
-		let mut parameters = Vec::with_capacity(self.parameter_count as usize);
+		let mut parameters = Vec::with_capacity(self.parameter_count() as usize);
 
 		for parameter in &self.descriptor.parameters {
 			let val = unsafe { *args };
@@ -553,7 +597,7 @@ impl Method {
 	}
 
 	pub unsafe fn args_for_va_list(&self, mut args: VaList) -> Option<Vec<Operand<Reference>>> {
-		let mut parameters = Vec::with_capacity(self.parameter_count as usize);
+		let mut parameters = Vec::with_capacity(self.parameter_count() as usize);
 		for parameter in &self.descriptor.parameters {
 			match parameter {
 				FieldType::Byte | FieldType::Char | FieldType::Short | FieldType::Int => {

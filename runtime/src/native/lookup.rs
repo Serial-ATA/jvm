@@ -113,7 +113,7 @@ impl<'a> NativeNameConverter<'a> {
 		// Start with the prefix
 		let mut name = String::from("__");
 
-		let descriptor = self.method.descriptor_sym.as_str();
+		let descriptor = self.method.descriptor_sym().as_str();
 		let closing_paren_pos = descriptor
 			.chars()
 			.position(|b| b == ')')
@@ -200,6 +200,8 @@ fn lookup_style(
 	include_long: bool,
 	os_style: bool,
 ) -> Option<NativeMethodPtr> {
+	let jni_name = name_converter.compute_complete_jni_name(num_args, include_long, os_style);
+
 	let class_loader = method.class().loader();
 	if class_loader.is_bootstrap() {
 		if let Some(entry) = crate::native::method::lookup_method_opt(method) {
@@ -207,29 +209,28 @@ fn lookup_style(
 		}
 	}
 
-	assert!(
-		class_loader.is_bootstrap(),
-		"Custom classloaders are not implemented yet"
-	);
-
-	let jni_name = name_converter.compute_complete_jni_name(num_args, include_long, os_style);
-	let name_arg = StringInterner::intern(jni_name.as_str());
-
 	let classloader_class = crate::globals::classes::java_lang_ClassLoader();
 	let findNative_method = classloader_class
 		.vtable()
 		.find(
 			sym!(findNative_name),
-			sym!(ClassLoader_string_long_signature),
+			sym!(ClassLoader_class_string_string_long_signature),
 			MethodAccessFlags::NONE,
 		)
 		.unwrap();
 
+	let loader = method.class().loader().obj();
+	let clazz = method.class().mirror();
+	let entry_name = StringInterner::intern(&*jni_name);
+	let java_name = StringInterner::intern(method.name);
+
 	let address = java_call!(
 		thread,
 		findNative_method,
-		Operand::Reference(Reference::null()),
-		Operand::Reference(Reference::class(name_arg))
+		Operand::Reference(loader),
+		Operand::Reference(Reference::mirror(clazz)),
+		Operand::Reference(Reference::class(entry_name)),
+		Operand::Reference(Reference::class(java_name)),
 	);
 
 	if thread.has_pending_exception() {
@@ -240,7 +241,8 @@ fn lookup_style(
 		.expect("method should return something")
 		.expect_long();
 	if address == 0 {
-		todo!("Agent library search");
+		// TODO: Agent library search
+		return None;
 	}
 
 	let entry = address as usize as *const ();
@@ -257,7 +259,7 @@ fn lookup_entry(method: &Method, thread: &JavaThread) -> Option<NativeMethodPtr>
 
 	let num_args = 1 // JNIEnv
     + if method.is_static() { 1 } else { 0 } // Extra argument for class
-    + method.parameter_count;
+    + method.parameter_count();
 
 	// 1) Try JNI short style
 	if let Some(entry) = lookup_style(
@@ -318,7 +320,8 @@ fn lookup_entry(method: &Method, thread: &JavaThread) -> Option<NativeMethodPtr>
 
 /// Check if there are any JVM TI prefixes which have been applied to the native method name.
 fn lookup_entry_prefixed(_method: &Method, _thread: &JavaThread) -> Option<NativeMethodPtr> {
-	todo!()
+	// TODO
+	None
 }
 
 fn lookup_base(method: &Method, thread: &JavaThread) -> NativeMethodPtr {

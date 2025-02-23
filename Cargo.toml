@@ -16,6 +16,7 @@ members = [
 ]
 
 [workspace.dependencies]
+runtime = { path = "runtime" }
 classfile = { path = "classfile" }
 common = { path = "common" }
 instructions = { path = "instructions" }

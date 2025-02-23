@@ -18,7 +18,7 @@ pub fn ensureMaterializedForStackWalk(
 	_this_class: &'static Class,
 	_class: Reference, // java.lang.Object
 ) {
-	unimplemented!("java.security.AccessController#ensureMaterializedForStackWalk")
+	// Does nothing
 }
 
 pub fn getStackAccessControlContext(_env: JniEnv, _class: &'static Class) -> Reference /* java.security.AccessControlContext */

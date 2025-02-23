@@ -1,5 +1,5 @@
 use crate::objects::method::Method;
-use crate::objects::reference::Reference;
+use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::thread::frame::Frame;
 use crate::thread::JavaThread;
@@ -28,7 +28,7 @@ impl MethodInvoker {
 		args: Vec<Operand<Reference>>,
 	) {
 		let max_locals = method.code.max_locals;
-		let parameter_count = method.parameter_count;
+		let parameter_count = method.parameter_count();
 
 		let local_stack = Self::construct_local_stack(max_locals, parameter_count, true, args);
 
@@ -60,7 +60,7 @@ impl MethodInvoker {
 
 	fn invoke_(frame: &mut Frame, mut method: &'static Method, reresolve_method: bool) {
 		let mut max_locals = method.code.max_locals;
-		let parameter_count = method.parameter_count;
+		let parameter_count = method.parameter_count();
 		let is_static_method = method.is_static();
 
 		// Move the arguments from the previous frame into a new local stack

@@ -44,6 +44,7 @@ pub mod types {
 					$(#[$attr])*
 					#[derive(Copy, Clone, Debug, PartialEq)]
 					pub struct $name $(<$gen>)? $(($(pub $fields),+))?;
+					#[allow(non_upper_case_globals)]
 					pub(super) const [<$name _OFFSET>]: u8 = ${index()};
 				)+
 			}

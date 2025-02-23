@@ -9,7 +9,6 @@ use super::mirror::MirrorInstance;
 use super::vtable::VTable;
 use crate::classpath::loader::ClassLoader;
 use crate::error::RuntimeError;
-use crate::globals::PRIMITIVES;
 use crate::modules::{Module, Package};
 use crate::objects::constant_pool::cp_types;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
@@ -23,6 +22,7 @@ use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
 use std::{mem, ptr};
 
+use crate::thread::exceptions::Throws;
 use classfile::accessflags::ClassAccessFlags;
 use classfile::attribute::resolved::ResolvedBootstrapMethod;
 use classfile::constant_pool::types::raw as raw_types;
@@ -38,6 +38,7 @@ struct MiscCache {
 	array_class_name: Option<Symbol>,
 	array_component_name: Option<Symbol>,
 	package_name: Option<Option<Symbol>>,
+	external_name: Option<Symbol>,
 	signature: Option<Symbol>,
 	modifier_flags: Option<u2>,
 	is_hidden: bool,
@@ -485,6 +486,22 @@ impl Class {
 		signature
 	}
 
+	/// Get the external name of this class (for user-facing messages)
+	///
+	/// This just takes the class name and replaces all '/' with '.'
+	pub fn external_name(&self) -> Symbol {
+		if let Some(external_name) = unsafe { (*self.misc_cache.get()).external_name } {
+			return external_name;
+		}
+
+		let signature = Symbol::intern(self.name.as_str().replace('/', "."));
+		unsafe {
+			(*self.misc_cache.get()).signature = Some(signature);
+		}
+
+		signature
+	}
+
 	pub(self) fn initialization_lock(&self) -> Arc<InitializationLock> {
 		Arc::clone(&self.init_lock)
 	}
@@ -645,6 +662,10 @@ impl Class {
 
 	/// Whether this class is a subclass of `class`
 	pub fn is_subclass_of(&self, class: &Class) -> bool {
+		if self == class {
+			return true;
+		}
+
 		let mut current_class = self;
 		while let Some(super_class) = &current_class.super_class {
 			if super_class.name == class.name {
@@ -652,62 +673,6 @@ impl Class {
 			}
 
 			current_class = super_class;
-		}
-
-		false
-	}
-
-	/// Whether this class can be cast into `class`
-	#[allow(non_snake_case)]
-	pub fn can_cast_to(&self, other: &'static Class) -> bool {
-		// The following rules are used to determine whether an objectref that is not null can be cast to the resolved type
-		//
-		// S is the type of the object referred to by objectref, and T is the resolved class, array, or interface type
-
-		let S_class = self;
-		let T_class = other;
-
-		// If S is a class type, then:
-		//
-		//     If T is a class type, then S must be the same class as T, or S must be a subclass of T;
-		if !T_class.is_interface() && !T_class.is_array() {
-			if S_class == T_class {
-				return true;
-			}
-
-			return S_class.is_subclass_of(T_class);
-		}
-		//     If T is an interface type, then S must implement interface T.
-		if T_class.is_interface() {
-			return S_class.implements(T_class);
-		}
-
-		// If S is an array type SC[], that is, an array of components of type SC, then:
-		//
-		//     If T is a class type, then T must be Object.
-		if !T_class.is_interface() && !T_class.is_array() {
-			return T_class == crate::globals::classes::java_lang_Object();
-		}
-		//     If T is an interface type, then T must be one of the interfaces implemented by arrays (JLS §4.10.3).
-		if T_class.is_interface() {
-			return T_class == crate::globals::classes::java_lang_Cloneable()
-				|| T_class == crate::globals::classes::java_io_Serializable();
-		}
-		//     If T is an array type TC[], that is, an array of components of type TC, then one of the following must be true:
-		if T_class.is_array() {
-			//         TC and SC are the same primitive type.
-			let source_component = S_class.array_component_name();
-			let dest_component = T_class.array_component_name();
-			if PRIMITIVES.contains(&source_component) || PRIMITIVES.contains(&dest_component) {
-				return source_component == dest_component;
-			}
-
-			//         TC and SC are reference types, and type SC can be cast to TC by these run-time rules.
-
-			// It's impossible to get a reference to an unloaded class
-			let S_class = S_class.loader().lookup_class(source_component).unwrap();
-			let T_class = T_class.loader().lookup_class(dest_component).unwrap();
-			return S_class.can_cast_to(T_class);
 		}
 
 		false
@@ -967,13 +932,15 @@ impl Class {
 	/// Attempt to initialize this class
 	///
 	/// NOTE: If the class is being initialized by another thread, this will block until it is completed.
-	pub fn initialize(&self, thread: &JavaThread) {
+	pub fn initialize(&self, thread: &JavaThread) -> Throws<()> {
 		if self.is_initialized.get() {
-			return;
+			return Throws::Ok(());
 		}
 
-		self.initialization(thread);
+		self.initialization(thread)?;
 		self.is_initialized.set(true);
+
+		Throws::Ok(())
 	}
 
 	/// Set the mirror for this class
