@@ -170,6 +170,24 @@ impl FieldType {
 		}
 	}
 
+	pub fn as_java_type(&self) -> Cow<'static, str> {
+		match self {
+			Self::Byte => "byte".into(),
+			Self::Char => "char".into(),
+			Self::Double => "double".into(),
+			Self::Float => "float".into(),
+			Self::Int => "int".into(),
+			Self::Long => "long".into(),
+			Self::Short => "short".into(),
+			Self::Boolean => "boolean".into(),
+			Self::Void => "void".into(),
+			Self::Object(name) => {
+				format!("{}", String::from_utf8_lossy(name).replace('/', ".")).into()
+			},
+			Self::Array(component) => format!("[{}", component.as_java_type()).into(),
+		}
+	}
+
 	/// Get the [array type code] for this field type
 	///
 	/// This is only applicable for primitive types

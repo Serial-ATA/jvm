@@ -73,6 +73,7 @@ define_classes!(
 	java_io_File,
 	jdk_internal_misc_UnsafeConstants,
 	jdk_internal_reflect_MethodAccessorImpl,
+	java_lang_VirtualMachineError,
 	// Primitive types
 	java_lang_Boolean,
 	java_lang_Byte,

@@ -21,7 +21,6 @@ use jvm_runtime::classpath::{add_classpath_entry, jar, jimage, ClassPathEntry};
 ///
 /// The `Ok` value is the exit code for the process. If there is an uncaught exception, it is handled
 /// and the exit code is set to 1.
-#[tracing::instrument]
 pub fn launch() -> Result<i32> {
 	let args = cli::Args::parse();
 

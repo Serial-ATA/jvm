@@ -4,6 +4,7 @@ use crate::stack::local_stack::LocalStack;
 use crate::thread::frame::Frame;
 use crate::thread::JavaThread;
 
+use crate::thread::exceptions::{Exception, ExceptionKind};
 use common::int_types::{u1, u2};
 use instructions::{Operand, StackLike};
 
@@ -28,7 +29,12 @@ impl MethodInvoker {
 		args: Vec<Operand<Reference>>,
 	) {
 		let max_locals = method.code.max_locals;
-		let parameter_count = method.parameter_count();
+		let parameter_count = if method.is_var_args() {
+			// We'll just have to believe the caller
+			args.len() as u1
+		} else {
+			method.parameter_count()
+		};
 
 		let local_stack = Self::construct_local_stack(max_locals, parameter_count, true, args);
 
@@ -75,11 +81,8 @@ impl MethodInvoker {
 		if !is_static_method {
 			let this = frame.stack_mut().pop_reference();
 			if this.is_null() {
-				panic!(
-					"NullPointerException - {}#{}",
-					method.class().name.as_str(),
-					method.name.as_str()
-				);
+				Exception::new(ExceptionKind::NullPointerException).throw(frame.thread());
+				return;
 			}
 
 			if reresolve_method {
@@ -92,7 +95,8 @@ impl MethodInvoker {
 		}
 
 		if method.is_abstract() {
-			panic!("AbstractMethodError") // TODO
+			Exception::new(ExceptionKind::AbstractMethodError).throw(frame.thread());
+			return;
 		}
 
 		let mut local_stack = Self::construct_local_stack(

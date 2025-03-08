@@ -8,6 +8,7 @@ use crate::thread::JavaThread;
 
 use std::os::raw::c_int;
 
+use crate::thread::exceptions::{throw, Throws};
 use classfile::accessflags::MethodAccessFlags;
 use instructions::Operand;
 // The JNI specification defines the mapping from a Java native method name to
@@ -204,7 +205,7 @@ fn lookup_style(
 
 	let class_loader = method.class().loader();
 	if class_loader.is_bootstrap() {
-		if let Some(entry) = crate::native::method::lookup_method_opt(method) {
+		if let Some(entry) = crate::native::method::lookup_method(method) {
 			return Some(entry);
 		}
 	}
@@ -324,26 +325,28 @@ fn lookup_entry_prefixed(_method: &Method, _thread: &JavaThread) -> Option<Nativ
 	None
 }
 
-fn lookup_base(method: &Method, thread: &JavaThread) -> NativeMethodPtr {
+fn lookup_base(method: &Method, thread: &JavaThread) -> Throws<NativeMethodPtr> {
 	if let Some(entry) = lookup_entry(method, thread) {
-		return entry;
+		return Throws::Ok(entry);
 	}
 
 	if let Some(entry) = lookup_entry_prefixed(method, thread) {
-		return entry;
+		return Throws::Ok(entry);
 	}
 
-	// TODO
-	panic!("UnsatisfiedLinkError")
+	throw!(@DEFER UnsatisfiedLinkError, "'{}'", method.external_name());
 }
 
-pub fn lookup_native_method(method: &Method, thread: &JavaThread) {
-	let native_method = method.native_method();
-	if native_method.is_some() {
-		return;
+pub fn lookup_native_method(method: &Method, thread: &JavaThread) -> Throws<NativeMethodPtr> {
+	if let Some(native_method) = method.native_method() {
+		return Throws::Ok(native_method);
 	}
 
 	tracing::debug!(target: "lookup", "Looking up native invoker for method `{:?}`", method);
-	let entry = lookup_base(method, thread);
-	method.set_native_method(entry);
+	let result = lookup_base(method, thread);
+	if let Throws::Ok(entry) = &result {
+		method.set_native_method(*entry);
+	}
+
+	result
 }

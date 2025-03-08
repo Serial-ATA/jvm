@@ -1,11 +1,15 @@
 use crate::globals::fields;
 use crate::java_call;
+use crate::objects::boxing::Boxable;
 use crate::objects::class::Class;
 use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, Reference};
-use crate::thread::exceptions::Throws;
+use crate::stack::local_stack::LocalStack;
+use crate::thread::exceptions::{handle_exception, Throws};
+use crate::thread::JavaThread;
 
 use common::traits::PtrType;
+use instructions::Operand;
 use jni::env::JniEnv;
 
 include_generated!("native/java/lang/invoke/def/MethodHandle.definitions.rs");
@@ -23,48 +27,89 @@ pub fn get_target_method(handle: ClassInstanceRef) -> Throws<&'static Method> {
 
 pub fn invokeExact(
 	_env: JniEnv,
-	_this: Reference, // java.lang.invoke.MethodHandle
-	_args: Reference, // Object[]
+	_this: Reference,      // java.lang.invoke.MethodHandle
+	_args: Vec<Reference>, // Object...
 ) -> Reference /* java.lang.Object */ {
 	unimplemented!("java.lang.invoke.MethodHandle#invokeExact")
 }
 
 pub fn invoke(
 	_env: JniEnv,
-	_this: Reference, // java.lang.invoke.MethodHandle
-	_args: Reference, // Object[]
+	_this: Reference,      // java.lang.invoke.MethodHandle
+	_args: Vec<Reference>, // Object...
 ) -> Reference /* java.lang.Object */ {
 	unimplemented!("java.lang.invoke.MethodHandle#invoke")
 }
 
 pub fn invokeBasic(
-	_env: JniEnv,
-	_this: Reference, // java.lang.invoke.MethodHandle
-	_args: Reference, // Object[]
+	env: JniEnv,
+	this: Reference,      // java.lang.invoke.MethodHandle
+	args: Vec<Reference>, // Object...
 ) -> Reference /* java.lang.Object */ {
-	unimplemented!("java.lang.invoke.MethodHandle#invokeBasic")
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let method = get_target_method(this.extract_class()).unwrap();
+
+	// TODO: This is terrible. Recreating the LocalStack we just deconstructed.
+	let mut args = args.into_iter().map(Operand::Reference).collect::<Vec<_>>();
+	args.insert(0, Operand::Reference(this));
+
+	// SAFETY: Every operand is a reference
+	let call_args = unsafe { LocalStack::new_with_args(args, method.code.max_locals as usize) };
+	let ret = java_call!(@WITH_ARGS_LIST thread, method, call_args);
+
+	match ret {
+		Some(ret) => {
+			handle_exception!(Reference::null(), thread, ret.into_box(thread))
+		},
+		None => Reference::null(),
+	}
 }
 
 pub fn linkToStatic(
-	_env: JniEnv,
+	env: JniEnv,
 	_class: &'static Class,
-	_args: Reference, // Object[]
+	mut args: Vec<Reference>, // Object...
 ) -> Reference /* java.lang.Object */ {
-	unimplemented!("java.lang.invoke.MethodHandle#linkToStatic")
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let appendix = args.pop().expect("appendix is required").extract_class();
+
+	let vmindex = fields::java_lang_invoke_MemberName::vmindex(appendix.get());
+	let defining_class_mirror = fields::java_lang_invoke_MemberName::clazz(appendix.get());
+	let defining_class = defining_class_mirror.get().target_class();
+
+	let target_method = &defining_class.vtable()[vmindex as usize];
+
+	// TODO: This is terrible. Recreating the LocalStack we just deconstructed.
+	let args = args.into_iter().map(Operand::Reference).collect::<Vec<_>>();
+
+	// SAFETY: Every operand is a reference
+	let call_args =
+		unsafe { LocalStack::new_with_args(args, target_method.code.max_locals as usize) };
+	let ret = java_call!(@WITH_ARGS_LIST thread, target_method, call_args);
+
+	match ret {
+		Some(ret) => {
+			handle_exception!(Reference::null(), thread, ret.into_box(thread))
+		},
+		None => Reference::null(),
+	}
 }
 
 pub fn linkToSpecial(
-	_env: JniEnv,
-	_class: &'static Class,
-	_args: Reference, // Object[]
+	env: JniEnv,
+	class: &'static Class,
+	args: Vec<Reference>, // Object...
 ) -> Reference /* java.lang.Object */ {
-	unimplemented!("java.lang.invoke.MethodHandle#linkToSpecial")
+	// TODO: This is valid, right?
+	linkToStatic(env, class, args)
 }
 
 pub fn linkToInterface(
 	_env: JniEnv,
 	_class: &'static Class,
-	_args: Reference, // Object[]
+	_args: Vec<Reference>, // Object...
 ) -> Reference /* java.lang.Object */ {
 	unimplemented!("java.lang.invoke.MethodHandle#linkToInterface")
 }
@@ -72,7 +117,7 @@ pub fn linkToInterface(
 pub fn linkToNative(
 	_env: JniEnv,
 	_class: &'static Class,
-	_args: Reference, // Object[]
+	_args: Vec<Reference>, // Object...
 ) -> Reference /* java.lang.Object */ {
 	unimplemented!("java.lang.invoke.MethodHandle#linkToNative")
 }

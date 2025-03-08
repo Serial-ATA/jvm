@@ -998,12 +998,12 @@ pub unsafe extern "system" fn CallStaticVoidMethodA(
 		return; // TODO: Exception?
 	};
 
-	let Some(parameters) = (unsafe { method.args_for_c_array(args) }) else {
+	let Some(arguments) = (unsafe { method.args_for_c_array(args) }) else {
 		return; // TODO: Exception?
 	};
 
-	thread.invoke_method_scoped(
-		method,
-		LocalStack::new_with_args(parameters, method.code.max_locals as usize),
-	);
+	// SAFETY: `Method::args_for_c_args` ensures that the arguments are constructed correctly
+	let call_args =
+		unsafe { LocalStack::new_with_args(arguments, method.code.max_locals as usize) };
+	thread.invoke_method_scoped(method, call_args);
 }

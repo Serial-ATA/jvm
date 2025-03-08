@@ -15,6 +15,7 @@ use std::fmt::Debug;
 use std::ops::RangeInclusive;
 use std::sync::{LazyLock, Mutex};
 
+use crate::globals::fields;
 use classfile::constant_pool::types::raw as raw_types;
 use classfile::{ClassFile, FieldType};
 use common::int_types::u1;
@@ -244,6 +245,11 @@ impl ClassLoader {
 		self.obj.clone()
 	}
 
+	/// Whether the ClassLoader is parallel capable
+	pub fn is_parallel_capable(&self) -> bool {
+		self.is_bootstrap() || fields::java_lang_ClassLoader::parallelCapable(&self.obj())
+	}
+
 	pub fn load(&'static self, name: Symbol) -> Throws<&'static Class> {
 		if self.is_bootstrap() {
 			return self.load_bootstrap(name);
@@ -263,7 +269,7 @@ impl ClassLoader {
 
 		// Otherwise, the Java Virtual Machine passes the argument N to an invocation of a method on
 		// the bootstrap class loader [...] and then [...] create C, via the algorithm of §5.3.5.
-		let classref = self.load_class_by_name(name)?;
+		let classref = self.derive_class(name, None)?;
 
 		// TODO:
 		// If no purported representation of C is found, the bootstrap class loader throws a ClassNotFoundException.
@@ -278,24 +284,41 @@ impl ClassLoader {
 
 	// Deriving a Class from a class File Representation
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.3.5
-	fn load_class_by_name(&'static self, name: Symbol) -> Throws<&'static Class> {
+	pub fn derive_class(
+		&'static self,
+		name: Symbol,
+		classfile_bytes: Option<&[u1]>,
+	) -> Throws<&'static Class> {
 		if let Some(class) = self.lookup_class(name) {
 			return Throws::Ok(class);
 		}
 
 		let name_str = name.as_str();
 		if name_str.starts_with('[') {
-			return Throws::Ok(self.create_array_class(name));
+			return self.create_array_class(name);
 		}
 
+		match classfile_bytes {
+			Some(classfile_bytes) => self.derive_class_inner(name, name_str, classfile_bytes),
+			None => {
+				let classfile_bytes = super::find_classpath_entry(name);
+				self.derive_class_inner(name, name_str, &classfile_bytes)
+			},
+		}
+	}
+
+	fn derive_class_inner(
+		&'static self,
+		name: Symbol,
+		name_str: &str,
+		classfile_bytes: &[u1],
+	) -> Throws<&'static Class> {
 		// TODO:
 		// 1. First, the Java Virtual Machine determines whether L has already been recorded
 		//    as an initiating loader of a class or interface denoted by N. If so, this derivation
 		//    attempt is invalid and derivation throws a LinkageError.
 
 		// 2. Otherwise, the Java Virtual Machine attempts to parse the purported representation.
-		let classfile_bytes = super::find_classpath_entry(name);
-
 		//    The purported representation may not in fact be a valid representation of C, so
 		//    derivation must detect the following problems:
 		let Ok(classfile) = ClassFile::read_from(&mut &classfile_bytes[..]) else {
@@ -339,7 +362,7 @@ impl ClassLoader {
 		// The Java Virtual Machine marks C to have L as its defining loader, records that L is an initiating
 		// loader of C (§5.3.4), and creates C in the method area (§2.5.4).
 
-		let class = unsafe { Class::new(classfile, super_class, self) };
+		let class = unsafe { Class::new(classfile, super_class, self)? };
 		self.classes.lock().unwrap().insert(name, class);
 
 		// Finally, prepare the class (§5.4.2)
@@ -379,19 +402,19 @@ impl ClassLoader {
 		//     Otherwise, if C is a class and some instance method declared in C can override (§5.4.5)
 		//     a final instance method declared in a superclass of C, derivation throws an IncompatibleClassChangeError.
 
-		self.load_class_by_name(super_class_name)
+		self.derive_class(super_class_name, None)
 	}
 
 	// Creating array classes
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.3.3
-	fn create_array_class(&'static self, descriptor: Symbol) -> &'static Class {
+	fn create_array_class(&'static self, descriptor: Symbol) -> Throws<&'static Class> {
 		// The following steps are used to create the array class C denoted by the name N in association with the class loader L.
 		// L may be either the bootstrap class loader or a user-defined class loader.
 
 		// First, the Java Virtual Machine determines whether L has already been recorded as an initiating loader of an array class with
 		// the same component type as N. If so, this class is C, and no array class creation is necessary.
 		if let Some(ret) = self.lookup_class(descriptor) {
-			return ret;
+			return Throws::Ok(ret);
 		}
 
 		// Otherwise, the following steps are performed to create C:
@@ -405,14 +428,14 @@ impl ClassLoader {
 
 		loop {
 			if let FieldType::Object(obj) = &*component {
-				self.load(Symbol::intern(&obj));
+				self.load(Symbol::intern(&obj))?;
 				break;
 			}
 
 			if let FieldType::Array(array) = *component {
 				// Just strip '[' until we finally reach the component type.
 				descriptor_str = &descriptor_str[1..];
-				self.load(Symbol::intern(descriptor_str));
+				self.load(Symbol::intern(descriptor_str))?;
 				component = array;
 				continue;
 			}
@@ -439,7 +462,7 @@ impl ClassLoader {
 		init_mirror(array_class);
 
 		self.classes.lock().unwrap().insert(descriptor, array_class);
-		array_class
+		Throws::Ok(array_class)
 	}
 
 	/// Recreate mirrors for all loaded classes

@@ -1,17 +1,17 @@
 import java.lang.Object;
 
 public class MethodHandle {
-    public final native Object invokeExact(Object[] args) throws Throwable;
+    public final native Object invokeExact(Object... args) throws Throwable;
 
-    public final native Object invoke(Object[] args) throws Throwable;
+    public final native Object invoke(Object... args) throws Throwable;
 
-    final native Object invokeBasic(Object[] args) throws Throwable;
+    final native Object invokeBasic(Object... args) throws Throwable;
 
-    static native Object linkToStatic(Object[] args) throws Throwable;
+    static native Object linkToStatic(Object... args) throws Throwable;
 
-    static native Object linkToSpecial(Object[] args) throws Throwable;
+    static native Object linkToSpecial(Object... args) throws Throwable;
 
-    static native Object linkToInterface(Object[] args) throws Throwable;
+    static native Object linkToInterface(Object... args) throws Throwable;
 
-    static native Object linkToNative(Object[] args) throws Throwable;
+    static native Object linkToNative(Object... args) throws Throwable;
 }

@@ -6,7 +6,7 @@ use crate::native::java::lang::String::StringInterner;
 use crate::objects::array::{Array, ObjectArrayInstance, PrimitiveArrayInstance};
 use crate::objects::class::{Class, ClassInitializationState};
 use crate::objects::class_instance::ClassInstance;
-use crate::objects::constant_pool::cp_types::{self, Entry};
+use crate::objects::constant_pool::cp_types::{self, Entry, MethodEntry};
 use crate::objects::field::Field;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
@@ -86,13 +86,14 @@ macro_rules! local_variable_load {
 		local_variable_load!($frame, $opcode, $ty, index)
 	}};
 	($frame:ident, $opcode:ident, $ty:ident, $index:expr) => {{
-		let local_stack = $frame.local_stack_mut();
+		let local_stack = $frame.local_stack();
 
 		let local_variable = &local_stack[$index];
 		paste::paste! {
 			assert!(
 				local_variable.[<is_ $ty:lower>](),
-				"Invalid operand type on local stack for `{}` instruction: {:?}",
+				"{:?} Invalid operand type on local stack for `{}` instruction: {:?}",
+				$frame.method(),
 				stringify!($opcode),
 				local_variable
 			);
@@ -115,8 +116,16 @@ macro_rules! load_from_array {
 
 		// TODO: Validate the type, right now the output is just trusted
 		//       to be correct
-		// TODO: actually handle throws
-		let op = array_ref.get().get(index).unwrap();
+
+		let op;
+		match array_ref.get().get(index) {
+			Throws::Ok(value) => op = value,
+			Throws::Exception(e) => {
+				e.throw($frame.thread());
+				return;
+			},
+		}
+
 		stack.push_op(op);
 	}};
 }
@@ -152,7 +161,9 @@ macro_rules! store_into_array {
 		let object_ref = stack.pop_reference();
 		let array_ref = object_ref.extract_primitive_array();
 
-		array_ref.get_mut().store(index, value);
+		if let Throws::Exception(e) = array_ref.get_mut().store(index, value) {
+			e.throw($frame.thread());
+		}
 	}};
 }
 
@@ -416,7 +427,9 @@ impl Interpreter {
                     let object_ref = stack.pop_reference();
                     let array_ref = object_ref.extract_object_array();
             
-                    array_ref.get_mut().store(index, value);
+                    if let Throws::Exception(e) = array_ref.get_mut().store(index, value) {
+                        e.throw(frame.thread());
+                    }
                 },
                 @GROUP {
                     [
@@ -630,19 +643,14 @@ impl Interpreter {
                 },
                 OpCode::invokevirtual => { Self::invoke_virtual(frame) },
                 OpCode::invokespecial => {
-                    let Some((method, _)) = Self::fetch_method(frame, false) else {
+                    let Some(entry) = Self::fetch_method(frame, false) else {
                         return;
                     };
-                    MethodInvoker::invoke(frame, method);
+                    MethodInvoker::invoke(frame, entry.method);
                 },
-                OpCode::invokestatic => {
-                    let Some((method, _)) = Self::fetch_method(frame, true) else {
-                        return;
-                    };
-                    MethodInvoker::invoke(frame, method);
-                },
+                OpCode::invokestatic => { Self::invoke_static(frame) },
                 OpCode::invokeinterface => {
-                    let Some((method, _)) = Self::fetch_method(frame, false) else {
+                    let Some(entry) = Self::fetch_method(frame, false) else {
                         return;
                     };
                     
@@ -653,7 +661,7 @@ impl Interpreter {
                     // The value of the fourth operand byte must always be zero.
                     assert_eq!(frame.read_byte(), 0);
 
-                    MethodInvoker::invoke_interface(frame, method);
+                    MethodInvoker::invoke_interface(frame, entry.method);
                 },
                 OpCode::new => {
                     if let Some(new_class_instance) = Self::new(frame) {
@@ -666,8 +674,14 @@ impl Interpreter {
                     let stack = frame.stack_mut();
                     let count = stack.pop_int();
                     
-                    // TODO: Handle throws
-                    let array_ref = PrimitiveArrayInstance::new_from_type(type_code, count).unwrap();
+                    let array_ref;
+                    match PrimitiveArrayInstance::new_from_type(type_code, count) {
+                        Throws::Ok(array) => array_ref = array,
+                        Throws::Exception(e) => {
+                            e.throw(frame.thread());
+                            return;
+                        }
+                    }
                     stack.push_reference(Reference::array(array_ref));
                 },
                 // TODO: Handle throws
@@ -675,12 +689,26 @@ impl Interpreter {
                     let index = frame.read_byte2();
 
                     let constant_pool = frame.constant_pool();
-                    let array_class = constant_pool.get::<cp_types::Class>(index).unwrap();
+                    let array_class;
+                    match constant_pool.get::<cp_types::Class>(index) {
+                        Throws::Ok(class) => array_class = class,
+                        Throws::Exception(e) => {
+                            e.throw(frame.thread());
+                            return;
+                        }
+                    }
 
                     let stack = frame.stack_mut();
                     let count = stack.pop_int();
         
-                    let array_ref = ObjectArrayInstance::new(count, array_class).unwrap();
+                    let array_ref;
+                    match ObjectArrayInstance::new(count, array_class) {
+                        Throws::Ok(array) => array_ref = array,
+                        Throws::Exception(e) => {
+                            e.throw(frame.thread());
+                            return;
+                        }
+                    }
                     stack.push_reference(Reference::object_array(array_ref));
                 },
                 OpCode::arraylength => {
@@ -826,7 +854,14 @@ impl Interpreter {
         let idx = frame.read_byte2();
 
         let constant_pool = frame.constant_pool();
-        let constant = constant_pool.get_any(idx).unwrap(); // TODO: Handle throws
+        let constant;
+        match constant_pool.get_any(idx) {
+            Throws::Ok(c) => constant = c,
+            Throws::Exception(e) => {
+                e.throw(frame.thread());
+                return;
+            }
+        }
 
         // The run-time constant pool entry at index must be loadable (§5.1),
         match constant {
@@ -920,7 +955,14 @@ impl Interpreter {
         }
 
         let constant_pool = frame.constant_pool();
-        let target_class = constant_pool.get::<cp_types::Class>(index).unwrap(); // TODO: Handle throws
+        let target_class;
+        match constant_pool.get::<cp_types::Class>(index) {
+            Throws::Ok(class) => target_class = class,
+            Throws::Exception(e) => {
+                e.throw(frame.thread());
+                return;
+            },
+        }
 
         let stack = frame.stack_mut();
         if objectref.is_instance_of(target_class) {
@@ -966,39 +1008,57 @@ impl Interpreter {
 		
 		unimplemented!("invokedynamic")
     }
+    
+    // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.invokestatic
+    #[allow(non_snake_case)]
+    fn invoke_static(frame: &mut Frame) {
+        let Some(entry) = Self::fetch_method(frame, true) else {
+            return;
+        };
+        
+        let call_args = frame.stack_mut().popn(entry.parameter_count as usize);
+        MethodInvoker::invoke_with_args(frame.thread(), entry.method, call_args);
+    }
 
     // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.invokevirtual
     #[allow(non_snake_case)]
     fn invoke_virtual(frame: &mut Frame) {
-        let Some((method, descriptor)) = Self::fetch_method(frame, false) else {
+        let Some(entry) = Self::fetch_method(frame, false) else {
             return;
         };
         
         // Nothing special to do if the method isn't signature polymorphic
-        if !method.is_signature_polymorphic() {
-            MethodInvoker::invoke_virtual(frame, method);
+        if !entry.method.is_signature_polymorphic() {
+            MethodInvoker::invoke_virtual(frame, entry.method);
             return;
         }
         
-        if method.class().is_subclass_of(crate::globals::classes::java_lang_invoke_MethodHandle()) {
+        if entry.method.class().is_subclass_of(crate::globals::classes::java_lang_invoke_MethodHandle()) {
             // If the resolved method is signature polymorphic (§2.9.3), and declared in the
             // java.lang.invoke.MethodHandle class, then the invokevirtual instruction proceeds as follows,
             // where D is the descriptor of the method symbolically referenced by the instruction.
-            let D = descriptor;
+            let D = entry.descriptor;
             
             // First, a reference to an instance of java.lang.invoke.MethodType is obtained as if by
             // resolution of a symbolic reference to a method type (§5.4.3.5) with the same parameter
             // and return types as D.
-            let method_type = Method::method_type_for(method.class(), D.as_str()).unwrap(); // TODO: handle throws
+            let method_type;
+            match Method::method_type_for(entry.method.class(), D.as_str()) {
+                Throws::Ok(mt) => method_type = mt,
+                Throws::Exception(e) => {
+                    e.throw(frame.thread());
+                    return;
+                },
+            }
             
             let method_handle;
-            let parameter_count;
-            if method.name == sym!(invokeExact_name) {
+            let mut parameter_count;
+            if entry.method.name == sym!(invokeExact_name) {
                 //     If the named method is invokeExact, the instance of java.lang.invoke.MethodType must
                 //     be semantically equal to the type descriptor of the receiving method handle objectref.
                 //     The method handle to be invoked is objectref.
                 todo!();
-            } else if method.name == sym!(invoke_name) {
+            } else if entry.method.name == sym!(invoke_name) {
                 // If the named method is invoke, and the instance of java.lang.invoke.MethodType is
                 // semantically equal to the type descriptor of the receiving method handle objectref,
                 // then the method handle to be invoked is objectref.
@@ -1030,21 +1090,27 @@ impl Interpreter {
             }
 
             // TODO: The frame created should not be visible (stacktraces should end at the calling frame)
-            let target_method = MethodHandle::get_target_method(method_handle.extract_class()).unwrap(); // TODO: Handle throws
-
+            if !entry.method.is_static() {
+                // For `this`
+                parameter_count += 1;
+            }
+            
+            // TODO: Sending this through the traditional method invoker is super inefficient, ends up
+            //       causing duplicate work on the native method end. *Especially* since the args
+            //       are all already on the stack.
             let call_args = frame.stack_mut().popn(parameter_count);
-            MethodInvoker::invoke_with_args(frame.thread(), target_method, call_args);
+            MethodInvoker::invoke_with_args(frame.thread(), entry.method, call_args);
             
             return;
         }
 
         
-        if method.class().is_subclass_of(crate::globals::classes::java_lang_invoke_VarHandle()) {
+        if entry.method.class().is_subclass_of(crate::globals::classes::java_lang_invoke_VarHandle()) {
             // If the resolved method is signature polymorphic and declared in the
             // java.lang.invoke.VarHandle class, then the invokevirtual instruction proceeds as follows,
             // where N and D are the name and descriptor of the method symbolically referenced by the instruction.
-            let N = method.name;
-            let D = method.descriptor_sym();
+            let N = entry.method.name;
+            let D = entry.method.descriptor_sym();
             
             // First, a reference to an instance of java.lang.invoke.VarHandle.AccessMode is obtained
             // as if by invocation of the valueFromMethodName method of java.lang.invoke.VarHandle.AccessMode
@@ -1094,7 +1160,15 @@ impl Interpreter {
         let constant_pool = frame.constant_pool();
 
 	    // TODO: Handle throws
-        let ret = constant_pool.get::<cp_types::FieldRef>(field_ref_idx).unwrap();
+        let ret;
+        match constant_pool.get::<cp_types::FieldRef>(field_ref_idx) {
+            Throws::Ok(f) => ret = f,
+            Throws::Exception(e) => {
+                e.throw(frame.thread());
+                return None;
+            }
+        }
+        
         if is_static {
             if let Throws::Exception(e) = ret.class.initialize(frame.thread()) {
                 e.throw(frame.thread());
@@ -1105,12 +1179,12 @@ impl Interpreter {
         Some(ret)
     }
     
-    fn fetch_method(frame: &mut Frame, is_static: bool) -> Option<(&'static Method, Symbol)> {
+    fn fetch_method(frame: &mut Frame, is_static: bool) -> Option<MethodEntry> {
         let method_ref_idx = frame.read_byte2();
 
         let constant_pool = frame.constant_pool();
 
-        let (method, descriptor) = match constant_pool.get::<cp_types::MethodRef>(method_ref_idx) {
+        let entry = match constant_pool.get::<cp_types::MethodRef>(method_ref_idx) {
             Throws::Ok(m) => m,
             Throws::Exception(e) => {
                 e.throw(frame.thread());
@@ -1120,13 +1194,13 @@ impl Interpreter {
         
         if is_static {
             // On successful resolution of the method, the class or interface that declared the resolved method is initialized if that class or interface has not already been initialized
-            if let Throws::Exception(e) = method.class().initialize(frame.thread()) {
+            if let Throws::Exception(e) = entry.method.class().initialize(frame.thread()) {
                 e.throw(frame.thread());
                 return None;
             }
         }
         
-        Some((method, descriptor))
+        Some(entry)
     }
 
     fn new(frame: &mut Frame) -> Option<ClassInstanceRef> {
@@ -1226,7 +1300,10 @@ impl Interpreter {
             }
         }
 		
-		class.initialize(frame.thread());
+		if let Throws::Exception(e) = class.initialize(frame.thread()) {
+            e.throw(frame.thread());
+            return;
+        }
 		
 		let counts = frame.stack_mut().popn(dimensions as usize).into_iter().map(|op| op.expect_int());
 		

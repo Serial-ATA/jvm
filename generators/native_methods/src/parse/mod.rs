@@ -9,9 +9,10 @@ pub use class::{Class, Member};
 pub use method::Method;
 pub use types::Type;
 
-use combine::parser::char::space;
+use combine::parser::char::{space, string};
 use combine::{
-	many1, satisfy, skip_many, skip_many1, token, ParseError, Parser, Stream, StreamOnce,
+	attempt, many1, not_followed_by, satisfy, sep_by, skip_many, skip_many1, token, ParseError,
+	Parser, Stream, StreamOnce,
 };
 
 fn lex<Input, P>(p: P) -> impl Parser<Input, Output = P::Output>
@@ -50,5 +51,9 @@ where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-	many1::<String, _, _>(satisfy(|c: char| c.is_alphabetic() || c == '.'))
+	sep_by::<Vec<_>, _, _, _>(
+		lex(word1()),
+		attempt(token('.').skip(not_followed_by(lex(string(".."))))),
+	)
+	.map(|parts| parts.into_iter().intersperse(String::from(".")).collect())
 }

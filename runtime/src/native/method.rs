@@ -22,7 +22,8 @@ pub struct NativeMethodDef {
 impl Debug for NativeMethodDef {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.write_fmt(format_args!(
-			"{}#{} ({})",
+			"{}{}#{}{}",
+			if self.is_static { "static " } else { "" },
 			self.class.as_str(),
 			self.name.as_str(),
 			self.descriptor.as_str()
@@ -80,21 +81,8 @@ include!("../../../generated/native/native_init.rs"); // Provides `init_native_m
 pub(self) static NATIVE_METHOD_TABLE: LazyLock<RwLock<HashMap<NativeMethodDef, NativeMethodPtr>>> =
 	LazyLock::new(|| RwLock::new(init_native_method_table()));
 
-/// Lookup the native method definition for `method`
-///
-/// # Panics
-///
-/// This will panic if a definition is not found, see [`lookup_method_opt`].
-pub fn lookup_method(method: &Method) -> NativeMethodPtr {
-	let Some(method) = lookup_method_opt(method) else {
-		panic!("Native method `{:?}` should be present", method)
-	};
-
-	method
-}
-
 /// Lookup the native method defintion for `method`, or return `None`
-pub fn lookup_method_opt(method: &Method) -> Option<NativeMethodPtr> {
+pub fn lookup_method(method: &Method) -> Option<NativeMethodPtr> {
 	let native_method = NativeMethodDef {
 		class: method.class().name,
 		name: method.name,

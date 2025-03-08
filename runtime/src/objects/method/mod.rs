@@ -266,6 +266,21 @@ impl Method {
 		self.class
 	}
 
+	pub fn external_name(&self) -> String {
+		let mut external_name = format!(
+			"{} {}.{}(",
+			self.descriptor.return_type.as_java_type(),
+			self.class.external_name(),
+			self.name
+		);
+		for param in &self.descriptor.parameters {
+			external_name.push_str(&param.as_java_type());
+		}
+		external_name.push(')');
+
+		external_name
+	}
+
 	pub fn generic_signature(&self) -> Option<Symbol> {
 		self.attributes
 			.iter()
@@ -534,7 +549,7 @@ impl Method {
 		&self,
 		mut args: *const jvalue,
 	) -> Option<Vec<Operand<Reference>>> {
-		let mut parameters = Vec::with_capacity(self.parameter_count() as usize);
+		let mut parameters = Vec::with_capacity(self.parameter_stack_size());
 
 		for parameter in &self.descriptor.parameters {
 			let val = unsafe { *args };
@@ -565,10 +580,12 @@ impl Method {
 				FieldType::Long => {
 					let val = unsafe { val.j };
 					parameters.push(Operand::from(val));
+					parameters.push(Operand::Empty);
 				},
 				FieldType::Double => {
 					let val = unsafe { val.d };
-					parameters.push(Operand::from(val))
+					parameters.push(Operand::from(val));
+					parameters.push(Operand::Empty);
 				},
 				FieldType::Float => {
 					let val = unsafe { val.f };

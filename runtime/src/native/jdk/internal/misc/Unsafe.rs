@@ -13,7 +13,8 @@ use std::sync::atomic::{
 	AtomicBool, AtomicI16, AtomicI32, AtomicI64, AtomicI8, AtomicU16, Ordering,
 };
 
-use crate::thread::exceptions::{throw, Throws};
+use crate::objects::class_instance::ClassInstance;
+use crate::thread::exceptions::{handle_exception, throw, Throws};
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 use common::atomic::{Atomic, AtomicF32, AtomicF64};
@@ -316,13 +317,24 @@ pub fn defineClass0(
 	unimplemented!("jdk.internal.misc.Unsafe#defineClass0")
 }
 
+// Creates an instance of `class` without running its constructor, and initializes the class
+// if necessary.
+//
 // throws InstantiationException
 pub fn allocateInstance(
-	_env: JniEnv,
-	_this: Reference,  // jdk.internal.misc.Unsafe
-	_class: Reference, // java.lang.Class
+	env: JniEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	class: Reference, // java.lang.Class
 ) -> Reference {
-	unimplemented!("jdk.internal.misc.Unsafe#allocateInstance")
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let target = class.extract_target_class();
+	if let Throws::Exception(e) = target.initialize(thread) {
+		e.throw(thread);
+		return Reference::null();
+	}
+
+	Reference::class(ClassInstance::new(target))
 }
 
 pub fn throwException(
@@ -743,17 +755,12 @@ pub fn ensureClassInitialized0(
 	_this: Reference, // jdk.internal.misc.Unsafe
 	class: Reference, // java.lang.Class
 ) {
-	let current_thread = unsafe { &mut *JavaThread::for_env(env.raw()) };
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 	let mirror = class.extract_mirror();
 
 	let target_class = mirror.get().target_class();
-	match target_class.initialization_state() {
-		ClassInitializationState::Uninit => target_class
-			.initialize(current_thread)
-			.expect("Failed to ensure class initialization"),
-		ClassInitializationState::InProgress | ClassInitializationState::Init => {},
-		// TODO: Is this the best we can do?
-		ClassInitializationState::Failed => unreachable!("Failed to ensure class initialization"),
+	if let Throws::Exception(e) = target_class.initialize(thread) {
+		e.throw(thread);
 	}
 }
 

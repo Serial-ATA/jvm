@@ -3,6 +3,7 @@ use crate::attribute::resolved::{
 	ResolvedBootstrapMethod, ResolvedEnclosingMethod, ResolvedInnerClass,
 };
 use crate::attribute::{Attribute, AttributeType, SourceFile};
+use crate::constant_pool::types::{raw as raw_types, ClassNameEntry};
 use crate::constant_pool::{self, ConstantPool};
 use crate::fieldinfo::FieldInfo;
 use crate::methodinfo::MethodInfo;
@@ -97,6 +98,35 @@ impl ClassFile {
 			let iter = inner_classes.classes.iter().map(move |inner_class| {
 				ResolvedInnerClass::resolve_from(inner_class, &self.constant_pool)
 			});
+
+			return Some(iter);
+		}
+
+		None
+	}
+
+	pub fn nest_host_index(&self) -> Option<u2> {
+		for attr in &self.attributes {
+			let Some(nest_host) = attr.nest_host() else {
+				continue;
+			};
+
+			return Some(nest_host.host_class_index);
+		}
+
+		None
+	}
+
+	pub fn nest_members(&self) -> Option<impl Iterator<Item = ClassNameEntry<'_>> + use<'_>> {
+		for attr in &self.attributes {
+			let Some(nest_members) = attr.nest_members() else {
+				continue;
+			};
+
+			let iter = nest_members
+				.classes
+				.iter()
+				.map(|index| self.constant_pool.get::<raw_types::RawClassName>(*index));
 
 			return Some(iter);
 		}

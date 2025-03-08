@@ -73,12 +73,14 @@ fn generate_methods_for_class(class: &Class, definitions_file: &mut File) {
 			writeln!(definitions_file, non_static_signature!(), method.name()).unwrap();
 		}
 
+		writeln!(definitions_file, "\t\tlet mut operands = locals.iter();").unwrap();
+
 		let is_static = method.is_static();
 		if !is_static {
 			writeln!(
 				definitions_file,
 				"\t\tlet this: crate::objects::reference::Reference = \
-				 locals[0].expect_reference();"
+				 operands.next().unwrap().expect_reference();"
 			)
 			.unwrap();
 		}
@@ -89,14 +91,36 @@ fn generate_methods_for_class(class: &Class, definitions_file: &mut File) {
 		}
 
 		for (ty, name) in &method.params {
+			let rust_ty;
+			match ty {
+				Type::Variadic(component_ty) => {
+					let component_ty_str = component_ty.map_to_rust_ty();
+					writeln!(
+						definitions_file,
+						"\t\tlet mut {name}_: Vec<{component_ty_str}> = 
+						 Vec::with_capacity(locals.occupied_slots() - {idx});",
+					)
+					.unwrap();
+					writeln!(
+						definitions_file,
+						"\t\tfor op in operands {{\n\t\t\t{name}_.push(op.{});\n\t\t}}",
+						component_ty.expect_method()
+					)
+					.unwrap();
+
+					break;
+				},
+				Type::Array(_) => {
+					rust_ty = String::from("crate::objects::reference::Reference");
+				},
+				ty => {
+					rust_ty = ty.map_to_rust_ty();
+				},
+			}
+
 			writeln!(
 				definitions_file,
-				"\t\tlet {name}_: {} = locals[{idx}].{};",
-				if let Type::Array(_) = ty {
-					String::from("crate::objects::reference::Reference")
-				} else {
-					ty.map_to_rust_ty()
-				},
+				"\t\tlet {name}_: {rust_ty} = operands.next().unwrap().{};",
 				ty.expect_method()
 			)
 			.unwrap();

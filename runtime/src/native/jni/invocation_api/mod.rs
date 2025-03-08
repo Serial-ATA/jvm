@@ -82,6 +82,7 @@ pub extern "system" fn JNI_CreateJavaVM(
 		Ok(java_vm) => vm = java_vm,
 		Err(e) => {
 			if let JniError::ExceptionThrown = e {
+				eprintln!("Error occurred during initialization of VM");
 				todo!();
 			}
 

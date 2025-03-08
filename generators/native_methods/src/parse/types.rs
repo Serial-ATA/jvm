@@ -20,6 +20,7 @@ pub enum Type {
 	Void,
 	Class(String),
 	Array(Box<Type>),
+	Variadic(Box<Type>),
 }
 
 impl Type {
@@ -40,6 +41,7 @@ impl Type {
 			Type::Void => String::from("void"),
 			Type::Class(class) => class.clone(),
 			Type::Array(ty) => format!("{}_array", ty.human_readable_name()),
+			Type::Variadic(ty) => format!("{}...", ty.human_readable_name()),
 		}
 	}
 
@@ -69,7 +71,7 @@ impl Type {
 					write!(string, "{}", name.replace('.', "_"))
 				}
 			},
-			Type::Array(ty) => {
+			Type::Array(ty) | Type::Variadic(ty) => {
 				write!(string, "[").unwrap();
 				return ty.write_to(string, use_imports);
 			},
@@ -119,10 +121,13 @@ where
 			lex(string("void")).then(|_| value(Type::Void)),
 			class_ty(),
 		)),
+		optional(lex(string("..."))),
 		optional(many1::<Vec<&str>, _, _>(lex(string("[]")))),
 	)
-		.map(|(ty, arr)| match arr {
-			Some(arr) => {
+		.map(|(ty, varargs, arr)| match (varargs, arr) {
+			(Some(_), Some(_)) => panic!("Cannot have both varargs and array"),
+			(Some(_), None) => Type::Variadic(Box::new(ty)),
+			(None, Some(arr)) => {
 				let mut ty = Type::Array(Box::new(ty));
 				for _ in 0..arr.len() - 1 {
 					ty = Type::Array(Box::new(ty));
@@ -130,7 +135,7 @@ where
 
 				ty
 			},
-			None => ty,
+			(None, None) => ty,
 		})
 }
 

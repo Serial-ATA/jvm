@@ -2,8 +2,6 @@
 
 //! Various offsets for fields of frequently accessed classes
 
-use jni::sys::{jboolean, jbyte, jdouble, jfloat, jint, jlong, jshort};
-
 #[allow(dead_code)] // This is used in the `field_constructor!` macro
 const MAX_FIELD_COUNT: usize = 8;
 
@@ -274,6 +272,14 @@ pub mod java_lang_ClassLoader {
 		Some(ptr as *const ClassLoader)
 	}
 
+	/// Checks the `java.lang.ClassLoader#parallelLockMap` field for null
+	pub fn parallelCapable(instance: &Reference) -> bool {
+		!instance
+			.get_field_value0(parallelCapable_field_offset())
+			.expect_reference()
+			.is_null()
+	}
+
 	field_module! {
 		@CLASS java_lang_ClassLoader;
 
@@ -296,6 +302,10 @@ pub mod java_lang_ClassLoader {
 		///
 		/// Expected type: `Reference` to `java.lang.String`
 		@FIELD nameAndId: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/String"),
+		/// `java.lang.ClassLoader#parallelLockMap` field offset
+		///
+		/// Expected type: `Reference` to `java.lang.util.concurrent.ConcurrentHashMap`
+		[sym: parallelLockMap] @FIELD parallelCapable: FieldType::Object(_),
 	}
 }
 
@@ -926,10 +936,8 @@ pub mod java_lang_invoke_ResolvedMethodName {
 pub mod java_lang_invoke_MethodHandle {
 	use crate::objects::class_instance::ClassInstance;
 	use crate::objects::instance::Instance;
-	use crate::objects::reference::{ClassInstanceRef, MirrorInstanceRef, Reference};
+	use crate::objects::reference::ClassInstanceRef;
 	use classfile::FieldType;
-	use instructions::Operand;
-	use jni::sys::jint;
 
 	/// `java.lang.invoke.MethodHandle#form` field
 	pub fn form(instance: &ClassInstance) -> ClassInstanceRef {
@@ -956,7 +964,7 @@ pub mod java_lang_invoke_MethodHandle {
 pub mod java_lang_invoke_LambdaForm {
 	use crate::objects::class_instance::ClassInstance;
 	use crate::objects::instance::Instance;
-	use crate::objects::reference::{ClassInstanceRef, MirrorInstanceRef, Reference};
+	use crate::objects::reference::ClassInstanceRef;
 	use classfile::FieldType;
 	use instructions::Operand;
 	use jni::sys::jint;

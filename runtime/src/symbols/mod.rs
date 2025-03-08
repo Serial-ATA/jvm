@@ -234,15 +234,19 @@ vm_symbols::define_symbols! {
 	java_lang_Throwable: "java/lang/Throwable",
 	java_lang_StackTraceElement: "java/lang/StackTraceElement",
 
+	java_lang_VirtualMachineError: "java/lang/VirtualMachineError",
+
 	java_lang_ClassFormatError: "java/lang/ClassFormatError",
 	java_lang_UnsupportedClassVersionError: "java/lang/UnsupportedClassVersionError",
 	java_lang_NoClassDefFoundError: "java/lang/NoClassDefFoundError",
 	java_lang_ClassCastException: "java/lang/ClassCastException",
 
 	java_lang_LinkageError: "java/lang/LinkageError",
+	java_lang_UnsatisfiedLinkError: "java/lang/UnsatisfiedLinkError",
 	java_lang_IncompatibleClassChangeError: "java/lang/IncompatibleClassChangeError",
 	java_lang_NoSuchFieldError: "java/lang/NoSuchFieldError",
 	java_lang_NoSuchMethodError: "java/lang/NoSuchMethodError",
+	java_lang_AbstractMethodError: "java/lang/AbstractMethodError",
 
 	java_lang_NegativeArraySizeException: "java/lang/NegativeArraySizeException",
 	java_lang_ArrayIndexOutOfBoundsException: "java/lang/ArrayIndexOutOfBoundsException",
@@ -368,6 +372,7 @@ vm_symbols::define_symbols! {
 	lineNumber,
 	unnamedModule,
 	nameAndId,
+	parallelLockMap,
 	r#type: "type",
 	flags,
 	clazz,

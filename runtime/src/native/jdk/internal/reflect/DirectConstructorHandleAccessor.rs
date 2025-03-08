@@ -11,7 +11,7 @@ pub mod NativeAccessor {
 	use crate::objects::reference::{MirrorInstanceRef, Reference};
 	use crate::stack::local_stack::LocalStack;
 	use crate::symbols::sym;
-	use crate::thread::exceptions::throw_and_return_null;
+	use crate::thread::exceptions::{handle_exception, throw_and_return_null};
 	use crate::thread::JavaThread;
 
 	use classfile::FieldType;
@@ -42,7 +42,7 @@ pub mod NativeAccessor {
 		assert_eq!(method.name, sym!(object_initializer_name));
 
 		// Ensure the class is initialized
-		class.initialize(thread);
+		handle_exception!(Reference::null(), thread, class.initialize(thread));
 
 		let new_instance = Reference::class(ClassInstance::new(class));
 

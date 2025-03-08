@@ -1,6 +1,6 @@
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
-use crate::thread::exceptions::throw_and_return_null;
+use crate::thread::exceptions::{throw_and_return_null, Throws};
 use crate::thread::JavaThread;
 
 use ::jni::env::JniEnv;
@@ -68,10 +68,20 @@ pub fn getClassAccessFlags(_env: JniEnv, _this_class: &'static Class, class: Ref
 }
 
 pub fn areNestMates(
-	_env: JniEnv,
+	env: JniEnv,
 	_class: &'static Class,
-	_current_class: Reference,
-	_member_class: Reference,
+	current_class: Reference,
+	member_class: Reference,
 ) -> jboolean {
-	unimplemented!("jdk.internal.reflect.Reflection#areNestMates")
+	let thread = unsafe { &*JavaThread::for_env(env.raw() as _) };
+
+	let current_class = current_class.extract_target_class();
+	let member_class = member_class.extract_target_class();
+	match current_class.is_nestmate_of(member_class, thread) {
+		Throws::Ok(ret) => ret,
+		Throws::Exception(e) => {
+			e.throw(thread);
+			false
+		},
+	}
 }

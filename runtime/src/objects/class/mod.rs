@@ -9,10 +9,12 @@ use super::mirror::MirrorInstance;
 use super::vtable::VTable;
 use crate::classpath::loader::ClassLoader;
 use crate::error::RuntimeError;
+use crate::globals::classes;
 use crate::modules::{Module, Package};
 use crate::objects::constant_pool::cp_types;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
 use crate::symbols::Symbol;
+use crate::thread::exceptions::Throws;
 use crate::thread::JavaThread;
 
 use std::cell::{Cell, UnsafeCell};
@@ -22,7 +24,6 @@ use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
 use std::{mem, ptr};
 
-use crate::thread::exceptions::Throws;
 use classfile::accessflags::ClassAccessFlags;
 use classfile::attribute::resolved::ResolvedBootstrapMethod;
 use classfile::constant_pool::types::raw as raw_types;
@@ -35,6 +36,8 @@ use instructions::Operand;
 /// A cache for miscellaneous fields
 #[derive(Default, Debug)]
 struct MiscCache {
+	nest_host: Option<&'static Class>,
+	nest_host_index: Option<u2>,
 	array_class_name: Option<Symbol>,
 	array_component_name: Option<Symbol>,
 	package_name: Option<Option<Symbol>>,
@@ -135,6 +138,7 @@ pub struct Class {
 	field_container: FieldContainer,
 	vtable: UnsafeCell<MaybeUninit<VTable<'static>>>,
 
+	nest_members: Option<Box<[Symbol]>>,
 	bootstrap_methods: Option<Box<[ResolvedBootstrapMethod]>>,
 
 	class_ty: UnsafeCell<MaybeUninit<ClassType>>,
@@ -502,6 +506,67 @@ impl Class {
 		signature
 	}
 
+	/// Get the external name of this class (for user-facing messages)
+	///
+	/// This just takes the class name and replaces all '/' with '.'
+	pub fn nest_host(&'static self, thread: &JavaThread) -> Throws<&'static Class> {
+		if let Some(nest_host) = unsafe { (*self.misc_cache.get()).nest_host } {
+			return Throws::Ok(nest_host);
+		}
+
+		let index;
+		unsafe {
+			// In the case that the class has no nest host, we can just set it to itself
+			let Some(nest_host_index) = (*self.misc_cache.get()).nest_host_index else {
+				(*self.misc_cache.get()).nest_host = Some(self);
+				return Throws::Ok(self);
+			};
+
+			index = nest_host_index;
+		}
+
+		let nest_host_class = self
+			.constant_pool()
+			.expect("not called on array classes")
+			.get::<cp_types::Class>(index);
+
+		match nest_host_class {
+			Throws::Ok(class) => {
+				let mut error = None;
+				if !self.shares_package_with(class) {
+					error = Some("types are in different packages");
+					todo!();
+				}
+
+				if !class.has_nest_member(self) {
+					error = Some("current type is not listed as nest member");
+					todo!();
+				}
+
+				// Nest host resolved
+				if error.is_none() {
+					unsafe {
+						(*self.misc_cache.get()).nest_host = Some(class);
+					}
+					return Throws::Ok(class);
+				}
+			},
+			Throws::Exception(e) => {
+				if e.kind().class() == classes::java_lang_VirtualMachineError() {
+					return Throws::PENDING_EXCEPTION;
+				}
+
+				todo!("print nest host error")
+			},
+		}
+
+		// If all else fails, set to self
+		unsafe {
+			(*self.misc_cache.get()).nest_host = Some(self);
+		}
+		Throws::Ok(self)
+	}
+
 	pub(self) fn initialization_lock(&self) -> Arc<InitializationLock> {
 		Arc::clone(&self.init_lock)
 	}
@@ -579,6 +644,14 @@ impl Class {
 		// field we inject.
 		self.field_container
 			.set_instance_field_count((max_instance_index + 1 + field_count) as u32);
+	}
+
+	/// Set the nest host for this class
+	///
+	/// This should only be used in `java.lang.ClassLoader#defineClass0`. Setting an incorrect
+	/// nest host can result in permission issues.
+	pub unsafe fn set_nest_host(&self, nest_host: &'static Self) {
+		(*self.misc_cache.get()).nest_host = Some(nest_host);
 	}
 }
 
@@ -677,6 +750,27 @@ impl Class {
 
 		false
 	}
+
+	pub fn has_nest_member(&self, other: &Class) -> bool {
+		let Some(nest_members) = &self.nest_members else {
+			return false;
+		};
+
+		nest_members.iter().any(|name| *name == other.name)
+	}
+
+	/// Whether `self` is a nestmate of `other`, meaning they are under the same nest host
+	///
+	/// Resolving the nest host of either class may throw.
+	pub fn is_nestmate_of(
+		&'static self,
+		other: &'static Class,
+		thread: &JavaThread,
+	) -> Throws<bool> {
+		let self_host = self.nest_host(thread)?;
+		let other_host = other.nest_host(thread)?;
+		Throws::Ok(self_host == other_host)
+	}
 }
 
 impl Class {
@@ -690,11 +784,23 @@ impl Class {
 		parsed_file: ClassFile,
 		super_class: Option<&'static Class>,
 		loader: &'static ClassLoader,
-	) -> &'static Class {
+	) -> Throws<&'static Class> {
 		let access_flags = parsed_file.access_flags;
 		let class_name_index = parsed_file.this_class;
 
 		let source_file_index = parsed_file.source_file_index();
+
+		// Check the NestMembers attribute
+		let nest_members = match parsed_file.nest_members() {
+			Some(nest_members) => Some(
+				nest_members
+					.map(|entry| Symbol::intern(entry.name))
+					.collect::<Box<[Symbol]>>(),
+			),
+			None => None,
+		};
+
+		let nest_host_index = parsed_file.nest_host_index();
 
 		// Check the BootstrapMethods attribute
 		let bootstrap_methods = match parsed_file.bootstrap_methods() {
@@ -706,9 +812,8 @@ impl Class {
 
 		let enclosing_method = match parsed_file.enclosing_method() {
 			Some(enclosing_method_info) => {
-				let enclosing_class = loader
-					.load(Symbol::intern(&*enclosing_method_info.class.name))
-					.unwrap(); // TODO: handle throws
+				let enclosing_class =
+					loader.load(Symbol::intern(&*enclosing_method_info.class.name))?;
 
 				let enclosing_method;
 				match enclosing_method_info.method {
@@ -716,11 +821,16 @@ impl Class {
 					Some(name_and_type) => {
 						let method_name = Symbol::intern(&*name_and_type.name);
 						let method_descriptor = Symbol::intern(&*name_and_type.descriptor);
-						enclosing_method = Some(
-							enclosing_class
-								.resolve_method(method_name, method_descriptor)
-								.unwrap(),
-						) // TODO: handle throws
+						if enclosing_class.is_interface() {
+							enclosing_method = Some(
+								enclosing_class
+									.resolve_interface_method(method_name, method_descriptor)?,
+							);
+						} else {
+							enclosing_method = Some(
+								enclosing_class.resolve_method(method_name, method_descriptor)?,
+							);
+						}
 					},
 				}
 
@@ -779,9 +889,9 @@ impl Class {
 			.map(|index| {
 				let interface_class_name =
 					constant_pool.get::<raw_types::RawClassName>(*index).name;
-				loader.load(Symbol::intern(&*interface_class_name)).unwrap() // TODO: Handle throws
+				loader.load(Symbol::intern(&*interface_class_name))
 			})
-			.collect();
+			.collect::<Throws<Vec<_>>>()?;
 
 		let static_field_slots = box_slice![UnsafeCell::new(Operand::Empty); static_field_count];
 
@@ -791,10 +901,14 @@ impl Class {
 			loader,
 			super_class,
 			interfaces,
-			misc_cache: UnsafeCell::new(MiscCache::default()),
+			misc_cache: UnsafeCell::new(MiscCache {
+				nest_host_index,
+				..MiscCache::default()
+			}),
 			mirror: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			field_container: FieldContainer::new(static_field_slots),
 			vtable: UnsafeCell::new(MaybeUninit::uninit()), // Set later
+			nest_members,
 			bootstrap_methods,
 			class_ty: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			init_lock: Arc::new(InitializationLock::new()),
@@ -862,7 +976,7 @@ impl Class {
 				.set_instance_field_count(instance_field_idx as u4);
 		}
 
-		class
+		Throws::Ok(class)
 	}
 
 	/// Create a new array class of type `component`
@@ -901,6 +1015,7 @@ impl Class {
 			mirror: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			field_container: FieldContainer::null(),
 			vtable: UnsafeCell::new(MaybeUninit::uninit()), // Set later
+			nest_members: None,
 			bootstrap_methods: None,
 			class_ty: UnsafeCell::new(MaybeUninit::new(ClassType::Array(array_instance))),
 			init_lock: Arc::new(InitializationLock::new()),

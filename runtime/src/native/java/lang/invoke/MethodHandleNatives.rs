@@ -14,7 +14,6 @@ use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
 use classfile::constant_pool::types::ReferenceKind;
 use common::traits::PtrType;
-use instructions::Operand;
 
 include_generated!("native/java/lang/invoke/def/MethodHandleNatives.registerNatives.rs");
 include_generated!("native/java/lang/invoke/def/MethodHandleNatives.definitions.rs");
@@ -188,8 +187,6 @@ pub fn resolve_member_name(
 						is_valid = method.name == sym!(object_initializer_name);
 						if method.is_protected() {
 							is_valid &= method.class().shares_package_with(calling_class);
-						} else {
-							is_valid &= method.class() == calling_class;
 						}
 					},
 					ReferenceKind::InvokeStatic => {
@@ -199,10 +196,7 @@ pub fn resolve_member_name(
 						if method.is_protected()
 							&& !method.class().shares_package_with(calling_class)
 						{
-							is_valid = method
-								.class()
-								.parent_iter()
-								.any(|super_class| super_class == calling_class);
+							is_valid = method.class().is_subclass_of(calling_class);
 						}
 					},
 					_ => unreachable!(),
@@ -305,7 +299,7 @@ pub fn resolve(
 		calling_class = Some(caller.extract_target_class());
 	}
 
-	if let Throws::Exception(e) = resolve_member_name(
+	if let Throws::Exception(_e) = resolve_member_name(
 		class_instance.get_mut(),
 		reference_kind,
 		calling_class,

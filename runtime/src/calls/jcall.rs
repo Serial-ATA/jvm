@@ -29,7 +29,8 @@ macro_rules! java_call {
 		$($arg:expr),+ $(,)?
     ) => {{
 		let max_locals = $method.code.max_locals;
-		let local_stack = $crate::stack::local_stack::LocalStack::new_with_args(vec![$(::instructions::Operand::from($arg)),+], max_locals as usize);
+		// TODO
+		let local_stack = unsafe { $crate::stack::local_stack::LocalStack::new_with_args(vec![$(::instructions::Operand::from($arg)),+], max_locals as usize) };
 		java_call!(@WITH_ARGS_LIST $thread, $method, local_stack)
 	}};
 	// No arguments path, still needs to allocate a LocalStack for stores

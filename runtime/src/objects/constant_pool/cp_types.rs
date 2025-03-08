@@ -16,7 +16,8 @@ use crate::thread::JavaThread;
 use classfile::constant_pool::types::{
 	raw as raw_types, CpEntry, LoadableConstantPoolValueInner, ReferenceEntry, ReferenceKind,
 };
-use common::int_types::{s4, s8, u2};
+use classfile::MethodDescriptor;
+use common::int_types::{s4, s8, u1, u2};
 use common::traits::PtrType;
 use instructions::Operand;
 
@@ -588,6 +589,17 @@ impl EntryType for FieldRef {
 	}
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct MethodEntry {
+	pub method: &'static Method,
+	pub descriptor: Symbol,
+	/// The number of parameters this method takes
+	///
+	/// This is needed for variadic methods, saving the effort of parsing the descriptor on
+	/// every call.
+	pub parameter_count: u1,
+}
+
 /// A resolved `CONSTANT_Methodref` entry
 ///
 /// This resolves into a tuple of a [`Method`] and a [`Symbol`] representing the method's descriptor.
@@ -601,7 +613,7 @@ pub struct MethodRef;
 
 #[expect(private_interfaces)]
 impl EntryType for MethodRef {
-	type Resolved = (&'static Method, Symbol);
+	type Resolved = MethodEntry;
 	type RawEntryType = raw_types::RawMethodRef;
 
 	#[inline]
@@ -636,9 +648,21 @@ impl EntryType for MethodRef {
 			method_ref = class.resolve_method(name, descriptor)?;
 		}
 
-		Throws::Ok(ResolvedEntry {
-			method_ref: (method_ref, descriptor),
-		})
+		let parameter_count = if method_ref.is_var_args() {
+			let descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes())
+				.expect("an invalid descriptor shouldn't make it this far");
+			descriptor.parameters.len() as u1
+		} else {
+			method_ref.parameter_count()
+		};
+
+		let entry = MethodEntry {
+			method: method_ref,
+			descriptor,
+			parameter_count,
+		};
+
+		Throws::Ok(ResolvedEntry { method_ref: entry })
 	}
 }
 

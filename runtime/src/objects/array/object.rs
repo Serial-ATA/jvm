@@ -13,9 +13,7 @@ use std::{iter, ptr, slice};
 use common::int_types::s4;
 use common::traits::PtrType;
 
-/// An instance of an array
-///
-/// This covers all array types, including primitives and objects.
+/// An instance of an array of objects
 #[derive(Debug)]
 pub struct ObjectArrayInstance {
 	header: Header,
@@ -221,7 +219,7 @@ impl super::Array for ObjectArrayInstance {
 		}
 	}
 
-	unsafe fn copy_within(&mut self, src_pos: usize, dest_pos: usize, length: usize) {
+	unsafe fn copy_within(&mut self, _src_pos: usize, _dest_pos: usize, _length: usize) {
 		todo!()
 	}
 }

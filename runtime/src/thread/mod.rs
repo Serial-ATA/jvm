@@ -25,6 +25,8 @@ use std::cell::{Cell, SyncUnsafeCell, UnsafeCell};
 use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 use std::thread::JoinHandle;
 
+use crate::native::method::NativeMethodPtr;
+use crate::thread::exceptions::Throws;
 use classfile::accessflags::MethodAccessFlags;
 use common::traits::PtrType;
 use instructions::{Operand, StackLike};
@@ -418,9 +420,14 @@ impl JavaThread {
 
 	fn invoke_native(&self, method: &'static Method, locals: LocalStack) {
 		// Try to lookup and set the method prior to calling
-		crate::native::lookup::lookup_native_method(method, self);
-
-		let fn_ptr = super::native::method::lookup_method(method);
+		let fn_ptr;
+		match crate::native::lookup::lookup_native_method(method, self) {
+			Throws::Ok(ptr) => fn_ptr = ptr,
+			Throws::Exception(e) => {
+				e.throw(self);
+				return;
+			},
+		}
 
 		self.stash_and_reset_pc();
 
@@ -550,6 +557,10 @@ impl JavaThread {
 
 	pub fn has_pending_exception(&self) -> bool {
 		unsafe { (*self.pending_exception.get()).is_some() }
+	}
+
+	pub fn pending_exception(&self) -> Option<Reference> {
+		unsafe { (*self.pending_exception.get()).clone() }
 	}
 
 	pub fn take_pending_exception(&self) -> Option<Reference> {

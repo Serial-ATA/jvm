@@ -28,10 +28,14 @@ impl LocalStack {
 
 	/// Create a new `LocalStack` with existing arguments
 	///
+	/// # Safety
+	///
+	/// This expects that all `Long` and `Double` operands have a corresponding `Empty` slot.
+	///
 	/// # Panics
 	///
 	/// This will panic if the stack size doesn't fit the existing arguments.
-	pub fn new_with_args(mut args: Vec<Operand<Reference>>, stack_size: usize) -> Self {
+	pub unsafe fn new_with_args(mut args: Vec<Operand<Reference>>, stack_size: usize) -> Self {
 		assert!(stack_size >= args.len());
 		args.extend(std::iter::repeat_n(Operand::Empty, stack_size - args.len()));
 		Self {
@@ -39,8 +43,70 @@ impl LocalStack {
 		}
 	}
 
-	pub fn into_inner(self) -> Box<[Operand<Reference>]> {
+	/// The total number of slots this `LocalStack` uses
+	///
+	/// This includes the empty slots used by `Long` and `Double` operands. See [`Self::occupied_slots`]
+	/// for the number of slots that are actually occupied by an operand.
+	pub fn total_slots(&self) -> usize {
+		self.inner.len()
+	}
+
+	/// The number of slots that are actually occupied by an operand
+	///
+	/// This does not include the empty slots used by `Long` and `Double` operands. See [`Self::total_slots`]
+	/// for the total number of slots used by this `LocalStack`.
+	pub fn occupied_slots(&self) -> usize {
 		self.inner
+			.iter()
+			.filter(|operand| !matches!(operand, Operand::Empty))
+			.count()
+	}
+
+	pub fn iter(&self) -> LocalStackIter<'_> {
+		self.into_iter()
+	}
+}
+
+impl<'a> IntoIterator for &'a LocalStack {
+	type Item = Operand<Reference>;
+	type IntoIter = LocalStackIter<'a>;
+
+	fn into_iter(self) -> Self::IntoIter {
+		LocalStackIter {
+			inner: self.inner.iter(),
+			remaining: self.occupied_slots(),
+		}
+	}
+}
+
+pub struct LocalStackIter<'a> {
+	inner: std::slice::Iter<'a, Operand<Reference>>,
+	remaining: usize,
+}
+
+impl Iterator for LocalStackIter<'_> {
+	type Item = Operand<Reference>;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		match self.inner.next() {
+			None => None,
+			Some(operand) => {
+				if matches!(operand, Operand::Long(_) | Operand::Double(_)) {
+					// Skip the next slot
+					assert_eq!(self.inner.next(), Some(&Operand::Empty));
+				}
+
+				self.remaining -= 1;
+				Some(operand.clone())
+			},
+			Some(Operand::Empty) => unreachable!("empty slots should never be encountered"),
+		}
+	}
+}
+
+impl<'a> ExactSizeIterator for LocalStackIter<'a> {
+	fn len(&self) -> usize {
+		self.remaining
 	}
 }
 

@@ -55,15 +55,16 @@ pub fn forName0(
 		throw_and_return_null!(thread, NullPointerException);
 	}
 
-	let name = rust_string_from_java_string(name.extract_class());
-	let name = name.replace('.', "/");
-	let name_sym = Symbol::intern(name);
+	let binary_name = rust_string_from_java_string(name.extract_class());
+	let internal_name = binary_name.replace('.', "/");
+	let internal_name_sym = Symbol::intern(internal_name);
 
 	let loader = ClassLoaderSet::find_or_add(loader);
-	let class: &'static Class = handle_exception!(Reference::null(), thread, loader.load(name_sym));
+	let class: &'static Class =
+		handle_exception!(Reference::null(), thread, loader.load(internal_name_sym));
 
 	if initialize {
-		class.initialize(thread);
+		handle_exception!(Reference::null(), thread, class.initialize(thread));
 	}
 
 	Reference::mirror(class.mirror())
@@ -71,10 +72,17 @@ pub fn forName0(
 
 pub fn isInstance(
 	_env: JniEnv,
-	_this: Reference, // java.lang.Class
-	_obj: Reference,  // java.lang.Object
+	this: Reference, // java.lang.Class
+	obj: Reference,  // java.lang.Object
 ) -> jboolean {
-	unimplemented!("Class#isInstance");
+	if this.is_null() {
+		return false;
+	}
+
+	let target_class = this.extract_target_class();
+	let obj_class = obj.extract_instance_class();
+
+	obj_class.can_cast_to(target_class)
 }
 pub fn isAssignableFrom(
 	env: JniEnv,
@@ -109,7 +117,8 @@ pub fn initClassName(
 	let this_mirror = this.extract_mirror();
 	let this_mirror_target = this_mirror.get().target_class();
 	let this_name = this_mirror_target.name;
-	let name_string = StringInterner::intern(this_name);
+	let this_binary_name = this_name.as_str().replace('/', ".");
+	let name_string = StringInterner::intern(&*this_binary_name);
 
 	this_mirror.get_mut().put_field_value0(
 		crate::globals::fields::java_lang_Class::name_field_offset(),

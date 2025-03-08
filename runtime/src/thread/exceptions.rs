@@ -81,6 +81,22 @@ impl<T> FromResidual<Exception> for Throws<T> {
 	}
 }
 
+impl<T> FromIterator<Throws<T>> for Throws<Vec<T>> {
+	fn from_iter<I: IntoIterator<Item = Throws<T>>>(iter: I) -> Self {
+		let mut vec = Vec::new();
+		for item in iter {
+			match item {
+				Throws::Ok(val) => vec.push(val),
+				Throws::Exception(e) => {
+					return Throws::Exception(e);
+				},
+			}
+		}
+
+		Throws::Ok(vec)
+	}
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ExceptionKind {
 	/// java.lang.ClassFormatError
@@ -94,12 +110,16 @@ pub enum ExceptionKind {
 
 	/// java.lang.LinkageError
 	LinkageError,
+	/// java.lang.UnsatisfiedLinkError
+	UnsatisfiedLinkError,
 	/// java.lang.IncompatibleClassChangeError
 	IncompatibleClassChangeError,
 	/// java.lang.NoSuchFieldError
 	NoSuchFieldError,
 	/// java.lang.NoSuchMethodError
 	NoSuchMethodError,
+	/// java.lang.AbstractMethodError
+	AbstractMethodError,
 
 	/// java.lang.NegativeArraySizeException
 	NegativeArraySizeException,
@@ -134,8 +154,8 @@ pub enum ExceptionKind {
 }
 
 impl ExceptionKind {
-	fn obj(&self, thread: &JavaThread) -> Reference {
-		let class_name = match self {
+	fn class_name(&self) -> Symbol {
+		match self {
 			ExceptionKind::ClassFormatError => sym!(java_lang_ClassFormatError),
 			ExceptionKind::UnsupportedClassVersionError => {
 				sym!(java_lang_UnsupportedClassVersionError)
@@ -144,11 +164,13 @@ impl ExceptionKind {
 			ExceptionKind::ClassCastException => sym!(java_lang_ClassCastException),
 
 			ExceptionKind::LinkageError => sym!(java_lang_LinkageError),
+			ExceptionKind::UnsatisfiedLinkError => sym!(java_lang_UnsatisfiedLinkError),
 			ExceptionKind::IncompatibleClassChangeError => {
 				sym!(java_lang_IncompatibleClassChangeError)
 			},
 			ExceptionKind::NoSuchFieldError => sym!(java_lang_NoSuchFieldError),
 			ExceptionKind::NoSuchMethodError => sym!(java_lang_NoSuchMethodError),
+			ExceptionKind::AbstractMethodError => sym!(java_lang_AbstractMethodError),
 
 			ExceptionKind::NegativeArraySizeException => sym!(java_lang_NegativeArraySizeException),
 			ExceptionKind::ArrayIndexOutOfBoundsException => {
@@ -170,12 +192,22 @@ impl ExceptionKind {
 			ExceptionKind::InternalError => sym!(java_lang_InternalError),
 
 			ExceptionKind::PendingException => unreachable!(),
-		};
+		}
+	}
 
-		let class = ClassLoader::bootstrap()
+	pub fn class(&self) -> &'static Class {
+		if *self == ExceptionKind::PendingException {
+			let Some(exception) = JavaThread::current().pending_exception() else {
+				panic!("Thread has no pending exception");
+			};
+
+			return exception.extract_target_class();
+		}
+
+		let class_name = self.class_name();
+		ClassLoader::bootstrap()
 			.load(class_name)
-			.expect("exception class should exist");
-		Reference::class(ClassInstance::new(class))
+			.expect("exception class should exist")
 	}
 }
 
@@ -203,13 +235,18 @@ impl Exception {
 		}
 	}
 
+	pub fn kind(&self) -> ExceptionKind {
+		self.kind
+	}
+
 	pub fn throw(self, thread: &JavaThread) {
 		if self.kind == ExceptionKind::PendingException {
 			// The exception is already constructed and pending, will be handled eventually.
+			assert!(thread.has_pending_exception());
 			return;
 		}
 
-		let this = self.kind.obj(thread);
+		let this = Reference::class(ClassInstance::new(self.kind.class()));
 
 		match self.message {
 			Some(message) => {

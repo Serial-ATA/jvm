@@ -550,7 +550,7 @@ impl Class {
 		//    entire procedure for S. If necessary, verify and prepare S first.
 		if !self.is_interface() {
 			if let Some(super_class) = &self.super_class {
-				super_class.initialize(thread);
+				super_class.initialize(thread)?;
 			}
 
 			for interface in &self.interfaces {
@@ -559,7 +559,7 @@ impl Class {
 					.iter()
 					.any(|method| !method.is_abstract() && !method.is_static())
 				{
-					interface.initialize(thread);
+					interface.initialize(thread)?;
 				}
 			}
 

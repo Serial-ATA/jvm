@@ -6,6 +6,7 @@ use crate::native::jni::invocation_api::main_java_vm;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
+use crate::thread::exceptions::Throws;
 use crate::thread::{JavaThread, JavaThreadBuilder};
 
 use classfile::accessflags::MethodAccessFlags;
@@ -49,7 +50,10 @@ fn initialize_thread(thread: &JavaThread) -> Result<(), JniError> {
 	init_field_offsets();
 
 	// Init some important classes
-	initialize_global_classes(thread);
+	if let Throws::Exception(_) = initialize_global_classes(thread) {
+		// An exception was thrown while initializing classes, no thread exists to handle it.
+		return Err(JniError::ExceptionThrown);
+	}
 
 	if !create_thread_object(thread) {
 		// An exception was thrown, this thread is NOT safe to use.
@@ -118,6 +122,7 @@ fn load_global_classes() {
 		java_io_Serializable,
 		java_lang_ref_Reference,
 		java_lang_ref_Finalizer,
+		java_lang_VirtualMachineError,
 	);
 
 	// MethodHandle stuff
@@ -229,21 +234,23 @@ fn init_field_offsets() {
 	}
 }
 
-fn initialize_global_classes(thread: &JavaThread) {
-	crate::globals::classes::java_lang_Object().initialize(thread);
-	crate::globals::classes::java_lang_Class().initialize(thread);
-	crate::globals::classes::java_lang_String().initialize(thread);
+fn initialize_global_classes(thread: &JavaThread) -> Throws<()> {
+	crate::globals::classes::java_lang_Object().initialize(thread)?;
+	crate::globals::classes::java_lang_Class().initialize(thread)?;
+	crate::globals::classes::java_lang_String().initialize(thread)?;
 
-	crate::globals::classes::java_lang_Character().initialize(thread);
+	crate::globals::classes::java_lang_Character().initialize(thread)?;
 
-	crate::globals::classes::java_lang_Thread().initialize(thread);
-	crate::globals::classes::java_lang_ThreadGroup().initialize(thread);
-	crate::globals::classes::java_lang_ref_Finalizer().initialize(thread);
+	crate::globals::classes::java_lang_Thread().initialize(thread)?;
+	crate::globals::classes::java_lang_ThreadGroup().initialize(thread)?;
+	crate::globals::classes::java_lang_ref_Finalizer().initialize(thread)?;
 
-	crate::globals::classes::jdk_internal_misc_UnsafeConstants().initialize(thread);
-	crate::globals::classes::java_lang_Module().initialize(thread);
+	crate::globals::classes::jdk_internal_misc_UnsafeConstants().initialize(thread)?;
+	crate::globals::classes::java_lang_Module().initialize(thread)?;
 
-	crate::globals::classes::java_lang_reflect_Method().initialize(thread);
+	crate::globals::classes::java_lang_reflect_Method().initialize(thread)?;
+
+	Throws::Ok(())
 }
 
 fn create_thread_object(thread: &JavaThread) -> bool {
