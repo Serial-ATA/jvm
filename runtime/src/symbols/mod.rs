@@ -341,6 +341,8 @@ vm_symbols::define_symbols! {
 	name,
 	module,
 	classLoader,
+	classData,
+	primitive,
 	componentType,
 	referent,
 	loader,

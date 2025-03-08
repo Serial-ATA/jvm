@@ -94,12 +94,19 @@ fn load_global_classes() {
 		}};
 	}
 
+	// The order here is very important.
+	//
+	// java.lang.Class MUST be loaded last, as its presence is used by the ClassLoader to determine
+	// whether it is safe to create mirror instances yet. All classes that come before it are ones
+	// that java.lang.Class depends on.
+	//
+	// After this point, any other class loads can appear in an arbitrary order.
 	load!(
 		java_lang_Object,
 		java_lang_String,
 		java_lang_ClassLoader,
-		java_lang_Class,
 		java_lang_Module,
+		java_lang_Class,
 	);
 
 	// Pre-fire java.lang.Class field offset initialization, as it's needed by mirrors. All other

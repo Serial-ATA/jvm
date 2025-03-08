@@ -1,4 +1,4 @@
-use crate::classpath::loader::ClassLoaderSet;
+use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
 use crate::native::java::lang::String::rust_string_from_java_string;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
@@ -150,6 +150,10 @@ pub fn defineClass0(
 		}
 	}
 
+	if is_hidden {
+		class.mirror().get().set_class_data(classData);
+	}
+
 	if initialize {
 		if let Throws::Exception(e) = class.initialize(thread) {
 			e.throw(thread);
@@ -164,10 +168,15 @@ pub fn defineClass0(
 pub fn findBootstrapClass(
 	_env: JniEnv,
 	_class: &'static Class,
-	_name: Reference, // java.lang.String
+	name: Reference, // java.lang.String
 ) -> Reference // java.lang.Class
 {
-	unimplemented!("java.lang.ClassLoader#findBootstrapClass")
+	let name = rust_string_from_java_string(name.extract_class());
+	if let Some(class) = ClassLoader::bootstrap().lookup_class(Symbol::intern(name)) {
+		return Reference::mirror(class.mirror());
+	}
+
+	Reference::null()
 }
 
 pub fn findLoadedClass0(

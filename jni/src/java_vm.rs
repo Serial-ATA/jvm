@@ -90,7 +90,6 @@ fn default_libjvm_path() -> PathBuf {
 				.parent()
 				.unwrap()
 				.join("target")
-				.join("x86_64-unknown-linux-gnu")
 		},
 		PathBuf::from,
 	);
@@ -106,7 +105,6 @@ fn default_libjvm_path() -> PathBuf {
 				.parent()
 				.unwrap()
 				.join("target")
-				.join("x86_64-unknown-linux-gnu")
 		},
 		PathBuf::from,
 	);

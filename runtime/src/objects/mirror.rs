@@ -3,15 +3,17 @@ use crate::globals::{BASE_TYPES_TO_FIELD_TYPES, PRIMITIVES};
 use crate::objects::class::Class;
 use crate::objects::field::Field;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
-
 use crate::objects::monitor::Monitor;
-use classfile::FieldType;
-use common::traits::PtrType;
-use instructions::Operand;
+
 use std::cell::UnsafeCell;
 use std::fmt::{Debug, Formatter};
 use std::ptr::NonNull;
 use std::sync::Arc;
+
+use classfile::FieldType;
+use common::traits::PtrType;
+use instructions::Operand;
+use jni::sys::{jchar, jint};
 
 #[derive(Debug, Clone, PartialEq)]
 enum MirrorTarget {
@@ -52,7 +54,8 @@ impl Debug for MirrorInstance {
 impl MirrorInstance {
 	pub fn new(target: &'static Class) -> MirrorInstanceRef {
 		let mirror_class = crate::globals::classes::java_lang_Class();
-		let fields = Self::initialize_fields(mirror_class, target);
+		let fields =
+			Self::initialize_fields(mirror_class, target, target.access_flags().as_u2(), false);
 		MirrorInstancePtr::new(Self {
 			header: Header::new(),
 			monitor: Arc::new(Monitor::new()),
@@ -64,7 +67,8 @@ impl MirrorInstance {
 
 	pub fn new_array(target: &'static Class) -> MirrorInstanceRef {
 		let mirror_class = crate::globals::classes::java_lang_Class();
-		let fields = Self::initialize_fields(mirror_class, target);
+		let fields =
+			Self::initialize_fields(mirror_class, target, target.access_flags().as_u2(), false);
 
 		let component_type_mirror;
 
@@ -112,7 +116,8 @@ impl MirrorInstance {
 		let mirror_class = crate::globals::classes::java_lang_Class();
 		let target_class = Self::target_for_primitive(&target);
 
-		let fields = Self::initialize_fields(mirror_class, target_class);
+		// TODO: Are these modifiers correct?
+		let fields = Self::initialize_fields(mirror_class, target_class, 1, true);
 		MirrorInstancePtr::new(Self {
 			header: Header::new(),
 			monitor: Arc::new(Monitor::new()),
@@ -196,6 +201,15 @@ impl MirrorInstance {
 		}
 	}
 
+	pub fn set_class_data(&self, class_data: Reference) {
+		let class_data_offset = crate::globals::fields::java_lang_Class::classData_field_offset();
+		let ptr = self.fields[class_data_offset].get();
+
+		unsafe {
+			*ptr = Operand::Reference(class_data);
+		}
+	}
+
 	fn target_for_primitive(primitive: &FieldType) -> &'static Class {
 		match primitive {
 			FieldType::Byte => crate::globals::classes::java_lang_Byte(),
@@ -214,6 +228,8 @@ impl MirrorInstance {
 	fn initialize_fields(
 		mirror_class: &'static Class,
 		target_class: &'static Class,
+		modifiers: jchar,
+		is_primitive: bool,
 	) -> Box<[UnsafeCell<Operand<Reference>>]> {
 		let instance_field_count = mirror_class.instance_field_count();
 
@@ -227,8 +243,12 @@ impl MirrorInstance {
 
 		let class_loader_offset =
 			crate::globals::fields::java_lang_Class::classLoader_field_offset();
+		let modifiers_offset = crate::globals::fields::java_lang_Class::modifiers_field_offset();
+		let primitive_offset = crate::globals::fields::java_lang_Class::primitive_field_offset();
 		unsafe {
 			*fields[class_loader_offset].get() = Operand::Reference(target_class.loader().obj());
+			*fields[modifiers_offset].get() = Operand::Int(modifiers as jint);
+			*fields[primitive_offset].get() = Operand::Int(is_primitive as jint);
 		}
 
 		fields.into_boxed_slice()
