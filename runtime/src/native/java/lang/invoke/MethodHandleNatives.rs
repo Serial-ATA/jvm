@@ -3,16 +3,18 @@ use crate::native::java::lang::invoke::MethodHandleNatives;
 use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
 use crate::objects::class::Class;
 use crate::objects::class_instance::ClassInstance;
-use crate::objects::reference::{ClassInstanceRef, Reference};
+use crate::objects::reference::{ClassInstanceRef, MirrorInstanceRef, Reference};
 use crate::symbols::{sym, Symbol};
-use crate::thread::exceptions::{throw, throw_and_return_null, Throws};
+use crate::thread::exceptions::{handle_exception, throw, throw_and_return_null, Throws};
 use crate::thread::JavaThread;
 
 use std::fmt::Write;
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
+use classfile::accessflags::FieldAccessFlags;
 use classfile::constant_pool::types::ReferenceKind;
+use common::int_types::u2;
 use common::traits::PtrType;
 
 include_generated!("native/java/lang/invoke/def/MethodHandleNatives.registerNatives.rs");
@@ -114,7 +116,7 @@ pub fn resolve_member_name(
 	let mut is_valid = true;
 	let mut flags = 0;
 
-	let defining_class_field = fields::java_lang_invoke_MemberName::clazz(member_name);
+	let defining_class_field = fields::java_lang_invoke_MemberName::clazz(member_name)?;
 	if defining_class_field.get().is_primitive() {
 		throw!(@DEFER InternalError, "primitive class");
 	}
@@ -156,7 +158,20 @@ pub fn resolve_member_name(
 				flags |= MethodHandleNatives::MN_TRUSTED_FINAL;
 			}
 
-			todo!("MH of kind field");
+			fields::java_lang_invoke_MemberName::set_vmindex(member_name, field.index() as jlong);
+			fields::java_lang_invoke_MemberName::set_clazz(
+				member_name,
+				Reference::mirror(field.class.mirror()),
+			);
+
+			fields::java_lang_invoke_MemberName::set_name(
+				member_name,
+				Reference::class(StringInterner::intern(field.name)),
+			);
+			fields::java_lang_invoke_MemberName::set_type(
+				member_name,
+				Reference::class(StringInterner::intern(&*field.descriptor.as_signature())),
+			);
 		},
 		ReferenceKind::InvokeVirtual
 		| ReferenceKind::NewInvokeSpecial
@@ -330,6 +345,31 @@ pub fn resolve(
 
 // -- Field layout queries parallel to jdk.internal.misc.Unsafe --
 
+fn find_member_offset(self_: Reference, is_static: bool) -> Throws<(jlong, MirrorInstanceRef)> {
+	if self_.is_null() {
+		throw!(@DEFER InternalError, "mname not resolved")
+	}
+
+	let clazz = fields::java_lang_invoke_MemberName::clazz(self_.extract_class().get())?;
+	let flags = fields::java_lang_invoke_MemberName::flags(self_.extract_class().get());
+
+	let acc_static = FieldAccessFlags::ACC_STATIC.as_u2() as jint;
+	if flags & (MN_IS_FIELD as jint) != 0
+		&& ((is_static && flags & acc_static != 0) || (!is_static && flags & acc_static == 0))
+	{
+		return Throws::Ok((
+			fields::java_lang_invoke_MemberName::vmindex(self_.extract_class().get()) as jlong,
+			clazz,
+		));
+	}
+
+	if is_static {
+		throw!(@DEFER InternalError, "static field required");
+	} else {
+		throw!(@DEFER InternalError, "non-static field required");
+	}
+}
+
 pub fn objectFieldOffset(
 	_env: JniEnv,
 	_class: &'static Class,
@@ -339,19 +379,23 @@ pub fn objectFieldOffset(
 }
 
 pub fn staticFieldOffset(
-	_env: JniEnv,
+	env: JniEnv,
 	_class: &'static Class,
-	_self_: Reference, // java.lang.invoke.MemberName
+	self_: Reference, // java.lang.invoke.MemberName
 ) -> jlong {
-	unimplemented!("java.lang.invoke.MethodHandleNatives#staticFieldOffset");
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let (index, _) = handle_exception!(0, thread, find_member_offset(self_, true));
+	index
 }
 
 pub fn staticFieldBase(
-	_env: JniEnv,
+	env: JniEnv,
 	_class: &'static Class,
-	_self_: Reference, // java.lang.invoke.MemberName
+	self_: Reference, // java.lang.invoke.MemberName
 ) -> Reference /* java.lang.Object */ {
-	unimplemented!("java.lang.invoke.MethodHandleNatives#staticFieldBase");
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let (_, clazz) = handle_exception!(Reference::null(), thread, find_member_offset(self_, true));
+	Reference::mirror(clazz)
 }
 
 pub fn getMemberVMInfo(

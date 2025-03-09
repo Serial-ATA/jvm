@@ -2,8 +2,8 @@ use super::instance::{Header, Instance};
 use crate::globals::{BASE_TYPES_TO_FIELD_TYPES, PRIMITIVES};
 use crate::objects::class::Class;
 use crate::objects::field::Field;
-use crate::objects::reference::{MirrorInstanceRef, Reference};
 use crate::objects::monitor::Monitor;
+use crate::objects::reference::{MirrorInstanceRef, Reference};
 
 use std::cell::UnsafeCell;
 use std::fmt::{Debug, Formatter};

@@ -19,7 +19,7 @@ pub fn get_target_method(handle: ClassInstanceRef) -> Throws<&'static Method> {
 	let vmentry = fields::java_lang_invoke_LambdaForm::vmentry(form.get());
 	let vmindex = fields::java_lang_invoke_MemberName::vmindex(vmentry.get());
 
-	let defining_class_mirror = fields::java_lang_invoke_MemberName::clazz(vmentry.get());
+	let defining_class_mirror = fields::java_lang_invoke_MemberName::clazz(vmentry.get())?;
 	let defining_class = defining_class_mirror.get().target_class();
 
 	Throws::Ok(&defining_class.vtable()[vmindex as usize])
@@ -76,7 +76,14 @@ pub fn linkToStatic(
 	let appendix = args.pop().expect("appendix is required").extract_class();
 
 	let vmindex = fields::java_lang_invoke_MemberName::vmindex(appendix.get());
-	let defining_class_mirror = fields::java_lang_invoke_MemberName::clazz(appendix.get());
+	let defining_class_mirror = match fields::java_lang_invoke_MemberName::clazz(appendix.get()) {
+		Throws::Ok(mirror) => mirror,
+		Throws::Exception(e) => {
+			e.throw(thread);
+			return Reference::null();
+		},
+	};
+
 	let defining_class = defining_class_mirror.get().target_class();
 
 	let target_method = &defining_class.vtable()[vmindex as usize];

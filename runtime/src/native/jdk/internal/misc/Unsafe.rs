@@ -520,6 +520,15 @@ pub fn putReference(
 		return;
 	}
 
+	// TODO: In hotspot, a mirror holds the static fields of a class. I guess we should do the same?
+	if object.is_mirror() {
+		let target_class = object.extract_target_class();
+		unsafe {
+			target_class.set_static_field(offset as usize, Operand::Reference(value));
+		}
+		return;
+	}
+
 	let instance = object.extract_class();
 	unsafe {
 		let field_value = instance

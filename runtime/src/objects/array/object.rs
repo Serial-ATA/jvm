@@ -219,8 +219,13 @@ impl super::Array for ObjectArrayInstance {
 		}
 	}
 
-	unsafe fn copy_within(&mut self, _src_pos: usize, _dest_pos: usize, _length: usize) {
-		todo!()
+	unsafe fn copy_within(&mut self, src_pos: usize, dest_pos: usize, length: usize) {
+		unsafe {
+			for i in 0..length {
+				let current = self.get_unchecked(src_pos + 1);
+				self.store_unchecked(dest_pos + i, current);
+			}
+		}
 	}
 }
 

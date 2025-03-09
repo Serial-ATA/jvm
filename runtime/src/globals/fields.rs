@@ -767,16 +767,22 @@ pub mod java_lang_invoke_MemberName {
 	use crate::objects::class_instance::ClassInstance;
 	use crate::objects::instance::Instance;
 	use crate::objects::reference::{MirrorInstanceRef, Reference};
+	use crate::thread::exceptions::{throw, Throws};
 	use classfile::FieldType;
 	use instructions::Operand;
 	use jni::sys::{jint, jlong};
 
 	/// `java.lang.invoke.MemberName#clazz` field
-	pub fn clazz(instance: &ClassInstance) -> MirrorInstanceRef {
-		instance
+	pub fn clazz(instance: &ClassInstance) -> Throws<MirrorInstanceRef> {
+		let clazz = instance
 			.get_field_value0(clazz_field_offset())
-			.expect_reference()
-			.extract_mirror()
+			.expect_reference();
+
+		if clazz.is_null() {
+			throw!(@DEFER InternalError, "mname not resolved");
+		}
+
+		Throws::Ok(clazz.extract_mirror())
 	}
 
 	pub fn set_clazz(instance: &mut ClassInstance, value: Reference) {
@@ -978,8 +984,6 @@ pub mod java_lang_invoke_LambdaForm {
 	use crate::objects::instance::Instance;
 	use crate::objects::reference::ClassInstanceRef;
 	use classfile::FieldType;
-	use instructions::Operand;
-	use jni::sys::jint;
 
 	/// `java.lang.invoke.LambdaForm#vmentry` field
 	pub fn vmentry(instance: &ClassInstance) -> ClassInstanceRef {
