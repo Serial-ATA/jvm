@@ -380,6 +380,7 @@ vm_symbols::define_symbols! {
 	clazz,
 	method,
 	vmholder,
+	vmtarget,
 	vmentry,
 	ptypes,
 	rtype,

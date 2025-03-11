@@ -12,6 +12,7 @@ use crate::objects::reference::Reference;
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{throw, Throws};
 use crate::thread::JavaThread;
+use crate::globals::fields;
 
 use classfile::constant_pool::types::{
 	raw as raw_types, CpEntry, LoadableConstantPoolValueInner, ReferenceEntry, ReferenceKind,
@@ -33,7 +34,7 @@ pub enum Entry {
 	FieldRef(<FieldRef as EntryType>::Resolved),
 	MethodRef(<MethodRef as EntryType>::Resolved),
 	String(<String as EntryType>::Resolved),
-	MethodHandle(u32),
+	MethodHandle(<MethodHandle as EntryType>::Resolved),
 	MethodType(u32),
 }
 
@@ -334,9 +335,15 @@ impl EntryType for NameAndType {
 
 pub struct InvokeDynamic;
 
+#[derive(Copy, Clone, Debug)]
+pub struct InvokeDynamicEntry {
+	pub method: &'static Method,
+	pub appendix: Option<&'static Reference>,
+}
+
 #[expect(private_interfaces)]
 impl EntryType for InvokeDynamic {
-	type Resolved = Reference;
+	type Resolved = InvokeDynamicEntry;
 	type RawEntryType = raw_types::RawInvokeDynamic;
 
 	#[inline]
@@ -425,24 +432,53 @@ impl EntryType for InvokeDynamic {
 			Operand::Reference(Reference::class(name_arg)),
 			Operand::Reference(type_arg),
 			Operand::Reference(Reference::object_array(static_args_obj)),
-			Operand::Reference(Reference::object_array(appendix)),
+			Operand::Reference(Reference::object_array(appendix.clone())),
 		);
 
 		if thread.has_pending_exception() {
 			return Throws::PENDING_EXCEPTION;
 		}
 
-		let call_site = result
+		let member_name = result
 			.expect("method should return something")
 			.expect_reference();
 
-		if call_site.is_null() {
-			throw!(@DEFER LinkageError, "MethodHandleNatives produced a bad value");
+		'invalid: {
+			if member_name.is_null() {
+				break 'invalid;
+			}
+
+			let resolved_method_name =
+				fields::java_lang_invoke_MemberName::method(member_name.extract_class().get());
+			if resolved_method_name.is_null() {
+				break 'invalid;
+			}
+
+			let vmtarget = fields::java_lang_invoke_ResolvedMethodName::vmtarget(
+				resolved_method_name.extract_class().get(),
+			);
+			let Some(target) = vmtarget else {
+				break 'invalid;
+			};
+
+			let appendix = appendix.get().get(0)?;
+			let appendix_opt = if appendix.is_null() {
+				None
+			} else {
+				let leaked: &'static Reference = Box::leak(Box::new(appendix));
+				Some(leaked)
+			};
+
+			return Throws::Ok(ResolvedEntry {
+				invoke_dynamic: InvokeDynamicEntry {
+					method: target,
+					appendix: appendix_opt,
+				},
+			});
 		}
 
-		Throws::Ok(ResolvedEntry {
-			invoke_dynamic: Box::leak(Box::new(call_site)),
-		})
+		// TODO: The same LinkageError should be thrown for subsequent calls
+		throw!(@DEFER LinkageError, "MethodHandleNatives produced a bad value");
 	}
 }
 

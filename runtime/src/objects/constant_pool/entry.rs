@@ -1,6 +1,6 @@
 use super::cp_types;
 use crate::objects::class::Class;
-use crate::objects::constant_pool::cp_types::MethodEntry;
+use crate::objects::constant_pool::cp_types::{InvokeDynamicEntry, MethodEntry};
 use crate::objects::field::Field;
 use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
@@ -23,7 +23,7 @@ pub(super) union ResolvedEntry {
 	pub(super) name_and_type: (Symbol, Symbol),
 	pub(super) constant_utf8: Symbol,
 	pub(super) field_ref: &'static Field,
-	pub(super) invoke_dynamic: &'static Reference,
+	pub(super) invoke_dynamic: InvokeDynamicEntry,
 	pub(super) method_ref: MethodEntry,
 	pub(super) method_handle: &'static Reference,
 	pub(super) string: Symbol,

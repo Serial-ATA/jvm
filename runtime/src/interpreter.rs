@@ -997,16 +997,30 @@ impl Interpreter {
 		assert_eq!(frame.read_byte2(), 0);
 	    
         let constant_pool = frame.constant_pool();
-        let constant;
+        let entry;
         match constant_pool.get::<cp_types::InvokeDynamic>(index) {
-            Throws::Ok(c) => constant = c,
+            Throws::Ok(c) => entry = c,
             Throws::Exception(e) => {
                 e.throw(frame.thread());
                 return;
             },
         }
-		
-		unimplemented!("invokedynamic")
+
+        // TODO: Sending this through the traditional method invoker is super inefficient, ends up
+        //       causing duplicate work on the native method end. *Especially* since the args
+        //       are all already on the stack.
+        let mut parameter_count = entry.method.parameter_count() as usize;
+
+        let mut call_args = Vec::with_capacity(parameter_count);
+        if let Some(appendix) = entry.appendix {
+            assert!(parameter_count >= 1);
+            parameter_count -= 1;
+            call_args.push(Operand::Reference(appendix.clone()));
+        }
+
+        call_args.extend(frame.stack_mut().popn(parameter_count));
+
+        MethodInvoker::invoke_with_args(frame.thread(), entry.method, call_args);
     }
     
     // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.invokestatic

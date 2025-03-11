@@ -222,7 +222,7 @@ impl super::Array for ObjectArrayInstance {
 	unsafe fn copy_within(&mut self, src_pos: usize, dest_pos: usize, length: usize) {
 		unsafe {
 			for i in 0..length {
-				let current = self.get_unchecked(src_pos + 1);
+				let current = self.get_unchecked(src_pos + i);
 				self.store_unchecked(dest_pos + i, current);
 			}
 		}

@@ -234,6 +234,10 @@ pub fn resolve_member_name(
 				resolved_method_name.get_mut(),
 				method.class().mirror(),
 			);
+			fields::java_lang_invoke_ResolvedMethodName::set_vmtarget(
+				resolved_method_name.get_mut(),
+				method,
+			);
 
 			fields::java_lang_invoke_MemberName::set_method(
 				member_name,
@@ -371,11 +375,13 @@ fn find_member_offset(self_: Reference, is_static: bool) -> Throws<(jlong, Mirro
 }
 
 pub fn objectFieldOffset(
-	_env: JniEnv,
+	env: JniEnv,
 	_class: &'static Class,
-	_self_: Reference, // java.lang.invoke.MemberName
+	self_: Reference, // java.lang.invoke.MemberName
 ) -> jlong {
-	unimplemented!("java.lang.invoke.MethodHandleNatives#objectFieldOffset");
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let (index, _) = handle_exception!(0, thread, find_member_offset(self_, false));
+	index
 }
 
 pub fn staticFieldOffset(
