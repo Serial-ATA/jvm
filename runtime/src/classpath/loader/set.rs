@@ -6,6 +6,7 @@ use std::cell::SyncUnsafeCell;
 use std::collections::LinkedList;
 use std::sync::{LazyLock, Mutex};
 
+use crate::classes;
 use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::jlong;
@@ -37,7 +38,7 @@ impl ClassLoaderSet {
 
 		// Store the pointer in the classloader, to make future lookups cheaper
 		loader.extract_class().get_mut().put_field_value0(
-			crate::globals::fields::java_lang_ClassLoader::loader_ptr_field_offset(),
+			classes::java_lang_ClassLoader::loader_ptr_field_offset(),
 			Operand::Long(ret as *const ClassLoader as jlong),
 		);
 
@@ -59,7 +60,7 @@ impl ClassLoaderSet {
 		}
 
 		if let Some(class_loader_ptr) =
-			crate::globals::fields::java_lang_ClassLoader::injected_loader_ptr_for(loader.clone())
+			classes::java_lang_ClassLoader::injected_loader_ptr_for(loader.clone())
 		{
 			return unsafe { &*class_loader_ptr };
 		}

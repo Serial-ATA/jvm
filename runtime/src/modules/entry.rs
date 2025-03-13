@@ -6,6 +6,7 @@ use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{throw, Throws};
+use crate::classes;
 
 use std::cell::SyncUnsafeCell;
 use std::collections::HashSet;
@@ -124,7 +125,7 @@ impl Module {
 
 		// Store the pointer in the module, to make future lookups cheaper
 		obj.extract_class().get_mut().put_field_value0(
-			crate::globals::fields::java_lang_Module::module_ptr_field_offset(),
+			classes::java_lang_Module::module_ptr_field_offset(),
 			Operand::Long(self as *const Module as jlong),
 		);
 
@@ -151,7 +152,7 @@ impl Module {
 		verify_obj(obj.clone())?;
 
 		let name = obj
-			.get_field_value0(crate::globals::fields::java_lang_Module::name_field_offset())
+			.get_field_value0(classes::java_lang_Module::name_field_offset())
 			.expect_reference();
 		if !name.is_null() {
 			throw!(@DEFER IllegalArgumentException);
@@ -182,7 +183,7 @@ impl Module {
 		verify_obj(obj.clone())?;
 
 		let name_obj = obj
-			.get_field_value0(crate::globals::fields::java_lang_Module::name_field_offset())
+			.get_field_value0(classes::java_lang_Module::name_field_offset())
 			.expect_reference();
 		if name_obj.is_null() {
 			throw!(@DEFER IllegalArgumentException, "Module name cannot be null");
@@ -190,7 +191,7 @@ impl Module {
 
 		let module_name = rust_string_from_java_string(name_obj.extract_class());
 		let loader = obj
-			.get_field_value0(crate::globals::fields::java_lang_Module::loader_field_offset())
+			.get_field_value0(classes::java_lang_Module::loader_field_offset())
 			.expect_reference();
 
 		if &module_name == "java.base" {

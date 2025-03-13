@@ -73,6 +73,7 @@ define_classes!(
 	java_io_File,
 	jdk_internal_misc_UnsafeConstants,
 	jdk_internal_reflect_MethodAccessorImpl,
+	jdk_internal_reflect_ConstantPool,
 	java_lang_VirtualMachineError,
 	// Primitive types
 	java_lang_Boolean,
@@ -85,12 +86,12 @@ define_classes!(
 	java_lang_Short,
 	java_lang_Void,
 	// Primitive arrays
-	bool_array,
+	boolean_array,
 	byte_array,
-	char_array,
+	character_array,
 	double_array,
 	float_array,
-	int_array,
+	integer_array,
 	long_array,
 	short_array,
 	string_array,

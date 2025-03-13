@@ -59,25 +59,25 @@ impl TypeCode {
 
 	fn array_signature(self) -> Symbol {
 		match self {
-			TypeCode::Boolean => sym!(bool_array),
-			TypeCode::Char => sym!(char_array),
+			TypeCode::Boolean => sym!(boolean_array),
+			TypeCode::Char => sym!(character_array),
 			TypeCode::Float => sym!(float_array),
 			TypeCode::Double => sym!(double_array),
 			TypeCode::Byte => sym!(byte_array),
 			TypeCode::Short => sym!(short_array),
-			TypeCode::Int => sym!(int_array),
+			TypeCode::Int => sym!(integer_array),
 			TypeCode::Long => sym!(long_array),
 		}
 	}
 
 	fn array_class(self) -> &'static Class {
 		match self {
-			TypeCode::Boolean => crate::globals::classes::bool_array(),
+			TypeCode::Boolean => crate::globals::classes::boolean_array(),
 			TypeCode::Byte => crate::globals::classes::byte_array(),
-			TypeCode::Char => crate::globals::classes::char_array(),
+			TypeCode::Char => crate::globals::classes::character_array(),
 			TypeCode::Double => crate::globals::classes::double_array(),
 			TypeCode::Float => crate::globals::classes::float_array(),
-			TypeCode::Int => crate::globals::classes::int_array(),
+			TypeCode::Int => crate::globals::classes::integer_array(),
 			TypeCode::Long => crate::globals::classes::long_array(),
 			TypeCode::Short => crate::globals::classes::short_array(),
 		}

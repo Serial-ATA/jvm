@@ -1,7 +1,5 @@
 pub mod spec;
 
-use crate::globals::{classes, fields};
-use crate::java_call;
 use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::reference_from_jobject;
 use crate::native::method::NativeMethodPtr;
@@ -9,10 +7,12 @@ use crate::objects::array::{Array, ObjectArrayInstance};
 use crate::objects::class::Class;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::constant_pool::cp_types;
-use crate::objects::reference::{ObjectArrayInstanceRef, Reference};
+use crate::objects::mirror::MirrorInstance;
+use crate::objects::reference::{MirrorInstanceRef, ObjectArrayInstanceRef, Reference};
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::Throws;
 use crate::thread::JavaThread;
+use crate::{classes, globals, java_call};
 
 use std::ffi::VaList;
 use std::fmt::{Debug, Formatter};
@@ -296,14 +296,14 @@ impl Method {
 
 	pub fn exception_types(&self) -> Throws<ObjectArrayInstanceRef> {
 		let Some(exceptions) = self.attributes.iter().find_map(|attr| attr.exceptions()) else {
-			return ObjectArrayInstance::new(0, classes::java_lang_Class());
+			return ObjectArrayInstance::new(0, globals::classes::java_lang_Class());
 		};
 
 		let constant_pool = self.class.constant_pool().unwrap();
 
 		let array = ObjectArrayInstance::new(
 			exceptions.exception_index_table.len() as jint,
-			classes::java_lang_Class(),
+			globals::classes::java_lang_Class(),
 		)?;
 
 		for (index, exception_class_index) in exceptions.exception_index_table.iter().enumerate() {
@@ -359,6 +359,14 @@ impl Method {
 		self.class.is_interface() && (!self.is_abstract() && !self.is_public())
 	}
 
+	pub fn is_constructor(&self) -> bool {
+		self.name == sym!(object_initializer_name)
+	}
+
+	pub fn is_clinit(&self) -> bool {
+		self.name == sym!(class_initializer_name)
+	}
+
 	/// Whether the method has the @CallerSensitive annotation
 	pub fn is_caller_sensitive(&self) -> bool {
 		self.extra_flags.caller_sensitive
@@ -386,28 +394,9 @@ impl Method {
 	/// the current thread.
 	pub fn method_type_for(class: &'static Class, descriptor: &str) -> Throws<Reference> {
 		let descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes()).unwrap(); // TODO: Error handling
-		let parameters = Self::parameter_types_array(class, &descriptor)?;
+		let parameters = Self::parameter_types_inner(class, &descriptor)?;
 
-		let return_type;
-		match descriptor.return_type {
-			FieldType::Byte
-			| FieldType::Char
-			| FieldType::Double
-			| FieldType::Float
-			| FieldType::Int
-			| FieldType::Long
-			| FieldType::Short
-			| FieldType::Boolean
-			| FieldType::Void => {
-				return_type =
-					crate::globals::mirrors::primitive_mirror_for(&descriptor.return_type);
-			},
-			FieldType::Object(class_name) => {
-				let class = class.loader().load(Symbol::intern(class_name))?;
-				return_type = Reference::mirror(class.mirror());
-			},
-			FieldType::Array(_) => todo!("Array returns"),
-		}
+		let return_type = field_type_mirror(class, &descriptor.return_type)?;
 
 		let method_handle_natives_class =
 			crate::globals::classes::java_lang_invoke_MethodHandleNatives();
@@ -423,7 +412,7 @@ impl Method {
 		let result = java_call!(
 			thread,
 			find_method_handle_type_method,
-			Operand::Reference(return_type),
+			Operand::Reference(Reference::mirror(return_type)),
 			Operand::Reference(Reference::object_array(parameters))
 		);
 
@@ -440,8 +429,20 @@ impl Method {
 
 	/// Create a `java.lang.Class[]` of this method's parameter types
 	///
-	/// This takes a `Class`, as this process may load classes
-	fn parameter_types_array(
+	/// NOTE: This may load other classes, which will be done using the method's ClassLoader
+	pub fn parameter_types_array(&self) -> Throws<ObjectArrayInstanceRef> {
+		Self::parameter_types_inner(self.class, &self.descriptor)
+	}
+
+	/// Get the return type of this method
+	///
+	/// NOTE: This may load other classes, which will be done using the method's ClassLoader
+	pub fn return_type(&self) -> Throws<MirrorInstanceRef> {
+		field_type_mirror(self.class, &self.descriptor.return_type)
+	}
+
+	// allows specifying the class to initiate the loading of others
+	fn parameter_types_inner(
 		class: &'static Class,
 		descriptor: &MethodDescriptor,
 	) -> Throws<ObjectArrayInstanceRef> {
@@ -451,95 +452,47 @@ impl Method {
 		)?;
 
 		for (index, parameter) in descriptor.parameters.iter().enumerate() {
-			match parameter {
-				FieldType::Byte
-				| FieldType::Char
-				| FieldType::Double
-				| FieldType::Float
-				| FieldType::Int
-				| FieldType::Long
-				| FieldType::Short
-				| FieldType::Boolean => {
-					let mirror = crate::globals::mirrors::primitive_mirror_for(&parameter);
-					parameters.get_mut().store(index as s4, mirror)?;
-				},
-				FieldType::Void => {
-					panic!("Void parameter"); // TODO: Exception
-				},
-				FieldType::Object(class_name) => {
-					let class = class.loader().load(Symbol::intern(&*class_name))?;
-					parameters
-						.get_mut()
-						.store(index as s4, Reference::mirror(class.mirror()))?;
-				},
-				parameter @ FieldType::Array(_) => {
-					let name = parameter.as_signature();
-					let array_class = class.loader().load(Symbol::intern(&*name))?;
-					parameters
-						.get_mut()
-						.store(index as s4, Reference::mirror(array_class.mirror()))?;
-				},
-			}
+			let param = field_type_mirror(class, parameter)?;
+			parameters
+				.get_mut()
+				.store(index as s4, Reference::mirror(param))?;
 		}
 
 		Throws::Ok(parameters)
 	}
+}
 
-	/// Create a `java.lang.reflect.Constructor` instance for this method
-	pub fn as_reflect_constructor(&self) -> Throws<Reference> {
-		assert!(
-			self.name == sym!(object_initializer_name) || self.name == sym!(class_initializer_name)
-		);
+fn field_type_mirror(class: &'static Class, ty: &FieldType) -> Throws<MirrorInstanceRef> {
+	match ty {
+		FieldType::Byte
+		| FieldType::Character
+		| FieldType::Double
+		| FieldType::Float
+		| FieldType::Integer
+		| FieldType::Long
+		| FieldType::Short
+		| FieldType::Boolean
+		| FieldType::Void => {
+			let mirror = globals::mirrors::primitive_mirror_for(ty);
+			Throws::Ok(mirror.extract_mirror())
+		},
+		FieldType::Object(class_name) => {
+			let class = class.loader().load(Symbol::intern(class_name))?;
+			Throws::Ok(class.mirror())
+		},
+		FieldType::Array(ty) => {
+			let component_field_ty = field_type_mirror(class, ty)?;
+			if component_field_ty.get().is_primitive() {
+				return Throws::Ok(globals::mirrors::primitive_array_mirror_for(
+					component_field_ty.get().primitive_target(),
+				));
+			}
 
-		let constructor = ClassInstance::new(classes::java_lang_reflect_Constructor());
+			let array_class_name = component_field_ty.get().target_class().array_class_name();
+			let array_class = class.loader().load(array_class_name)?;
 
-		// The slot is the method's position in the vtable
-		let slot = self
-			.class
-			.vtable()
-			.iter()
-			.position(|m| m == self)
-			.expect("a method must be present in a class vtable");
-
-		let parameter_types = Self::parameter_types_array(self.class, &self.descriptor)?;
-		let exception_types = self.exception_types()?;
-
-		fields::java_lang_reflect_Constructor::set_clazz(
-			constructor.get_mut(),
-			Reference::mirror(self.class().mirror()),
-		);
-		fields::java_lang_reflect_Constructor::set_slot(constructor.get_mut(), slot as jint);
-		fields::java_lang_reflect_Constructor::set_parameterTypes(
-			constructor.get_mut(),
-			Reference::object_array(parameter_types),
-		);
-		fields::java_lang_reflect_Constructor::set_exceptionTypes(
-			constructor.get_mut(),
-			Reference::object_array(exception_types),
-		);
-		fields::java_lang_reflect_Constructor::set_modifiers(
-			constructor.get_mut(),
-			self.access_flags.as_u2() as jint,
-		);
-		if let Some(generic_signature) = self.generic_signature() {
-			let signature = StringInterner::intern(generic_signature);
-			fields::java_lang_reflect_Constructor::set_signature(
-				constructor.get_mut(),
-				Reference::class(signature),
-			);
-		}
-		// // TODO
-		// fields::java_lang_reflect_Constructor::set_annotations(
-		// 	constructor.get_mut(),
-		// 	Reference::null(),
-		// );
-		// // TODO
-		// fields::java_lang_reflect_Constructor::set_parameterAnnotations(
-		// 	constructor.get_mut(),
-		// 	Reference::null(),
-		// );
-
-		Throws::Ok(Reference::class(constructor))
+			Throws::Ok(array_class.mirror())
+		},
 	}
 }
 
@@ -559,7 +512,7 @@ impl Method {
 					let val = unsafe { val.b };
 					parameters.push(Operand::from(val))
 				},
-				FieldType::Char => {
+				FieldType::Character => {
 					let val = unsafe { val.c };
 					parameters.push(Operand::from(val))
 				},
@@ -567,7 +520,7 @@ impl Method {
 					let val = unsafe { val.s };
 					parameters.push(Operand::from(val))
 				},
-				FieldType::Int => {
+				FieldType::Integer => {
 					let val = unsafe { val.i };
 					parameters.push(Operand::from(val))
 				},
@@ -617,7 +570,7 @@ impl Method {
 		let mut parameters = Vec::with_capacity(self.parameter_count() as usize);
 		for parameter in &self.descriptor.parameters {
 			match parameter {
-				FieldType::Byte | FieldType::Char | FieldType::Short | FieldType::Int => {
+				FieldType::Byte | FieldType::Character | FieldType::Short | FieldType::Integer => {
 					parameters.push(Operand::from(args.arg::<jint>()))
 				},
 

@@ -1,5 +1,4 @@
 use super::entry::ResolvedEntry;
-use crate::java_call;
 use crate::native::java::lang::invoke::MethodHandleNatives;
 use crate::native::java::lang::String::StringInterner;
 use crate::objects::array::{Array, ObjectArrayInstance};
@@ -12,7 +11,7 @@ use crate::objects::reference::Reference;
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{throw, Throws};
 use crate::thread::JavaThread;
-use crate::globals::fields;
+use crate::{classes, java_call};
 
 use classfile::constant_pool::types::{
 	raw as raw_types, CpEntry, LoadableConstantPoolValueInner, ReferenceEntry, ReferenceKind,
@@ -449,12 +448,12 @@ impl EntryType for InvokeDynamic {
 			}
 
 			let resolved_method_name =
-				fields::java_lang_invoke_MemberName::method(member_name.extract_class().get());
+				classes::java_lang_invoke_MemberName::method(member_name.extract_class().get());
 			if resolved_method_name.is_null() {
 				break 'invalid;
 			}
 
-			let vmtarget = fields::java_lang_invoke_ResolvedMethodName::vmtarget(
+			let vmtarget = classes::java_lang_invoke_ResolvedMethodName::vmtarget(
 				resolved_method_name.extract_class().get(),
 			);
 			let Some(target) = vmtarget else {
@@ -524,7 +523,8 @@ impl EntryType for MethodHandle {
 			ReferenceKind::InvokeVirtual
 			| ReferenceKind::NewInvokeSpecial
 			| ReferenceKind::InvokeStatic
-			| ReferenceKind::InvokeSpecial => {
+			| ReferenceKind::InvokeSpecial
+			| ReferenceKind::InvokeInterface => {
 				let ReferenceEntry::MethodRef(method_ref) = value.reference else {
 					panic!("Expected a method reference"); // TODO: Exception and set failure
 				};
@@ -536,9 +536,6 @@ impl EntryType for MethodHandle {
 						method_ref.name_and_type,
 					)?
 				};
-			},
-			ReferenceKind::InvokeInterface => {
-				todo!("MH of kind interface method");
 			},
 		}
 

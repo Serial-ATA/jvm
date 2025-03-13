@@ -1,24 +1,27 @@
 use crate::classpath::loader::ClassLoaderSet;
-use crate::globals::classes;
-use crate::include_generated;
 use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
 use crate::native::jni::{safe_classref_from_jclass, IntoJni};
 use crate::objects::array::{Array, ObjectArrayInstance};
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
-use crate::objects::reference::{MirrorInstanceRef, ObjectArrayInstanceRef, Reference};
+use crate::objects::reference::{
+	ClassInstanceRef, MirrorInstanceRef, ObjectArrayInstanceRef, Reference,
+};
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{
 	handle_exception, throw, throw_and_return_null, throw_with_ret, Throws,
 };
 use crate::thread::JavaThread;
+use crate::{classes, globals, include_generated};
+use crate::objects::class_instance::ClassInstance;
 
 use std::sync::Arc;
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint};
 use classfile::accessflags::ClassAccessFlags;
+use common::int_types::s4;
 use common::traits::PtrType;
 use instructions::Operand;
 
@@ -121,7 +124,7 @@ pub fn initClassName(
 	let name_string = StringInterner::intern(&*this_binary_name);
 
 	this_mirror.get_mut().put_field_value0(
-		crate::globals::fields::java_lang_Class::name_field_offset(),
+		classes::java_lang_Class::name_field_offset(),
 		Operand::Reference(Reference::class(Arc::clone(&name_string))),
 	);
 
@@ -362,10 +365,28 @@ pub fn getRawTypeAnnotations(
 }
 pub fn getConstantPool(
 	_env: JniEnv,
-	_this: Reference, // java.lang.Class
+	this: Reference, // java.lang.Class
 ) -> Reference /* ConstantPool */
 {
-	unimplemented!("Class#getConstantPool");
+	let thread = unsafe { &*JavaThread::for_env(_env.raw()) };
+
+	let this = this.extract_mirror();
+
+	// not applicable for primitives or arrays
+	if this.get().is_primitive() || this.get().is_array() {
+		return Reference::null();
+	}
+
+	let constant_pool =
+		match classes::jdk_internal_reflect_ConstantPool::new(this.get().target_class(), thread) {
+			Throws::Ok(cp) => cp,
+			Throws::Exception(e) => {
+				e.throw(thread);
+				return Reference::null();
+			},
+		};
+
+	Reference::class(constant_pool)
 }
 pub fn getDeclaredFields0(
 	_env: JniEnv,
@@ -375,11 +396,71 @@ pub fn getDeclaredFields0(
 	unimplemented!("Class#getDeclaredFields0");
 }
 pub fn getDeclaredMethods0(
-	_env: JniEnv,
-	_this: Reference, // java.lang.Class
+	env: JniEnv,
+	this: Reference, // java.lang.Class
 	public_only: jboolean,
 ) -> Reference /* Method[] */ {
-	unimplemented!("Class#getDeclaredMethods0");
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let mirror = this.extract_mirror();
+
+	// Primitive and array mirrors are excluded
+	if mirror.get().is_array() || mirror.get().is_primitive() {
+		let empty_array =
+			match ObjectArrayInstance::new(0, globals::classes::java_lang_reflect_Method()) {
+				Throws::Ok(array) => array,
+				Throws::Exception(e) => {
+					e.throw(thread);
+					return Reference::null();
+				},
+			};
+
+		return Reference::object_array(empty_array);
+	}
+
+	let target = mirror.get().target_class();
+
+	let methods = target
+		.vtable()
+		.iter()
+		.filter(|method| !method.is_clinit() && !method.is_constructor())
+		.filter(|method| {
+			if public_only {
+				return method.is_public();
+			}
+
+			true
+		})
+		.collect::<Vec<_>>();
+
+	let ret = match ObjectArrayInstance::new(
+		methods.len() as s4,
+		globals::classes::java_lang_reflect_Method(),
+	) {
+		Throws::Ok(array) => array,
+		Throws::Exception(e) => {
+			e.throw(thread);
+			return Reference::null();
+		},
+	};
+
+	for (index, method) in methods.iter().enumerate() {
+		let reflect_method = match classes::java_lang_reflect_Method::new(method) {
+			Throws::Ok(method) => method,
+			Throws::Exception(e) => {
+				e.throw(thread);
+				return Reference::null();
+			},
+		};
+
+		// SAFETY: We can't go outside the bounds, `ret` was initialized to the right size
+		unsafe {
+			ret.get_mut()
+				.store_unchecked(index, Reference::class(reflect_method));
+		}
+	}
+
+	Reference::object_array(ret)
 }
 pub fn getDeclaredConstructors0(
 	env: JniEnv,
@@ -396,7 +477,7 @@ pub fn getDeclaredConstructors0(
 		let ret = handle_exception!(
 			Reference::null(),
 			thread,
-			ObjectArrayInstance::new(0, classes::java_lang_reflect_Constructor())
+			ObjectArrayInstance::new(0, globals::classes::java_lang_reflect_Constructor())
 		);
 		return Reference::object_array(ret);
 	}
@@ -425,19 +506,22 @@ pub fn getDeclaredConstructors0(
 		thread,
 		ObjectArrayInstance::new(
 			constructors.len() as jint,
-			classes::java_lang_reflect_Constructor()
+			globals::classes::java_lang_reflect_Constructor()
 		)
 	);
 
 	for (i, constructor) in constructors.into_iter().enumerate() {
-		let constructor: Reference = handle_exception!(
+		let constructor: ClassInstanceRef = handle_exception!(
 			Reference::null(),
 			thread,
-			constructor.as_reflect_constructor()
+			classes::java_lang_reflect_Constructor::new(constructor)
 		);
 
 		// SAFETY: The array is known to have the correct length
-		unsafe { ret.get_mut().store_unchecked(i, constructor) };
+		unsafe {
+			ret.get_mut()
+				.store_unchecked(i, Reference::class(constructor))
+		};
 	}
 
 	Reference::object_array(ret)

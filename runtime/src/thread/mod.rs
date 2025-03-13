@@ -4,13 +4,10 @@ use frame::stack::{FrameStack, StackFrame};
 mod builder;
 pub use builder::JavaThreadBuilder;
 mod hash;
-#[allow(non_snake_case)]
-pub mod java_lang_Thread;
 pub mod pool;
 
-use crate::globals::{classes, fields};
+use crate::classes::java_lang_Thread::ThreadStatus;
 use crate::interpreter::Interpreter;
-use crate::java_call;
 use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
 use crate::native::jni::invocation_api::new_env;
 use crate::objects::class_instance::ClassInstance;
@@ -18,19 +15,18 @@ use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::symbols::sym;
+use crate::thread::exceptions::Throws;
 use crate::thread::frame::native::NativeFrame;
 use crate::thread::frame::Frame;
+use crate::{classes, globals, java_call};
 
 use std::cell::{Cell, SyncUnsafeCell, UnsafeCell};
 use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 use std::thread::JoinHandle;
 
-use crate::native::method::NativeMethodPtr;
-use crate::thread::exceptions::Throws;
 use classfile::accessflags::MethodAccessFlags;
 use common::traits::PtrType;
 use instructions::{Operand, StackLike};
-use java_lang_Thread::ThreadStatus;
 use jni::env::JniEnv;
 use jni::sys::JNIEnv;
 
@@ -263,7 +259,10 @@ impl JavaThread {
 		self.set_obj(Reference::class(ClassInstanceRef::clone(&thread_instance)));
 		let obj = self.obj().unwrap();
 
-		java_lang_Thread::set_eetop(obj.clone(), JavaThread::current_ptr() as jni::sys::jlong);
+		classes::java_lang_Thread::set_eetop(
+			obj.extract_class().get_mut(),
+			JavaThread::current_ptr() as jni::sys::jlong,
+		);
 
 		let init_method = thread_class
 			.vtable()
@@ -284,7 +283,11 @@ impl JavaThread {
 			Operand::Reference(Reference::class(thread_name)),
 		);
 
-		java_lang_Thread::holder::set_thread_status(obj, ThreadStatus::Runnable);
+		let holder = classes::java_lang_Thread::holder(obj.extract_class().get());
+		classes::java_lang_Thread::holder::set_threadStatus(
+			holder.extract_class().get_mut(),
+			ThreadStatus::Runnable,
+		);
 	}
 
 	pub fn set_obj(&self, obj: Reference) {
@@ -312,7 +315,7 @@ impl JavaThread {
 			return String::from("Unknown thread");
 		};
 
-		let name = fields::java_lang_Thread::name(obj.extract_class().get());
+		let name = classes::java_lang_Thread::name(obj.extract_class().get());
 		if name.is_null() {
 			return String::from("<un-named>");
 		}
@@ -520,7 +523,7 @@ impl JavaThread {
 
 		if exception_check && self.has_pending_exception() {
 			let exception = self.take_pending_exception().unwrap();
-			let dispatch_uncaught_exception_method = classes::java_lang_Thread()
+			let dispatch_uncaught_exception_method = globals::classes::java_lang_Thread()
 				.resolve_method(sym!(dispatchUncaughtException), sym!(void_method_signature))
 				.expect("dispatchUncaughtException method should exist");
 
@@ -541,7 +544,7 @@ impl JavaThread {
 			}
 		}
 
-		let exit_method = classes::java_lang_Thread()
+		let exit_method = globals::classes::java_lang_Thread()
 			.resolve_method(sym!(exit_name), sym!(void_method_signature))
 			.expect("exit method should exist");
 		let _result = java_call!(&self, exit_method, Operand::Reference(obj));
@@ -594,7 +597,7 @@ impl JavaThread {
 
 		let class_instance = exception.extract_class();
 
-		let throwable_class = crate::globals::classes::java_lang_Throwable();
+		let throwable_class = globals::classes::java_lang_Throwable();
 		assert!(
 			class_instance.get().class() == throwable_class
 				|| class_instance.get().is_subclass_of(&throwable_class)

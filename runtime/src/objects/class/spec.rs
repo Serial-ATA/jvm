@@ -321,7 +321,7 @@ impl Class {
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.3.4
 	pub fn resolve_interface_method(
 		&self,
-		method_name: Symbol,
+		name: Symbol,
 		descriptor: Symbol,
 	) -> Throws<&'static Method> {
 		// When resolving an interface method reference:
@@ -333,7 +333,7 @@ impl Class {
 
 		// 2. Otherwise, if C declares a method with the name and descriptor specified by the interface method reference, method lookup succeeds.
 		for method in self.vtable() {
-			if method.name == method_name && method.descriptor_sym() == descriptor {
+			if method.name == name && method.descriptor_sym() == descriptor {
 				return Throws::Ok(method);
 			}
 		}
@@ -342,7 +342,7 @@ impl Class {
 		//    set and does not have its ACC_STATIC flag set, method lookup succeeds.
 		let object_class = crate::globals::classes::java_lang_Object();
 		for method in object_class.vtable() {
-			if method.name == method_name
+			if method.name == name
 				&& method.descriptor_sym() == descriptor
 				&& method.is_public()
 				&& !method.is_static()
@@ -353,15 +353,13 @@ impl Class {
 
 		// 4. Otherwise, if the maximally-specific superinterface methods (§5.4.3.3) of C for the name and descriptor specified by the method reference include exactly
 		//    one method that does not have its ACC_ABSTRACT flag set, then this method is chosen and method lookup succeeds.
-		if let Some(method) = self.resolve_method_in_superinterfaces(method_name, descriptor, true)
-		{
+		if let Some(method) = self.resolve_method_in_superinterfaces(name, descriptor, true) {
 			return Throws::Ok(method);
 		}
 
 		// 5. Otherwise, if any superinterface of C declares a method with the name and descriptor specified by the method reference that has neither its ACC_PRIVATE flag
 		//    nor its ACC_STATIC flag set, one of these is arbitrarily chosen and method lookup succeeds.
-		if let Some(method) = self.resolve_method_in_superinterfaces(method_name, descriptor, false)
-		{
+		if let Some(method) = self.resolve_method_in_superinterfaces(name, descriptor, false) {
 			return Throws::Ok(method);
 		}
 
@@ -430,7 +428,6 @@ impl Class {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.5
-	#[tracing::instrument(skip_all)]
 	pub fn initialization(&self, thread: &JavaThread) -> Throws<()> {
 		// 1. Synchronize on the initialization lock, LC, for C. This involves waiting until the current thread can acquire LC.
 		let init = self.initialization_lock();
@@ -485,10 +482,10 @@ impl Class {
 
 			match field.descriptor {
 				FieldType::Byte
-				| FieldType::Char
+				| FieldType::Character
 				| FieldType::Short
 				| FieldType::Boolean
-				| FieldType::Int => {
+				| FieldType::Integer => {
 					let constant_value = class_instance
 						.constant_pool
 						.get::<cp_types::Integer>(constant_value_index)

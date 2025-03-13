@@ -3,8 +3,10 @@ use crate::objects::array::{
 	Array, ObjectArrayInstance, PrimitiveArrayInstance, PrimitiveType, TypeCode,
 };
 use crate::objects::class::ClassInitializationState;
+use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
+use crate::thread::exceptions::{throw, Throws};
 use crate::thread::JavaThread;
 
 use std::marker::PhantomData;
@@ -13,8 +15,6 @@ use std::sync::atomic::{
 	AtomicBool, AtomicI16, AtomicI32, AtomicI64, AtomicI8, AtomicU16, Ordering,
 };
 
-use crate::objects::class_instance::ClassInstance;
-use crate::thread::exceptions::{handle_exception, throw, Throws};
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 use common::atomic::{Atomic, AtomicF32, AtomicF64};

@@ -6,6 +6,7 @@ use crate::objects::class::Class;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::reference::Reference;
 use crate::symbols::{sym, Symbol};
+use classfile::FieldType;
 
 use std::ops::{ControlFlow, FromResidual, Try};
 
@@ -395,7 +396,14 @@ fn class_in_module_of_loader(
 				break 'module_info;
 			}
 
-			target_class = todo!();
+			let FieldType::Object(class_name) = &array_descriptor.component else {
+				unreachable!()
+			};
+
+			// TODO: There shouldn't be a case where the component isn't already loaded, but just incase
+			//       this should bubble up an exception, not unwrap.
+			let class_name = Symbol::intern(class_name);
+			target_class = target_class.loader().load(class_name).unwrap();
 		}
 
 		match target_class.module().name() {

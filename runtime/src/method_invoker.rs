@@ -1,5 +1,5 @@
 use crate::objects::method::Method;
-use crate::objects::reference::{ClassInstanceRef, Reference};
+use crate::objects::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::thread::frame::Frame;
 use crate::thread::JavaThread;

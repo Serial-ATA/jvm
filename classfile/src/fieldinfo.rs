@@ -29,10 +29,10 @@ impl FieldInfo {
 #[derive(Debug, Clone, PartialEq)]
 pub enum FieldType {
 	Byte,
-	Char,
+	Character,
 	Double,
 	Float,
-	Int,
+	Integer,
 	Long,
 	Short,
 	Boolean,
@@ -56,10 +56,10 @@ impl FieldType {
 			// 	(one of)
 			// 	B C D F I J S Z
 			b'B' => Ok(Self::Byte),
-			b'C' => Ok(Self::Char),
+			b'C' => Ok(Self::Character),
 			b'D' => Ok(Self::Double),
 			b'F' => Ok(Self::Float),
-			b'I' => Ok(Self::Int),
+			b'I' => Ok(Self::Integer),
 			b'J' => Ok(Self::Long),
 			b'S' => Ok(Self::Short),
 			b'Z' => Ok(Self::Boolean),
@@ -103,7 +103,7 @@ impl FieldType {
 	}
 
 	pub fn is_char(&self) -> bool {
-		matches!(self, Self::Char)
+		matches!(self, Self::Character)
 	}
 
 	pub fn is_double(&self) -> bool {
@@ -115,7 +115,7 @@ impl FieldType {
 	}
 
 	pub fn is_int(&self) -> bool {
-		matches!(self, Self::Int)
+		matches!(self, Self::Integer)
 	}
 
 	pub fn is_long(&self) -> bool {
@@ -157,10 +157,10 @@ impl FieldType {
 	pub fn as_signature(&self) -> Cow<'static, str> {
 		match self {
 			Self::Byte => "B".into(),
-			Self::Char => "C".into(),
+			Self::Character => "C".into(),
 			Self::Double => "D".into(),
 			Self::Float => "F".into(),
-			Self::Int => "I".into(),
+			Self::Integer => "I".into(),
 			Self::Long => "J".into(),
 			Self::Short => "S".into(),
 			Self::Boolean => "Z".into(),
@@ -173,10 +173,10 @@ impl FieldType {
 	pub fn as_java_type(&self) -> Cow<'static, str> {
 		match self {
 			Self::Byte => "byte".into(),
-			Self::Char => "char".into(),
+			Self::Character => "char".into(),
 			Self::Double => "double".into(),
 			Self::Float => "float".into(),
-			Self::Int => "int".into(),
+			Self::Integer => "int".into(),
 			Self::Long => "long".into(),
 			Self::Short => "short".into(),
 			Self::Boolean => "boolean".into(),
@@ -196,12 +196,12 @@ impl FieldType {
 	pub fn as_array_type_code(&self) -> Option<u8> {
 		match self {
 			FieldType::Boolean => Some(4),
-			FieldType::Char => Some(5),
+			FieldType::Character => Some(5),
 			FieldType::Float => Some(6),
 			FieldType::Double => Some(7),
 			FieldType::Byte => Some(8),
 			FieldType::Short => Some(9),
-			FieldType::Int => Some(10),
+			FieldType::Integer => Some(10),
 			FieldType::Long => Some(11),
 			_ => None,
 		}

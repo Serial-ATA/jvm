@@ -13,7 +13,7 @@ use crate::globals::classes;
 use crate::modules::{Module, Package};
 use crate::objects::constant_pool::cp_types;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
-use crate::symbols::Symbol;
+use crate::symbols::{Internable, Symbol};
 use crate::thread::exceptions::Throws;
 use crate::thread::JavaThread;
 
@@ -353,15 +353,27 @@ impl Class {
 
 		// Skip over '['
 		if name_str.starts_with('[') {
-			start_index = name_str.chars().skip_while(|c| *c == '[').count();
-
-			// A fully qualified class name should not contain a 'L'
-			if start_index >= name_str.len() || name_str.as_bytes()[start_index] == b'L' {
+			start_index = name_str
+				.as_bytes()
+				.iter()
+				.take_while(|b| **b == b'[')
+				.count();
+			if start_index >= name_str.len() {
 				return Err(RuntimeError::BadClassName);
 			}
 		}
 
-		if start_index >= name_str.len() {
+		if name_str.as_bytes()[start_index] == b'L' {
+			// 'L' is only valid when used in an object array component
+			if !self.is_array() {
+				return Err(RuntimeError::BadClassName);
+			}
+
+			// Skip over 'L'
+			start_index += 1;
+		}
+
+		if start_index >= end {
 			return Err(RuntimeError::BadClassName);
 		}
 
@@ -482,7 +494,16 @@ impl Class {
 			return signature;
 		}
 
-		let signature = Symbol::intern(format!("L{};", self.name.as_str()));
+		let signature;
+		if self.is_array() {
+			signature = Symbol::intern(format!("{}", self.name.as_str()));
+			unsafe {
+				(*self.misc_cache.get()).signature = Some(signature);
+			}
+		} else {
+			signature = Symbol::intern(format!("L{};", self.name.as_str()));
+		}
+
 		unsafe {
 			(*self.misc_cache.get()).signature = Some(signature);
 		}
@@ -1060,27 +1081,32 @@ impl Class {
 
 	/// Set the mirror for this class
 	///
+	/// This optionally takes an existing mirror, otherwise it will create a new one.
+	///
 	/// # Safety
 	///
 	/// This is only safe to call *before* the class is in use. It should never be used outside of
 	/// class loading.
-	pub unsafe fn set_mirror(&'static self) {
-		let mirror;
-		match self.class_ty() {
-			ClassType::Instance(_) => {
-				mirror = MirrorInstance::new(self);
-				mirror.get().set_module(self.module().obj())
-			},
-			ClassType::Array(_) => {
-				mirror = MirrorInstance::new_array(self);
-
-				let bootstrap_loader = ClassLoader::bootstrap();
-				mirror.get().set_module(bootstrap_loader.java_base().obj())
+	pub unsafe fn set_mirror(&'static self, mirror: Option<MirrorInstanceRef>) {
+		let final_mirror = match mirror {
+			Some(mirror) => mirror,
+			None => match self.class_ty() {
+				ClassType::Instance(_) => {
+					let mirror = MirrorInstance::new(self);
+					mirror.get().set_module(self.module().obj());
+					mirror
+				},
+				ClassType::Array(_) => {
+					let mirror = MirrorInstance::new_array(self);
+					let bootstrap_loader = ClassLoader::bootstrap();
+					mirror.get().set_module(bootstrap_loader.java_base().obj());
+					mirror
+				},
 			},
 		};
 
 		unsafe {
-			*self.mirror.get() = MaybeUninit::new(mirror);
+			*self.mirror.get() = MaybeUninit::new(final_mirror);
 		}
 	}
 

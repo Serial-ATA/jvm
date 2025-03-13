@@ -1,4 +1,4 @@
-use crate::globals::fields;
+use crate::classes;
 use crate::native::java::lang::String::StringInterner;
 use crate::objects::class::Class;
 use crate::objects::constant_pool::cp_types;
@@ -29,7 +29,7 @@ unsafe fn initialize(class: &'static Class) {
 
 	unsafe {
 		crate::globals::classes::set_java_lang_StackTraceElement(class);
-		fields::java_lang_StackTraceElement::init_offsets();
+		classes::java_lang_StackTraceElement::init_offsets();
 	}
 }
 
@@ -37,7 +37,7 @@ fn fill_in_stack_trace(stacktrace_element: ClassInstanceRef, method: &Method, pc
 	let method_class = method.class().unwrap_class_instance();
 
 	let declaring_class_object = method.class().mirror();
-	fields::java_lang_StackTraceElement::set_declaringClassObject(
+	classes::java_lang_StackTraceElement::set_declaringClassObject(
 		stacktrace_element.get_mut(),
 		Reference::mirror(declaring_class_object),
 	);
@@ -46,13 +46,13 @@ fn fill_in_stack_trace(stacktrace_element: ClassInstanceRef, method: &Method, pc
 	// TODO: moduleName
 	// TODO: moduleVersion
 	let declaring_class = StringInterner::intern(method.class().name);
-	fields::java_lang_StackTraceElement::set_declaringClass(
+	classes::java_lang_StackTraceElement::set_declaringClass(
 		stacktrace_element.get_mut(),
 		Reference::class(declaring_class),
 	);
 
 	let method_name = StringInterner::intern(method.name);
-	fields::java_lang_StackTraceElement::set_methodName(
+	classes::java_lang_StackTraceElement::set_methodName(
 		stacktrace_element.get_mut(),
 		Reference::class(method_name),
 	);
@@ -65,13 +65,13 @@ fn fill_in_stack_trace(stacktrace_element: ClassInstanceRef, method: &Method, pc
 				.expect("file name should always resolve");
 
 			let file_name = StringInterner::intern(file_name_sym);
-			fields::java_lang_StackTraceElement::set_fileName(
+			classes::java_lang_StackTraceElement::set_fileName(
 				stacktrace_element.get_mut(),
 				Reference::class(file_name),
 			);
 		},
 		None => {
-			fields::java_lang_StackTraceElement::set_fileName(
+			classes::java_lang_StackTraceElement::set_fileName(
 				stacktrace_element.get_mut(),
 				Reference::null(),
 			);
@@ -79,7 +79,7 @@ fn fill_in_stack_trace(stacktrace_element: ClassInstanceRef, method: &Method, pc
 	}
 
 	let line_number = method.get_line_number(pc as isize);
-	fields::java_lang_StackTraceElement::set_lineNumber(stacktrace_element.get_mut(), line_number);
+	classes::java_lang_StackTraceElement::set_lineNumber(stacktrace_element.get_mut(), line_number);
 }
 
 pub fn initStackTraceElements(

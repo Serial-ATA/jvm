@@ -1,4 +1,4 @@
-use crate::globals::fields;
+use crate::classes;
 use crate::objects::array::PrimitiveArrayInstance;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
@@ -83,7 +83,7 @@ impl BackTrace {
 unsafe fn initialize() {
 	static ONCE: Once = Once::new();
 	ONCE.call_once(|| unsafe {
-		crate::globals::fields::java_lang_Throwable::init_offsets();
+		classes::java_lang_Throwable::init_offsets();
 	});
 }
 
@@ -96,9 +96,9 @@ pub fn fillInStackTrace(
 	unsafe { initialize() };
 
 	// Reset the current fields
-	fields::java_lang_Throwable::set_backtrace(this.extract_class().get_mut(), Reference::null());
+	classes::java_lang_Throwable::set_backtrace(this.extract_class().get_mut(), Reference::null());
 
-	let stack_trace_offset = crate::globals::fields::java_lang_Throwable::stackTrace_field_offset();
+	let stack_trace_offset = classes::java_lang_Throwable::stackTrace_field_offset();
 	this.put_field_value0(stack_trace_offset, Operand::Reference(Reference::null()));
 
 	let current_thread = unsafe { &*JavaThread::for_env(env.raw() as _) };
@@ -147,12 +147,12 @@ pub fn fillInStackTrace(
 		backtrace.push(frame);
 	}
 
-	fields::java_lang_Throwable::set_backtrace(
+	classes::java_lang_Throwable::set_backtrace(
 		this.extract_class().get_mut(),
 		backtrace.into_obj(),
 	);
 
-	let depth_field_offset = crate::globals::fields::java_lang_Throwable::depth_field_offset();
+	let depth_field_offset = classes::java_lang_Throwable::depth_field_offset();
 	this.put_field_value0(depth_field_offset, Operand::Int(backtrace_depth as jint));
 
 	this

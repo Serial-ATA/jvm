@@ -2,6 +2,7 @@ use super::{Module, ModuleLockGuard};
 use crate::classpath::loader::ClassLoader;
 use crate::objects::instance::Instance;
 use crate::symbols::Symbol;
+use crate::classes;
 
 use std::cell::SyncUnsafeCell;
 use std::collections::LinkedList;
@@ -37,10 +38,8 @@ impl ModuleSet {
 			module.set_classloader(ClassLoader::bootstrap())
 		} else {
 			let classloader_ptr =
-				crate::globals::fields::java_lang_ClassLoader::injected_loader_ptr_for(
-					obj_class_loader,
-				)
-				.expect("classloader should be initialized");
+				classes::java_lang_ClassLoader::injected_loader_ptr_for(obj_class_loader)
+					.expect("classloader should be initialized");
 			module.set_classloader(unsafe { &*classloader_ptr })
 		}
 
@@ -51,7 +50,7 @@ impl ModuleSet {
 
 		// Store the pointer in the module, to make future lookups cheaper
 		obj.extract_class().get_mut().put_field_value0(
-			crate::globals::fields::java_lang_Module::module_ptr_field_offset(),
+			classes::java_lang_Module::module_ptr_field_offset(),
 			Operand::Long(ret as *const Module as jlong),
 		);
 

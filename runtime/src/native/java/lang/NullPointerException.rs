@@ -1,4 +1,4 @@
-use crate::globals::fields;
+use crate::classes;
 use crate::native::java::lang::String::StringInterner;
 use crate::objects::array::Array;
 use crate::objects::method::Method;
@@ -15,7 +15,7 @@ pub fn getExtendedNPEMessage(
 	_env: JniEnv,
 	this: Reference, // java.lang.NullPointerException
 ) -> Reference /* java.lang.String */ {
-	let backtrace = fields::java_lang_Throwable::backtrace(this.extract_class().get());
+	let backtrace = classes::java_lang_Throwable::backtrace(this.extract_class().get());
 	if backtrace.is_null() {
 		// Nothing to do
 		return Reference::null();

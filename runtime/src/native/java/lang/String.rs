@@ -1,8 +1,8 @@
-use crate::globals::{classes, fields};
 use crate::objects::array::PrimitiveArrayInstance;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::symbols::Symbol;
+use crate::{classes, globals};
 
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -26,8 +26,8 @@ pub fn intern(_env: JniEnv, this: Reference /* java.lang.String */) -> Reference
 
 	let string = this.extract_class();
 
-	let hash = fields::java_lang_String::hash(string.get());
-	let hash_is_zero = fields::java_lang_String::hashIsZero(string.get());
+	let hash = classes::java_lang_String::hash(string.get());
+	let hash_is_zero = classes::java_lang_String::hashIsZero(string.get());
 	if hash != 0 || hash_is_zero {
 		if let Some(interned_string) = lookup(StringHash(hash as u64)) {
 			return Reference::class(interned_string);
@@ -36,8 +36,8 @@ pub fn intern(_env: JniEnv, this: Reference /* java.lang.String */) -> Reference
 		// Otherwise something's off, recompute the hash...
 	}
 
-	let coder = fields::java_lang_String::coder(string.get());
-	let value_field = fields::java_lang_String::value(string.get()).extract_primitive_array();
+	let coder = classes::java_lang_String::coder(string.get());
+	let value_field = classes::java_lang_String::value(string.get()).extract_primitive_array();
 	let value = value_field.get();
 
 	let value = value.as_slice::<jbyte>();
@@ -45,8 +45,8 @@ pub fn intern(_env: JniEnv, this: Reference /* java.lang.String */) -> Reference
 
 	let computed_hash;
 	if value_unsigned.is_empty() {
-		fields::java_lang_String::set_hash(string.get_mut(), 0);
-		fields::java_lang_String::set_hashIsZero(string.get_mut(), true);
+		classes::java_lang_String::set_hash(string.get_mut(), 0);
+		classes::java_lang_String::set_hashIsZero(string.get_mut(), true);
 		computed_hash = StringHash(0);
 	} else {
 		let hash = match coder {
@@ -57,8 +57,8 @@ pub fn intern(_env: JniEnv, this: Reference /* java.lang.String */) -> Reference
 			_ => panic!("Invalid string coder `{coder}`"),
 		};
 
-		fields::java_lang_String::set_hash(string.get_mut(), hash.0 as jint);
-		fields::java_lang_String::set_hashIsZero(string.get_mut(), false);
+		classes::java_lang_String::set_hash(string.get_mut(), hash.0 as jint);
+		classes::java_lang_String::set_hashIsZero(string.get_mut(), false);
 		computed_hash = hash;
 	}
 
@@ -176,17 +176,17 @@ fn do_intern(hash: StringHash, string: &[u8], is_utf8_symbol: bool) -> ClassInst
 		}
 	}
 
-	let new_java_string_instance = ClassInstance::new(classes::java_lang_String());
+	let new_java_string_instance = ClassInstance::new(globals::classes::java_lang_String());
 
 	// Set `private byte[] value`
-	fields::java_lang_String::set_value(
+	classes::java_lang_String::set_value(
 		new_java_string_instance.get_mut(),
 		Reference::array(unsafe { PrimitiveArrayInstance::new::<jbyte>(encoded_str) }),
 	);
 
 	// Set `private final byte coder`
 	let coder = if is_latin1 { LATIN1 } else { UTF16 };
-	fields::java_lang_String::set_coder(new_java_string_instance.get_mut(), coder.into());
+	classes::java_lang_String::set_coder(new_java_string_instance.get_mut(), coder.into());
 
 	// TODO: Make this less of a mess
 	let ret = Arc::clone(&new_java_string_instance);
@@ -199,8 +199,8 @@ fn do_intern(hash: StringHash, string: &[u8], is_utf8_symbol: bool) -> ClassInst
 }
 
 pub fn rust_string_from_java_string(class: ClassInstanceRef) -> String {
-	let value = fields::java_lang_String::value(class.get());
-	let coder = fields::java_lang_String::coder(class.get());
+	let value = classes::java_lang_String::value(class.get());
+	let coder = classes::java_lang_String::coder(class.get());
 
 	let value = value.extract_primitive_array();
 	let value = value.get().as_slice::<jbyte>();

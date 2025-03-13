@@ -1,6 +1,7 @@
 mod set;
 pub use set::*;
 
+use crate::classes;
 use crate::modules::{Module, ModuleLockGuard, ModuleSet, Package};
 use crate::native::java::lang::String::rust_string_from_java_string;
 use crate::objects::class::Class;
@@ -15,7 +16,6 @@ use std::fmt::Debug;
 use std::ops::RangeInclusive;
 use std::sync::{LazyLock, Mutex};
 
-use crate::globals::fields;
 use classfile::constant_pool::types::raw as raw_types;
 use classfile::{ClassFile, FieldType};
 use common::int_types::u1;
@@ -68,7 +68,7 @@ impl ClassLoader {
 		let mut name = None;
 
 		let name_obj = obj
-			.get_field_value0(crate::globals::fields::java_lang_ClassLoader::name_field_offset())
+			.get_field_value0(classes::java_lang_ClassLoader::name_field_offset())
 			.expect_reference();
 		if !name_obj.is_null() {
 			let name_str = rust_string_from_java_string(name_obj.extract_class());
@@ -79,9 +79,7 @@ impl ClassLoader {
 		}
 
 		let unnamed_module_obj = obj
-			.get_field_value0(
-				crate::globals::fields::java_lang_ClassLoader::unnamedModule_field_offset(),
-			)
+			.get_field_value0(classes::java_lang_ClassLoader::unnamedModule_field_offset())
 			.expect_reference();
 		assert!(
 			!unnamed_module_obj.is_null()
@@ -92,9 +90,7 @@ impl ClassLoader {
 			Module::unnamed(unnamed_module_obj).expect("unnamed module creation failed");
 
 		let name_and_id_obj = obj
-			.get_field_value0(
-				crate::globals::fields::java_lang_ClassLoader::nameAndId_field_offset(),
-			)
+			.get_field_value0(classes::java_lang_ClassLoader::nameAndId_field_offset())
 			.expect_reference();
 
 		let name_and_id;
@@ -247,7 +243,7 @@ impl ClassLoader {
 
 	/// Whether the ClassLoader is parallel capable
 	pub fn is_parallel_capable(&self) -> bool {
-		self.is_bootstrap() || fields::java_lang_ClassLoader::parallelCapable(&self.obj())
+		self.is_bootstrap() || classes::java_lang_ClassLoader::parallelCapable(&self.obj())
 	}
 
 	pub fn load(&'static self, name: Symbol) -> Throws<&'static Class> {
@@ -471,7 +467,7 @@ impl ClassLoader {
 		for class in bootstrap_loader.classes.lock().unwrap().values() {
 			// SAFETY: The only condition of `set_mirror` is that the class isn't in use yet.
 			unsafe {
-				class.set_mirror();
+				class.set_mirror(None);
 			}
 		}
 	}
@@ -495,6 +491,6 @@ fn init_mirror(class: &'static Class) {
 
 	// SAFETY: The only condition of `set_mirror` is that the class isn't in use yet.
 	unsafe {
-		class.set_mirror();
+		class.set_mirror(None);
 	}
 }

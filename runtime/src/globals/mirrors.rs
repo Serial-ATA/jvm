@@ -1,5 +1,5 @@
 use crate::objects::mirror::MirrorInstance;
-use crate::objects::reference::Reference;
+use crate::objects::reference::{MirrorInstanceRef, Reference};
 
 use std::cell::SyncUnsafeCell;
 
@@ -20,9 +20,9 @@ macro_rules! define_primitive_mirrors {
 
             #[doc = "Get the primitive `" $name:lower "` mirror"]
             ///
-            /// # Panics
-            ///
-            /// This will panic if the mirror is not actually initialized.
+			/// # Panics
+			///
+			/// This will panic if the mirror is not actually initialized.
 			#[allow(non_snake_case)]
             pub fn [<primitive_ $name:lower _mirror>]() -> Reference {
 				let val_opt = unsafe { &*([<$name _>].get()) };
@@ -44,7 +44,7 @@ macro_rules! define_primitive_mirrors {
     };
 }
 
-define_primitive_mirrors!(Byte, Char, Double, Float, Int, Long, Short, Boolean, Void,);
+define_primitive_mirrors!(Byte, Character, Double, Float, Integer, Long, Short, Boolean, Void,);
 
 pub fn primitive_mirror_for(ty: &FieldType) -> Reference {
 	assert!(
@@ -54,14 +54,39 @@ pub fn primitive_mirror_for(ty: &FieldType) -> Reference {
 
 	match ty {
 		FieldType::Byte => primitive_byte_mirror(),
-		FieldType::Char => primitive_char_mirror(),
+		FieldType::Character => primitive_character_mirror(),
 		FieldType::Double => primitive_double_mirror(),
 		FieldType::Float => primitive_float_mirror(),
-		FieldType::Int => primitive_int_mirror(),
+		FieldType::Integer => primitive_integer_mirror(),
 		FieldType::Long => primitive_long_mirror(),
 		FieldType::Short => primitive_short_mirror(),
 		FieldType::Boolean => primitive_boolean_mirror(),
 		FieldType::Void => primitive_void_mirror(),
 		FieldType::Object(_) | FieldType::Array(_) => unreachable!(),
+	}
+}
+
+pub fn primitive_array_mirror_for(ty: &FieldType) -> MirrorInstanceRef {
+	assert!(
+		matches!(ty, FieldType::Array(_)),
+		"`Array` field type expected"
+	);
+
+	let FieldType::Array(ty) = ty else {
+		unreachable!()
+	};
+
+	assert!(ty.is_primitive());
+
+	match &**ty {
+		FieldType::Byte => crate::globals::classes::byte_array().mirror(),
+		FieldType::Character => crate::globals::classes::character_array().mirror(),
+		FieldType::Double => crate::globals::classes::double_array().mirror(),
+		FieldType::Float => crate::globals::classes::float_array().mirror(),
+		FieldType::Integer => crate::globals::classes::integer_array().mirror(),
+		FieldType::Long => crate::globals::classes::long_array().mirror(),
+		FieldType::Short => crate::globals::classes::short_array().mirror(),
+		FieldType::Boolean => crate::globals::classes::boolean_array().mirror(),
+		_ => unreachable!(),
 	}
 }

@@ -1,5 +1,3 @@
-use crate::globals::fields;
-use crate::java_call;
 use crate::objects::boxing::Boxable;
 use crate::objects::class::Class;
 use crate::objects::method::Method;
@@ -7,6 +5,7 @@ use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::thread::exceptions::{handle_exception, Throws};
 use crate::thread::JavaThread;
+use crate::{classes, java_call};
 
 use common::traits::PtrType;
 use instructions::Operand;
@@ -15,11 +14,11 @@ use jni::env::JniEnv;
 include_generated!("native/java/lang/invoke/def/MethodHandle.definitions.rs");
 
 pub fn get_target_method(handle: ClassInstanceRef) -> Throws<&'static Method> {
-	let form = fields::java_lang_invoke_MethodHandle::form(handle.get());
-	let vmentry = fields::java_lang_invoke_LambdaForm::vmentry(form.get());
-	let vmindex = fields::java_lang_invoke_MemberName::vmindex(vmentry.get());
+	let form = classes::java_lang_invoke_MethodHandle::form(handle.get());
+	let vmentry = classes::java_lang_invoke_LambdaForm::vmentry(form.get());
+	let vmindex = classes::java_lang_invoke_MemberName::vmindex(vmentry.get());
 
-	let defining_class_mirror = fields::java_lang_invoke_MemberName::clazz(vmentry.get())?;
+	let defining_class_mirror = classes::java_lang_invoke_MemberName::clazz(vmentry.get())?;
 	let defining_class = defining_class_mirror.get().target_class();
 
 	Throws::Ok(&defining_class.vtable()[vmindex as usize])
@@ -75,8 +74,8 @@ pub fn linkToStatic(
 
 	let appendix = args.pop().expect("appendix is required").extract_class();
 
-	let vmindex = fields::java_lang_invoke_MemberName::vmindex(appendix.get());
-	let defining_class_mirror = match fields::java_lang_invoke_MemberName::clazz(appendix.get()) {
+	let vmindex = classes::java_lang_invoke_MemberName::vmindex(appendix.get());
+	let defining_class_mirror = match classes::java_lang_invoke_MemberName::clazz(appendix.get()) {
 		Throws::Ok(mirror) => mirror,
 		Throws::Exception(e) => {
 			e.throw(thread);

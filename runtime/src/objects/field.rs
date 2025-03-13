@@ -143,8 +143,8 @@ impl Field {
 			FieldType::Byte
 			| FieldType::Boolean
 			| FieldType::Short
-			| FieldType::Int
-			| FieldType::Char => Operand::Int(0),
+			| FieldType::Integer
+			| FieldType::Character => Operand::Int(0),
 			FieldType::Long => Operand::Long(0),
 			FieldType::Float => Operand::Float(0.),
 			FieldType::Double => Operand::Double(0.),

@@ -1,5 +1,4 @@
 use crate::classpath::loader::ClassLoader;
-use crate::java_call;
 use crate::modules::Module;
 use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::invocation_api::main_java_vm;
@@ -8,6 +7,7 @@ use crate::objects::reference::Reference;
 use crate::symbols::sym;
 use crate::thread::exceptions::Throws;
 use crate::thread::{JavaThread, JavaThreadBuilder};
+use crate::{classes, java_call};
 
 use classfile::accessflags::MethodAccessFlags;
 use common::int_types::s4;
@@ -17,6 +17,9 @@ use jni::java_vm::JavaVm;
 use jni::sys::{JavaVMInitArgs, JNI_OK};
 
 pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> Result<JavaVm, JniError> {
+	let _span = tracing::debug_span!("initialization").entered();
+	tracing::debug!("Creating Java VM");
+
 	let thread = JavaThreadBuilder::new().finish();
 	unsafe {
 		JavaThread::set_current_thread(thread);
@@ -62,7 +65,7 @@ fn initialize_thread(thread: &JavaThread) -> Result<(), JniError> {
 
 	// SAFETY: Preconditions filled in `init_field_offsets` & `initialize_global_classes`
 	unsafe {
-		crate::globals::fields::jdk_internal_misc_UnsafeConstants::init();
+		classes::jdk_internal_misc_UnsafeConstants::init();
 	}
 
 	// https://github.com/openjdk/jdk/blob/04591595374e84cfbfe38d92bff4409105b28009/src/hotspot/share/runtime/threads.cpp#L408
@@ -112,7 +115,7 @@ fn load_global_classes() {
 	// Pre-fire java.lang.Class field offset initialization, as it's needed by mirrors. All other
 	// classes handle this in `init_field_offsets()`.
 	unsafe {
-		crate::globals::fields::java_lang_Class::init_offsets();
+		classes::java_lang_Class::init_offsets();
 	}
 
 	// Fixup mirrors, as we have classes that were loaded before java.lang.Class
@@ -137,6 +140,7 @@ fn load_global_classes() {
 		java_lang_invoke_MethodHandle,
 		java_lang_invoke_LambdaForm,
 		jdk_internal_reflect_MethodAccessorImpl,
+		jdk_internal_reflect_ConstantPool,
 		java_lang_invoke_MethodHandleNatives,
 		java_lang_invoke_MemberName,
 		java_lang_invoke_ResolvedMethodName,
@@ -164,12 +168,12 @@ fn load_global_classes() {
 
 	// Primitive arrays
 	load!(
-		bool_array,
+		boolean_array,
 		byte_array,
-		char_array,
+		character_array,
 		double_array,
 		float_array,
-		int_array,
+		integer_array,
 		long_array,
 		short_array,
 		string_array,
@@ -179,65 +183,70 @@ fn load_global_classes() {
 fn init_field_offsets() {
 	// java.lang.ClassLoader
 	unsafe {
-		crate::globals::fields::java_lang_ClassLoader::init_offsets();
+		classes::java_lang_ClassLoader::init_offsets();
 	}
 
 	// java.lang.String
 	unsafe {
-		crate::globals::fields::java_lang_String::init_offsets();
+		classes::java_lang_String::init_offsets();
 	}
 
 	// java.lang.Module
 	unsafe {
-		crate::globals::fields::java_lang_Module::init_offsets();
+		classes::java_lang_Module::init_offsets();
 	}
 
 	// java.lang.ref.Reference
 	unsafe {
-		crate::globals::fields::java_lang_ref_Reference::init_offsets();
+		classes::java_lang_ref_Reference::init_offsets();
 	}
 
 	// jdk.internal.misc.UnsafeConstants
 	unsafe {
-		crate::globals::fields::jdk_internal_misc_UnsafeConstants::init_offsets();
+		classes::jdk_internal_misc_UnsafeConstants::init_offsets();
 	}
 
 	// java.lang.Thread
 	unsafe {
-		crate::globals::fields::java_lang_Thread::init_offsets();
+		classes::java_lang_Thread::init_offsets();
 	}
 
 	// MethodHandle stuff
 	{
 		// java.lang.invoke.MethodHandle
 		unsafe {
-			crate::globals::fields::java_lang_invoke_MethodHandle::init_offsets();
+			classes::java_lang_invoke_MethodHandle::init_offsets();
 		}
 
 		// java.lang.invoke.LambdaForm
 		unsafe {
-			crate::globals::fields::java_lang_invoke_LambdaForm::init_offsets();
+			classes::java_lang_invoke_LambdaForm::init_offsets();
 		}
 
 		// java.lang.invoke.MemberName
 		unsafe {
-			crate::globals::fields::java_lang_invoke_MemberName::init_offsets();
+			classes::java_lang_invoke_MemberName::init_offsets();
 		}
 
 		// java.lang.invoke.ResolvedMethodName
 		unsafe {
-			crate::globals::fields::java_lang_invoke_ResolvedMethodName::init_offsets();
+			classes::java_lang_invoke_ResolvedMethodName::init_offsets();
 		}
 
 		// java.lang.invoke.MethodType
 		unsafe {
-			crate::globals::fields::java_lang_invoke_MethodType::init_offsets();
+			classes::java_lang_invoke_MethodType::init_offsets();
 		}
 	}
 
 	// java.lang.reflect.Constructor
 	unsafe {
-		crate::globals::fields::java_lang_reflect_Constructor::init_offsets();
+		classes::java_lang_reflect_Method::init_offsets();
+	}
+
+	// java.lang.reflect.Constructor
+	unsafe {
+		classes::java_lang_reflect_Constructor::init_offsets();
 	}
 }
 
@@ -303,6 +312,7 @@ fn create_thread_object(thread: &JavaThread) -> bool {
 /// * Signal handlers
 /// * OS-specific system settings
 /// * Thread group of the main thread
+#[tracing::instrument(skip_all)]
 fn init_phase_1(thread: &JavaThread) -> Result<(), JniError> {
 	let system_class = crate::globals::classes::java_lang_System();
 	let init_phase_1 = system_class
@@ -322,6 +332,7 @@ fn init_phase_1(thread: &JavaThread) -> Result<(), JniError> {
 ///
 /// This is responsible for initializing the module system. Prior to this point, the only module
 /// available to us is `java.base`.
+#[tracing::instrument(skip_all)]
 fn init_phase_2(thread: &JavaThread) -> Result<(), JniError> {
 	let system_class = crate::globals::classes::java_lang_System();
 
@@ -363,6 +374,7 @@ fn init_phase_2(thread: &JavaThread) -> Result<(), JniError> {
 /// * Initialization of and setting the security manager
 /// * Setting the system class loader
 /// * Setting the thread context class loader
+#[tracing::instrument(skip_all)]
 fn init_phase_3(thread: &JavaThread) -> Result<(), JniError> {
 	let system_class = crate::globals::classes::java_lang_System();
 

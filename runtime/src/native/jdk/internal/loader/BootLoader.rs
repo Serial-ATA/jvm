@@ -5,6 +5,7 @@ use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::thread::exceptions::{handle_exception, throw};
 use crate::thread::JavaThread;
+use crate::classes;
 
 use ::jni::env::JniEnv;
 
@@ -47,7 +48,7 @@ pub fn setBootLoaderUnnamedModule0(
 	let module_entry = handle_exception!(thread, module_entry_result);
 
 	let loader = module
-		.get_field_value0(crate::globals::fields::java_lang_Module::loader_field_offset())
+		.get_field_value0(classes::java_lang_Module::loader_field_offset())
 		.expect_reference();
 	if !loader.is_null() {
 		throw!(

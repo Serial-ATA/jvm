@@ -1,5 +1,4 @@
 pub mod classes;
-pub mod fields;
 pub mod mirrors;
 pub mod modules;
 pub mod threads;
@@ -13,12 +12,12 @@ use classfile::FieldType;
 /// <https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.3>
 pub const PRIMITIVE_TYPE_NAMES_TO_FIELD_TYPES: &[(&str, FieldType)] = &[
 	("boolean", FieldType::Boolean),
-	("char", FieldType::Char),
+	("char", FieldType::Character),
 	("float", FieldType::Float),
 	("double", FieldType::Double),
 	("byte", FieldType::Byte),
 	("short", FieldType::Short),
-	("int", FieldType::Int),
+	("int", FieldType::Integer),
 	("long", FieldType::Long),
 	("void", FieldType::Void),
 ];
@@ -28,12 +27,12 @@ pub const PRIMITIVE_TYPE_NAMES_TO_FIELD_TYPES: &[(&str, FieldType)] = &[
 /// <https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-BaseType>
 pub const BASE_TYPES_TO_FIELD_TYPES: &[(&str, FieldType)] = &[
 	("Z", FieldType::Boolean),
-	("C", FieldType::Char),
+	("C", FieldType::Character),
 	("F", FieldType::Float),
 	("D", FieldType::Double),
 	("B", FieldType::Byte),
 	("S", FieldType::Short),
-	("I", FieldType::Int),
+	("I", FieldType::Integer),
 	("J", FieldType::Long),
 	("V", FieldType::Void),
 ];

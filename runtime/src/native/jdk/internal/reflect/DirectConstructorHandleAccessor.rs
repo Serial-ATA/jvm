@@ -3,8 +3,6 @@ pub mod NativeAccessor {
 		"native/jdk/internal/reflect/def/DirectConstructorHandleAccessor.definitions.rs"
 	);
 
-	use crate::globals::fields;
-	use crate::java_call;
 	use crate::objects::array::Array;
 	use crate::objects::class::Class;
 	use crate::objects::class_instance::ClassInstance;
@@ -13,6 +11,7 @@ pub mod NativeAccessor {
 	use crate::symbols::sym;
 	use crate::thread::exceptions::{handle_exception, throw_and_return_null};
 	use crate::thread::JavaThread;
+	use crate::{classes, java_call};
 
 	use classfile::FieldType;
 	use common::traits::PtrType;
@@ -31,10 +30,10 @@ pub mod NativeAccessor {
 		let constructor = c.extract_class();
 		let args = args.extract_object_array();
 
-		let clazz = fields::java_lang_reflect_Constructor::clazz(constructor.get());
-		let slot = fields::java_lang_reflect_Constructor::slot(constructor.get());
+		let clazz = classes::java_lang_reflect_Constructor::clazz(constructor.get());
+		let slot = classes::java_lang_reflect_Constructor::slot(constructor.get());
 		let parameter_types =
-			fields::java_lang_reflect_Constructor::parameterTypes(constructor.get());
+			classes::java_lang_reflect_Constructor::parameterTypes(constructor.get());
 
 		let class = clazz.get().target_class();
 		let method = &class.vtable()[slot as usize];
@@ -69,28 +68,28 @@ pub mod NativeAccessor {
 				let instance = arg.extract_class();
 				let value = match parameter_mirror.primitive_target() {
 					FieldType::Byte => {
-						Operand::from(fields::java_lang_Byte::value(&instance.get()))
+						Operand::from(classes::java_lang_Byte::value(&instance.get()))
 					},
-					FieldType::Char => {
-						Operand::from(fields::java_lang_Character::value(&instance.get()))
+					FieldType::Character => {
+						Operand::from(classes::java_lang_Character::value(&instance.get()))
 					},
 					FieldType::Double => {
-						Operand::from(fields::java_lang_Double::value(&instance.get()))
+						Operand::from(classes::java_lang_Double::value(&instance.get()))
 					},
 					FieldType::Float => {
-						Operand::from(fields::java_lang_Float::value(&instance.get()))
+						Operand::from(classes::java_lang_Float::value(&instance.get()))
 					},
-					FieldType::Int => {
-						Operand::from(fields::java_lang_Integer::value(&instance.get()))
+					FieldType::Integer => {
+						Operand::from(classes::java_lang_Integer::value(&instance.get()))
 					},
 					FieldType::Long => {
-						Operand::from(fields::java_lang_Long::value(&instance.get()))
+						Operand::from(classes::java_lang_Long::value(&instance.get()))
 					},
 					FieldType::Short => {
-						Operand::from(fields::java_lang_Short::value(&instance.get()))
+						Operand::from(classes::java_lang_Short::value(&instance.get()))
 					},
 					FieldType::Boolean => {
-						Operand::from(fields::java_lang_Boolean::value(&instance.get()))
+						Operand::from(classes::java_lang_Boolean::value(&instance.get()))
 					},
 					_ => throw_and_return_null!(
 						thread,

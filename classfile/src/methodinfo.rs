@@ -136,7 +136,7 @@ mod tests {
 			(
 				"(C)V",
 				MethodDescriptor {
-					parameters: Box::new([FieldType::Char]),
+					parameters: Box::new([FieldType::Character]),
 					return_type: FieldType::Void,
 				},
 			),
@@ -157,7 +157,7 @@ mod tests {
 			(
 				"(I)V",
 				MethodDescriptor {
-					parameters: Box::new([FieldType::Int]),
+					parameters: Box::new([FieldType::Integer]),
 					return_type: FieldType::Void,
 				},
 			),
@@ -202,7 +202,7 @@ mod tests {
 			[
 				FieldType::Byte,
 				FieldType::Byte,
-				FieldType::Char,
+				FieldType::Character,
 				FieldType::Double
 			]
 		);

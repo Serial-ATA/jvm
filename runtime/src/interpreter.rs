@@ -11,18 +11,17 @@ use crate::objects::field::Field;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, ObjectArrayInstanceRef, Reference};
+use crate::stack::local_stack::LocalStack;
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{handle_exception, Exception, ExceptionKind, Throws};
 use crate::thread::frame::Frame;
 use crate::thread::{exceptions, JavaThread};
+use crate::{classes, java_call};
 
 use std::cmp::Ordering;
 use std::sync::atomic::Ordering as MemOrdering;
 use std::sync::Arc;
 
-use crate::globals::fields;
-use crate::java_call;
-use crate::stack::local_stack::LocalStack;
 use classfile::constant_pool::ConstantPoolValueInfo;
 use classfile::FieldType;
 use common::int_types::{s2, s4, s8, u2};
@@ -1085,7 +1084,7 @@ impl Interpreter {
                 // to obtain an exactly invokable method handle m. The method handle to be invoked is m.
                 todo!();
             } else {
-                let ptypes = fields::java_lang_invoke_MethodType::ptypes(method_type.extract_class().get());
+                let ptypes = classes::java_lang_invoke_MethodType::ptypes(method_type.extract_class().get());
                 let ptypes = ptypes.get().as_slice();
                 parameter_count = ptypes.len();
 

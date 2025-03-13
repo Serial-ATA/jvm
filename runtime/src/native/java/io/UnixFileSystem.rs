@@ -8,6 +8,7 @@ use crate::symbols::sym;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use crate::classes;
 use crate::thread::exceptions::throw_and_return_null;
 use crate::thread::JavaThread;
 use ::jni::env::JniEnv;
@@ -17,7 +18,7 @@ use common::traits::PtrType;
 include_generated!("native/java/io/def/UnixFileSystem.definitions.rs");
 
 fn get_file_path(file: Reference) -> String {
-	let path_field_offset = crate::globals::fields::java_io_File::path_field_offset();
+	let path_field_offset = classes::java_io_File::path_field_offset();
 	let f = file.extract_class();
 	let value = f
 		.get()
@@ -207,6 +208,6 @@ pub fn initIDs(_: JniEnv, class: &'static Class) {
 	let file_class = class.loader().load(sym!(java_io_File)).unwrap();
 	unsafe {
 		crate::globals::classes::set_java_io_File(file_class);
-		crate::globals::fields::java_io_File::init_offsets();
+		classes::java_io_File::init_offsets();
 	}
 }

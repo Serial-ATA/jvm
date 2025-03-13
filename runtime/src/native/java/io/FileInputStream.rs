@@ -5,6 +5,7 @@ use crate::objects::reference::Reference;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use crate::classes;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
 
@@ -70,6 +71,6 @@ pub fn initIDs(_: JniEnv, class: &'static Class) {
 
 	unsafe {
 		crate::globals::classes::set_java_io_FileInputStream(class);
-		crate::globals::fields::java_io_FileInputStream::init_offsets();
+		classes::java_io_FileInputStream::init_offsets();
 	}
 }

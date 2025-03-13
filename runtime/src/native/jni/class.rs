@@ -96,5 +96,5 @@ pub unsafe extern "system" fn IsAssignableFrom(
 		return sub == sup;
 	}
 
-	return sub.is_subclass_of(sup);
+	return sub.is_subclass_of(sup) || sub.implements(sup);
 }

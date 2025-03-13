@@ -5,6 +5,7 @@ use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
 use crate::thread::exceptions::{handle_exception, throw, Throws};
 use crate::thread::JavaThread;
+use crate::classes;
 
 use ::jni::env::JniEnv;
 use common::traits::PtrType;
@@ -78,8 +79,7 @@ pub fn addReads0(
 		return;
 	}
 
-	let Some(from_ptr) = crate::globals::fields::java_lang_Module::injected_module_ptr_for(from)
-	else {
+	let Some(from_ptr) = classes::java_lang_Module::injected_module_ptr_for(from) else {
 		throw!(thread, IllegalArgumentException, "from_module is not valid");
 	};
 
@@ -91,8 +91,7 @@ pub fn addReads0(
 
 	let mut to_module = None;
 	if !to.is_null() {
-		let Some(to_ptr) = crate::globals::fields::java_lang_Module::injected_module_ptr_for(to)
-		else {
+		let Some(to_ptr) = classes::java_lang_Module::injected_module_ptr_for(to) else {
 			throw!(thread, IllegalArgumentException, "to_module is not valid");
 		};
 
@@ -125,12 +124,11 @@ pub fn addExports0(
 		throw!(thread, NullPointerException, "package is null");
 	}
 
-	let Some(from_ptr) = crate::globals::fields::java_lang_Module::injected_module_ptr_for(from)
-	else {
+	let Some(from_ptr) = classes::java_lang_Module::injected_module_ptr_for(from) else {
 		throw!(thread, IllegalArgumentException, "from_module is not valid");
 	};
 
-	let Some(to_ptr) = crate::globals::fields::java_lang_Module::injected_module_ptr_for(to) else {
+	let Some(to_ptr) = classes::java_lang_Module::injected_module_ptr_for(to) else {
 		throw!(thread, IllegalArgumentException, "to_module is not valid");
 	};
 
@@ -158,8 +156,7 @@ pub fn addExportsToAll0(
 		throw!(thread, NullPointerException, "package is null");
 	}
 
-	let Some(from_ptr) = crate::globals::fields::java_lang_Module::injected_module_ptr_for(from)
-	else {
+	let Some(from_ptr) = classes::java_lang_Module::injected_module_ptr_for(from) else {
 		throw!(thread, IllegalArgumentException, "from_module is not valid");
 	};
 

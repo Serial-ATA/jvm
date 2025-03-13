@@ -57,7 +57,10 @@ impl ConstantPoolEntry {
 		cp: &super::ConstantPool,
 		index: u2,
 	) -> Throws<T::Resolved> {
-		let _guard = self._resolution_lock.lock().unwrap();
+		let _guard = self
+			._resolution_lock
+			.try_lock()
+			.expect("re-entrant resolution");
 
 		// Some other thread beat us here
 		if let Some(resolved) = self.resolved::<T>() {

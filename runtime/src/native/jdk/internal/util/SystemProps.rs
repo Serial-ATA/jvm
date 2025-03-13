@@ -27,9 +27,17 @@ pub mod Raw {
 				$(
 					let interned_key_string = StringInterner::intern($key);
 					let interned_value_string = StringInterner::intern(&*String::from($value));
-					$prop_array.store(index, Reference::class(interned_key_string));
+					if let Throws::Exception(e) = $prop_array.store(index, Reference::class(interned_key_string)) {
+						let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+						e.throw(thread);
+						return Reference::null();
+					}
 					index += 1;
-					$prop_array.store(index, Reference::class(interned_value_string));
+					if let Throws::Exception(e) = $prop_array.store(index, Reference::class(interned_value_string)) {
+						let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+						e.throw(thread);
+						return Reference::null();
+					}
 					index += 1;
 					let _ = index;
 				)+
@@ -77,7 +85,11 @@ pub mod Raw {
 				$(
 				if let Some(val) = Option::<String>::from($value) {
 					let interned_string = StringInterner::intern(&*val);
-					$prop_array.store($index, Reference::class(interned_string));
+					if let Throws::Exception(e) = $prop_array.store($index, Reference::class(interned_string)) {
+						let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+						e.throw(thread);
+						return Reference::null();
+					}
 				}
 				)+
 			};

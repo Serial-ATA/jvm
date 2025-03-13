@@ -10,6 +10,7 @@ use std::mem::ManuallyDrop;
 use std::os::fd::{FromRawFd, RawFd};
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use crate::classes;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint};
 use common::traits::PtrType;
@@ -19,7 +20,7 @@ include_generated!("native/java/io/def/FileOutputStream.definitions.rs");
 
 fn get_fd(this: &Reference) -> jint {
 	// `fd` is a reference to a `java.io.FileDescriptor`
-	let fd_field_offset = crate::globals::fields::java_io_FileOutputStream::fd_field_offset();
+	let fd_field_offset = classes::java_io_FileOutputStream::fd_field_offset();
 	let file_descriptor_ref = this.get_field_value0(fd_field_offset).expect_reference();
 
 	super::FileDescriptor::get_fd(&file_descriptor_ref)
@@ -103,6 +104,6 @@ pub fn initIDs(_: JniEnv, class: &'static Class) {
 
 	unsafe {
 		crate::globals::classes::set_java_io_FileOutputStream(class);
-		crate::globals::fields::java_io_FileOutputStream::init_offsets();
+		classes::java_io_FileOutputStream::init_offsets();
 	}
 }
