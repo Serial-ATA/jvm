@@ -36,6 +36,11 @@ pub fn init_entry_points() {
 	// Don't need to verify this was only called once, `Method::set_entry_point` will panic
 	// if the entry point is already set.
 	for method in class.vtable().iter_local() {
+		if method.name == sym!(invoke_name) {
+			method.set_entry_point(MethodEntryPoint::MethodHandleInvoker(_dynamic::invoke));
+			continue;
+		}
+
 		if method.name == sym!(invokeBasic_name) {
 			method.set_entry_point(MethodEntryPoint::MethodHandleInvoker(
 				_dynamic::invoke_basic,
@@ -146,6 +151,10 @@ mod _dynamic {
 	}
 
 	pub fn invoke_exact(frame: &mut Frame, entry: MethodEntry) {
+		invoke_basic(frame, entry);
+	}
+
+	pub fn invoke(frame: &mut Frame, entry: MethodEntry) {
 		invoke_basic(frame, entry);
 	}
 

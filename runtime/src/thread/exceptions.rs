@@ -110,6 +110,8 @@ pub enum ExceptionKind {
 	ClassNotFoundException,
 	/// java.lang.ClassCastException
 	ClassCastException,
+	/// java.lang.InstantiationError
+	InstantiationError,
 
 	/// java.lang.LinkageError
 	LinkageError,
@@ -169,6 +171,7 @@ impl ExceptionKind {
 			ExceptionKind::NoClassDefFoundError => sym!(java_lang_NoClassDefFoundError),
 			ExceptionKind::ClassNotFoundException => sym!(java_lang_ClassNotFoundException),
 			ExceptionKind::ClassCastException => sym!(java_lang_ClassCastException),
+			ExceptionKind::InstantiationError => sym!(java_lang_InstantiationError),
 
 			ExceptionKind::LinkageError => sym!(java_lang_LinkageError),
 			ExceptionKind::UnsatisfiedLinkError => sym!(java_lang_UnsatisfiedLinkError),

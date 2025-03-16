@@ -14,7 +14,9 @@ use crate::objects::method::{Method, MethodEntryPoint};
 use crate::objects::reference::{ClassInstanceRef, ObjectArrayInstanceRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::symbols::{sym, Symbol};
-use crate::thread::exceptions::{handle_exception, throw, Exception, ExceptionKind, Throws};
+use crate::thread::exceptions::{
+	handle_exception, throw, throw_with_ret, Exception, ExceptionKind, Throws,
+};
 use crate::thread::frame::Frame;
 use crate::thread::{exceptions, JavaThread};
 use crate::{classes, java_call};
@@ -368,8 +370,13 @@ impl Interpreter {
                     let object_ref = stack.pop_reference();
                     let array_ref = object_ref.extract_object_array();
         
-                    // TODO: actually handle throws
-                    let op = array_ref.get().get(index).unwrap();
+                    let op = match array_ref.get().get(index) {
+                        Throws::Ok(op) => op,
+                        Throws::Exception(e) => {
+                            e.throw(frame.thread());
+                            return;
+                        }
+                    };
                     stack.push_reference(op);
                 },
                 @GROUP {
@@ -684,7 +691,6 @@ impl Interpreter {
                     }
                     stack.push_reference(Reference::array(array_ref));
                 },
-                // TODO: Handle throws
                 OpCode::anewarray => {
                     let index = frame.read_byte2();
 
@@ -766,7 +772,7 @@ impl Interpreter {
                 } => control_return;
                 
                 // ========= Extended =========
-                // TODO: wide, multianewarray, jsr_w
+                // TODO: wide, jsr_w
                 CATEGORY: extended
                 OpCode::multianewarray => {
                     Self::multianewarray(frame);
@@ -1085,7 +1091,6 @@ impl Interpreter {
 
         let constant_pool = frame.constant_pool();
 
-	    // TODO: Handle throws
         let ret;
         match constant_pool.get::<cp_types::FieldRef>(field_ref_idx) {
             Throws::Ok(f) => ret = f,
@@ -1144,7 +1149,7 @@ impl Interpreter {
         }
         
         if class.is_interface() || class.is_abstract() {
-            panic!("InstantiationError") // TODO
+            throw_with_ret!(None, frame.thread(), InstantiationError, "{}", class.external_name());
         }
 
         // On successful resolution of the class, it is initialized if it has not already been initialized

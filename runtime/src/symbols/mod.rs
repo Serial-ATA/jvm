@@ -243,6 +243,7 @@ vm_symbols::define_symbols! {
 	java_lang_NoClassDefFoundError: "java/lang/NoClassDefFoundError",
 	java_lang_ClassNotFoundException: "java/lang/ClassNotFoundException",
 	java_lang_ClassCastException: "java/lang/ClassCastException",
+	java_lang_InstantiationError: "java/lang/InstantiationError",
 
 	java_lang_LinkageError: "java/lang/LinkageError",
 	java_lang_UnsatisfiedLinkError: "java/lang/UnsatisfiedLinkError",
