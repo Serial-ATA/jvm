@@ -106,7 +106,6 @@ pub fn fillInStackTrace(
 	let current_thread = unsafe { &*JavaThread::for_env(env.raw() as _) };
 
 	let this_class_instance = this.extract_class();
-	let this_class = this_class_instance.get().class();
 
 	let stack_depth = current_thread.frame_stack().visible_depth();
 

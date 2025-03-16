@@ -1,16 +1,14 @@
+use crate::classes;
 use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
-use crate::native::java::lang::String::rust_string_from_java_string;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
 use crate::thread::exceptions::{handle_exception, throw_and_return_null, Throws};
 use crate::thread::JavaThread;
 
-use std::mem;
-
 use ::jni::env::JniEnv;
 use ::jni::sys::jint;
-use common::int_types::{s4, u1};
+use common::int_types::s4;
 use common::traits::PtrType;
 use jni::sys::jbyte;
 
@@ -125,7 +123,9 @@ pub fn defineClass0(
 		todo!()
 	}
 
-	let name = Symbol::intern(rust_string_from_java_string(name.extract_class()));
+	let name = Symbol::intern(classes::java_lang_String::extract(
+		name.extract_class().get(),
+	));
 
 	let bytes = b.extract_primitive_array();
 	let bytes_slice = bytes.get().as_slice::<jbyte>();
@@ -179,7 +179,7 @@ pub fn findBootstrapClass(
 	name: Reference, // java.lang.String
 ) -> Reference // java.lang.Class
 {
-	let name = rust_string_from_java_string(name.extract_class());
+	let name = classes::java_lang_String::extract(name.extract_class().get());
 	if let Some(class) = ClassLoader::bootstrap().lookup_class(Symbol::intern(name)) {
 		return Reference::mirror(class.mirror());
 	}

@@ -1,23 +1,20 @@
 use crate::globals;
-use crate::native::java::lang::String::StringInterner;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::field::Field;
 use crate::objects::instance::Instance;
 use crate::objects::reference::{
-	ClassInstanceRef, MirrorInstanceRef, ObjectArrayInstanceRef, PrimitiveArrayInstanceRef,
-	Reference,
+	ClassInstanceRef, MirrorInstanceRef, PrimitiveArrayInstanceRef, Reference,
 };
 use crate::thread::exceptions::Throws;
 
 use classfile::FieldType;
-use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::jint;
 
 /// Create a new `java.lang.reflect.Field` instance for the given field
-pub fn new(field: &Field) -> Throws<ClassInstanceRef> {
+pub fn new(_field: &Field) -> Throws<ClassInstanceRef> {
 	let _reflect_field = ClassInstance::new(globals::classes::java_lang_reflect_Field());
-	todo!();
+	todo!()
 }
 
 pub fn clazz(instance: &ClassInstance) -> MirrorInstanceRef {

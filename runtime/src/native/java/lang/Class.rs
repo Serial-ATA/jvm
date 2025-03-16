@@ -1,9 +1,8 @@
 use crate::classpath::loader::ClassLoaderSet;
-use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
+use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::{safe_classref_from_jclass, IntoJni};
 use crate::objects::array::{Array, ObjectArrayInstance};
 use crate::objects::class::Class;
-use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::{
@@ -58,7 +57,7 @@ pub fn forName0(
 		throw_and_return_null!(thread, NullPointerException);
 	}
 
-	let binary_name = rust_string_from_java_string(name.extract_class());
+	let binary_name = classes::java_lang_String::extract(name.extract_class().get());
 	let internal_name = binary_name.replace('.', "/");
 	let internal_name_sym = Symbol::intern(internal_name);
 
@@ -332,7 +331,7 @@ pub fn getPrimitiveClass(
 ) -> Reference /* Class */
 {
 	let string_class = name.extract_class();
-	let name_string = rust_string_from_java_string(string_class);
+	let name_string = classes::java_lang_String::extract(string_class.get());
 
 	for (name, ty) in crate::globals::PRIMITIVE_TYPE_NAMES_TO_FIELD_TYPES {
 		if &name_string == name {

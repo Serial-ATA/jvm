@@ -3,7 +3,6 @@ pub use set::*;
 
 use crate::classes;
 use crate::modules::{Module, ModuleLockGuard, ModuleSet, Package};
-use crate::native::java::lang::String::rust_string_from_java_string;
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
@@ -137,7 +136,7 @@ impl ClassLoader {
 			.get_field_value0(classes::java_lang_ClassLoader::name_field_offset())
 			.expect_reference();
 		if !name_obj.is_null() {
-			let name_str = rust_string_from_java_string(name_obj.extract_class());
+			let name_str = classes::java_lang_String::extract(name_obj.extract_class().get());
 
 			if !name_str.is_empty() {
 				name = Some(Symbol::intern(name_str));
@@ -152,7 +151,7 @@ impl ClassLoader {
 		if name_and_id_obj.is_null() {
 			name_and_id = obj.extract_target_class().name().as_str().replace('/', ".");
 		} else {
-			name_and_id = rust_string_from_java_string(name_and_id_obj.extract_class());
+			name_and_id = classes::java_lang_String::extract(name_and_id_obj.extract_class().get());
 		}
 
 		assert!(!name_and_id.is_empty(), "class loader has no name and id");

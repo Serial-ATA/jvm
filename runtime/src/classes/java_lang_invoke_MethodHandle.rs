@@ -2,7 +2,7 @@ use crate::globals;
 use crate::objects::class::Class;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
-use crate::objects::method::{Method, MethodEntryPoint};
+use crate::objects::method::MethodEntryPoint;
 use crate::objects::reference::ClassInstanceRef;
 use crate::symbols::sym;
 
@@ -92,7 +92,7 @@ mod _dynamic {
 	use crate::objects::method::Method;
 	use crate::objects::reference::{ClassInstanceRef, Reference};
 	use crate::stack::local_stack::LocalStack;
-	use crate::thread::exceptions::{throw, Exception, ExceptionKind, Throws};
+	use crate::thread::exceptions::{throw, Throws};
 	use crate::thread::frame::Frame;
 	use crate::{classes, java_call};
 	use common::traits::PtrType;

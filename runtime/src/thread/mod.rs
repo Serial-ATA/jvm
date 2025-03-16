@@ -8,7 +8,7 @@ pub mod pool;
 
 use crate::classes::java_lang_Thread::ThreadStatus;
 use crate::interpreter::Interpreter;
-use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
+use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::invocation_api::new_env;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::method::Method;
@@ -320,7 +320,7 @@ impl JavaThread {
 			return String::from("<un-named>");
 		}
 
-		rust_string_from_java_string(name.extract_class())
+		classes::java_lang_String::extract(name.extract_class().get())
 	}
 }
 

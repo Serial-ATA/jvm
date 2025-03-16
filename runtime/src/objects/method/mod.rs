@@ -1,26 +1,22 @@
 pub mod spec;
 
-use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::reference_from_jobject;
 use crate::native::method::NativeMethodPtr;
 use crate::objects::array::{Array, ObjectArrayInstance};
 use crate::objects::class::Class;
-use crate::objects::class_instance::ClassInstance;
 use crate::objects::constant_pool::cp_types;
-use crate::objects::mirror::MirrorInstance;
+use crate::objects::constant_pool::cp_types::MethodEntry;
 use crate::objects::reference::{MirrorInstanceRef, ObjectArrayInstanceRef, Reference};
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::Throws;
 use crate::thread::frame::Frame;
 use crate::thread::JavaThread;
-use crate::{classes, globals, java_call};
+use crate::{globals, java_call};
 
 use std::cell::SyncUnsafeCell;
 use std::ffi::VaList;
 use std::fmt::{Debug, Formatter};
-use std::sync::RwLock;
 
-use crate::objects::constant_pool::cp_types::MethodEntry;
 use classfile::accessflags::MethodAccessFlags;
 use classfile::attribute::resolved::ResolvedAnnotation;
 use classfile::attribute::{Attribute, Code, LineNumber};

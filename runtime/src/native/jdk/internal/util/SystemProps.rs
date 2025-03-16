@@ -73,6 +73,7 @@ pub mod Raw {
 			"java.home" => std::env::var("JAVA_HOME").unwrap(),
 
 			"sj.debug" => "true",
+			"java.lang.invoke.MethodHandle.DEBUG_NAMES" => "true",
 		);
 
 		Reference::object_array(prop_array)

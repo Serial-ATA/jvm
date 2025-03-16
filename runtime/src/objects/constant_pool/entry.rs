@@ -7,7 +7,6 @@ use crate::symbols::Symbol;
 use crate::thread::exceptions::Throws;
 
 use std::cell::UnsafeCell;
-use std::mem;
 use std::sync::Mutex;
 
 use classfile::constant_pool::types::CpEntry;

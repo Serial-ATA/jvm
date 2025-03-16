@@ -1,7 +1,9 @@
 use crate::native::java::lang::invoke::MethodHandleNatives;
-use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
+use crate::native::java::lang::String::StringInterner;
 use crate::objects::class::Class;
 use crate::objects::class_instance::ClassInstance;
+use crate::objects::field::Field;
+use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, MirrorInstanceRef, Reference};
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{handle_exception, throw, throw_and_return_null, Throws};
@@ -10,8 +12,6 @@ use crate::{classes, globals};
 
 use std::fmt::Write;
 
-use crate::objects::field::Field;
-use crate::objects::method::Method;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
 use classfile::accessflags::FieldAccessFlags;
@@ -125,14 +125,14 @@ pub fn resolve_member_name(
 	let defining_class = defining_class_field.get().target_class();
 
 	let name_field = classes::java_lang_invoke_MemberName::name(member_name);
-	let name_str = rust_string_from_java_string(name_field.extract_class());
+	let name_str = classes::java_lang_String::extract(name_field.extract_class().get());
 	let name = Symbol::intern(name_str);
 
 	let type_field = classes::java_lang_invoke_MemberName::type_(member_name);
 
 	let descriptor: Symbol;
 	if type_field.is_instance_of(globals::classes::java_lang_String()) {
-		let descriptor_str = rust_string_from_java_string(type_field.extract_class());
+		let descriptor_str = classes::java_lang_String::extract(type_field.extract_class().get());
 		descriptor = Symbol::intern(descriptor_str);
 	} else if type_field.is_instance_of(globals::classes::java_lang_Class()) {
 		descriptor = type_field.extract_target_class().as_signature();
@@ -306,6 +306,7 @@ fn init_member_name(member_name: ClassInstanceRef, member: FieldOrMethod) {
 						<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
 				} else {
 					flags |= (ReferenceKind::InvokeSpecial as jint)
+						<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
 				}
 			} else if method.class().is_interface() {
 				flags |= (ReferenceKind::InvokeInterface as jint)

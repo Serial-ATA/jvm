@@ -1,4 +1,4 @@
-use crate::native::java::lang::String::rust_string_from_java_string;
+use crate::classes;
 use crate::objects::array::{
 	Array, ObjectArrayInstance, PrimitiveArrayInstance, PrimitiveType, TypeCode,
 };
@@ -714,7 +714,7 @@ pub fn objectFieldOffset1(
 ) -> jlong {
 	let class = class.extract_mirror();
 
-	let name_str = rust_string_from_java_string(name.extract_class());
+	let name_str = classes::java_lang_String::extract(name.extract_class().get());
 	let classref = class.get().target_class();
 
 	let mut offset = 0;

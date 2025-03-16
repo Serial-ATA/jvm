@@ -6,7 +6,6 @@ use crate::objects::class::Class;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::reference::Reference;
 use crate::symbols::{sym, Symbol};
-use classfile::FieldType;
 
 use std::ops::{ControlFlow, FromResidual, Try};
 

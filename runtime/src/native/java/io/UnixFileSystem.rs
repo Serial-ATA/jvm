@@ -1,16 +1,16 @@
 #![allow(non_upper_case_globals)]
 
-use crate::native::java::lang::String::{rust_string_from_java_string, StringInterner};
+use crate::classes;
+use crate::native::java::lang::String::StringInterner;
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
+use crate::thread::exceptions::throw_and_return_null;
+use crate::thread::JavaThread;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use crate::classes;
-use crate::thread::exceptions::throw_and_return_null;
-use crate::thread::JavaThread;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
 use common::traits::PtrType;
@@ -25,7 +25,7 @@ fn get_file_path(file: Reference) -> String {
 		.get_field_value0(path_field_offset)
 		.expect_reference();
 
-	rust_string_from_java_string(value.extract_class())
+	classes::java_lang_String::extract(value.extract_class().get())
 }
 
 pub fn canonicalize0(
@@ -37,7 +37,7 @@ pub fn canonicalize0(
 		throw_and_return_null!(JavaThread::current(), NullPointerException);
 	}
 
-	let path_str = rust_string_from_java_string(path.extract_class());
+	let path_str = classes::java_lang_String::extract(path.extract_class().get());
 	let Ok(path) = std::path::Path::new(&path_str).canonicalize() else {
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw_and_return_null!(thread, IOException);

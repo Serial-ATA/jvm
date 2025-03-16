@@ -1,14 +1,6 @@
-use crate::objects::boxing::Boxable;
 use crate::objects::class::Class;
-use crate::objects::method::Method;
-use crate::objects::reference::{ClassInstanceRef, Reference};
-use crate::stack::local_stack::LocalStack;
-use crate::thread::exceptions::{handle_exception, throw_and_return_null, Throws};
-use crate::thread::JavaThread;
-use crate::{classes, java_call};
+use crate::objects::reference::Reference;
 
-use common::traits::PtrType;
-use instructions::Operand;
 use jni::env::JniEnv;
 
 include_generated!("native/java/lang/invoke/def/MethodHandle.definitions.rs");

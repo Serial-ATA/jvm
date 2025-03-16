@@ -1,6 +1,5 @@
 use crate::classes;
 use crate::modules::{Module, Package};
-use crate::native::java::lang::String::rust_string_from_java_string;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
@@ -25,13 +24,13 @@ pub fn defineModule0(
 
 	let mut version_sym = None;
 	if !version.is_null() {
-		let version_str = rust_string_from_java_string(version.extract_class());
+		let version_str = classes::java_lang_String::extract(version.extract_class().get());
 		version_sym = Some(Symbol::intern(version_str));
 	}
 
 	let mut location_sym = None;
 	if !location.is_null() {
-		let location_str = rust_string_from_java_string(location.extract_class());
+		let location_str = classes::java_lang_String::extract(location.extract_class().get());
 		location_sym = Some(Symbol::intern(location_str));
 	}
 
@@ -45,7 +44,8 @@ pub fn defineModule0(
 				throw!(thread, IllegalArgumentException, "Bad package name");
 			}
 
-			let package_name = rust_string_from_java_string(package_name.extract_class());
+			let package_name =
+				classes::java_lang_String::extract(package_name.extract_class().get());
 			package_names.push(Package::name_to_internal(package_name));
 		}
 	}
@@ -132,7 +132,7 @@ pub fn addExports0(
 		throw!(thread, IllegalArgumentException, "to_module is not valid");
 	};
 
-	let package_name = rust_string_from_java_string(pn.extract_class());
+	let package_name = classes::java_lang_String::extract(pn.extract_class().get());
 	let package_name = Package::name_to_internal(package_name);
 
 	let from_module = unsafe { &*from_ptr };
@@ -160,7 +160,7 @@ pub fn addExportsToAll0(
 		throw!(thread, IllegalArgumentException, "from_module is not valid");
 	};
 
-	let package_name = rust_string_from_java_string(pn.extract_class());
+	let package_name = classes::java_lang_String::extract(pn.extract_class().get());
 	let package_name = Package::name_to_internal(package_name);
 
 	let from_module = unsafe { &*from_ptr };

@@ -13,7 +13,7 @@ use crate::globals::classes;
 use crate::modules::{Module, Package};
 use crate::objects::constant_pool::cp_types;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
-use crate::symbols::{Internable, Symbol};
+use crate::symbols::Symbol;
 use crate::thread::exceptions::Throws;
 use crate::thread::JavaThread;
 
@@ -1117,7 +1117,7 @@ impl Class {
 		// SAFETY: The `class_name_index` is known to be correct, since the original name was derived
 		//         from it in `Class::new()`.
 		unsafe {
-			let class_name_index = unsafe { (*self.misc_cache.get()).class_name_index };
+			let class_name_index = (*self.misc_cache.get()).class_name_index;
 			cp.overwrite::<cp_types::Class>(class_name_index, ResolvedEntry { class: self });
 		}
 	}

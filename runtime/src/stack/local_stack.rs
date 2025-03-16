@@ -90,6 +90,7 @@ impl Iterator for LocalStackIter<'_> {
 	fn next(&mut self) -> Option<Self::Item> {
 		match self.inner.next() {
 			None => None,
+			Some(Operand::Empty) => unreachable!("empty slots should never be encountered"),
 			Some(operand) => {
 				if matches!(operand, Operand::Long(_) | Operand::Double(_)) {
 					// Skip the next slot
@@ -99,7 +100,6 @@ impl Iterator for LocalStackIter<'_> {
 				self.remaining -= 1;
 				Some(operand.clone())
 			},
-			Some(Operand::Empty) => unreachable!("empty slots should never be encountered"),
 		}
 	}
 }
