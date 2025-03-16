@@ -18,6 +18,7 @@ pub fn add_classpath_entry(entry: ClassPathEntry) {
 	CLASSPATH.write().unwrap().entries.push(entry);
 }
 
+// TODO: throw ClassNotFoundException
 pub fn find_classpath_entry(name: Symbol) -> Vec<u1> {
 	let mut name = name.as_str().replace('.', "/");
 	name.push_str(".class");

@@ -459,7 +459,6 @@ impl Class {
 			return Throws::Ok(());
 		}
 
-		// TODO:
 		// 5. If the Class object for C is in an erroneous state, then initialization is not possible.
 		//    Release LC and throw a NoClassDefFoundError.
 		if guard.initialization_state() == ClassInitializationState::Failed {

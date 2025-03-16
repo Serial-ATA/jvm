@@ -241,6 +241,7 @@ vm_symbols::define_symbols! {
 	java_lang_ClassFormatError: "java/lang/ClassFormatError",
 	java_lang_UnsupportedClassVersionError: "java/lang/UnsupportedClassVersionError",
 	java_lang_NoClassDefFoundError: "java/lang/NoClassDefFoundError",
+	java_lang_ClassNotFoundException: "java/lang/ClassNotFoundException",
 	java_lang_ClassCastException: "java/lang/ClassCastException",
 
 	java_lang_LinkageError: "java/lang/LinkageError",
@@ -263,6 +264,9 @@ vm_symbols::define_symbols! {
 	java_lang_IllegalStateException: "java/lang/IllegalStateException",
 	java_lang_IndexOutOfBoundsException: "java/lang/IndexOutOfBoundsException",
 	java_lang_IllegalThreadStateException: "java/lang/IllegalThreadStateException",
+
+	java_io_IOException: "java/io/IOException",
+
 	java_lang_InternalError: "java/lang/InternalError",
 	// -- GENERATED CLASS NAME MARKER, DO NOT DELETE --
 

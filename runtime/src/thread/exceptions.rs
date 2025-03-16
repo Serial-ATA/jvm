@@ -106,6 +106,8 @@ pub enum ExceptionKind {
 	UnsupportedClassVersionError,
 	/// java.lang.NoClassDefFoundError
 	NoClassDefFoundError,
+	/// java.lang.ClassNotFoundException
+	ClassNotFoundException,
 	/// java.lang.ClassCastException
 	ClassCastException,
 
@@ -146,6 +148,9 @@ pub enum ExceptionKind {
 	/// java.lang.IllegalThreadStateException
 	IllegalThreadStateException,
 
+	/// java.io.IOException
+	IOException,
+
 	/// java.lang.InternalError
 	InternalError,
 
@@ -162,6 +167,7 @@ impl ExceptionKind {
 				sym!(java_lang_UnsupportedClassVersionError)
 			},
 			ExceptionKind::NoClassDefFoundError => sym!(java_lang_NoClassDefFoundError),
+			ExceptionKind::ClassNotFoundException => sym!(java_lang_ClassNotFoundException),
 			ExceptionKind::ClassCastException => sym!(java_lang_ClassCastException),
 
 			ExceptionKind::LinkageError => sym!(java_lang_LinkageError),
@@ -190,6 +196,9 @@ impl ExceptionKind {
 			ExceptionKind::IllegalThreadStateException => {
 				sym!(java_lang_IllegalThreadStateException)
 			},
+
+			ExceptionKind::IOException => sym!(java_io_IOException),
+
 			ExceptionKind::InternalError => sym!(java_lang_InternalError),
 
 			ExceptionKind::PendingException => unreachable!(),

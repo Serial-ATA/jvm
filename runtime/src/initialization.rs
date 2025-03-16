@@ -74,19 +74,9 @@ fn initialize_thread(thread: &JavaThread) -> Result<(), JniError> {
 	// Create native entrypoints for `java.lang.invoke.MethodHandle#link*` methods
 	classes::java_lang_invoke_MethodHandle::init_entry_points();
 
-	// https://github.com/openjdk/jdk/blob/04591595374e84cfbfe38d92bff4409105b28009/src/hotspot/share/runtime/threads.cpp#L408
-
 	init_phase_1(thread)?;
-
-	// TODO: ...
-
 	init_phase_2(thread)?;
-
-	// TODO: ...
-
 	init_phase_3(thread)?;
-
-	// TODO: https://github.com/openjdk/jdk/blob/04591595374e84cfbfe38d92bff4409105b28009/src/java.base/share/native/libjli/java.c#L1805
 
 	Ok(())
 }

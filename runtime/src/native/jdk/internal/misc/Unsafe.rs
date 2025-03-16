@@ -6,7 +6,7 @@ use crate::objects::class::ClassInitializationState;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
-use crate::thread::exceptions::{throw, Throws};
+use crate::thread::exceptions::{throw, throw_with_ret, Throws};
 use crate::thread::JavaThread;
 
 use std::marker::PhantomData;
@@ -707,7 +707,7 @@ pub fn objectFieldOffset0(
 }
 
 pub fn objectFieldOffset1(
-	_env: JniEnv,
+	env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 	class: Reference, // java.lang.Class
 	name: Reference,  // String
@@ -730,8 +730,8 @@ pub fn objectFieldOffset1(
 		offset += 1;
 	}
 
-	// TODO
-	panic!("InternalError")
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	throw_with_ret!(0, thread, InternalError);
 }
 
 pub fn staticFieldOffset0(

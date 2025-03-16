@@ -71,7 +71,7 @@ impl Debug for FrameStack {
 }
 
 impl FrameStack {
-	// TODO
+	// TODO: Actually allow custom capacity
 	pub fn new() -> Self {
 		FrameStack {
 			inner: UnsafeCell::new(Vec::with_capacity(1024)),

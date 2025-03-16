@@ -326,7 +326,7 @@ pub fn getProtectionDomain0(
 	unimplemented!("Class#getProtectionDomain0");
 }
 pub fn getPrimitiveClass(
-	_env: JniEnv,
+	env: JniEnv,
 	_class: &'static Class,
 	name: Reference, // String
 ) -> Reference /* Class */
@@ -340,8 +340,8 @@ pub fn getPrimitiveClass(
 		}
 	}
 
-	// TODO
-	panic!("ClassNotFoundException")
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	throw_and_return_null!(thread, ClassNotFoundException, "{name_string}");
 }
 pub fn getGenericSignature0(
 	_env: JniEnv,

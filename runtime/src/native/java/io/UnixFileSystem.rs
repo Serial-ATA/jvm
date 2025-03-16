@@ -29,7 +29,7 @@ fn get_file_path(file: Reference) -> String {
 }
 
 pub fn canonicalize0(
-	_: JniEnv,
+	env: JniEnv,
 	_this: Reference,
 	path: Reference, // java.lang.String
 ) -> Reference /* java.lang.String */ {
@@ -39,7 +39,8 @@ pub fn canonicalize0(
 
 	let path_str = rust_string_from_java_string(path.extract_class());
 	let Ok(path) = std::path::Path::new(&path_str).canonicalize() else {
-		panic!("IOException"); // TODO
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		throw_and_return_null!(thread, IOException);
 	};
 
 	let new_path = path.to_string_lossy().into_owned();

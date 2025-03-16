@@ -11,6 +11,7 @@ use std::os::fd::{FromRawFd, RawFd};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::classes;
+use crate::thread::exceptions::throw;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint};
 use common::traits::PtrType;
@@ -47,15 +48,15 @@ pub fn writeBytes(
 	_append: jboolean,
 ) {
 	if b.is_null() {
-		let _thread = unsafe { JavaThread::for_env(env.raw()) };
-		panic!("NullPointerException"); // TODO
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		throw!(thread, NullPointerException);
 	}
 
 	let array_instance = b.extract_primitive_array();
 	let array_content = array_instance.get().as_slice::<jbyte>();
 	if off < 0 || len < 0 || (off + len) as usize > array_content.len() {
-		let _thread = unsafe { JavaThread::for_env(env.raw()) };
-		panic!("IndexOutOfBoundsException"); // TODO
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		throw!(thread, IndexOutOfBoundsException);
 	}
 
 	if len == 0 {
@@ -74,8 +75,8 @@ pub fn writeBytes(
 	while len > 0 {
 		let current_fd = get_fd(&this);
 		if current_fd == -1 {
-			let _thread = unsafe { JavaThread::for_env(env.raw()) };
-			panic!("IOException, stream closed"); // TODO
+			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+			throw!(thread, IOException, "stream closed");
 		}
 
 		// Wrap in `ManuallyDrop` so the file descriptor doesn't get closed
@@ -83,8 +84,8 @@ pub fn writeBytes(
 			ManuallyDrop::new(unsafe { std::fs::File::from_raw_fd(current_fd as RawFd) });
 
 		let Ok(n) = file.write(&window[offset..]) else {
-			let _thread = unsafe { JavaThread::for_env(env.raw()) };
-			panic!("IOException"); // TODO
+			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+			throw!(thread, IOException);
 		};
 
 		offset += n;
