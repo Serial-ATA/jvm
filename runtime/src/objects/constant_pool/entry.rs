@@ -7,26 +7,28 @@ use crate::symbols::Symbol;
 use crate::thread::exceptions::Throws;
 
 use std::cell::UnsafeCell;
+use std::mem;
 use std::sync::Mutex;
 
 use classfile::constant_pool::types::CpEntry;
 use common::int_types::{s4, s8, u2};
 
 #[derive(Copy, Clone)]
-pub(super) union ResolvedEntry {
-	pub(super) integer: s4,
-	pub(super) double: f64,
-	pub(super) float: f32,
-	pub(super) long: s8,
-	pub(super) class: &'static Class,
-	pub(super) class_name: Symbol,
-	pub(super) name_and_type: (Symbol, Symbol),
-	pub(super) constant_utf8: Symbol,
-	pub(super) field_ref: &'static Field,
-	pub(super) invoke_dynamic: InvokeDynamicEntry,
-	pub(super) method_ref: MethodEntry,
-	pub(super) method_handle: &'static Reference,
-	pub(super) string: Symbol,
+#[repr(C)]
+pub union ResolvedEntry {
+	pub integer: s4,
+	pub double: f64,
+	pub float: f32,
+	pub long: s8,
+	pub class: &'static Class,
+	pub class_name: Symbol,
+	pub name_and_type: (Symbol, Symbol),
+	pub constant_utf8: Symbol,
+	pub field_ref: &'static Field,
+	pub invoke_dynamic: InvokeDynamicEntry,
+	pub method_ref: MethodEntry,
+	pub method_handle: &'static Reference,
+	pub string: Symbol,
 }
 
 pub(super) struct ConstantPoolEntry {
@@ -86,6 +88,9 @@ impl ConstantPoolEntry {
 		index: u2,
 		value: <T::RawEntryType as CpEntry>::Entry,
 	) -> Throws<T::Resolved> {
+		// Reset in case something else is in here
+		unsafe { *self.resolved.get() = None }
+
 		let resolved = T::resolve_with(class, cp, index, value)?;
 		unsafe {
 			self.set_resolved(resolved);
@@ -94,7 +99,7 @@ impl ConstantPoolEntry {
 		Throws::Ok(T::resolved_entry(resolved))
 	}
 
-	unsafe fn set_resolved(&self, resolved: ResolvedEntry) {
+	pub(super) unsafe fn set_resolved(&self, resolved: ResolvedEntry) {
 		unsafe { *self.resolved.get() = Some(resolved) };
 	}
 

@@ -1,3 +1,5 @@
+#![allow(non_snake_case)] // Using the same identifiers as the spec
+
 use crate::objects::method::Method;
 
 impl Method {
@@ -5,10 +7,21 @@ impl Method {
 	///
 	/// [signature polymorphic]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.9.3
 	pub fn is_signature_polymorphic(&self) -> bool {
+		let Some(java_lang_invoke_MethodHandle) =
+			crate::globals::classes::java_lang_invoke_MethodHandle_opt()
+		else {
+			// The java.lang.invoke.MethodHandle class isn't even loaded. Still very early in initialization, so we
+			// won't ever end up calling signature polymorphic methods here.
+			//
+			// Also, don't need to check for `java.lang.invoke.VarHandle` since it is immediately loaded after
+			// `java.lang.invoke.MethodHandle`.
+			return false;
+		};
+
 		// A method is signature polymorphic if all of the following are true:
 		//
 		//     It is declared in the java.lang.invoke.MethodHandle class or the java.lang.invoke.VarHandle class.
-		(self.class == crate::globals::classes::java_lang_invoke_MethodHandle()
+		(self.class == java_lang_invoke_MethodHandle
 			|| self.class == crate::globals::classes::java_lang_invoke_VarHandle()) &&
 
 			//     It has a single formal parameter of type Object[].
@@ -19,7 +32,6 @@ impl Method {
 	}
 
 	/// Whether this method can override the provided instance method ([§5.4.3.3](https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.5))
-	#[allow(non_snake_case)]
 	pub fn can_override(&self, other: &Method) -> bool {
 		// An instance method mC can override another instance method mA iff all of the following are true:
 

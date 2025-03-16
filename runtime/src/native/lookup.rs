@@ -1,7 +1,7 @@
 use crate::java_call;
 use crate::native::java::lang::String::StringInterner;
 use crate::native::method::NativeMethodPtr;
-use crate::objects::method::Method;
+use crate::objects::method::{Method, MethodEntryPoint};
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
 use crate::thread::JavaThread;
@@ -94,7 +94,7 @@ impl<'a> NativeNameConverter<'a> {
 		// Start with the prefix
 		let mut name = String::from("Java_");
 
-		let class_name = self.method.class().name.as_str();
+		let class_name = self.method.class().name().as_str();
 		if !Self::map_escaped_name_on(&mut name, class_name) {
 			return None;
 		}
@@ -338,14 +338,14 @@ fn lookup_base(method: &Method, thread: &JavaThread) -> Throws<NativeMethodPtr> 
 }
 
 pub fn lookup_native_method(method: &Method, thread: &JavaThread) -> Throws<NativeMethodPtr> {
-	if let Some(native_method) = method.native_method() {
+	if let Some(MethodEntryPoint::NativeMethod(native_method)) = method.entry_point() {
 		return Throws::Ok(native_method);
 	}
 
 	tracing::debug!(target: "lookup", "Looking up native invoker for method `{:?}`", method);
 	let result = lookup_base(method, thread);
 	if let Throws::Ok(entry) = &result {
-		method.set_native_method(*entry);
+		method.set_entry_point(MethodEntryPoint::NativeMethod(*entry));
 	}
 
 	result

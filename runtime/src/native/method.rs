@@ -84,7 +84,7 @@ pub(self) static NATIVE_METHOD_TABLE: LazyLock<RwLock<HashMap<NativeMethodDef, N
 /// Lookup the native method defintion for `method`, or return `None`
 pub fn lookup_method(method: &Method) -> Option<NativeMethodPtr> {
 	let native_method = NativeMethodDef {
-		class: method.class().name,
+		class: method.class().name(),
 		name: method.name,
 		descriptor: method.descriptor_sym(),
 		is_static: method.is_static(),

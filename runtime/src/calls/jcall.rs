@@ -25,7 +25,7 @@
 macro_rules! java_call {
 	(
         $thread:expr,
-        $method:ident,
+        $method:expr,
 		$($arg:expr),+ $(,)?
     ) => {{
 		let max_locals = $method.code.max_locals;
@@ -36,7 +36,7 @@ macro_rules! java_call {
 	// No arguments path, still needs to allocate a LocalStack for stores
 	(
         $thread:expr,
-        $method:ident $(,)?
+        $method:expr $(,)?
     ) => {{
 		let max_locals = $method.code.max_locals;
 		let local_stack = $crate::stack::local_stack::LocalStack::new(max_locals as usize);
@@ -45,7 +45,7 @@ macro_rules! java_call {
 	(
 		@WITH_ARGS_LIST
         $thread:expr,
-        $method:ident,
+        $method:expr,
 		$args_list:ident $(,)?
     ) => {{
 		tracing::debug!(target: "java_call", "Invoking manual Java call for method `{:?}`", $method);

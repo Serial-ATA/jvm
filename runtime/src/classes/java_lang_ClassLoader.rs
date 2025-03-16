@@ -50,3 +50,42 @@ super::field_module! {
 	/// Expected type: `Reference` to `java.lang.util.concurrent.ConcurrentHashMap`
 	[sym: parallelLockMap] @FIELD parallelCapable: FieldType::Object(_),
 }
+
+pub mod calls {
+	use crate::classpath::loader::ClassLoader;
+	use crate::objects::method::Method;
+	use crate::objects::reference::{MirrorInstanceRef, Reference};
+	use crate::symbols::sym;
+	use crate::thread::exceptions::Throws;
+	use crate::thread::JavaThread;
+	use crate::{globals, java_call};
+	use instructions::Operand;
+	use std::sync::LazyLock;
+
+	// TODO: Would be nice to have a macro similar to `field_module` which lets us define globally, resolved once, methods
+	pub fn addClass(
+		thread: &JavaThread,
+		loader: &ClassLoader,
+		class: MirrorInstanceRef,
+	) -> Throws<()> {
+		static ADD_CLASS_METHOD: LazyLock<&'static Method> = LazyLock::new(|| {
+			// TODO: Ideally, promote this to an exception
+			globals::classes::java_lang_ClassLoader()
+				.resolve_method(sym!(addClass), sym!(Class_void_signature))
+				.expect("method should exist")
+		});
+
+		let _result = java_call!(
+			thread,
+			&ADD_CLASS_METHOD,
+			Operand::Reference(loader.obj()),
+			Operand::Reference(Reference::mirror(class))
+		);
+
+		if thread.has_pending_exception() {
+			return Throws::PENDING_EXCEPTION;
+		}
+
+		Throws::Ok(())
+	}
+}

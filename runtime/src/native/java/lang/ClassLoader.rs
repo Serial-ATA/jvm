@@ -118,8 +118,10 @@ pub fn defineClass0(
 		}
 	}
 
-	let loader = ClassLoaderSet::find_or_add(loader);
+	let loader = ClassLoaderSet::find_or_add(loader, is_hidden && !is_strong);
 	if name.is_null() {
+		// TODO: In this case, the name is just to be derived from the class file itself.
+		//       Will need to train the loader to be able to do that.
 		todo!()
 	}
 
@@ -127,15 +129,21 @@ pub fn defineClass0(
 
 	let bytes = b.extract_primitive_array();
 	let bytes_slice = bytes.get().as_slice::<jbyte>();
+
 	let off = off as usize;
 	let len = len as usize;
 
 	let bytes_window_signed = &bytes_slice[off..off + len];
 
-	// SAFETY: i8 and u8 have the same size
-	let bytes_window: &[u1] = unsafe { mem::transmute(bytes_window_signed) };
+	// SAFETY: `i8` and `u8` have the same size and alignment
+	let bytes_window: &[u8] = unsafe {
+		std::slice::from_raw_parts(
+			bytes_window_signed.as_ptr() as *const u8,
+			bytes_window_signed.len(),
+		)
+	};
 
-	let class = match loader.derive_class(name, Some(bytes_window)) {
+	let class = match loader.derive_class(name, Some(bytes_window), is_hidden) {
 		Throws::Ok(class) => class,
 		Throws::Exception(e) => {
 			let thread = unsafe { &*JavaThread::for_env(_env.raw()) };

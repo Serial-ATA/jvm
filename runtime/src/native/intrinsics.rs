@@ -1,8 +1,11 @@
 use crate::objects::method::Method;
 
+use std::sync::{LazyLock, Mutex};
+
 use classfile::accessflags::MethodAccessFlags;
-// static REGISTERED_INTRINSICS: Lazy<Mutex<Vec<IntrinsicEntry>>> =
-// 	Lazy::new(|| Mutex::new(Vec::new()));
+
+static REGISTERED_INTRINSICS: LazyLock<Mutex<Vec<IntrinsicEntry>>> =
+	LazyLock::new(|| Mutex::new(Vec::new()));
 
 pub fn find_intrinsic(_method: &Method, _is_virtual: bool) -> Option<IntrinsicEntry> {
 	todo!()

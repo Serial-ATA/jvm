@@ -1,10 +1,22 @@
+use crate::globals;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
+
 use classfile::FieldType;
+use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::jlong;
+
+pub fn new(method: &'static Method) -> Reference {
+	let instance = ClassInstance::new(globals::classes::java_lang_invoke_ResolvedMethodName());
+
+	set_vmtarget(instance.get_mut(), method);
+	set_vmholder(instance.get_mut(), method.class().mirror());
+
+	Reference::class(instance)
+}
 
 pub fn vmholder(instance: &ClassInstance) -> Reference {
 	instance

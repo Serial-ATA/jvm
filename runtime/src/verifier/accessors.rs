@@ -41,7 +41,7 @@ pub(super) trait ClassAccessorExt {
 impl ClassAccessorExt for Class {
 	#[inline]
 	fn class_name(&self) -> Symbol {
-		self.name
+		self.name()
 	}
 
 	#[inline]
@@ -59,7 +59,7 @@ impl ClassAccessorExt for Class {
 			self.super_class.is_some(),
 			"This should never be called on java.lang.Object"
 		);
-		self.super_class.as_ref().unwrap().name
+		self.super_class.as_ref().unwrap().name()
 	}
 
 	fn interfaces(&self) -> &[&'static Class] {

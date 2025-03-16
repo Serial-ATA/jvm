@@ -65,6 +65,7 @@ define_classes!(
 	java_lang_invoke_LambdaForm,
 	java_lang_reflect_Constructor,
 	java_lang_reflect_Method,
+	java_lang_reflect_Field,
 	java_lang_ref_Reference,
 	java_lang_ref_Finalizer,
 	java_io_FileDescriptor,

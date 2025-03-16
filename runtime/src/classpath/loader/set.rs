@@ -1,4 +1,5 @@
 use super::ClassLoader;
+use crate::classes;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 
@@ -6,7 +7,6 @@ use std::cell::SyncUnsafeCell;
 use std::collections::LinkedList;
 use std::sync::{LazyLock, Mutex};
 
-use crate::classes;
 use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::jlong;
@@ -26,8 +26,16 @@ static CLASS_LOADER_SET: LazyLock<ClassLoaderSet> = LazyLock::new(|| ClassLoader
 });
 
 impl ClassLoaderSet {
-	pub fn add(loader: Reference) -> &'static ClassLoader {
+	pub fn add(loader: Reference, is_hidden: bool) -> &'static ClassLoader {
 		let _guard = CLASS_LOADER_SET.write_mutex.lock().unwrap();
+
+		// TODO: These hidden classloaders will forever be in the set, need to sweep.
+		if is_hidden {
+			let class_loader = ClassLoader::new_hidden(loader);
+			let list = unsafe { &mut *CLASS_LOADER_SET.list.get() };
+			list.push_back(class_loader);
+			return list.back().unwrap();
+		}
 
 		let class_loader = ClassLoader::from_obj(loader.clone());
 
@@ -45,16 +53,17 @@ impl ClassLoaderSet {
 		ret
 	}
 
-	pub fn find(loader: Reference) -> Option<&'static ClassLoader> {
+	pub fn find(loader: Reference, is_hidden: bool) -> Option<&'static ClassLoader> {
 		if loader.is_null() {
 			return Some(ClassLoader::bootstrap());
 		}
 
 		let list = unsafe { &*CLASS_LOADER_SET.list.get() };
-		list.iter().find(|cl| cl.obj == loader)
+		list.iter()
+			.find(|cl| cl.obj == loader && cl.is_hidden() == is_hidden)
 	}
 
-	pub fn find_or_add(loader: Reference) -> &'static ClassLoader {
+	pub fn find_or_add(loader: Reference, is_hidden: bool) -> &'static ClassLoader {
 		if loader.is_null() {
 			return ClassLoader::bootstrap();
 		}
@@ -65,9 +74,9 @@ impl ClassLoaderSet {
 			return unsafe { &*class_loader_ptr };
 		}
 
-		match Self::find(loader.clone()) {
+		match Self::find(loader.clone(), is_hidden) {
 			Some(cl) => cl,
-			None => Self::add(loader),
+			None => Self::add(loader, is_hidden),
 		}
 	}
 }

@@ -1,3 +1,4 @@
+use crate::globals;
 use crate::native::java::lang::String::StringInterner;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
@@ -7,7 +8,6 @@ use crate::objects::reference::{
 };
 use crate::symbols::sym;
 use crate::thread::exceptions::Throws;
-use crate::{classes, globals};
 
 use classfile::FieldType;
 use common::traits::PtrType;

@@ -44,8 +44,7 @@ impl OperandStack {
 
 	/// Gets the value `offset` slots down from the top of the stack
 	pub fn at(&self, offset: usize) -> Operand<Reference> {
-		let top = self.inner.len() - 1;
-		self.inner[top - offset].clone()
+		self.inner[self.inner.len() - offset].clone()
 	}
 }
 

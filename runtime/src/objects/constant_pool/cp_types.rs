@@ -38,7 +38,7 @@ pub enum Entry {
 }
 
 /// A trait for types that can be stored in the constant pool.
-#[expect(private_interfaces)]
+
 pub trait EntryType: sealed::Sealed {
 	/// The final type an entry will resolve to.
 	type Resolved;
@@ -73,7 +73,6 @@ pub trait EntryType: sealed::Sealed {
 
 pub struct Class;
 
-#[expect(private_interfaces)]
 impl EntryType for Class {
 	type Resolved = &'static ClassObj;
 	type RawEntryType = raw_types::RawClassName;
@@ -107,7 +106,6 @@ impl EntryType for Class {
 
 pub struct Integer;
 
-#[expect(private_interfaces)]
 impl EntryType for Integer {
 	type Resolved = s4;
 	type RawEntryType = raw_types::Integer;
@@ -139,7 +137,6 @@ impl EntryType for Integer {
 
 pub struct Double;
 
-#[expect(private_interfaces)]
 impl EntryType for Double {
 	type Resolved = f64;
 	type RawEntryType = raw_types::Double;
@@ -171,7 +168,6 @@ impl EntryType for Double {
 
 pub struct Float;
 
-#[expect(private_interfaces)]
 impl EntryType for Float {
 	type Resolved = f32;
 	type RawEntryType = raw_types::Float;
@@ -203,7 +199,6 @@ impl EntryType for Float {
 
 pub struct Long;
 
-#[expect(private_interfaces)]
 impl EntryType for Long {
 	type Resolved = s8;
 	type RawEntryType = raw_types::Long;
@@ -235,7 +230,6 @@ impl EntryType for Long {
 
 pub struct ClassName;
 
-#[expect(private_interfaces)]
 impl EntryType for ClassName {
 	type Resolved = Symbol;
 	type RawEntryType = raw_types::RawClassName;
@@ -267,7 +261,6 @@ impl EntryType for ClassName {
 
 pub struct ConstantUtf8;
 
-#[expect(private_interfaces)]
 impl EntryType for ConstantUtf8 {
 	type Resolved = Symbol;
 	type RawEntryType = raw_types::RawConstantUtf8;
@@ -301,7 +294,6 @@ impl EntryType for ConstantUtf8 {
 
 pub struct NameAndType;
 
-#[expect(private_interfaces)]
 impl EntryType for NameAndType {
 	type Resolved = (Symbol, Symbol);
 	type RawEntryType = raw_types::RawNameAndType;
@@ -340,7 +332,6 @@ pub struct InvokeDynamicEntry {
 	pub appendix: Option<&'static Reference>,
 }
 
-#[expect(private_interfaces)]
 impl EntryType for InvokeDynamic {
 	type Resolved = InvokeDynamicEntry;
 	type RawEntryType = raw_types::RawInvokeDynamic;
@@ -483,7 +474,6 @@ impl EntryType for InvokeDynamic {
 
 pub struct MethodHandle;
 
-#[expect(private_interfaces)]
 impl EntryType for MethodHandle {
 	type Resolved = Reference;
 	type RawEntryType = raw_types::RawMethodHandle;
@@ -587,7 +577,6 @@ impl EntryType for MethodHandle {
 
 pub struct FieldRef;
 
-#[expect(private_interfaces)]
 impl EntryType for FieldRef {
 	type Resolved = &'static Field;
 	type RawEntryType = raw_types::RawFieldRef;
@@ -631,6 +620,8 @@ pub struct MethodEntry {
 	/// This is needed for variadic methods, saving the effort of parsing the descriptor on
 	/// every call.
 	pub parameter_count: u1,
+	/// The number of stack slots that the parameters take up
+	pub parameters_stack_size: u2,
 }
 
 /// A resolved `CONSTANT_Methodref` entry
@@ -644,7 +635,6 @@ pub struct MethodEntry {
 /// [signature polymorphic]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.9.3
 pub struct MethodRef;
 
-#[expect(private_interfaces)]
 impl EntryType for MethodRef {
 	type Resolved = MethodEntry;
 	type RawEntryType = raw_types::RawMethodRef;
@@ -681,18 +671,31 @@ impl EntryType for MethodRef {
 			method_ref = class.resolve_method(name, descriptor)?;
 		}
 
-		let parameter_count = if method_ref.is_var_args() {
+		let (parameter_count, parameters_stack_size) = if method_ref.is_var_args() {
 			let descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes())
 				.expect("an invalid descriptor shouldn't make it this far");
-			descriptor.parameters.len() as u1
+
+			let stack_size = descriptor
+				.parameters
+				.iter()
+				.map(|ty| ty.stack_size() as u2)
+				.sum();
+			(descriptor.parameters.len() as u1, stack_size)
 		} else {
-			method_ref.parameter_count()
+			let stack_size = method_ref
+				.descriptor
+				.parameters
+				.iter()
+				.map(|ty| ty.stack_size() as u2)
+				.sum();
+			(method_ref.parameter_count(), stack_size)
 		};
 
 		let entry = MethodEntry {
 			method: method_ref,
 			descriptor,
 			parameter_count,
+			parameters_stack_size,
 		};
 
 		Throws::Ok(ResolvedEntry { method_ref: entry })
@@ -701,7 +704,6 @@ impl EntryType for MethodRef {
 
 pub struct String;
 
-#[expect(private_interfaces)]
 impl EntryType for String {
 	type Resolved = Symbol;
 	type RawEntryType = raw_types::RawString;

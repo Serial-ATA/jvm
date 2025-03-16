@@ -176,39 +176,42 @@ impl Class {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.2
-	pub fn prepare(&self) {
+	pub fn prepare(&self) -> Throws<()> {
 		// Preparation involves creating the static fields for a class or interface and initializing such fields
 		// to their default values (§2.3, §2.4). This does not require the execution of any Java Virtual Machine code;
 		// explicit initializers for static fields are executed as part of initialization (§5.5), not preparation.
-		let mut prepared_fields = Vec::new();
-		for (idx, field) in self.static_fields().enumerate() {
-			prepared_fields.push((field, idx));
-		}
-
-		for (field, idx) in prepared_fields {
+		for field in self.static_fields() {
 			let value = Field::default_value_for_ty(&field.descriptor);
 			unsafe {
-				self.set_static_field(idx, value);
+				self.set_static_field(field.index(), value);
 			}
 		}
 
-		// TODO:
 		// During preparation of a class or interface C, the Java Virtual Machine also imposes loading constraints (§5.3.4):
+
+		// Let L1 be the defining loader of C. For each instance method m declared in C that can override (§5.4.5) an instance
+		// method declared in a superclass or superinterface D = <N2, L2>, for each class or interface name N mentioned by the
+		// descriptor of m (§4.3.3), the Java Virtual Machine imposes the loading constraint NL1 = NL2.
+
+		// For each instance method m declared in a superinterface I = <N3, L3> of C, if C does not itself declare an instance
+		// method that can override m, then a method is selected (§5.4.6) with respect to C and the method m in I.
+		// Let D = <N2, L2> be the class or interface that declares the selected method. For each class or interface name N mentioned
+		// by the descriptor of m, the Java Virtual Machine imposes the loading constraint NL2 = NL3.
+
+		Throws::Ok(())
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.3.2
 	#[tracing::instrument(skip_all)]
 	pub fn resolve_field(&self, name: Symbol, descriptor: Symbol) -> Throws<&'static Field> {
 		fn inner(class: &Class, name: Symbol, descriptor: Symbol) -> Option<&'static Field> {
-			let field_type = FieldType::parse(&mut descriptor.as_bytes()).unwrap(); // TODO: Error handling
-
 			// When resolving a field reference, field resolution first attempts to look up
 			// the referenced field in C and its superclasses:
 
 			// 1. If C declares a field with the name and descriptor specified by the field reference,
 			//    field lookup succeeds. The declared field is the result of the field lookup.
 			for field in class.fields() {
-				if field.name == name && field.descriptor == field_type {
+				if field.name == name && field.descriptor_sym == descriptor {
 					return Some(field);
 				}
 			}
@@ -465,7 +468,7 @@ impl Class {
 
 		// 6. Otherwise, record the fact that initialization of the Class object for C is in progress
 		//    by the current thread, and release LC.
-		tracing::debug!(target: "class-init-start", "Starting initialization of class `{}`", self.name.as_str());
+		tracing::debug!(target: "class-init-start", "Starting initialization of class `{}`", self.name());
 
 		guard.set_initialization_state(ClassInitializationState::InProgress);
 		guard.set_initializing_thread();
@@ -578,7 +581,7 @@ impl Class {
 			guard.set_initialization_state(ClassInitializationState::Init);
 			init.notify_all();
 
-			tracing::debug!(target: "class-init", "Finished initialization of class `{}`", self.name.as_str());
+			tracing::debug!(target: "class-init", "Finished initialization of class `{}`", self.name());
 			return Throws::Ok(());
 		}
 

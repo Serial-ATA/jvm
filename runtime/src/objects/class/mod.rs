@@ -2,7 +2,7 @@ mod spec;
 pub use spec::ClassInitializationState;
 use spec::InitializationLock;
 
-use super::constant_pool::ConstantPool;
+use super::constant_pool::{ConstantPool, ResolvedEntry};
 use super::field::Field;
 use super::method::Method;
 use super::mirror::MirrorInstance;
@@ -26,7 +26,7 @@ use std::{mem, ptr};
 
 use classfile::accessflags::ClassAccessFlags;
 use classfile::attribute::resolved::ResolvedBootstrapMethod;
-use classfile::constant_pool::types::raw as raw_types;
+use classfile::constant_pool::types::{raw as raw_types, ClassNameEntry};
 use classfile::{ClassFile, FieldType, MethodInfo};
 use common::box_slice;
 use common::int_types::{u1, u2, u4};
@@ -36,6 +36,8 @@ use instructions::Operand;
 /// A cache for miscellaneous fields
 #[derive(Default, Debug)]
 struct MiscCache {
+	/// The index of the name of this class in the constant pool
+	class_name_index: u2,
 	nest_host: Option<&'static Class>,
 	nest_host_index: Option<u2>,
 	array_class_name: Option<Symbol>,
@@ -128,7 +130,8 @@ impl FieldContainer {
 
 // TODO: Make more fields private
 pub struct Class {
-	pub name: Symbol,
+	// UnsafeCell, since we need to mangle the names of hidden classes *after* they are constructed.
+	name: UnsafeCell<Symbol>,
 	pub access_flags: ClassAccessFlags,
 	loader: &'static ClassLoader,
 	pub super_class: Option<&'static Class>,
@@ -156,7 +159,7 @@ unsafe impl Sync for Class {}
 impl Debug for Class {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("Class")
-			.field("name", &self.name.as_str())
+			.field("name", &self.name().as_str())
 			.field("access_flags", &self.access_flags)
 			.field("loader", &self.loader)
 			.field("super_class", &self.super_class)
@@ -168,7 +171,7 @@ impl Debug for Class {
 
 impl PartialEq for Class {
 	fn eq(&self, other: &Self) -> bool {
-		self.name == other.name
+		self.name() == other.name() && self.loader == other.loader
 	}
 }
 
@@ -247,6 +250,13 @@ impl Class {
 		// SAFETY: The only way to construct a `Class` is via `Class::new()`, which ensures that the
 		//         class type is initialized.
 		unsafe { (&*self.class_ty.get()).assume_init_ref() }
+	}
+
+	/// Get the name of this class
+	///
+	/// NOTE: For hidden classes, the name will be mangled
+	pub fn name(&self) -> Symbol {
+		unsafe { *self.name.get() }
 	}
 
 	/// Get a reference to the `ClassLoader` that loaded this class
@@ -335,7 +345,7 @@ impl Class {
 			return Ok(package_name);
 		};
 
-		let name_str = self.name.as_str();
+		let name_str = self.name().as_str();
 
 		if name_str.is_empty() {
 			return Err(RuntimeError::BadClassName);
@@ -432,7 +442,7 @@ impl Class {
 
 		let ret;
 		if self.is_array() {
-			let name = format!("[{}", self.name.as_str());
+			let name = format!("[{}", self.name().as_str());
 			ret = Symbol::intern(name);
 		} else {
 			let name = format!("[{}", self.as_signature());
@@ -461,7 +471,7 @@ impl Class {
 			"This should never be called on non-array classes"
 		);
 
-		let mut class_name = &self.name.as_str()[1..];
+		let mut class_name = &self.name().as_str()[1..];
 		let ret;
 		match class_name.as_bytes()[0] {
 			// Multi-dimensional array
@@ -496,12 +506,12 @@ impl Class {
 
 		let signature;
 		if self.is_array() {
-			signature = Symbol::intern(format!("{}", self.name.as_str()));
+			signature = Symbol::intern(format!("{}", self.name().as_str()));
 			unsafe {
 				(*self.misc_cache.get()).signature = Some(signature);
 			}
 		} else {
-			signature = Symbol::intern(format!("L{};", self.name.as_str()));
+			signature = Symbol::intern(format!("L{};", self.name().as_str()));
 		}
 
 		unsafe {
@@ -519,12 +529,22 @@ impl Class {
 			return external_name;
 		}
 
-		let signature = Symbol::intern(self.name.as_str().replace('/', "."));
+		let signature = Symbol::intern(self.name().as_str().replace('/', "."));
 		unsafe {
 			(*self.misc_cache.get()).signature = Some(signature);
 		}
 
 		signature
+	}
+
+	pub fn external_kind(&self) -> &'static str {
+		if self.is_interface() {
+			"interface"
+		} else if self.is_abstract() {
+			"abstract class"
+		} else {
+			"class"
+		}
 	}
 
 	/// Get the external name of this class (for user-facing messages)
@@ -586,6 +606,80 @@ impl Class {
 			(*self.misc_cache.get()).nest_host = Some(self);
 		}
 		Throws::Ok(self)
+	}
+
+	/// A standard help string for errors including the class, loader, and module
+	///
+	/// Format:
+	/// ```
+	///   <fully-qualified-external-class-name> is in module <module-name>[@<version>]
+	///                                         of loader <loader-name_and_id>[, parent loader <parent-loader-name_and_id>]
+	/// ```
+	pub fn in_module_of_loader(&self, use_are: bool, include_parent_loader: bool) -> String {
+		let are_or_is = if use_are { "are" } else { "is" };
+
+		// 1. fully-qualified external name of the class
+		let external_name = self.external_name();
+
+		let module_name_phrase;
+		let module_name;
+
+		let mut module_version_separator = "";
+		let mut module_version = "";
+
+		'module_info: {
+			let mut target_class = self;
+			if self.is_array() {
+				let array_descriptor = self.unwrap_array_instance();
+
+				// Simplest case, primitive arrays are in java.base
+				if array_descriptor.is_primitive() {
+					module_name_phrase = "module ";
+					module_name = "java.base";
+					break 'module_info;
+				}
+
+				let FieldType::Object(class_name) = &array_descriptor.component else {
+					unreachable!()
+				};
+
+				// TODO: There shouldn't be a case where the component isn't already loaded, but just incase
+				//       this should bubble up an exception, not unwrap.
+				let class_name = Symbol::intern(class_name);
+				target_class = target_class.loader().load(class_name).unwrap();
+			}
+
+			match target_class.module().name() {
+				Some(name) => {
+					module_name_phrase = "module ";
+					module_name = name.as_str();
+					if target_class.module().should_show_version() {
+						module_version_separator = "@";
+						module_version = target_class
+							.module()
+							.version()
+							.expect("version should exist")
+							.as_str();
+					}
+				},
+				None => {
+					module_name_phrase = "";
+					module_name = "unnamed module";
+				},
+			}
+		}
+
+		let loader_name_and_id = self.loader().name_and_id();
+
+		// TODO: set these
+		let mut parent_loader_phrase = "";
+		let mut parent_loader_name_and_id = "";
+
+		format!(
+			"{external_name} {are_or_is} in \
+			 {module_name_phrase}{module_name}{module_version_separator}{module_version} of \
+			 loader {loader_name_and_id}{parent_loader_phrase}{parent_loader_name_and_id}",
+		)
 	}
 
 	pub(self) fn initialization_lock(&self) -> Arc<InitializationLock> {
@@ -709,7 +803,7 @@ impl Class {
 		let mut access_flags = self.access_flags.as_u2();
 		if let Some(inner_classes) = self.unwrap_class_instance().inner_classes() {
 			for inner_class in inner_classes {
-				if inner_class.inner_class_name == Some(self.name) {
+				if inner_class.inner_class_name == Some(self.name()) {
 					access_flags = inner_class.inner_class_access_flags;
 				}
 			}
@@ -762,7 +856,7 @@ impl Class {
 
 		let mut current_class = self;
 		while let Some(super_class) = &current_class.super_class {
-			if super_class.name == class.name {
+			if super_class.name() == class.name() {
 				return true;
 			}
 
@@ -777,7 +871,7 @@ impl Class {
 			return false;
 		};
 
-		nest_members.iter().any(|name| *name == other.name)
+		nest_members.iter().any(|name| *name == other.name())
 	}
 
 	/// Whether `self` is a nestmate of `other`, meaning they are under the same nest host
@@ -805,6 +899,7 @@ impl Class {
 		parsed_file: ClassFile,
 		super_class: Option<&'static Class>,
 		loader: &'static ClassLoader,
+		is_hidden: bool,
 	) -> Throws<&'static Class> {
 		let access_flags = parsed_file.access_flags;
 		let class_name_index = parsed_file.this_class;
@@ -917,13 +1012,15 @@ impl Class {
 		let static_field_slots = box_slice![UnsafeCell::new(Operand::Empty); static_field_count];
 
 		let class = Self {
-			name,
+			name: UnsafeCell::new(name),
 			access_flags,
 			loader,
 			super_class,
 			interfaces,
 			misc_cache: UnsafeCell::new(MiscCache {
+				class_name_index,
 				nest_host_index,
+				is_hidden,
 				..MiscCache::default()
 			}),
 			mirror: UnsafeCell::new(MaybeUninit::uninit()), // Set later
@@ -951,6 +1048,11 @@ impl Class {
 		};
 		unsafe {
 			*class.class_ty.get() = MaybeUninit::new(ClassType::Instance(class_instance));
+		}
+
+		// Hidden class names can collide, need to mangle. Relies on the `ClassDescriptor`
+		if class.is_hidden() {
+			class.mangle_name();
 		}
 
 		// Create our vtable...
@@ -1000,6 +1102,26 @@ impl Class {
 		Throws::Ok(class)
 	}
 
+	fn mangle_name(&'static self) {
+		let ptr = self as *const Class as usize;
+		let new_name_str = format!("{}+{ptr}", self.name());
+		let new_name = Symbol::intern(&new_name_str);
+		unsafe {
+			*self.name.get() = new_name;
+		}
+
+		let cp = self
+			.constant_pool()
+			.expect("only used for non-array classes");
+
+		// SAFETY: The `class_name_index` is known to be correct, since the original name was derived
+		//         from it in `Class::new()`.
+		unsafe {
+			let class_name_index = unsafe { (*self.misc_cache.get()).class_name_index };
+			cp.overwrite::<cp_types::Class>(class_name_index, ResolvedEntry { class: self });
+		}
+	}
+
 	/// Create a new array class of type `component`
 	///
 	/// # Safety
@@ -1023,7 +1145,7 @@ impl Class {
 		};
 
 		let class = Self {
-			name,
+			name: UnsafeCell::new(name),
 			access_flags: ClassAccessFlags::NONE,
 			loader,
 			super_class: Some(crate::globals::classes::java_lang_Object()),
@@ -1115,7 +1237,7 @@ impl Class {
 			return false;
 		}
 
-		if self.name == other.name {
+		if self.name() == other.name() {
 			return true;
 		}
 

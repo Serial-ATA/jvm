@@ -1,10 +1,10 @@
+use crate::classes;
+use crate::classes::java_lang_Thread::ThreadStatus;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 use crate::thread::exceptions::throw;
 use crate::thread::pool::ThreadPool;
 use crate::thread::{JavaThread, JavaThreadBuilder};
-use crate::classes;
-use crate::classes::java_lang_Thread::ThreadStatus;
 
 use std::cmp;
 use std::sync::atomic::AtomicUsize;

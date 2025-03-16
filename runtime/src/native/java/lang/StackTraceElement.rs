@@ -45,7 +45,7 @@ fn fill_in_stack_trace(stacktrace_element: ClassInstanceRef, method: &Method, pc
 	// TODO: classLoaderName
 	// TODO: moduleName
 	// TODO: moduleVersion
-	let declaring_class = StringInterner::intern(method.class().name);
+	let declaring_class = StringInterner::intern(method.class().name());
 	classes::java_lang_StackTraceElement::set_declaringClass(
 		stacktrace_element.get_mut(),
 		Reference::class(declaring_class),

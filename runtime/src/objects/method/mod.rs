@@ -11,13 +11,16 @@ use crate::objects::mirror::MirrorInstance;
 use crate::objects::reference::{MirrorInstanceRef, ObjectArrayInstanceRef, Reference};
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::Throws;
+use crate::thread::frame::Frame;
 use crate::thread::JavaThread;
 use crate::{classes, globals, java_call};
 
+use std::cell::SyncUnsafeCell;
 use std::ffi::VaList;
 use std::fmt::{Debug, Formatter};
 use std::sync::RwLock;
 
+use crate::objects::constant_pool::cp_types::MethodEntry;
 use classfile::accessflags::MethodAccessFlags;
 use classfile::attribute::resolved::ResolvedAnnotation;
 use classfile::attribute::{Attribute, Code, LineNumber};
@@ -57,7 +60,6 @@ struct ExtraFields {
 	descriptor_sym: Symbol,
 	parameter_count: u1,
 	line_number_table: Vec<LineNumber>,
-	native_method: RwLock<Option<NativeMethodPtr>>,
 }
 
 impl PartialEq for ExtraFields {
@@ -67,6 +69,13 @@ impl PartialEq for ExtraFields {
 			&& self.parameter_count == other.parameter_count
 			&& self.line_number_table == other.line_number_table
 	}
+}
+
+#[derive(Copy, Clone)]
+pub enum MethodEntryPoint {
+	MethodHandleLinker(fn(&mut Frame)),
+	MethodHandleInvoker(fn(&mut Frame, MethodEntry)),
+	NativeMethod(NativeMethodPtr),
 }
 
 pub struct Method {
@@ -79,6 +88,8 @@ pub struct Method {
 
 	extra_flags: ExtraFlags,
 	extra_fields: ExtraFields,
+
+	entry_point: SyncUnsafeCell<Option<MethodEntryPoint>>,
 
 	pub code: Code,
 }
@@ -99,9 +110,9 @@ impl Debug for Method {
 		write!(
 			f,
 			"{}#{}{}",
-			self.class.name.as_str(),
-			self.name.as_str(),
-			self.descriptor_sym().as_str()
+			self.class.name(),
+			self.name,
+			self.descriptor_sym()
 		)
 	}
 }
@@ -160,7 +171,6 @@ impl Method {
 			descriptor_sym,
 			parameter_count,
 			line_number_table,
-			native_method: RwLock::new(None), // Initialized later (if necessary)
 		};
 
 		let code = method_info.get_code_attribute().unwrap_or_default();
@@ -174,6 +184,7 @@ impl Method {
 			name,
 			descriptor,
 			code,
+			entry_point: SyncUnsafeCell::new(None), // Initialized later (if necessary)
 		};
 
 		Box::leak(Box::new(method))
@@ -247,15 +258,16 @@ impl Method {
 		self.extra_fields.parameter_stack_size
 	}
 
-	pub fn native_method(&self) -> Option<NativeMethodPtr> {
-		assert!(self.is_native());
-		let native_method = self.extra_fields.native_method.read().unwrap();
-		*native_method
-	}
+	pub fn set_entry_point(&self, entry_point: MethodEntryPoint) {
+		if matches!(entry_point, MethodEntryPoint::NativeMethod(_)) {
+			assert!(self.is_native(), "Method is not native");
+		}
 
-	pub fn set_native_method(&self, func: NativeMethodPtr) {
-		let mut lock = self.extra_fields.native_method.write().unwrap();
-		*lock = Some(func);
+		if self.entry_point().is_some() {
+			panic!("Method entry point already set");
+		}
+
+		unsafe { *self.entry_point.get() = Some(entry_point) }
 	}
 }
 
@@ -264,6 +276,10 @@ impl Method {
 	#[inline]
 	pub fn class(&self) -> &'static Class {
 		self.class
+	}
+
+	pub fn entry_point(&self) -> Option<MethodEntryPoint> {
+		unsafe { *self.entry_point.get() }
 	}
 
 	pub fn external_name(&self) -> String {

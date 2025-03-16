@@ -39,7 +39,7 @@ pub fn set_methodName(instance: &mut ClassInstance, value: Reference) {
 }
 
 pub fn set_fileName(instance: &mut ClassInstance, value: Reference) {
-	assert!(value.is_instance_of(crate::globals::classes::java_lang_String()));
+	assert!(value.is_null() || value.is_instance_of(crate::globals::classes::java_lang_String()));
 	instance.put_field_value0(fileName_field_offset(), Operand::Reference(value))
 }
 

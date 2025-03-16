@@ -76,8 +76,19 @@ impl<'a> VTable<'a> {
 	}
 
 	/// Get an iterator over all the `VTable` methods
+	///
+	/// NOTE: This will include all method from super classes and interfaces. See [`VTable::iter_local`]
+	///       to iterate over methods *only* defined in this class.
 	pub fn iter<'vtable>(&'vtable self) -> impl Iterator<Item = &'a Method> + 'vtable {
 		self.methods.iter().copied()
+	}
+
+	/// Get an iterator over the local `VTable` methods
+	///
+	/// NOTE: This will not include methods from super classes or interfaces. See [`VTable::iter`]
+	///       to iterate over all methods.
+	pub fn iter_local<'vtable>(&'vtable self) -> impl Iterator<Item = &'a Method> + 'vtable {
+		self.iter().take(self.local_methods_end)
 	}
 }
 

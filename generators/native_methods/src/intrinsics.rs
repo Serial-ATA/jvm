@@ -85,6 +85,9 @@ pub(crate) fn generate_intrinsics<'a>(
 	// + 1 to account for the null ID
 	let total_ids = intrinsic_methods.len() + 1;
 
+	let mut intrinsic_methods_sorted = intrinsic_methods.into_iter().collect::<Vec<_>>();
+	intrinsic_methods_sorted.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
+
 	writeln!(
 		&mut generated_file,
 		"{}",
@@ -96,7 +99,7 @@ pub(crate) fn generate_intrinsics<'a>(
 		"{}",
 		// Chain "None", since we need to at least have a "null" intrinsic
 		create_intrinsic_name_table(
-			std::iter::once("None").chain(intrinsic_methods.keys().map(String::as_str)),
+			std::iter::once("None").chain(intrinsic_methods_sorted.iter().map(|(k, _)| k.as_str())),
 			total_ids
 		)?
 	)?;
@@ -105,14 +108,14 @@ pub(crate) fn generate_intrinsics<'a>(
 		&mut generated_file,
 		"{}",
 		create_intrinsic_id_enum(
-			std::iter::once("None").chain(intrinsic_methods.keys().map(String::as_str))
+			std::iter::once("None").chain(intrinsic_methods_sorted.iter().map(|(k, _)| k.as_str()))
 		)?
 	)?;
 
 	writeln!(
 		&mut generated_file,
 		"{}",
-		create_method_mappings(intrinsic_methods.iter())?
+		create_method_mappings(intrinsic_methods_sorted.iter())?
 	)?;
 
 	Ok(())
@@ -137,8 +140,11 @@ fn create_intrinsic_name_table<'a>(
 /// Creates the `IntrinsicId` enum
 fn create_intrinsic_id_enum<'a>(intrinsic_ids: impl Iterator<Item = &'a str>) -> Result<String> {
 	let mut intrinsic_name_enum = String::from(
-		"#[allow(non_camel_case_types)]\n#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, \
-		 Debug)]\npub enum IntrinsicId {\n",
+		r#"#[allow(non_camel_case_types)]
+		#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+		#[repr(u8)]
+		pub enum IntrinsicId {
+		"#,
 	);
 	for id in intrinsic_ids {
 		writeln!(intrinsic_name_enum, "\t{},", id).unwrap();
@@ -150,7 +156,7 @@ fn create_intrinsic_id_enum<'a>(intrinsic_ids: impl Iterator<Item = &'a str>) ->
 
 /// Creates the `IntrinsicId::for_method` method
 fn create_method_mappings<'a>(
-	intrinsic_ids: impl Iterator<Item = (&'a String, &'a (String, IntrinsicMethodDefinition))>,
+	intrinsic_ids: impl Iterator<Item = &'a (String, (String, IntrinsicMethodDefinition))>,
 ) -> Result<String> {
 	let mut intrinsic_id_method_mapping = String::from(
 		r#"

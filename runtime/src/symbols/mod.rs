@@ -225,6 +225,7 @@ vm_symbols::define_symbols! {
 	java_lang_invoke_LambdaForm: "java/lang/invoke/LambdaForm",
 	java_lang_reflect_Constructor: "java/lang/reflect/Constructor",
 	java_lang_reflect_Method: "java/lang/reflect/Method",
+	java_lang_reflect_Field: "java/lang/reflect/Field",
 	java_lang_Thread: "java/lang/Thread",
 	java_lang_ThreadGroup: "java/lang/ThreadGroup",
 	java_lang_Thread_FieldHolder: "java/lang/Thread$FieldHolder",
@@ -327,6 +328,8 @@ vm_symbols::define_symbols! {
 	findNative_name: "findNative",
 	run_name: "run",
 
+	addClass,
+
 	valueOf_name: "valueOf",
 	// -- GENERATED METHOD NAME MARKER, DO NOT DELETE --
 
@@ -390,6 +393,7 @@ vm_symbols::define_symbols! {
 	parameterTypes,
 	exceptionTypes,
 	modifiers,
+	trustedFinal,
 	signature,
 	annotations,
 	parameterAnnotations,

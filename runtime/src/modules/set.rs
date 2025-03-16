@@ -1,8 +1,8 @@
 use super::{Module, ModuleLockGuard};
+use crate::classes;
 use crate::classpath::loader::ClassLoader;
 use crate::objects::instance::Instance;
 use crate::symbols::Symbol;
-use crate::classes;
 
 use std::cell::SyncUnsafeCell;
 use std::collections::LinkedList;

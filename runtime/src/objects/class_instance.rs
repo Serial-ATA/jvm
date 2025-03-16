@@ -138,7 +138,7 @@ impl Instance for ClassInstance {
 					current.is_compatible_with(&value),
 					"Expected type compatible with: {current:?}, found: {value:?} (class: {}, \
 					 field index: {field_idx})",
-					self.class.name.as_str(),
+					self.class.name(),
 				);
 
 				self.fields[field_idx] = value;
@@ -207,6 +207,6 @@ impl Drop for ClassInstancePtr {
 impl Debug for ClassInstancePtr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		let class = self.get();
-		f.write_str(class.class.name.as_str())
+		f.write_str(class.class.name().as_str())
 	}
 }

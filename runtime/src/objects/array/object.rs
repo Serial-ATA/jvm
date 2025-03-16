@@ -271,6 +271,6 @@ impl Drop for ObjectArrayInstancePtr {
 impl Debug for ObjectArrayInstancePtr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		let class = self.get();
-		f.write_str(&class.class.name.as_str())
+		f.write_str(&class.class.name().as_str())
 	}
 }

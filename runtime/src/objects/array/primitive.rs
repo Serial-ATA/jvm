@@ -492,6 +492,6 @@ impl Drop for PrimitiveArrayInstancePtr {
 impl Debug for PrimitiveArrayInstancePtr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		let class = self.get();
-		f.write_str(&class.class.name.as_str())
+		f.write_str(&class.class.name().as_str())
 	}
 }

@@ -17,6 +17,7 @@ extern crate core;
 pub mod calls;
 pub mod classes;
 pub mod classpath;
+mod dynamic;
 pub mod error;
 pub mod globals;
 mod initialization;

@@ -9,8 +9,10 @@ use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
 use crate::thread::exceptions::{throw, Throws};
+use crate::thread::JavaThread;
 
 use std::cell::SyncUnsafeCell;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
@@ -26,24 +28,45 @@ const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 69;
 const SUPPORTED_MAJOR_VERSION_RANGE: RangeInclusive<u1> =
 	SUPPORTED_MAJOR_LOWER_BOUND..=SUPPORTED_MAJOR_UPPER_BOUND;
 
+/// The type of a class loader
+///
+/// A "normal" class loader is a class loader that can actually be used in the traditional sense. Meaning
+/// that it keeps track of modules and classes.
+///
+/// A "hidden" class loader only appears for classes defined with `defineHiddenClass`, where the class
+/// is not strongly linked to a class loader. This means that the class loader sort of becomes a marker,
+/// and the generated class does not have a real dependency on it. This gives the generated class the
+/// ability to be unloaded *before* the loader, which is not possible with a normal class loader.
+enum ClassLoaderType {
+	Normal {
+		unnamed_module: SyncUnsafeCell<Option<&'static Module>>,
+
+		classes: Mutex<HashMap<Symbol, &'static Class>>,
+
+		// TODO: Is there a better way to do this?
+		// Keep the java.base module separate from the other modules for bootstrapping. This field is only
+		// valid for the bootstrap loader.
+		java_base: SyncUnsafeCell<Option<&'static Module>>,
+
+		// Indicates whether it is safe to create mirrors. This field is only valid for the bootstrap
+		// loader, and is only false *very* early in the initialization process, before `ClassLoader::fixup_mirrors()`
+		// is called.
+		mirrors_available: SyncUnsafeCell<bool>,
+
+		// Access to these fields is manually synchronized with the global module mutex
+		modules: ModuleSet,
+		packages: SyncUnsafeCell<HashMap<Symbol, Package>>,
+	},
+	Hidden,
+}
+
 pub struct ClassLoader {
 	obj: Reference,
 
 	name: Option<Symbol>,
 	name_and_id: Symbol,
 
-	unnamed_module: SyncUnsafeCell<Option<&'static Module>>,
-
-	classes: Mutex<HashMap<Symbol, &'static Class>>,
-
-	// TODO: Is there a better way to do this?
-	// Keep the java.base module separate from the other modules for bootstrapping. This field is only
-	// valid for the bootstrap loader.
-	java_base: SyncUnsafeCell<Option<&'static Module>>,
-
-	// Access to these fields is manually synchronized with the global module mutex
-	modules: ModuleSet,
-	packages: SyncUnsafeCell<HashMap<Symbol, Package>>,
+	inner: ClassLoaderType,
 }
 
 impl PartialEq for ClassLoader {
@@ -65,6 +88,49 @@ impl ClassLoader {
 		assert!(!obj.is_null(), "cannot create ClassLoader from null obj");
 		assert!(obj.is_instance_of(crate::globals::classes::java_lang_ClassLoader()));
 
+		let unnamed_module_obj = obj
+			.get_field_value0(classes::java_lang_ClassLoader::unnamedModule_field_offset())
+			.expect_reference();
+		assert!(
+			!unnamed_module_obj.is_null()
+				&& unnamed_module_obj.is_instance_of(crate::globals::classes::java_lang_Module())
+		);
+
+		let unnamed_module =
+			Module::unnamed(unnamed_module_obj).expect("unnamed module creation failed");
+
+		let (name, name_and_id) = Self::extract_name_and_id(obj.clone());
+
+		Self {
+			obj,
+			name,
+			name_and_id,
+
+			inner: ClassLoaderType::Normal {
+				unnamed_module: SyncUnsafeCell::new(Some(Box::leak(Box::new(unnamed_module)))),
+				classes: Mutex::new(HashMap::new()),
+
+				// Never initialized for non-bootstrap loaders
+				java_base: SyncUnsafeCell::new(None),
+
+				mirrors_available: SyncUnsafeCell::new(true),
+				modules: ModuleSet::new(),
+				packages: SyncUnsafeCell::new(HashMap::new()),
+			},
+		}
+	}
+
+	fn new_hidden(obj: Reference) -> Self {
+		let (name, name_and_id) = Self::extract_name_and_id(obj.clone());
+		Self {
+			obj,
+			name,
+			name_and_id,
+			inner: ClassLoaderType::Hidden,
+		}
+	}
+
+	fn extract_name_and_id(obj: Reference) -> (Option<Symbol>, Symbol) {
 		let mut name = None;
 
 		let name_obj = obj
@@ -78,69 +144,61 @@ impl ClassLoader {
 			}
 		}
 
-		let unnamed_module_obj = obj
-			.get_field_value0(classes::java_lang_ClassLoader::unnamedModule_field_offset())
-			.expect_reference();
-		assert!(
-			!unnamed_module_obj.is_null()
-				&& unnamed_module_obj.is_instance_of(crate::globals::classes::java_lang_Module())
-		);
-
-		let unnamed_module =
-			Module::unnamed(unnamed_module_obj).expect("unnamed module creation failed");
-
 		let name_and_id_obj = obj
 			.get_field_value0(classes::java_lang_ClassLoader::nameAndId_field_offset())
 			.expect_reference();
 
 		let name_and_id;
 		if name_and_id_obj.is_null() {
-			name_and_id = obj.extract_target_class().name.as_str().replace('/', ".");
+			name_and_id = obj.extract_target_class().name().as_str().replace('/', ".");
 		} else {
 			name_and_id = rust_string_from_java_string(name_and_id_obj.extract_class());
 		}
 
 		assert!(!name_and_id.is_empty(), "class loader has no name and id");
 
-		Self {
-			obj,
-			name,
-			name_and_id: Symbol::intern(name_and_id),
-
-			unnamed_module: SyncUnsafeCell::new(Some(Box::leak(Box::new(unnamed_module)))),
-			classes: Mutex::new(HashMap::new()),
-
-			// Never initialized for non-bootstrap loaders
-			java_base: SyncUnsafeCell::new(None),
-
-			modules: ModuleSet::new(),
-			packages: SyncUnsafeCell::new(HashMap::new()),
-		}
+		(name, Symbol::intern(name_and_id))
 	}
 }
 
 // Module locked methods
 impl ClassLoader {
 	pub fn insert_package_if_absent(&self, _guard: &ModuleLockGuard, package: Package) {
-		let packages = unsafe { &mut *self.packages.get() };
+		let ClassLoaderType::Normal { packages, .. } = &self.inner else {
+			unreachable!("should never be called on hidden classloaders")
+		};
+
+		let packages = unsafe { &mut *packages.get() };
 		packages.entry(package.name()).or_insert(package);
 	}
 
 	pub fn lookup_package(&self, _guard: &ModuleLockGuard, name: Symbol) -> Option<&Package> {
-		let packages = unsafe { &*self.packages.get() };
+		let ClassLoaderType::Normal { packages, .. } = &self.inner else {
+			unreachable!("should never be called on hidden classloaders")
+		};
+
+		let packages = unsafe { &*packages.get() };
 		packages.get(&name)
 	}
 
 	pub fn insert_module(&self, _guard: &ModuleLockGuard, module: Module) -> &'static Module {
+		let ClassLoaderType::Normal { modules, .. } = &self.inner else {
+			unreachable!("should never be called on hidden classloaders")
+		};
+
 		if module.name().is_none() {
 			panic!("Attempted to insert an unnamed module using `insert_module`")
 		};
 
-		self.modules.add(_guard, module)
+		modules.add(_guard, module)
 	}
 
 	pub fn lookup_module(&self, _guard: &ModuleLockGuard, name: Symbol) -> Option<&'static Module> {
-		self.modules.find(_guard, name)
+		let ClassLoaderType::Normal { modules, .. } = &self.inner else {
+			unreachable!("should never be called on hidden classloaders")
+		};
+
+		modules.find(_guard, name)
 	}
 }
 
@@ -156,12 +214,15 @@ impl ClassLoader {
 				name: Some(name_sym),
 				name_and_id: name_sym,
 
-				unnamed_module: SyncUnsafeCell::new(None),
-				classes: Mutex::new(HashMap::new()),
+				inner: ClassLoaderType::Normal {
+					unnamed_module: SyncUnsafeCell::new(None),
+					classes: Mutex::new(HashMap::new()),
 
-				java_base: SyncUnsafeCell::new(None),
-				modules: ModuleSet::new(),
-				packages: SyncUnsafeCell::new(HashMap::new()),
+					java_base: SyncUnsafeCell::new(None),
+					mirrors_available: SyncUnsafeCell::new(false),
+					modules: ModuleSet::new(),
+					packages: SyncUnsafeCell::new(HashMap::new()),
+				},
 			};
 
 			SyncUnsafeCell::new(loader)
@@ -172,17 +233,25 @@ impl ClassLoader {
 
 	pub fn java_base(&self) -> &'static Module {
 		assert!(self.is_bootstrap());
-		unsafe { &*self.java_base.get() }.expect("java.base should be set")
+		let ClassLoaderType::Normal { java_base, .. } = &self.inner else {
+			unreachable!("bootloader is not a hidden classloader");
+		};
+
+		unsafe { &*java_base.get() }.expect("java.base should be set")
 	}
 
-	pub fn set_java_base(&self, java_base: Module) {
-		let ptr = self.java_base.get();
+	pub fn set_java_base(&self, new_java_base: Module) {
+		let ClassLoaderType::Normal { java_base, .. } = &self.inner else {
+			unreachable!("bootloader is not a hidden classloader");
+		};
+
+		let ptr = java_base.get();
 		assert!(
 			unsafe { &*ptr }.is_none(),
 			"java.base cannot be set more than once"
 		);
 
-		unsafe { *ptr = Some(Box::leak(Box::new(java_base))) }
+		unsafe { *ptr = Some(Box::leak(Box::new(new_java_base))) }
 	}
 
 	pub fn is_bootstrap(&self) -> bool {
@@ -195,8 +264,11 @@ impl ClassLoader {
 	/// only be set once.
 	pub fn set_bootloader_unnamed_module(entry: Module) {
 		let bootloader = ClassLoader::bootstrap();
+		let ClassLoaderType::Normal { unnamed_module, .. } = &bootloader.inner else {
+			unreachable!("bootloader is not a hidden classloader");
+		};
 
-		let ptr = bootloader.unnamed_module.get();
+		let ptr = unnamed_module.get();
 		assert!(
 			unsafe { (*ptr).is_none() },
 			"Attempt to set unnamed module for bootloader twice"
@@ -210,12 +282,20 @@ impl ClassLoader {
 
 impl ClassLoader {
 	pub(crate) fn lookup_class(&self, name: Symbol) -> Option<&'static Class> {
-		let loaded_classes = self.classes.lock().unwrap();
+		let ClassLoaderType::Normal { classes, .. } = &self.inner else {
+			unreachable!("should never be called on hidden classloaders")
+		};
+
+		let loaded_classes = classes.lock().unwrap();
 		loaded_classes.get(&name).map(|&class| class)
 	}
 
 	pub fn unnamed_module(&self) -> &'static Module {
-		unsafe { &*self.unnamed_module.get() }.expect("unnamed module should be set")
+		let ClassLoaderType::Normal { unnamed_module, .. } = &self.inner else {
+			unreachable!("should never be called on hidden classloaders")
+		};
+
+		unsafe { &*unnamed_module.get() }.expect("unnamed module should be set")
 	}
 }
 
@@ -235,6 +315,11 @@ impl ClassLoader {
 	/// * The loader is built-in: `@<id>` is omitted, as there is only one instance
 	pub fn name_and_id(&self) -> Symbol {
 		self.name_and_id
+	}
+
+	/// Whether the ClassLoader is hidden
+	pub fn is_hidden(&self) -> bool {
+		matches!(self.inner, ClassLoaderType::Hidden)
 	}
 
 	pub fn obj(&self) -> Reference {
@@ -265,7 +350,9 @@ impl ClassLoader {
 
 		// Otherwise, the Java Virtual Machine passes the argument N to an invocation of a method on
 		// the bootstrap class loader [...] and then [...] create C, via the algorithm of §5.3.5.
-		let classref = self.derive_class(name, None)?;
+
+		let is_hidden = false; // hidden class derivation is only handled by direct calls to `derive_class`.
+		let classref = self.derive_class(name, None, is_hidden)?;
 
 		// TODO:
 		// If no purported representation of C is found, the bootstrap class loader throws a ClassNotFoundException.
@@ -284,21 +371,21 @@ impl ClassLoader {
 		&'static self,
 		name: Symbol,
 		classfile_bytes: Option<&[u1]>,
+		is_hidden: bool,
 	) -> Throws<&'static Class> {
-		if let Some(class) = self.lookup_class(name) {
-			return Throws::Ok(class);
-		}
-
 		let name_str = name.as_str();
 		if name_str.starts_with('[') {
+			assert!(!is_hidden);
 			return self.create_array_class(name);
 		}
 
 		match classfile_bytes {
-			Some(classfile_bytes) => self.derive_class_inner(name, name_str, classfile_bytes),
+			Some(classfile_bytes) => {
+				self.derive_class_inner(name, name_str, classfile_bytes, is_hidden)
+			},
 			None => {
 				let classfile_bytes = super::find_classpath_entry(name);
-				self.derive_class_inner(name, name_str, &classfile_bytes)
+				self.derive_class_inner(name, name_str, &classfile_bytes, is_hidden)
 			},
 		}
 	}
@@ -308,8 +395,8 @@ impl ClassLoader {
 		name: Symbol,
 		name_str: &str,
 		classfile_bytes: &[u1],
+		is_hidden: bool,
 	) -> Throws<&'static Class> {
-		// TODO:
 		// 1. First, the Java Virtual Machine determines whether L has already been recorded
 		//    as an initiating loader of a class or interface denoted by N. If so, this derivation
 		//    attempt is invalid and derivation throws a LinkageError.
@@ -358,14 +445,14 @@ impl ClassLoader {
 		// The Java Virtual Machine marks C to have L as its defining loader, records that L is an initiating
 		// loader of C (§5.3.4), and creates C in the method area (§2.5.4).
 
-		let class = unsafe { Class::new(classfile, super_class, self)? };
-		self.classes.lock().unwrap().insert(name, class);
+		let class = unsafe { Class::new(classfile, super_class, self, is_hidden)? };
+		init_mirror(class);
+
+		self.add_class(class)?;
 
 		// Finally, prepare the class (§5.4.2)
 		// "Preparation may occur at any time following creation but must be completed prior to initialization."
-		class.prepare();
-
-		init_mirror(class);
+		class.prepare()?;
 
 		Throws::Ok(class)
 	}
@@ -398,7 +485,7 @@ impl ClassLoader {
 		//     Otherwise, if C is a class and some instance method declared in C can override (§5.4.5)
 		//     a final instance method declared in a superclass of C, derivation throws an IncompatibleClassChangeError.
 
-		self.derive_class(super_class_name, None)
+		self.load(super_class_name)
 	}
 
 	// Creating array classes
@@ -457,25 +544,76 @@ impl ClassLoader {
 
 		init_mirror(array_class);
 
-		self.classes.lock().unwrap().insert(descriptor, array_class);
+		self.add_class(array_class)?;
 		Throws::Ok(array_class)
+	}
+
+	fn add_class(&self, class: &'static Class) -> Throws<()> {
+		let ClassLoaderType::Normal { classes, .. } = &self.inner else {
+			unreachable!("should never be called on hidden classloaders")
+		};
+
+		let mut guard = classes.lock().unwrap();
+		let entry = guard.entry(class.name());
+
+		if let Entry::Occupied(existing_entry) = &entry {
+			if class == *existing_entry.get() {
+				return Throws::Ok(());
+			}
+
+			throw!(@DEFER LinkageError, "loader {} attempted duplicate {} definition for {}. ({})", self.name_and_id, class.external_kind(), class.external_name(), class.in_module_of_loader(false, true));
+		}
+
+		entry.insert_entry(class);
+
+		if self.is_bootstrap() {
+			// Nothing more to do, we only call `addClass` on user defined loaders.
+			return Throws::Ok(());
+		}
+
+		classes::java_lang_ClassLoader::calls::addClass(
+			JavaThread::current(),
+			self,
+			class.mirror(),
+		)?;
+
+		Throws::Ok(())
 	}
 
 	/// Recreate mirrors for all loaded classes
 	pub fn fixup_mirrors() {
 		let bootstrap_loader = ClassLoader::bootstrap();
-		for class in bootstrap_loader.classes.lock().unwrap().values() {
+		let ClassLoaderType::Normal {
+			classes,
+			mirrors_available,
+			..
+		} = &bootstrap_loader.inner
+		else {
+			unreachable!("should never be called on hidden classloaders")
+		};
+
+		for class in classes.lock().unwrap().values() {
 			// SAFETY: The only condition of `set_mirror` is that the class isn't in use yet.
 			unsafe {
 				class.set_mirror(None);
 			}
+		}
+
+		// SAFETY: Very early in initialization, the value of this field is not depended on yet,
+		//         nor are there any other threads to access it.
+		unsafe {
+			*mirrors_available.get() = true;
 		}
 	}
 
 	/// Sets all currently loaded classes to be members of `java.base`
 	pub fn fixup_modules(obj: Reference) {
 		let bootstrap_loader = ClassLoader::bootstrap();
-		for class in bootstrap_loader.classes.lock().unwrap().values() {
+		let ClassLoaderType::Normal { classes, .. } = &bootstrap_loader.inner else {
+			unreachable!("should never be called on hidden classloaders")
+		};
+
+		for class in classes.lock().unwrap().values() {
 			class.mirror().get().set_module(obj.clone());
 		}
 	}

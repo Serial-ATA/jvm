@@ -1,8 +1,11 @@
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
+use crate::objects::method::Method;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
 use crate::thread::exceptions::{throw, Throws};
+
 use classfile::FieldType;
+use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::{jint, jlong};
 
@@ -74,6 +77,15 @@ pub fn vmindex(instance: &ClassInstance) -> jlong {
 
 pub fn set_vmindex(instance: &mut ClassInstance, value: jlong) {
 	instance.put_field_value0(vmindex_field_offset(), Operand::Long(value));
+}
+
+pub fn target_method(instance: &ClassInstance) -> Throws<&'static Method> {
+	let vmindex = vmindex(instance);
+
+	let defining_class_mirror = clazz(instance)?;
+	let defining_class = defining_class_mirror.get().target_class();
+
+	Throws::Ok(&defining_class.vtable()[vmindex as usize])
 }
 
 super::field_module! {

@@ -2,7 +2,7 @@ use crate::objects::array::Array;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
-use crate::thread::exceptions::throw;
+use crate::thread::exceptions::{throw, Throws};
 use crate::thread::JavaThread;
 
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -99,8 +99,22 @@ pub fn arraycopy(
 		throw!(thread, NullPointerException);
 	}
 
-	let src_len = src.array_length();
-	let dest_len = dest.array_length();
+	let src_len = match src.array_length() {
+		Throws::Ok(len) => len,
+		Throws::Exception(e) => {
+			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+			e.throw(thread);
+			return;
+		},
+	};
+	let dest_len = match dest.array_length() {
+		Throws::Ok(len) => len,
+		Throws::Exception(e) => {
+			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+			e.throw(thread);
+			return;
+		},
+	};
 
 	// TODO: Verify component types
 

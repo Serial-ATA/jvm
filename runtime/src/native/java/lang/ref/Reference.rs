@@ -1,7 +1,7 @@
+use crate::classes;
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
-use crate::classes;
 
 use jni::env::JniEnv;
 use jni::sys::jboolean;

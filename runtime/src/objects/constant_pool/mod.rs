@@ -1,6 +1,7 @@
 pub mod cp_types;
 use cp_types::Entry;
 mod entry;
+pub use entry::ResolvedEntry;
 
 use crate::objects::class::Class;
 use crate::thread::exceptions::Throws;
@@ -54,6 +55,19 @@ impl ConstantPool {
 		}
 
 		entry.resolve::<T>(self.class, &self, index)
+	}
+
+	/// Overwrite the entry at `index` with a new value
+	///
+	/// This should be used sparingly.
+	///
+	/// # Safety
+	///
+	/// The caller must ensure that the entry at `index` is of type `T`. Otherwise, the behavior is
+	/// undefined.
+	pub unsafe fn overwrite<T: cp_types::EntryType>(&self, index: u2, value: ResolvedEntry) {
+		let entry = &self.entries[index as usize];
+		unsafe { entry.set_resolved(value) }
 	}
 
 	unsafe fn resolve_entry_with<T: cp_types::EntryType>(

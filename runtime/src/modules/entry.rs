@@ -1,4 +1,5 @@
 use super::package::{Package, PackageExportType};
+use crate::classes;
 use crate::classpath::jimage;
 use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
 use crate::native::java::lang::String::rust_string_from_java_string;
@@ -6,7 +7,6 @@ use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{throw, Throws};
-use crate::classes;
 
 use std::cell::SyncUnsafeCell;
 use std::collections::HashSet;
@@ -200,7 +200,7 @@ impl Module {
 
 		// Only the bootstrap loader and PlatformClassLoader can load `java/` packages
 		let can_load_java_packages = loader.is_null()
-			|| loader.extract_target_class().name
+			|| loader.extract_target_class().name()
 				== sym!(jdk_internal_loader_ClassLoaders_PlatformClassLoader);
 
 		let mut disallowed_package = None;
@@ -220,7 +220,7 @@ impl Module {
 			package_symbols.push(Symbol::intern(package));
 		}
 
-		let loader = ClassLoaderSet::find_or_add(loader);
+		let loader = ClassLoaderSet::find_or_add(loader, false);
 
 		if let Some(disallowed_package) = disallowed_package {
 			throw!(@DEFER IllegalArgumentException,

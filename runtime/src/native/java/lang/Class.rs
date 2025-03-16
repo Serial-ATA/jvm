@@ -3,6 +3,7 @@ use crate::native::java::lang::String::{rust_string_from_java_string, StringInte
 use crate::native::jni::{safe_classref_from_jclass, IntoJni};
 use crate::objects::array::{Array, ObjectArrayInstance};
 use crate::objects::class::Class;
+use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::{
@@ -14,7 +15,6 @@ use crate::thread::exceptions::{
 };
 use crate::thread::JavaThread;
 use crate::{classes, globals, include_generated};
-use crate::objects::class_instance::ClassInstance;
 
 use std::sync::Arc;
 
@@ -62,7 +62,7 @@ pub fn forName0(
 	let internal_name = binary_name.replace('.', "/");
 	let internal_name_sym = Symbol::intern(internal_name);
 
-	let loader = ClassLoaderSet::find_or_add(loader);
+	let loader = ClassLoaderSet::find_or_add(loader, false);
 	let class: &'static Class =
 		handle_exception!(Reference::null(), thread, loader.load(internal_name_sym));
 
@@ -119,7 +119,7 @@ pub fn initClassName(
 ) -> Reference {
 	let this_mirror = this.extract_mirror();
 	let this_mirror_target = this_mirror.get().target_class();
-	let this_name = this_mirror_target.name;
+	let this_name = this_mirror_target.name();
 	let this_binary_name = this_name.as_str().replace('/', ".");
 	let name_string = StringInterner::intern(&*this_binary_name);
 
@@ -253,7 +253,7 @@ pub fn getDeclaringClass0(
 
 	let mut declaring_class = Reference::null();
 	for inner_class in inner_classes {
-		if inner_class.inner_class != target_class.name {
+		if inner_class.inner_class != target_class.name() {
 			continue;
 		}
 
@@ -305,7 +305,7 @@ pub fn getSimpleBinaryName0(
 	};
 
 	for inner_class in inner_classes {
-		if inner_class.inner_class != target_class.name {
+		if inner_class.inner_class != target_class.name() {
 			continue;
 		}
 
@@ -553,7 +553,7 @@ pub fn desiredAssertionStatus0(
 	clazz: Reference, // java/lang/Class
 ) -> jboolean {
 	let mirror = clazz.extract_mirror();
-	let _name = &mirror.get().target_class().name;
+	let _name = &mirror.get().target_class().name();
 
 	false
 }

@@ -49,7 +49,10 @@ fn initialize_thread(thread: &JavaThread) -> Result<(), JniError> {
 	crate::modules::with_module_lock(|guard| Module::create_java_base(guard));
 
 	// Load some important classes
-	load_global_classes();
+	if let Throws::Exception(_) = load_global_classes() {
+		return Err(JniError::ExceptionThrown);
+	}
+
 	init_field_offsets();
 
 	// Init some important classes
@@ -68,6 +71,9 @@ fn initialize_thread(thread: &JavaThread) -> Result<(), JniError> {
 		classes::jdk_internal_misc_UnsafeConstants::init();
 	}
 
+	// Create native entrypoints for `java.lang.invoke.MethodHandle#link*` methods
+	classes::java_lang_invoke_MethodHandle::init_entry_points();
+
 	// https://github.com/openjdk/jdk/blob/04591595374e84cfbfe38d92bff4409105b28009/src/hotspot/share/runtime/threads.cpp#L408
 
 	init_phase_1(thread)?;
@@ -85,12 +91,12 @@ fn initialize_thread(thread: &JavaThread) -> Result<(), JniError> {
 	Ok(())
 }
 
-fn load_global_classes() {
+fn load_global_classes() -> Throws<()> {
 	macro_rules! load {
 		($($name:ident),+ $(,)?) => {{
 			paste::paste! {
 				$(
-				let class = ClassLoader::bootstrap().load(sym!($name)).unwrap();
+				let class = ClassLoader::bootstrap().load(sym!($name))?;
 				unsafe { $crate::globals::classes::[<set_ $name>](class); }
 				)+
 			}
@@ -148,6 +154,7 @@ fn load_global_classes() {
 		java_lang_invoke_VarHandle,
 		java_lang_reflect_Constructor,
 		java_lang_reflect_Method,
+		java_lang_reflect_Field,
 	);
 
 	// Primitive types
@@ -178,6 +185,8 @@ fn load_global_classes() {
 		short_array,
 		string_array,
 	);
+
+	Throws::Ok(())
 }
 
 fn init_field_offsets() {
@@ -239,14 +248,22 @@ fn init_field_offsets() {
 		}
 	}
 
-	// java.lang.reflect.Constructor
-	unsafe {
-		classes::java_lang_reflect_Method::init_offsets();
-	}
+	// Reflection stuff
+	{
+		// java.lang.reflect.Method
+		unsafe {
+			classes::java_lang_reflect_Method::init_offsets();
+		}
 
-	// java.lang.reflect.Constructor
-	unsafe {
-		classes::java_lang_reflect_Constructor::init_offsets();
+		// java.lang.reflect.Field
+		unsafe {
+			classes::java_lang_reflect_Field::init_offsets();
+		}
+
+		// java.lang.reflect.Constructor
+		unsafe {
+			classes::java_lang_reflect_Constructor::init_offsets();
+		}
 	}
 }
 

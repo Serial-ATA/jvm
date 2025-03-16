@@ -538,7 +538,7 @@ impl JavaThread {
 				let exception = self.take_pending_exception().unwrap();
 				eprintln!(
 					"Exception: {} thrown from the UncaughtExceptionHandler in thread \"{}\"",
-					exception.extract_target_class().name,
+					exception.extract_target_class().name(),
 					self.name()
 				);
 			}

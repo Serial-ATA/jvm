@@ -21,6 +21,7 @@ pub mod java_lang_invoke_MethodType;
 pub mod java_lang_invoke_ResolvedMethodName;
 pub mod java_lang_ref_Reference;
 pub mod java_lang_reflect_Constructor;
+pub mod java_lang_reflect_Field;
 pub mod java_lang_reflect_Method;
 pub mod jdk_internal_misc_UnsafeConstants;
 pub mod jdk_internal_reflect_ConstantPool;

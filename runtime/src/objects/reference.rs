@@ -12,6 +12,7 @@ use crate::thread::JavaThread;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
+use crate::thread::exceptions::{throw, Throws};
 use ::jni::sys::jint;
 use common::traits::PtrType;
 use instructions::Operand;
@@ -168,19 +169,21 @@ impl Reference {
 
 	pub fn class_name(&self) -> Symbol {
 		match &self.instance {
-			ReferenceInstance::Class(class_instance) => class_instance.get().class().name,
-			ReferenceInstance::Array(array_instance) => array_instance.get().class.name,
-			ReferenceInstance::ObjectArray(array_instance) => array_instance.get().class.name,
-			ReferenceInstance::Mirror(mirror_instance) => mirror_instance.get().target_class().name,
+			ReferenceInstance::Class(class_instance) => class_instance.get().class().name(),
+			ReferenceInstance::Array(array_instance) => array_instance.get().class.name(),
+			ReferenceInstance::ObjectArray(array_instance) => array_instance.get().class.name(),
+			ReferenceInstance::Mirror(mirror_instance) => {
+				mirror_instance.get().target_class().name()
+			},
 			ReferenceInstance::Null => panic!("NullPointerException"),
 		}
 	}
 
-	pub fn array_length(&self) -> usize {
+	pub fn array_length(&self) -> Throws<usize> {
 		match &self.instance {
-			ReferenceInstance::Array(arr) => arr.get().len(),
-			ReferenceInstance::ObjectArray(arr) => arr.get().len(),
-			ReferenceInstance::Null => panic!("NullPointerException"),
+			ReferenceInstance::Array(arr) => Throws::Ok(arr.get().len()),
+			ReferenceInstance::ObjectArray(arr) => Throws::Ok(arr.get().len()),
+			ReferenceInstance::Null => throw!(@DEFER NullPointerException),
 			_ => panic!("Expected an array reference!"),
 		}
 	}

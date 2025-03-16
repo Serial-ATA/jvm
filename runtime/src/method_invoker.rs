@@ -1,4 +1,4 @@
-use crate::objects::method::Method;
+use crate::objects::method::{Method, MethodEntryPoint};
 use crate::objects::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::thread::frame::Frame;
@@ -65,6 +65,11 @@ impl MethodInvoker {
 	}
 
 	fn invoke_(frame: &mut Frame, mut method: &'static Method, reresolve_method: bool) {
+		if let Some(MethodEntryPoint::MethodHandleLinker(mh_entry_point)) = method.entry_point() {
+			mh_entry_point(frame);
+			return;
+		}
+
 		let mut max_locals = method.code.max_locals;
 		let parameter_count = method.parameter_count();
 		let is_static_method = method.is_static();

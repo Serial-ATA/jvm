@@ -10,6 +10,8 @@ use crate::{classes, globals};
 
 use std::fmt::Write;
 
+use crate::objects::field::Field;
+use crate::objects::method::Method;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
 use classfile::accessflags::FieldAccessFlags;
@@ -252,22 +254,9 @@ pub fn resolve_member_name(
 			}
 
 			// Create the java.lang.invoke.ResolvedMethodName instance
-			let resolved_method_name =
-				ClassInstance::new(globals::classes::java_lang_invoke_ResolvedMethodName());
+			let resolved_method_name = classes::java_lang_invoke_ResolvedMethodName::new(method);
 
-			classes::java_lang_invoke_ResolvedMethodName::set_vmholder(
-				resolved_method_name.get_mut(),
-				method.class().mirror(),
-			);
-			classes::java_lang_invoke_ResolvedMethodName::set_vmtarget(
-				resolved_method_name.get_mut(),
-				method,
-			);
-
-			classes::java_lang_invoke_MemberName::set_method(
-				member_name,
-				Reference::class(resolved_method_name),
-			);
+			classes::java_lang_invoke_MemberName::set_method(member_name, resolved_method_name);
 
 			let vmindex = defining_class
 				.vtable()
@@ -288,15 +277,106 @@ pub fn resolve_member_name(
 	Throws::Ok(())
 }
 
+enum FieldOrMethod {
+	Field(&'static Field),
+	Method(&'static Method),
+}
+
+fn init_member_name(member_name: ClassInstanceRef, member: FieldOrMethod) {
+	let mut flags = 0;
+	let resolved_method;
+	let vmindex;
+	let class;
+	match member {
+		FieldOrMethod::Field(_) => {
+			// Not applicable for fields.
+			resolved_method = Reference::null();
+			todo!()
+		},
+		FieldOrMethod::Method(method) => {
+			flags |= MethodHandleNatives::MN_IS_METHOD;
+
+			if method.is_final() {
+				if method.is_static() {
+					flags |= (ReferenceKind::InvokeStatic as jint)
+						<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
+				} else if method.is_constructor() {
+					flags |= MethodHandleNatives::MN_IS_CONSTRUCTOR;
+					flags |= (ReferenceKind::InvokeSpecial as jint)
+						<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
+				} else {
+					flags |= (ReferenceKind::InvokeSpecial as jint)
+				}
+			} else if method.class().is_interface() {
+				flags |= (ReferenceKind::InvokeInterface as jint)
+					<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
+			} else {
+				flags |= (ReferenceKind::InvokeVirtual as jint)
+					<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
+			}
+
+			if method.is_caller_sensitive() {
+				flags |= MethodHandleNatives::MN_CALLER_SENSITIVE;
+			}
+
+			resolved_method = classes::java_lang_invoke_ResolvedMethodName::new(method);
+			vmindex = method
+				.class()
+				.vtable()
+				.iter()
+				.position(|m| m == method)
+				.expect("method must exist in vtable");
+			class = method.class().mirror();
+		},
+	}
+
+	classes::java_lang_invoke_MemberName::set_flags(member_name.get_mut(), flags);
+	classes::java_lang_invoke_MemberName::set_method(member_name.get_mut(), resolved_method);
+	classes::java_lang_invoke_MemberName::set_vmindex(member_name.get_mut(), vmindex as jlong);
+	classes::java_lang_invoke_MemberName::set_clazz(
+		member_name.get_mut(),
+		Reference::mirror(class),
+	);
+}
+
 // -- MemberName support --
 
 pub fn init(
-	_env: JniEnv,
+	env: JniEnv,
 	_class: &'static Class,
-	_self_: Reference, // java.lang.invoke.MemberName
-	_ref_: Reference,  // java.lang.Object
+	self_: Reference, // java.lang.invoke.MemberName
+	ref_: Reference,  // java.lang.Object
 ) {
-	unimplemented!("java.lang.invoke.MethodHandleNatives#init");
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	if self_.is_null() {
+		throw!(thread, InternalError, "mname is null");
+	}
+
+	if ref_.is_null() {
+		throw!(thread, InternalError, "target is null");
+	}
+
+	let target = ref_.extract_class();
+	let target_class = target.get().class();
+	if target_class == globals::classes::java_lang_reflect_Field() {
+		todo!();
+	}
+
+	if target_class == globals::classes::java_lang_reflect_Method() {
+		let class = classes::java_lang_reflect_Method::clazz(target.get());
+		let slot = classes::java_lang_reflect_Method::slot(target.get());
+
+		let method = &class.get().target_class().vtable()[slot as usize];
+		init_member_name(self_.extract_class(), FieldOrMethod::Method(method))
+	}
+
+	if target_class == globals::classes::java_lang_reflect_Constructor() {
+		let class = classes::java_lang_reflect_Constructor::clazz(target.get());
+		let slot = classes::java_lang_reflect_Constructor::slot(target.get());
+
+		let method = &class.get().target_class().vtable()[slot as usize];
+		init_member_name(self_.extract_class(), FieldOrMethod::Method(method))
+	}
 }
 
 pub fn expand(
@@ -358,13 +438,11 @@ pub fn resolve(
 				"field resolution failed"
 			);
 		} else {
-			_e.throw(JavaThread::current());
-			return Reference::null();
-			// throw_and_return_null!(
-			// 	JavaThread::current(),
-			// 	NoSuchMethodError,
-			// 	"method resolution failed"
-			// );
+			throw_and_return_null!(
+				JavaThread::current(),
+				NoSuchMethodError,
+				"method resolution failed"
+			);
 		}
 	}
 

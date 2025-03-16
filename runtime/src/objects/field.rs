@@ -20,6 +20,7 @@ pub struct Field {
 	pub access_flags: FieldAccessFlags,
 	pub name: Symbol,
 	pub descriptor: FieldType,
+	pub descriptor_sym: Symbol,
 	pub constant_value_index: Option<u2>,
 }
 
@@ -28,7 +29,7 @@ impl Debug for Field {
 		write!(
 			f,
 			"{}#{} (index: {})",
-			self.class.name.as_str(),
+			self.class.name(),
 			self.name.as_str(),
 			self.index()
 		)
@@ -86,11 +87,11 @@ impl Field {
 			.expect("field name should always resolve");
 
 		let descriptor_index = field_info.descriptor_index;
-		let descriptor = constant_pool
+		let descriptor_sym = constant_pool
 			.get::<cp_types::ConstantUtf8>(descriptor_index)
 			.expect("field descriptor should always resolve");
 
-		let descriptor = FieldType::parse(&mut descriptor.as_bytes()).unwrap(); // TODO: Error handling
+		let descriptor = FieldType::parse(&mut descriptor_sym.as_bytes()).unwrap(); // TODO: Error handling
 		let constant_value_index = field_info
 			.get_constant_value_attribute()
 			.map(|constant_value| constant_value.constantvalue_index);
@@ -101,6 +102,7 @@ impl Field {
 			access_flags,
 			name,
 			descriptor,
+			descriptor_sym,
 			constant_value_index,
 		}))
 	}
@@ -110,12 +112,15 @@ impl Field {
 		name: Symbol,
 		descriptor: FieldType,
 	) -> &'static Field {
+		let descriptor_sym = Symbol::intern(descriptor.as_signature());
+
 		Box::leak(Box::new(Self {
 			idx: SyncUnsafeCell::new(0),
 			class,
 			access_flags: FieldAccessFlags::NONE,
 			name,
 			descriptor,
+			descriptor_sym,
 			constant_value_index: None,
 		}))
 	}

@@ -1,5 +1,6 @@
 #![allow(unused_imports)] // Intellij-Rust doesn't like this file much, the imports used in macros are not recognized
 
+use crate::dynamic::var_handle;
 use crate::method_invoker::MethodInvoker;
 use crate::native::java::lang::invoke::MethodHandle;
 use crate::native::java::lang::String::StringInterner;
@@ -9,11 +10,11 @@ use crate::objects::class_instance::ClassInstance;
 use crate::objects::constant_pool::cp_types::{self, Entry, MethodEntry};
 use crate::objects::field::Field;
 use crate::objects::instance::Instance;
-use crate::objects::method::Method;
+use crate::objects::method::{Method, MethodEntryPoint};
 use crate::objects::reference::{ClassInstanceRef, ObjectArrayInstanceRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::symbols::{sym, Symbol};
-use crate::thread::exceptions::{handle_exception, Exception, ExceptionKind, Throws};
+use crate::thread::exceptions::{handle_exception, throw, Exception, ExceptionKind, Throws};
 use crate::thread::frame::Frame;
 use crate::thread::{exceptions, JavaThread};
 use crate::{classes, java_call};
@@ -713,7 +714,13 @@ impl Interpreter {
                 OpCode::arraylength => {
                     let stack = frame.stack_mut();
                     let object_ref = stack.pop_reference();
-                    let array_len = object_ref.array_length();
+                    let array_len = match object_ref.array_length() {
+                        Throws::Ok(len) => len,
+                        Throws::Exception(e) => {
+                            e.throw(frame.thread());
+                            return;
+                        }
+                    };
                     stack.push_int(array_len as s4);
                 },
                 OpCode::athrow => {
@@ -1013,10 +1020,9 @@ impl Interpreter {
         let mut call_args = Vec::with_capacity(parameter_count);
         if let Some(appendix) = entry.appendix {
             assert!(parameter_count >= 1);
-            parameter_count -= 1;
-            call_args.push(Operand::Reference(appendix.clone()));
+            frame.stack_mut().push_reference(appendix.clone());
         }
-
+        
         call_args.extend(frame.stack_mut().popn(parameter_count));
 
         MethodInvoker::invoke_with_args(frame.thread(), entry.method, call_args);
@@ -1028,6 +1034,11 @@ impl Interpreter {
         let Some(entry) = Self::fetch_method(frame, true) else {
             return;
         };
+        
+        if let Some(MethodEntryPoint::MethodHandleLinker(mh)) = entry.method.entry_point() {
+            mh(frame);
+            return;
+        }
         
         let call_args = frame.stack_mut().popn(entry.parameter_count as usize);
         MethodInvoker::invoke_with_args(frame.thread(), entry.method, call_args);
@@ -1047,123 +1058,25 @@ impl Interpreter {
         }
         
         if entry.method.class().is_subclass_of(crate::globals::classes::java_lang_invoke_MethodHandle()) {
-            // If the resolved method is signature polymorphic (§2.9.3), and declared in the
-            // java.lang.invoke.MethodHandle class, then the invokevirtual instruction proceeds as follows,
-            // where D is the descriptor of the method symbolically referenced by the instruction.
-            let D = entry.descriptor;
+            let Some(MethodEntryPoint::MethodHandleInvoker(mh_invoker)) = entry.method.entry_point() else {
+                panic!("Expected MethodHandleInvoker entry point");
+            };
             
-            // First, a reference to an instance of java.lang.invoke.MethodType is obtained as if by
-            // resolution of a symbolic reference to a method type (§5.4.3.5) with the same parameter
-            // and return types as D.
-            let method_type;
-            match Method::method_type_for(entry.method.class(), D.as_str()) {
-                Throws::Ok(mt) => method_type = mt,
-                Throws::Exception(e) => {
-                    e.throw(frame.thread());
-                    return;
-                },
-            }
-            
-            let method_handle;
-            let mut parameter_count;
-            if entry.method.name == sym!(invokeExact_name) {
-                //     If the named method is invokeExact, the instance of java.lang.invoke.MethodType must
-                //     be semantically equal to the type descriptor of the receiving method handle objectref.
-                //     The method handle to be invoked is objectref.
-                todo!();
-            } else if entry.method.name == sym!(invoke_name) {
-                // If the named method is invoke, and the instance of java.lang.invoke.MethodType is
-                // semantically equal to the type descriptor of the receiving method handle objectref,
-                // then the method handle to be invoked is objectref.
-                todo!();
-                
-                // If the named method is invoke, and the instance of java.lang.invoke.MethodType is
-                // not semantically equal to the type descriptor of the receiving method handle objectref,
-                // then the Java Virtual Machine attempts to adjust the type descriptor of the receiving
-                // method handle, as if by invocation of the asType method of java.lang.invoke.MethodHandle,
-                // to obtain an exactly invokable method handle m. The method handle to be invoked is m.
-                todo!();
-            } else {
-                let ptypes = classes::java_lang_invoke_MethodType::ptypes(method_type.extract_class().get());
-                let ptypes = ptypes.get().as_slice();
-                parameter_count = ptypes.len();
-
-                let mut parameters_stack_size = 0;
-                for r in ptypes.iter().map(Reference::extract_mirror) {
-                    let mirror = r.get();
-                    if mirror.is_primitive() {
-                        parameters_stack_size += mirror.primitive_target().stack_size();
-                        continue;
-                    }
-
-                    parameters_stack_size += 1;
-                }
-
-                method_handle = frame.stack().at(parameters_stack_size as usize).expect_reference();
-            }
-
-            // TODO: The frame created should not be visible (stacktraces should end at the calling frame)
-            if !entry.method.is_static() {
-                // For `this`
-                parameter_count += 1;
-            }
-            
-            // TODO: Sending this through the traditional method invoker is super inefficient, ends up
-            //       causing duplicate work on the native method end. *Especially* since the args
-            //       are all already on the stack.
-            let call_args = frame.stack_mut().popn(parameter_count);
-            MethodInvoker::invoke_with_args(frame.thread(), entry.method, call_args);
-            
+            mh_invoker(frame, entry);
             return;
         }
 
         
         if entry.method.class().is_subclass_of(crate::globals::classes::java_lang_invoke_VarHandle()) {
-            // If the resolved method is signature polymorphic and declared in the
-            // java.lang.invoke.VarHandle class, then the invokevirtual instruction proceeds as follows,
-            // where N and D are the name and descriptor of the method symbolically referenced by the instruction.
-            let N = entry.method.name;
-            let D = entry.method.descriptor_sym();
+            let _ = match var_handle::resolve_invoke_virtual(frame, &entry) {
+                Throws::Ok(()) => (),
+                Throws::Exception(e) => {
+                    e.throw(frame.thread());
+                    return;
+                }
+            };
             
-            // First, a reference to an instance of java.lang.invoke.VarHandle.AccessMode is obtained
-            // as if by invocation of the valueFromMethodName method of java.lang.invoke.VarHandle.AccessMode
-            // with a String argument denoting N.
-            todo!();
-            
-            // Second, a reference to an instance of java.lang.invoke.MethodType is obtained as if by
-            // invocation of the accessModeType method of java.lang.invoke.VarHandle on the instance
-            // objectref, with the instance of java.lang.invoke.VarHandle.AccessMode as the argument.
-            todo!();
-            
-            // Third, a reference to an instance of java.lang.invoke.MethodHandle is obtained as if by
-            // invocation of the varHandleExactInvoker method of java.lang.invoke.MethodHandles with
-            // the instance of java.lang.invoke.VarHandle.AccessMode as the first argument and the
-            // instance of java.lang.invoke.MethodType as the second argument. The resulting instance
-            // is called the invoker method handle.
-            todo!();
-            
-            // Finally, the nargs argument values and objectref are popped from the operand stack, and
-            // the invoker method handle is invoked. The invocation occurs as if by execution of an
-            // invokevirtual instruction that indicates a run-time constant pool index to a symbolic
-            // reference R where:
-            // 
-            //     * R is a symbolic reference to a method of a class;
-            // 
-            //     * for the symbolic reference to the class in which the method is to be found, R specifies java.lang.invoke.MethodHandle;
-            // 
-            //     * for the name of the method, R specifies invoke;
-            // 
-            //     * for the descriptor of the method, R specifies a return type indicated by the return
-            //       descriptor of D, and specifies a first parameter type of java.lang.invoke.VarHandle
-            //       followed by the parameter types indicated by the parameter descriptors of D (if any) in order.
-            // 
-            // and where it is as if the following items were pushed, in order, onto the operand stack:
-            // 
-            //     * a reference to the instance of java.lang.invoke.MethodHandle (the invoker method handle);
-            // 
-            //     * objectref;
-            // 
-            //     * the nargs argument values, where the number, type, and order of the values must be consistent with the type descriptor of the invoker method handle.
+            todo!()
         }
     }
     

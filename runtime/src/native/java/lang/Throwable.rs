@@ -1,4 +1,3 @@
-use crate::classes;
 use crate::objects::array::PrimitiveArrayInstance;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
@@ -6,6 +5,7 @@ use crate::objects::reference::Reference;
 use crate::symbols::sym;
 use crate::thread::frame::stack::VisibleStackFrame;
 use crate::thread::JavaThread;
+use crate::{classes, globals};
 
 use std::sync::Once;
 
@@ -63,6 +63,8 @@ impl BackTrace {
 	fn push(&mut self, frame: VisibleStackFrame<'_>) {
 		let method = frame.method();
 		let pc = match frame {
+			// TODO: The stashed pc will never be correct, since the pc is immediately incremented on every read.
+			//       This needs to be fixed in the interpreter to only progress the pc when the instruction is finished.
 			VisibleStackFrame::Regular(frame) => frame.stashed_pc(),
 			_ => -1,
 		};
@@ -108,16 +110,14 @@ pub fn fillInStackTrace(
 
 	let stack_depth = current_thread.frame_stack().visible_depth();
 
-	// We need to skip the current frame at the very least
-	let mut frames_to_skip = 1;
-
-	let mut current_class = this_class;
-	loop {
-		// Skip all frames related to the Throwable class and its superclasses
-		frames_to_skip += 1;
-
-		if let Some(super_class) = current_class.super_class {
-			current_class = super_class;
+	let mut frames_to_skip = 0;
+	for frame in current_thread.frame_stack().iter() {
+		if frame
+			.method()
+			.class()
+			.is_subclass_of(globals::classes::java_lang_Throwable())
+		{
+			frames_to_skip += 1;
 			continue;
 		}
 

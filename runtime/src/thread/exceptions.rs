@@ -288,7 +288,7 @@ impl Exception {
 
 // TODO: Document, maybe also have a second private macro to hide construction patterns
 macro_rules! throw {
-	($thread:ident, $($tt:tt)*) => {{
+	($thread:expr, $($tt:tt)*) => {{
 		crate::thread::exceptions::throw_with_ret!((), $thread, $($tt)*);
 	}};
 	(@DEFER $($tt:tt)*) => {{
@@ -351,90 +351,20 @@ pub fn class_cast_exception_message(from: &'static Class, to: &'static Class) ->
 	let to_class_description;
 	let class_separator;
 	if from.module() == to.module() {
-		let to_description = class_in_module_of_loader(to, true, false);
+		let to_description = to.in_module_of_loader(true, false);
 		from_class_description = format!("{} and {to_description}", from.external_name());
 		to_class_description = String::new();
 		class_separator = "";
 	} else {
-		from_class_description = class_in_module_of_loader(from, false, false);
-		to_class_description = class_in_module_of_loader(to, false, false);
+		from_class_description = from.in_module_of_loader(false, false);
+		to_class_description = to.in_module_of_loader(false, false);
 		class_separator = "; "
 	}
 
 	format!(
 		"class {} cannot be cast to class {} \
 		 ({from_class_description}{class_separator}{to_class_description})",
-		from.name, to.name,
-	)
-}
-
-fn class_in_module_of_loader(
-	class: &'static Class,
-	use_are: bool,
-	include_parent_loader: bool,
-) -> String {
-	let are_or_is = if use_are { "are" } else { "is" };
-
-	// 1. fully-qualified external name of the class
-	let external_name = class.external_name();
-
-	let module_name_phrase;
-	let module_name;
-
-	let mut module_version_separator = "";
-	let mut module_version = "";
-
-	'module_info: {
-		let mut target_class = class;
-		if class.is_array() {
-			let array_descriptor = class.unwrap_array_instance();
-
-			// Simplest case, primitive arrays are in java.base
-			if array_descriptor.is_primitive() {
-				module_name_phrase = "module ";
-				module_name = "java.base";
-				break 'module_info;
-			}
-
-			let FieldType::Object(class_name) = &array_descriptor.component else {
-				unreachable!()
-			};
-
-			// TODO: There shouldn't be a case where the component isn't already loaded, but just incase
-			//       this should bubble up an exception, not unwrap.
-			let class_name = Symbol::intern(class_name);
-			target_class = target_class.loader().load(class_name).unwrap();
-		}
-
-		match target_class.module().name() {
-			Some(name) => {
-				module_name_phrase = "module ";
-				module_name = name.as_str();
-				if target_class.module().should_show_version() {
-					module_version_separator = "@";
-					module_version = target_class
-						.module()
-						.version()
-						.expect("version should exist")
-						.as_str();
-				}
-			},
-			None => {
-				module_name_phrase = "";
-				module_name = "unnamed module";
-			},
-		}
-	}
-
-	let loader_name_and_id = class.loader().name_and_id();
-
-	// TODO: set these
-	let mut parent_loader_phrase = "";
-	let mut parent_loader_name_and_id = "";
-
-	format!(
-		"{external_name} {are_or_is} in \
-		 {module_name_phrase}{module_name}{module_version_separator}{module_version} of loader \
-		 {loader_name_and_id}{parent_loader_phrase}{parent_loader_name_and_id}",
+		from.name(),
+		to.name(),
 	)
 }

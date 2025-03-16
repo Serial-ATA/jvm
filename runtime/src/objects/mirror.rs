@@ -45,7 +45,7 @@ pub struct MirrorInstance {
 impl Debug for MirrorInstance {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("MirrorInstance")
-			.field("class", &self.class.name.as_str())
+			.field("class", &self.class.name())
 			.field("fields", &self.fields)
 			.field("target", &self.target)
 			.finish()
