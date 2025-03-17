@@ -1,6 +1,6 @@
 use crate::error::{JniError, Result};
 use crate::objects::JClass;
-use crate::string::JCesu8String;
+use crate::string::JniString;
 use crate::sys::JNI_TRUE;
 
 impl super::JniEnv {
@@ -22,7 +22,7 @@ impl super::JniEnv {
 	/// * `ClassCircularityError`: The class or interface would be its own superclass or superinterface.
 	/// * `NoClassDefFoundError`: No definition for a requested class or interface can be found.
 	/// * `OutOfMemoryError`: The system runs out of memory.
-	pub fn find_class(&self, name: impl Into<JCesu8String>) -> Result<JClass> {
+	pub fn find_class(&self, name: impl Into<JniString>) -> Result<JClass> {
 		let name = name.into();
 
 		let ret;

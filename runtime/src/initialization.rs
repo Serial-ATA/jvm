@@ -319,7 +319,6 @@ fn create_thread_object(thread: &JavaThread) -> bool {
 /// * Signal handlers
 /// * OS-specific system settings
 /// * Thread group of the main thread
-#[tracing::instrument(skip_all)]
 fn init_phase_1(thread: &JavaThread) -> Result<(), JniError> {
 	let system_class = crate::globals::classes::java_lang_System();
 	let init_phase_1 = system_class
@@ -339,7 +338,6 @@ fn init_phase_1(thread: &JavaThread) -> Result<(), JniError> {
 ///
 /// This is responsible for initializing the module system. Prior to this point, the only module
 /// available to us is `java.base`.
-#[tracing::instrument(skip_all)]
 fn init_phase_2(thread: &JavaThread) -> Result<(), JniError> {
 	let system_class = crate::globals::classes::java_lang_System();
 
@@ -367,10 +365,6 @@ fn init_phase_2(thread: &JavaThread) -> Result<(), JniError> {
 		return Err(JniError::Unknown);
 	}
 
-	unsafe {
-		crate::globals::modules::set_module_system_initialized();
-	}
-
 	Ok(())
 }
 
@@ -381,7 +375,6 @@ fn init_phase_2(thread: &JavaThread) -> Result<(), JniError> {
 /// * Initialization of and setting the security manager
 /// * Setting the system class loader
 /// * Setting the thread context class loader
-#[tracing::instrument(skip_all)]
 fn init_phase_3(thread: &JavaThread) -> Result<(), JniError> {
 	let system_class = crate::globals::classes::java_lang_System();
 

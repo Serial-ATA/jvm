@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 jni_sys.workspace = true
 libloading.workspace = true
-cesu8.workspace = true
+common.workspace = true

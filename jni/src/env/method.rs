@@ -1,6 +1,6 @@
 use crate::error::{JniError, Result};
 use crate::objects::{JClass, JMethodId, JValue};
-use crate::string::JCesu8String;
+use crate::string::JniString;
 
 impl super::JniEnv {
 	// --------------
@@ -98,8 +98,8 @@ impl super::JniEnv {
 	pub fn get_static_method_id(
 		&self,
 		class: JClass,
-		name: impl Into<JCesu8String>,
-		sig: impl Into<JCesu8String>,
+		name: impl Into<JniString>,
+		sig: impl Into<JniString>,
 	) -> Result<JMethodId> {
 		let name = name.into();
 		let sig = sig.into();

@@ -1,6 +1,5 @@
 pub mod classes;
 pub mod mirrors;
-pub mod modules;
 pub mod threads;
 
 use crate::symbols::{sym, Symbol};

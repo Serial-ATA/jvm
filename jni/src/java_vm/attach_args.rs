@@ -6,6 +6,8 @@ use std::borrow::Cow;
 use std::ffi::{c_char, c_void};
 use std::ptr;
 
+use common::unicode;
+
 pub struct VmAttachArgs {
 	version: JniVersion,
 	name: Option<String>,
@@ -42,7 +44,7 @@ impl VmAttachArgs {
 
 		let mut name_ptr = ptr::null();
 		if let Some(name) = name {
-			match cesu8::to_java_cesu8(name.as_str()) {
+			match unicode::encode(name.as_str()) {
 				// If owned, we need to replace `__name` with the new allocation
 				Cow::Owned(value) => {
 					name_ptr = value.as_ptr();

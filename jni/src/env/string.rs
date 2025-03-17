@@ -1,6 +1,6 @@
 use crate::error::{JniError, Result};
 use crate::objects::JString;
-use crate::string::JCesu8String;
+use crate::string::JniString;
 
 impl super::JniEnv {
 	// TODO: NewString
@@ -21,7 +21,7 @@ impl super::JniEnv {
 	/// Possible exceptions:
 	///
 	/// * `OutOfMemoryError`: The system runs out of memory.
-	pub fn new_string_utf(&self, utf: impl Into<JCesu8String>) -> Result<JString> {
+	pub fn new_string_utf(&self, utf: impl Into<JniString>) -> Result<JString> {
 		let utf = utf.into();
 
 		let ret;
