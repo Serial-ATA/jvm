@@ -898,6 +898,7 @@ impl Class {
 	pub unsafe fn new(
 		parsed_file: ClassFile,
 		super_class: Option<&'static Class>,
+		super_interfaces: Vec<&'static Class>,
 		loader: &'static ClassLoader,
 		is_hidden: bool,
 	) -> Throws<&'static Class> {
@@ -999,16 +1000,6 @@ impl Class {
 			super_instance_field_count = super_class.field_container.instance_field_count();
 		}
 
-		let interfaces = parsed_file
-			.interfaces
-			.iter()
-			.map(|index| {
-				let interface_class_name =
-					constant_pool.get::<raw_types::RawClassName>(*index).name;
-				loader.load(Symbol::intern(&*interface_class_name))
-			})
-			.collect::<Throws<Vec<_>>>()?;
-
 		let static_field_slots = box_slice![UnsafeCell::new(Operand::Empty); static_field_count];
 
 		let class = Self {
@@ -1016,7 +1007,7 @@ impl Class {
 			access_flags,
 			loader,
 			super_class,
-			interfaces,
+			interfaces: super_interfaces,
 			misc_cache: UnsafeCell::new(MiscCache {
 				class_name_index,
 				nest_host_index,
@@ -1269,7 +1260,7 @@ impl Class {
 		}
 
 		for super_interface in &self.interfaces {
-			if target_interface == *super_interface || super_interface.implements(&target_interface)
+			if target_interface == *super_interface || super_interface.implements(target_interface)
 			{
 				return true;
 			}

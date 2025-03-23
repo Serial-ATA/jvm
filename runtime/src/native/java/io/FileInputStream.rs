@@ -1,15 +1,33 @@
 #![allow(non_upper_case_globals)]
 
+use crate::classes;
+use crate::objects::array::Array;
 use crate::objects::class::Class;
+use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
+use crate::thread::exceptions::{throw, throw_with_ret};
+use crate::thread::JavaThread;
 
+use std::io::{Read, Seek};
+use std::mem::ManuallyDrop;
+use std::os::fd::{FromRawFd, RawFd};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use crate::classes;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
+use common::traits::PtrType;
+use jni::sys::jbyte;
 
 include_generated!("native/java/io/def/FileInputStream.definitions.rs");
+
+// TODO: move to crate::classes
+fn get_fd(this: &Reference) -> jint {
+	// `fd` is a reference to a `java.io.FileDescriptor`
+	let fd_field_offset = classes::java_io_FileInputStream::fd_field_offset();
+	let file_descriptor_ref = this.get_field_value0(fd_field_offset).expect_reference();
+
+	super::FileDescriptor::get_fd(&file_descriptor_ref)
+}
 
 // throws FileNotFoundException
 pub fn open0(_: JniEnv, _this: Reference, _name: Reference /* java.lang.String */) {
@@ -23,13 +41,46 @@ pub fn read0(_: JniEnv, _this: Reference) -> jint {
 
 // throws IOException
 pub fn readBytes(
-	_: JniEnv,
-	_this: Reference,
-	_b: Reference, // byte[]
-	_off: jint,
-	_len: jint,
+	env: JniEnv,
+	this: Reference,
+	b: Reference, // byte[]
+	off: jint,
+	len: jint,
 ) -> jint {
-	unimplemented!("java.io.FileInputStream#readbytes");
+	if b.is_null() {
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		throw_with_ret!(0, thread, NullPointerException);
+	}
+
+	let b = b.extract_primitive_array();
+	if off < 0 || len < 0 || (off + len) as usize > b.get().len() {
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		throw_with_ret!(0, thread, IndexOutOfBoundsException);
+	}
+
+	if len == 0 {
+		return 0;
+	}
+
+	// Need to convert the jbyte[] to a &[u8]
+	let mut window = &mut b.get_mut().as_bytes_mut()[off as usize..(off + len) as usize];
+
+	let current_fd = get_fd(&this);
+	if current_fd == -1 {
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		throw_with_ret!(-1, thread, IOException, "stream closed");
+	}
+
+	// Wrap in `ManuallyDrop` so the file descriptor doesn't get closed
+	let mut file = ManuallyDrop::new(unsafe { std::fs::File::from_raw_fd(current_fd as RawFd) });
+
+	match file.read(&mut window[off as usize..]) {
+		Ok(n) => n as jint,
+		Err(e) => {
+			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+			throw_with_ret!(-1, thread, IOException, "{e}");
+		},
+	}
 }
 
 // throws IOException
@@ -48,8 +99,25 @@ pub fn skip0(_: JniEnv, _this: Reference, _n: jlong) -> jlong {
 }
 
 // throws IOException
-pub fn available0(_: JniEnv, _this: Reference) -> jint {
-	unimplemented!("java.io.FileInputStream#available0");
+pub fn available0(env: JniEnv, this: Reference) -> jint {
+	let current_fd = get_fd(&this);
+	if current_fd == -1 {
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		throw_with_ret!(0, thread, IOException, "stream closed");
+	}
+
+	// Wrap in `ManuallyDrop` so the file descriptor doesn't get closed
+	let mut file = ManuallyDrop::new(unsafe { std::fs::File::from_raw_fd(current_fd as RawFd) });
+
+	let Ok(current) = file.stream_position() else {
+		return 0;
+	};
+
+	let Ok(metadata) = file.metadata() else {
+		return 0;
+	};
+
+	(metadata.len() - current) as jint
 }
 
 pub fn isRegularFile0(

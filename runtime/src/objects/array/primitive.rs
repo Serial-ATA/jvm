@@ -57,6 +57,19 @@ impl TypeCode {
 		}
 	}
 
+	pub fn align(self) -> usize {
+		match self {
+			TypeCode::Boolean => align_of::<jboolean>(),
+			TypeCode::Char => align_of::<jchar>(),
+			TypeCode::Float => align_of::<jfloat>(),
+			TypeCode::Double => align_of::<jdouble>(),
+			TypeCode::Byte => align_of::<jbyte>(),
+			TypeCode::Short => align_of::<jshort>(),
+			TypeCode::Int => align_of::<jint>(),
+			TypeCode::Long => align_of::<jlong>(),
+		}
+	}
+
 	fn array_signature(self) -> Symbol {
 		match self {
 			TypeCode::Boolean => sym!(boolean_array),
@@ -273,11 +286,38 @@ impl PrimitiveArrayInstance {
 		self.base
 	}
 
+	/// Get the alignment of the component type in bytes
+	pub fn align(&self) -> usize {
+		self.ty.align()
+	}
+
+	/// Get the size of the component type in bytes
+	pub fn size(&self) -> usize {
+		self.ty.size()
+	}
+
 	pub fn as_slice<T: PrimitiveType>(&self) -> &[T] {
 		assert_eq!(T::TYPE_CODE, self.ty);
 
 		// SAFETY: We just verified that the type is correct
 		unsafe { slice::from_raw_parts::<T>(self.base as *const _, self.length as usize) }
+	}
+
+	pub fn as_mut_slice<T: PrimitiveType>(&mut self) -> &mut [T] {
+		assert_eq!(T::TYPE_CODE, self.ty);
+
+		// SAFETY: We just verified that the type is correct
+		unsafe { slice::from_raw_parts_mut::<T>(self.base as *mut _, self.length as usize) }
+	}
+
+	pub fn as_bytes(&self) -> &[u8] {
+		// SAFETY: Every primtive type can be represented as bytes
+		unsafe { slice::from_raw_parts(self.base, self.length as usize) }
+	}
+
+	pub fn as_bytes_mut(&mut self) -> &mut [u8] {
+		// SAFETY: Every primtive type can be represented as bytes
+		unsafe { slice::from_raw_parts_mut(self.base, self.length as usize) }
 	}
 
 	// TODO: Make arrays implement `Instance`

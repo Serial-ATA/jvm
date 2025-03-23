@@ -110,6 +110,11 @@ impl ObjectArrayInstance {
 		unsafe { slice::from_raw_parts(self.base, self.length as usize) }
 	}
 
+	pub fn as_mut_slice(&mut self) -> &mut [Reference] {
+		// SAFETY: The pointer and length are always valid. Arrays cannot grow or shrink.
+		unsafe { slice::from_raw_parts_mut(self.base, self.length as usize) }
+	}
+
 	/// Get a pointer to the value at `offset`
 	///
 	/// **NOTE**: The `offset` is a **BYTE OFFSET**! Do not attempt to use this as a normal getter.

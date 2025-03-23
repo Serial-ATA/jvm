@@ -675,14 +675,40 @@ pub fn setMemory0(
 
 pub fn copyMemory0(
 	_env: JniEnv,
-	_this: Reference,     // jdk.internal.misc.Unsafe
-	_src_base: Reference, // Object
-	_src_offset: jlong,
-	_dest_base: Reference, // Object
-	_dest_offset: jlong,
-	_bytes: jlong,
+	_this: Reference,    // jdk.internal.misc.Unsafe
+	src_base: Reference, // java.lang.Object
+	src_offset: jlong,
+	dest_base: Reference, // java.lang.Object
+	dest_offset: jlong,
+	bytes: jlong,
 ) {
-	unimplemented!("jdk.internal.misc.Unsafe#copyMemory0")
+	let size = bytes as usize;
+
+	if src_base.is_primitive_array() {
+		let src_base = src_base.extract_primitive_array();
+		let dest_base = dest_base.extract_primitive_array();
+
+		let src_base_element_size = src_base.get().size();
+		let dest_base_element_size = dest_base.get().size();
+
+		let src_base_offset = (src_offset as usize) * src_base_element_size;
+		let dest_base_offset = (dest_offset as usize) * dest_base_element_size;
+
+		unsafe {
+			let src_base_ptr = src_base.get().base().add(src_base_offset);
+			let dest_base_ptr = dest_base.get().base().add(dest_base_offset);
+			src_base_ptr.copy_to(dest_base_ptr, size * src_base_element_size);
+			return;
+		}
+	}
+
+	let src_base_ptr;
+	let dest_base_ptr;
+	unsafe {
+		src_base_ptr = src_base.get_field_value_raw(src_offset as usize);
+		dest_base_ptr = dest_base.get_field_value_raw(dest_offset as usize);
+		src_base_ptr.copy_to(dest_base_ptr, size);
+	}
 }
 
 pub fn copySwapMemory0(

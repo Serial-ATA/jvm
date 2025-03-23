@@ -62,6 +62,13 @@ impl ClassFile {
 		super_class.map(|class| class.name)
 	}
 
+	pub fn get_super_interfaces(&self) -> impl Iterator<Item = Cow<'_, [u1]>> {
+		self.interfaces
+			.iter()
+			.map(|index| self.constant_pool.get::<raw_types::RawClassName>(*index))
+			.map(|class| class.name)
+	}
+
 	pub fn source_file_index(&self) -> Option<u2> {
 		for attr in &self.attributes {
 			if let AttributeType::SourceFile(SourceFile { sourcefile_index }) = attr.info {

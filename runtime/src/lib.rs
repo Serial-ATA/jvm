@@ -12,6 +12,7 @@
 #![feature(associated_type_defaults)]
 #![feature(hash_raw_entry)]
 #![feature(ptr_as_ref_unchecked)]
+#![feature(seek_stream_len)]
 extern crate core;
 
 pub mod calls;

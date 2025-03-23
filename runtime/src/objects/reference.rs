@@ -7,12 +7,12 @@ use super::mirror::MirrorInstancePtr;
 use super::monitor::Monitor;
 use crate::objects::array::Array;
 use crate::symbols::Symbol;
+use crate::thread::exceptions::{throw, Throws};
 use crate::thread::JavaThread;
 
 use std::ptr::NonNull;
 use std::sync::Arc;
 
-use crate::thread::exceptions::{throw, Throws};
 use ::jni::sys::jint;
 use common::traits::PtrType;
 use instructions::Operand;
@@ -81,6 +81,18 @@ impl PartialEq for ReferenceInstance {
 			// All null references are equal
 			(ReferenceInstance::Null, ReferenceInstance::Null) => true,
 			_ => false,
+		}
+	}
+}
+
+impl ReferenceInstance {
+	fn raw(&self) -> *const () {
+		match self {
+			ReferenceInstance::Class(val) => val.as_raw() as _,
+			ReferenceInstance::Array(val) => val.as_raw() as _,
+			ReferenceInstance::ObjectArray(val) => val.as_raw() as _,
+			ReferenceInstance::Mirror(val) => val.as_raw() as _,
+			ReferenceInstance::Null => core::ptr::null(),
 		}
 	}
 }
@@ -273,6 +285,10 @@ impl Reference {
 			ReferenceInstance::Null => panic!("NullPointerException"),
 			_ => panic!("Expected a class/array reference!"),
 		}
+	}
+
+	pub fn raw(&self) -> *const () {
+		self.instance.raw()
 	}
 }
 

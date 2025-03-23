@@ -436,15 +436,22 @@ impl ClassLoader {
 			super_class = Some(self.resolve_super_class(Symbol::intern(&*super_class_name))?);
 		}
 
-		// TODO:
 		// 4. If C has any direct superinterfaces, the symbolic references from C to its direct
 		//    superinterfaces are resolved using the algorithm of §5.4.3.1.
+		let super_interfaces = classfile
+			.get_super_interfaces()
+			.map(|interface_name| {
+				let sym = Symbol::intern(&*interface_name);
+				self.resolve_interface(sym)
+			})
+			.collect::<Throws<Vec<_>>>()?;
 
 		// If no exception is thrown in steps 1-4, then derivation of the class or interface C succeeds.
 		// The Java Virtual Machine marks C to have L as its defining loader, records that L is an initiating
 		// loader of C (§5.3.4), and creates C in the method area (§2.5.4).
 
-		let class = unsafe { Class::new(classfile, super_class, self, is_hidden)? };
+		let class =
+			unsafe { Class::new(classfile, super_class, super_interfaces, self, is_hidden)? };
 		init_mirror(class);
 
 		self.add_class(class)?;
@@ -485,6 +492,32 @@ impl ClassLoader {
 		//     a final instance method declared in a superclass of C, derivation throws an IncompatibleClassChangeError.
 
 		self.load(super_class_name)
+	}
+
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.3.1
+	fn resolve_interface(&'static self, name: Symbol) -> Throws<&'static Class> {
+		// To resolve an unresolved symbolic reference from D to a class or interface C denoted by N, the following steps are performed:
+
+		// 1. The defining loader of D is used to load and thereby create a class or interface denoted by N.
+		//    This class or interface is C. The details of the process are given in §5.3.
+		//
+		//     Any exception that can be thrown as a result of failure to load and thereby create C can
+		//     thus be thrown as a result of failure of class and interface resolution.
+		let interface = self.load(name)?;
+
+		// 2. If C is an array class and its element type is a reference type, then a symbolic reference
+		//    to the class or interface representing the element type is resolved by invoking the algorithm in §5.4.3.1 recursively.
+		if interface.is_array() {
+			let component = &interface.unwrap_array_instance().component;
+			if let FieldType::Object(name) = component {
+				return self.resolve_interface(Symbol::intern(name));
+			}
+		}
+
+		// TODO
+		// 3. Finally, access control is applied for the access from D to C (§5.4.4).
+
+		Throws::Ok(interface)
 	}
 
 	// Creating array classes

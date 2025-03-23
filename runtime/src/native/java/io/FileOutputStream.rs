@@ -19,6 +19,7 @@ use jni::sys::jbyte;
 
 include_generated!("native/java/io/def/FileOutputStream.definitions.rs");
 
+// TODO: move to crate::classes
 fn get_fd(this: &Reference) -> jint {
 	// `fd` is a reference to a `java.io.FileDescriptor`
 	let fd_field_offset = classes::java_io_FileOutputStream::fd_field_offset();
@@ -53,7 +54,7 @@ pub fn writeBytes(
 	}
 
 	let array_instance = b.extract_primitive_array();
-	let array_content = array_instance.get().as_slice::<jbyte>();
+	let array_content = array_instance.get().as_bytes();
 	if off < 0 || len < 0 || (off + len) as usize > array_content.len() {
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(thread, IndexOutOfBoundsException);
@@ -63,12 +64,7 @@ pub fn writeBytes(
 		return;
 	}
 
-	// Need to convert the jbyte[] to a &[u8]
-	let window = &array_content[off as usize..(off + len) as usize];
-
-	// SAFETY: `i8` and `u8` have the same size and alignment
-	let mut window: &[u8] =
-		unsafe { std::slice::from_raw_parts(window.as_ptr() as *const u8, window.len()) };
+	let mut window = &array_content[off as usize..(off + len) as usize];
 
 	let mut offset = 0;
 	let mut len = len;
