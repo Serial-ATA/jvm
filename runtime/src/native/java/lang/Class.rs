@@ -421,14 +421,14 @@ pub fn getDeclaredMethods0(
 
 	let methods = target
 		.vtable()
-		.iter()
-		.filter(|method| !method.is_clinit() && !method.is_constructor())
+		.iter_local()
 		.filter(|method| {
-			if public_only {
-				return method.is_public();
-			}
-
-			true
+			let matches_visibility = if public_only {
+				method.is_public()
+			} else {
+				true
+			};
+			!method.is_clinit() && !method.is_constructor() && matches_visibility
 		})
 		.collect::<Vec<_>>();
 
@@ -484,15 +484,13 @@ pub fn getDeclaredConstructors0(
 	let target = this_mirror.target_class();
 	let constructors = target
 		.vtable()
-		.iter()
+		.iter_local()
 		.filter_map(|method| {
 			if !method.is_public() && public_only {
 				return None;
 			}
 
-			if method.name == sym!(object_initializer_name)
-				|| method.name == sym!(class_initializer_name)
-			{
+			if method.name == sym!(object_initializer_name) {
 				Some(method)
 			} else {
 				None

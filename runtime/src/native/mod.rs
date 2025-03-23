@@ -77,6 +77,7 @@ pub(crate) mod jdk {
 		}
 		pub(crate) mod reflect {
 			pub(crate) mod DirectConstructorHandleAccessor;
+			pub(crate) mod DirectMethodHandleAccessor;
 			pub(crate) mod Reflection;
 		}
 	}

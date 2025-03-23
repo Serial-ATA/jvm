@@ -63,6 +63,17 @@ pub fn new(method: &Method) -> Throws<ClassInstanceRef> {
 	Throws::Ok(reflect_method)
 }
 
+pub fn vmtarget(instance: &ClassInstance) -> Option<&'static Method> {
+	let mirror = clazz(instance);
+	let slot = slot(instance);
+	mirror
+		.get()
+		.target_class()
+		.vtable()
+		.iter()
+		.nth(slot as usize)
+}
+
 pub fn clazz(instance: &ClassInstance) -> MirrorInstanceRef {
 	instance
 		.get_field_value0(clazz_field_offset())

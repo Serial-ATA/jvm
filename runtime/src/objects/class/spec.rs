@@ -693,7 +693,6 @@ impl Class {
 			return superinterface_method;
 		}
 
-		// No implementation found
-		panic!("No viable methods for method selection");
+		method
 	}
 }

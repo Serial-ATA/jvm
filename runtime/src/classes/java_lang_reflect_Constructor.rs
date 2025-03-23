@@ -16,9 +16,7 @@ use jni::sys::jint;
 
 /// Create a new `java.lang.reflect.Constructor` instance for the given method
 pub fn new(method: &Method) -> Throws<ClassInstanceRef> {
-	assert!(
-		method.name == sym!(object_initializer_name) || method.name == sym!(class_initializer_name)
-	);
+	assert!(method.name == sym!(object_initializer_name));
 
 	let constructor = ClassInstance::new(globals::classes::java_lang_reflect_Constructor());
 

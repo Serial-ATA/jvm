@@ -856,7 +856,7 @@ impl Class {
 
 		let mut current_class = self;
 		while let Some(super_class) = &current_class.super_class {
-			if super_class.name() == class.name() {
+			if *super_class == class {
 				return true;
 			}
 

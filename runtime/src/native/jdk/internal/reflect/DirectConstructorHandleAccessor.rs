@@ -25,8 +25,6 @@ pub mod NativeAccessor {
 		c: Reference,    // java.lang.reflect.Constructor
 		args: Reference, // java.lang.Object[]
 	) -> Reference /* java.lang.Object */ {
-		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-
 		let constructor = c.extract_class();
 		let args = args.extract_object_array();
 
@@ -40,80 +38,17 @@ pub mod NativeAccessor {
 
 		assert_eq!(method.name, sym!(object_initializer_name));
 
-		// Ensure the class is initialized
-		handle_exception!(Reference::null(), thread, class.initialize(thread));
-
 		let new_instance = Reference::class(ClassInstance::new(class));
 
-		// method parameters == parameterTypes.len() == args.len()
-		let expected_arg_count = method.descriptor.parameters.len();
-		assert_eq!(expected_arg_count, parameter_types.get().len());
-		assert_eq!(parameter_types.get().len(), args.get().len());
-
-		// + 1 to account for the `this` argument
-		let mut call_args = LocalStack::new(expected_arg_count + 1);
-		call_args[0] = Operand::Reference(new_instance.clone());
-
-		for (index, (arg, parameter_mirror)) in args
-			.get()
-			.as_slice()
-			.into_iter()
-			.zip(parameter_types.get().as_slice())
-			.enumerate()
-		{
-			let parameter_mirror_instance: MirrorInstanceRef = parameter_mirror.extract_mirror();
-			let parameter_mirror = parameter_mirror_instance.get();
-
-			if parameter_mirror.is_primitive() {
-				let instance = arg.extract_class();
-				let value = match parameter_mirror.primitive_target() {
-					FieldType::Byte => {
-						Operand::from(classes::java_lang_Byte::value(&instance.get()))
-					},
-					FieldType::Character => {
-						Operand::from(classes::java_lang_Character::value(&instance.get()))
-					},
-					FieldType::Double => {
-						Operand::from(classes::java_lang_Double::value(&instance.get()))
-					},
-					FieldType::Float => {
-						Operand::from(classes::java_lang_Float::value(&instance.get()))
-					},
-					FieldType::Integer => {
-						Operand::from(classes::java_lang_Integer::value(&instance.get()))
-					},
-					FieldType::Long => {
-						Operand::from(classes::java_lang_Long::value(&instance.get()))
-					},
-					FieldType::Short => {
-						Operand::from(classes::java_lang_Short::value(&instance.get()))
-					},
-					FieldType::Boolean => {
-						Operand::from(classes::java_lang_Boolean::value(&instance.get()))
-					},
-					_ => throw_and_return_null!(
-						thread,
-						IllegalArgumentException,
-						"argument type mismatch"
-					),
-				};
-
-				call_args[index + 1] = value;
-				continue;
-			}
-
-			let target_class = parameter_mirror.target_class();
-			if !arg.is_instance_of(target_class) {
-				throw_and_return_null!(thread, IllegalArgumentException, "argument type mismatch")
-			}
-
-			call_args[index + 1] = Operand::Reference(Reference::clone(arg));
-		}
-
-		java_call!(@WITH_ARGS_LIST thread, method, call_args);
-		if thread.has_pending_exception() {
-			return Reference::null();
-		}
+		// Won't return anything
+		let _ = crate::native::jdk::internal::reflect::DirectMethodHandleAccessor::do_invoke(
+			env,
+			clazz.get().target_class(),
+			method,
+			parameter_types,
+			args,
+			new_instance.clone(),
+		);
 
 		new_instance
 	}
