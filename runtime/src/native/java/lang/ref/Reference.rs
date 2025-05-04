@@ -26,7 +26,7 @@ pub fn refersTo0(
 	this: Reference, // java.lang.ref.Reference
 	o: Reference,    // java.lang.Object
 ) -> jboolean {
-	let referent_field_offset = classes::java_lang_ref_Reference::referent_field_offset();
+	let referent_field_offset = classes::java::lang::r#ref::Reference::referent_field_offset();
 	let referent = this.get_field_value0(referent_field_offset);
 
 	referent.expect_reference() == o

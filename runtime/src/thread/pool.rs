@@ -1,7 +1,7 @@
 use super::JavaThread;
-use crate::classes;
 use crate::objects::reference::Reference;
 
+use crate::classes;
 use common::traits::PtrType;
 use std::sync::RwLock;
 
@@ -37,7 +37,7 @@ impl ThreadPool {
 	/// counterparts. However, if the associated [`JavaThread`] is *not* in this pool, this method will
 	/// not be able to find it.
 	pub fn find_from_obj(obj: Reference) -> Option<&'static JavaThread> {
-		let eetop = classes::java_lang_Thread::eetop(obj.extract_class().get());
+		let eetop = classes::java::lang::Thread::eetop(obj.extract_class().get());
 		if eetop == 0 {
 			// Thread is not alive
 			return None;

@@ -9,10 +9,13 @@ extern "C" fn default_handler(
 	todo!()
 }
 
+type HandlerFn = extern "C" fn(libc::c_int);
+type SigActionFn = extern "C" fn(libc::c_int, *mut libc::siginfo_t, *mut libc::c_void);
+
 #[derive(Copy, Clone, PartialEq)]
 pub enum SignalHandlerT {
-	Handler(extern "C" fn(libc::c_int)),
-	SigAction(extern "C" fn(libc::c_int, *mut libc::siginfo_t, *mut libc::c_void)),
+	Handler(HandlerFn),
+	SigAction(SigActionFn),
 	Indiscriminate(usize),
 }
 
@@ -21,11 +24,8 @@ impl SignalHandlerT {
 	#[allow(trivial_casts)]
 	pub fn as_usize(&self) -> usize {
 		match self {
-			Self::Handler(handler) => handler as *const extern "C" fn(libc::c_int) as usize,
-			Self::SigAction(action) => {
-				action as *const extern "C" fn(libc::c_int, *mut libc::siginfo_t, *mut libc::c_void)
-					as usize
-			},
+			Self::Handler(handler) => *handler as HandlerFn as usize,
+			Self::SigAction(action) => *action as SigActionFn as usize,
 			Self::Indiscriminate(indiscriminate) => *indiscriminate,
 		}
 	}
@@ -128,9 +128,7 @@ impl crate::SignalOsExt for crate::Signal {
 			return None;
 		}
 
-		let siginfo = old_action.sa_flags & libc::SA_SIGINFO != 0;
 		let old_signal_handler = old_action.sa_sigaction;
-
 		Some(unsafe { crate::SignalHandler::from_raw(old_signal_handler) })
 	}
 }

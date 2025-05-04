@@ -10,10 +10,8 @@
 #![feature(array_chunks)]
 #![feature(try_trait_v2)]
 #![feature(associated_type_defaults)]
-#![feature(hash_raw_entry)]
 #![feature(ptr_as_ref_unchecked)]
-#![feature(seek_stream_len)]
-extern crate core;
+#![feature(iter_next_chunk)]
 
 pub mod calls;
 pub mod classes;

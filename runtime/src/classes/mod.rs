@@ -2,31 +2,8 @@
 
 #![allow(non_snake_case)]
 
-mod boxes;
-pub mod java_io_File;
-pub mod java_io_FileDescriptor;
-pub mod java_io_FileInputStream;
-pub mod java_io_FileOutputStream;
-pub mod java_lang_Class;
-pub mod java_lang_ClassLoader;
-pub mod java_lang_Module;
-pub mod java_lang_StackTraceElement;
-pub mod java_lang_String;
-pub mod java_lang_Thread;
-pub mod java_lang_Throwable;
-pub mod java_lang_invoke_LambdaForm;
-pub mod java_lang_invoke_MemberName;
-pub mod java_lang_invoke_MethodHandle;
-pub mod java_lang_invoke_MethodType;
-pub mod java_lang_invoke_ResolvedMethodName;
-pub mod java_lang_ref_Reference;
-pub mod java_lang_reflect_Constructor;
-pub mod java_lang_reflect_Field;
-pub mod java_lang_reflect_Method;
-pub mod jdk_internal_misc_UnsafeConstants;
-pub mod jdk_internal_reflect_ConstantPool;
-
-pub use boxes::*;
+pub mod java;
+pub mod jdk;
 
 #[allow(dead_code)] // This is used in the `crate::classes::field_constructor!` macro
 const MAX_FIELD_COUNT: usize = 11;

@@ -23,8 +23,8 @@ pub fn intern(_env: JniEnv, this: Reference /* java.lang.String */) -> Reference
 
 	let string = this.extract_class();
 
-	let hash = classes::java_lang_String::hash(string.get());
-	let hash_is_zero = classes::java_lang_String::hashIsZero(string.get());
+	let hash = classes::java::lang::String::hash(string.get());
+	let hash_is_zero = classes::java::lang::String::hashIsZero(string.get());
 	if hash != 0 || hash_is_zero {
 		if let Some(interned_string) = lookup(StringHash(hash)) {
 			return Reference::class(interned_string);
@@ -33,8 +33,8 @@ pub fn intern(_env: JniEnv, this: Reference /* java.lang.String */) -> Reference
 		// Otherwise something's off, recompute the hash...
 	}
 
-	let coder = classes::java_lang_String::coder(string.get());
-	let value_field = classes::java_lang_String::value(string.get()).extract_primitive_array();
+	let coder = classes::java::lang::String::coder(string.get());
+	let value_field = classes::java::lang::String::value(string.get());
 	let value = value_field.get();
 
 	let value = value.as_slice::<jbyte>();
@@ -42,8 +42,8 @@ pub fn intern(_env: JniEnv, this: Reference /* java.lang.String */) -> Reference
 
 	let computed_hash;
 	if value_unsigned.is_empty() {
-		classes::java_lang_String::set_hash(string.get_mut(), 0);
-		classes::java_lang_String::set_hashIsZero(string.get_mut(), true);
+		classes::java::lang::String::set_hash(string.get_mut(), 0);
+		classes::java::lang::String::set_hashIsZero(string.get_mut(), true);
 		computed_hash = StringHash(0);
 	} else {
 		let hash = match coder {
@@ -54,8 +54,8 @@ pub fn intern(_env: JniEnv, this: Reference /* java.lang.String */) -> Reference
 			_ => panic!("Invalid string coder `{coder}`"),
 		};
 
-		classes::java_lang_String::set_hash(string.get_mut(), hash.0 as jint);
-		classes::java_lang_String::set_hashIsZero(string.get_mut(), false);
+		classes::java::lang::String::set_hash(string.get_mut(), hash.0 as jint);
+		classes::java::lang::String::set_hashIsZero(string.get_mut(), false);
 		computed_hash = hash;
 	}
 
@@ -134,7 +134,7 @@ where
 		}
 
 		let symbol: Symbol = string.into();
-		let string = classes::java_lang_String::new(symbol);
+		let string = classes::java::lang::String::new(symbol);
 		do_intern(hash, string)
 	}
 }

@@ -2,8 +2,8 @@
 //!
 //! Vendors can deliver Java-enabled applications without having to link with the Java VM source code.
 
-use crate::initialization;
 use crate::thread::{JavaThread, JavaThreadBuilder};
+use crate::{classes, initialization};
 
 use core::ffi::c_void;
 use std::ffi::CStr;
@@ -80,10 +80,15 @@ pub extern "system" fn JNI_CreateJavaVM(
 	let vm;
 	match initialization::create_java_vm(Some(args)) {
 		Ok(java_vm) => vm = java_vm,
-		Err(e) => {
+		Err((e, exception)) => {
 			if let JniError::ExceptionThrown = e {
 				eprintln!("Error occurred during initialization of VM");
-				todo!();
+				if let Some(exception) = exception {
+					classes::java::lang::Throwable::print_stack_trace_without_java_system(
+						exception,
+						JavaThread::current(),
+					);
+				}
 			}
 
 			// All errors result in an abort

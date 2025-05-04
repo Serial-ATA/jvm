@@ -19,7 +19,7 @@ pub fn form(instance: &ClassInstance) -> ClassInstanceRef {
 		.extract_class()
 }
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_lang_invoke_MethodHandle;
 
 	@FIELDSTART
@@ -99,9 +99,9 @@ mod _dynamic {
 	use instructions::{Operand, StackLike};
 
 	fn get_target_method(frame: &Frame, handle: ClassInstanceRef) -> Option<&'static Method> {
-		let form = classes::java_lang_invoke_MethodHandle::form(handle.get());
-		let vmentry = classes::java_lang_invoke_LambdaForm::vmentry(form.get());
-		match classes::java_lang_invoke_MemberName::target_method(vmentry.get()) {
+		let form = classes::java::lang::invoke::MethodHandle::form(handle.get());
+		let vmentry = classes::java::lang::invoke::LambdaForm::vmentry(form.get());
+		match classes::java::lang::invoke::MemberName::target_method(vmentry.get()) {
 			Throws::Ok(method) => Some(method),
 			Throws::Exception(e) => {
 				e.throw(frame.thread());
@@ -162,7 +162,7 @@ mod _dynamic {
 		frame: &mut Frame,
 	) -> Option<(ClassInstanceRef, &'static Method)> {
 		let appendix = frame.stack_mut().pop_reference().extract_class();
-		match classes::java_lang_invoke_MemberName::target_method(appendix.get()) {
+		match classes::java::lang::invoke::MemberName::target_method(appendix.get()) {
 			Throws::Ok(method) => Some((appendix, method)),
 			Throws::Exception(e) => {
 				e.throw(frame.thread());
@@ -202,7 +202,7 @@ mod _dynamic {
 			throw!(frame.thread(), NullPointerException);
 		}
 
-		let vmindex = classes::java_lang_invoke_MemberName::vmindex(appendix.get());
+		let vmindex = classes::java::lang::invoke::MemberName::vmindex(appendix.get());
 		let target_method = &receiver.extract_target_class().vtable()[vmindex as usize];
 		MethodInvoker::invoke_virtual(frame, target_method);
 	}

@@ -31,16 +31,16 @@ pub fn new_member_name(
 
 	let member_name = member_name_instance.get_mut();
 
-	classes::java_lang_invoke_MemberName::set_clazz(
+	classes::java::lang::invoke::MemberName::set_clazz(
 		member_name,
 		Reference::mirror(callee_class.mirror()),
 	);
-	classes::java_lang_invoke_MemberName::set_name(
+	classes::java::lang::invoke::MemberName::set_name(
 		member_name,
 		Reference::class(StringInterner::intern(name)),
 	);
 	// TODO: Not correct for field members
-	classes::java_lang_invoke_MemberName::set_type(
+	classes::java::lang::invoke::MemberName::set_type(
 		member_name,
 		Reference::class(StringInterner::intern(descriptor)),
 	);
@@ -58,7 +58,7 @@ pub fn method_type_signature(method_type: Reference) -> Throws<Symbol> {
 	let mut signature = String::new();
 	signature.push('(');
 
-	let parameters = classes::java_lang_invoke_MethodType::ptypes(&method_type.get());
+	let parameters = classes::java::lang::invoke::MethodType::ptypes(&method_type.get());
 	for param in parameters.get().as_slice() {
 		if param.is_null() {
 			signature.push_str("null");
@@ -78,7 +78,7 @@ pub fn method_type_signature(method_type: Reference) -> Throws<Symbol> {
 
 	signature.push(')');
 
-	let return_type = classes::java_lang_invoke_MethodType::rtype(&method_type.get());
+	let return_type = classes::java::lang::invoke::MethodType::rtype(&method_type.get());
 
 	if return_type.is_null() {
 		signature.push_str("null");
@@ -117,22 +117,22 @@ pub fn resolve_member_name(
 	let mut is_valid = true;
 	let mut flags;
 
-	let defining_class_field = classes::java_lang_invoke_MemberName::clazz(member_name)?;
+	let defining_class_field = classes::java::lang::invoke::MemberName::clazz(member_name)?;
 	if defining_class_field.get().is_primitive() {
 		throw!(@DEFER InternalError, "primitive class");
 	}
 
 	let defining_class = defining_class_field.get().target_class();
 
-	let name_field = classes::java_lang_invoke_MemberName::name(member_name);
-	let name_str = classes::java_lang_String::extract(name_field.extract_class().get());
+	let name_field = classes::java::lang::invoke::MemberName::name(member_name);
+	let name_str = classes::java::lang::String::extract(name_field.extract_class().get());
 	let name = Symbol::intern(name_str);
 
-	let type_field = classes::java_lang_invoke_MemberName::type_(member_name);
+	let type_field = classes::java::lang::invoke::MemberName::type_(member_name);
 
 	let descriptor: Symbol;
 	if type_field.is_instance_of(globals::classes::java_lang_String()) {
-		let descriptor_str = classes::java_lang_String::extract(type_field.extract_class().get());
+		let descriptor_str = classes::java::lang::String::extract(type_field.extract_class().get());
 		descriptor = Symbol::intern(descriptor_str);
 	} else if type_field.is_instance_of(globals::classes::java_lang_Class()) {
 		descriptor = type_field.extract_target_class().as_signature();
@@ -148,7 +148,7 @@ pub fn resolve_member_name(
 		| ReferenceKind::PutField
 		| ReferenceKind::PutStatic => {
 			// Already default initialized to `null`, just being explicit
-			classes::java_lang_invoke_MemberName::set_method(member_name, Reference::null());
+			classes::java::lang::invoke::MemberName::set_method(member_name, Reference::null());
 
 			let field = defining_class.resolve_field(name, descriptor)?;
 
@@ -176,17 +176,20 @@ pub fn resolve_member_name(
 				throw!(@DEFER IllegalAccessError);
 			}
 
-			classes::java_lang_invoke_MemberName::set_vmindex(member_name, field.index() as jlong);
-			classes::java_lang_invoke_MemberName::set_clazz(
+			classes::java::lang::invoke::MemberName::set_vmindex(
+				member_name,
+				field.index() as jlong,
+			);
+			classes::java::lang::invoke::MemberName::set_clazz(
 				member_name,
 				Reference::mirror(field.class.mirror()),
 			);
 
-			classes::java_lang_invoke_MemberName::set_name(
+			classes::java::lang::invoke::MemberName::set_name(
 				member_name,
 				Reference::class(StringInterner::intern(field.name)),
 			);
-			classes::java_lang_invoke_MemberName::set_type(
+			classes::java::lang::invoke::MemberName::set_type(
 				member_name,
 				Reference::class(StringInterner::intern(&*field.descriptor.as_signature())),
 			);
@@ -254,25 +257,25 @@ pub fn resolve_member_name(
 			}
 
 			// Create the java.lang.invoke.ResolvedMethodName instance
-			let resolved_method_name = classes::java_lang_invoke_ResolvedMethodName::new(method);
+			let resolved_method_name = classes::java::lang::invoke::ResolvedMethodName::new(method);
 
-			classes::java_lang_invoke_MemberName::set_method(member_name, resolved_method_name);
+			classes::java::lang::invoke::MemberName::set_method(member_name, resolved_method_name);
 
 			let vmindex = defining_class
 				.vtable()
 				.iter()
 				.position(|m| m == method)
 				.expect("method must exist in vtable");
-			classes::java_lang_invoke_MemberName::set_vmindex(member_name, vmindex as jlong);
+			classes::java::lang::invoke::MemberName::set_vmindex(member_name, vmindex as jlong);
 
-			classes::java_lang_invoke_MemberName::set_clazz(
+			classes::java::lang::invoke::MemberName::set_clazz(
 				member_name,
 				Reference::mirror(method.class().mirror()),
 			);
 		},
 	}
 
-	classes::java_lang_invoke_MemberName::set_flags(member_name, flags);
+	classes::java::lang::invoke::MemberName::set_flags(member_name, flags);
 
 	Throws::Ok(())
 }
@@ -320,7 +323,7 @@ fn init_member_name(member_name: ClassInstanceRef, member: FieldOrMethod) {
 				flags |= MethodHandleNatives::MN_CALLER_SENSITIVE;
 			}
 
-			resolved_method = classes::java_lang_invoke_ResolvedMethodName::new(method);
+			resolved_method = classes::java::lang::invoke::ResolvedMethodName::new(method);
 			vmindex = method
 				.class()
 				.vtable()
@@ -331,10 +334,10 @@ fn init_member_name(member_name: ClassInstanceRef, member: FieldOrMethod) {
 		},
 	}
 
-	classes::java_lang_invoke_MemberName::set_flags(member_name.get_mut(), flags);
-	classes::java_lang_invoke_MemberName::set_method(member_name.get_mut(), resolved_method);
-	classes::java_lang_invoke_MemberName::set_vmindex(member_name.get_mut(), vmindex as jlong);
-	classes::java_lang_invoke_MemberName::set_clazz(
+	classes::java::lang::invoke::MemberName::set_flags(member_name.get_mut(), flags);
+	classes::java::lang::invoke::MemberName::set_method(member_name.get_mut(), resolved_method);
+	classes::java::lang::invoke::MemberName::set_vmindex(member_name.get_mut(), vmindex as jlong);
+	classes::java::lang::invoke::MemberName::set_clazz(
 		member_name.get_mut(),
 		Reference::mirror(class),
 	);
@@ -364,16 +367,16 @@ pub fn init(
 	}
 
 	if target_class == globals::classes::java_lang_reflect_Method() {
-		let class = classes::java_lang_reflect_Method::clazz(target.get());
-		let slot = classes::java_lang_reflect_Method::slot(target.get());
+		let class = classes::java::lang::reflect::Method::clazz(target.get());
+		let slot = classes::java::lang::reflect::Method::slot(target.get());
 
 		let method = &class.get().target_class().vtable()[slot as usize];
 		init_member_name(self_.extract_class(), FieldOrMethod::Method(method))
 	}
 
 	if target_class == globals::classes::java_lang_reflect_Constructor() {
-		let class = classes::java_lang_reflect_Constructor::clazz(target.get());
-		let slot = classes::java_lang_reflect_Constructor::slot(target.get());
+		let class = classes::java::lang::reflect::Constructor::clazz(target.get());
+		let slot = classes::java::lang::reflect::Constructor::slot(target.get());
 
 		let method = &class.get().target_class().vtable()[slot as usize];
 		init_member_name(self_.extract_class(), FieldOrMethod::Method(method))
@@ -403,7 +406,7 @@ pub fn resolve(
 
 	let class_instance = self_.extract_class();
 
-	let flags = classes::java_lang_invoke_MemberName::flags(class_instance.get());
+	let flags = classes::java::lang::invoke::MemberName::flags(class_instance.get());
 	let Some(reference_kind) = ReferenceKind::from_u8((flags >> MN_REFERENCE_KIND_SHIFT) as u8)
 	else {
 		throw_and_return_null!(
@@ -457,15 +460,15 @@ fn find_member_offset(self_: Reference, is_static: bool) -> Throws<(jlong, Mirro
 		throw!(@DEFER InternalError, "mname not resolved")
 	}
 
-	let clazz = classes::java_lang_invoke_MemberName::clazz(self_.extract_class().get())?;
-	let flags = classes::java_lang_invoke_MemberName::flags(self_.extract_class().get());
+	let clazz = classes::java::lang::invoke::MemberName::clazz(self_.extract_class().get())?;
+	let flags = classes::java::lang::invoke::MemberName::flags(self_.extract_class().get());
 
 	let acc_static = FieldAccessFlags::ACC_STATIC.as_u2() as jint;
 	if flags & (MN_IS_FIELD as jint) != 0
 		&& ((is_static && flags & acc_static != 0) || (!is_static && flags & acc_static == 0))
 	{
 		return Throws::Ok((
-			classes::java_lang_invoke_MemberName::vmindex(self_.extract_class().get()) as jlong,
+			classes::java::lang::invoke::MemberName::vmindex(self_.extract_class().get()) as jlong,
 			clazz,
 		));
 	}

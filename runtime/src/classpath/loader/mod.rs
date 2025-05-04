@@ -88,7 +88,7 @@ impl ClassLoader {
 		assert!(obj.is_instance_of(crate::globals::classes::java_lang_ClassLoader()));
 
 		let unnamed_module_obj = obj
-			.get_field_value0(classes::java_lang_ClassLoader::unnamedModule_field_offset())
+			.get_field_value0(classes::java::lang::ClassLoader::unnamedModule_field_offset())
 			.expect_reference();
 		assert!(
 			!unnamed_module_obj.is_null()
@@ -133,10 +133,10 @@ impl ClassLoader {
 		let mut name = None;
 
 		let name_obj = obj
-			.get_field_value0(classes::java_lang_ClassLoader::name_field_offset())
+			.get_field_value0(classes::java::lang::ClassLoader::name_field_offset())
 			.expect_reference();
 		if !name_obj.is_null() {
-			let name_str = classes::java_lang_String::extract(name_obj.extract_class().get());
+			let name_str = classes::java::lang::String::extract(name_obj.extract_class().get());
 
 			if !name_str.is_empty() {
 				name = Some(Symbol::intern(name_str));
@@ -144,14 +144,15 @@ impl ClassLoader {
 		}
 
 		let name_and_id_obj = obj
-			.get_field_value0(classes::java_lang_ClassLoader::nameAndId_field_offset())
+			.get_field_value0(classes::java::lang::ClassLoader::nameAndId_field_offset())
 			.expect_reference();
 
 		let name_and_id;
 		if name_and_id_obj.is_null() {
 			name_and_id = obj.extract_target_class().name().as_str().replace('/', ".");
 		} else {
-			name_and_id = classes::java_lang_String::extract(name_and_id_obj.extract_class().get());
+			name_and_id =
+				classes::java::lang::String::extract(name_and_id_obj.extract_class().get());
 		}
 
 		assert!(!name_and_id.is_empty(), "class loader has no name and id");
@@ -327,7 +328,7 @@ impl ClassLoader {
 
 	/// Whether the ClassLoader is parallel capable
 	pub fn is_parallel_capable(&self) -> bool {
-		self.is_bootstrap() || classes::java_lang_ClassLoader::parallelCapable(&self.obj())
+		self.is_bootstrap() || classes::java::lang::ClassLoader::parallelCapable(&self.obj())
 	}
 
 	pub fn load(&'static self, name: Symbol) -> Throws<&'static Class> {
@@ -603,7 +604,7 @@ impl ClassLoader {
 			return Throws::Ok(());
 		}
 
-		classes::java_lang_ClassLoader::calls::addClass(
+		classes::java::lang::ClassLoader::calls::addClass(
 			JavaThread::current(),
 			self,
 			class.mirror(),

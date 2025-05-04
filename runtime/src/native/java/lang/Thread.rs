@@ -1,5 +1,5 @@
 use crate::classes;
-use crate::classes::java_lang_Thread::ThreadStatus;
+use crate::classes::java::lang::Thread::ThreadStatus;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 use crate::thread::exceptions::throw;
@@ -79,8 +79,9 @@ pub fn start0(_env: JniEnv, this: Reference /* java.lang.Thread */) {
 		}
 	}
 
-	let holder = classes::java_lang_Thread::holder(this.extract_class().get());
-	let stack_size_raw = classes::java_lang_Thread::holder::stackSize(holder.extract_class().get());
+	let holder = classes::java::lang::Thread::holder(this.extract_class().get());
+	let stack_size_raw =
+		classes::java::lang::Thread::holder::stackSize(holder.extract_class().get());
 
 	let mut thread_builder = JavaThreadBuilder::new()
 		.obj(this)
@@ -94,8 +95,8 @@ pub fn start0(_env: JniEnv, this: Reference /* java.lang.Thread */) {
 	let thread = thread_builder.finish();
 
 	let obj = thread.obj().expect("current thread object should exist");
-	let holder = classes::java_lang_Thread::holder(obj.extract_class().get());
-	classes::java_lang_Thread::holder::set_threadStatus(
+	let holder = classes::java::lang::Thread::holder(obj.extract_class().get());
+	classes::java::lang::Thread::holder::set_threadStatus(
 		holder.extract_class().get_mut(),
 		ThreadStatus::Runnable,
 	);
@@ -136,8 +137,11 @@ pub fn setPriority0(
 	this: Reference, // java.lang.Thread
 	new_priority: jint,
 ) {
-	let holder = classes::java_lang_Thread::holder(this.extract_class().get());
-	classes::java_lang_Thread::holder::set_priority(holder.extract_class().get_mut(), new_priority);
+	let holder = classes::java::lang::Thread::holder(this.extract_class().get());
+	classes::java::lang::Thread::holder::set_priority(
+		holder.extract_class().get_mut(),
+		new_priority,
+	);
 
 	let java_thread = ThreadPool::find_from_obj(this);
 	let Some(_thread) = java_thread else {

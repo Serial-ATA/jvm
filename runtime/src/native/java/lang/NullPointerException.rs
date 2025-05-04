@@ -15,7 +15,7 @@ pub fn getExtendedNPEMessage(
 	_env: JniEnv,
 	this: Reference, // java.lang.NullPointerException
 ) -> Reference /* java.lang.String */ {
-	let backtrace = classes::java_lang_Throwable::backtrace(this.extract_class().get());
+	let backtrace = classes::java::lang::Throwable::backtrace(this.extract_class().get());
 	if backtrace.is_null() {
 		// Nothing to do
 		return Reference::null();

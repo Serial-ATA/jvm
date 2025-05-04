@@ -1,4 +1,5 @@
 use super::instance::{Header, Instance};
+use crate::classes;
 use crate::globals::{BASE_TYPES_TO_FIELD_TYPES, PRIMITIVES};
 use crate::objects::class::Class;
 use crate::objects::field::Field;
@@ -10,7 +11,6 @@ use std::fmt::{Debug, Formatter};
 use std::ptr::NonNull;
 use std::sync::Arc;
 
-use crate::classes;
 use classfile::FieldType;
 use common::traits::PtrType;
 use instructions::Operand;
@@ -86,7 +86,7 @@ impl MirrorInstance {
 			component_type_mirror = Reference::mirror(component_class.mirror());
 		}
 
-		let component_type_offset = classes::java_lang_Class::componentType_field_offset();
+		let component_type_offset = classes::java::lang::Class::componentType_field_offset();
 		unsafe {
 			*fields[component_type_offset].get() = Operand::Reference(component_type_mirror);
 		}
@@ -177,7 +177,7 @@ impl MirrorInstance {
 	}
 
 	pub fn set_module(&self, module: Reference) {
-		let module_offset = classes::java_lang_Class::module_field_offset();
+		let module_offset = classes::java::lang::Class::module_field_offset();
 		let ptr = self.fields[module_offset].get();
 
 		unsafe {
@@ -202,7 +202,7 @@ impl MirrorInstance {
 	}
 
 	pub fn set_class_data(&self, class_data: Reference) {
-		let class_data_offset = classes::java_lang_Class::classData_field_offset();
+		let class_data_offset = classes::java::lang::Class::classData_field_offset();
 		let ptr = self.fields[class_data_offset].get();
 
 		unsafe {
@@ -241,9 +241,9 @@ impl MirrorInstance {
 			)))
 		}
 
-		let class_loader_offset = classes::java_lang_Class::classLoader_field_offset();
-		let modifiers_offset = classes::java_lang_Class::modifiers_field_offset();
-		let primitive_offset = classes::java_lang_Class::primitive_field_offset();
+		let class_loader_offset = classes::java::lang::Class::classLoader_field_offset();
+		let modifiers_offset = classes::java::lang::Class::modifiers_field_offset();
+		let primitive_offset = classes::java::lang::Class::primitive_field_offset();
 		unsafe {
 			*fields[class_loader_offset].get() = Operand::Reference(target_class.loader().obj());
 			*fields[modifiers_offset].get() = Operand::Int(modifiers as jint);

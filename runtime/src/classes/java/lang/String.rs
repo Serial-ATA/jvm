@@ -1,12 +1,14 @@
+use crate::native::java::lang::String::LATIN1;
 use crate::objects::array::PrimitiveArrayInstance;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
-use crate::objects::reference::{ClassInstanceRef, Reference};
+use crate::objects::reference::{ClassInstanceRef, PrimitiveArrayInstanceRef, Reference};
 use crate::symbols::Symbol;
 use crate::{globals, native};
-use byte_slice_cast::AsSliceOf;
+
 use std::ptr::slice_from_raw_parts;
 
+use byte_slice_cast::AsSliceOf;
 use classfile::FieldType;
 use common::int_types::u2;
 use common::traits::PtrType;
@@ -153,10 +155,9 @@ fn str_is_latin1(string: &[u8]) -> bool {
 /// Extract a [`String`] from the contents of a `java.lang.String` instance
 pub fn extract(instance: &ClassInstance) -> String {
 	let value = value(instance);
-	let coder = coder(instance);
-
-	let value = value.extract_primitive_array();
 	let value = value.get().as_slice::<jbyte>();
+
+	let coder = coder(instance);
 
 	// SAFETY: &[i8] and &[u8] have the same layout
 	let unsigned_chars =
@@ -170,11 +171,32 @@ pub fn extract(instance: &ClassInstance) -> String {
 	}
 }
 
+/// Get the length of a `java.lang.String` **in characters**
+///
+/// To get the length of the string in *bytes*, just get the length of the [`value()`].
+pub fn length(this: &ClassInstance) -> usize {
+	assert_eq!(this.class(), globals::classes::java_lang_String());
+
+	let value_instance = value(this);
+	let value = value_instance.get().as_slice::<jbyte>();
+	if coder(this) == LATIN1 {
+		return value.len();
+	}
+
+	assert_eq!(
+		value.len() & 1,
+		0,
+		"UTF-16 strings must have an even length"
+	);
+	value.len() >> 1
+}
+
 /// `java.lang.String#value` field
-pub fn value(instance: &ClassInstance) -> Reference {
+pub fn value(instance: &ClassInstance) -> PrimitiveArrayInstanceRef {
 	instance
 		.get_field_value0(value_field_offset())
 		.expect_reference()
+		.extract_primitive_array()
 }
 
 pub fn set_value(instance: &mut ClassInstance, value: Reference) {
@@ -211,7 +233,7 @@ pub fn set_hashIsZero(instance: &mut ClassInstance, value: jboolean) {
 	instance.put_field_value0(hashIsZero_field_offset(), Operand::Int(value as jint))
 }
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_lang_String;
 
 	@FIELDSTART

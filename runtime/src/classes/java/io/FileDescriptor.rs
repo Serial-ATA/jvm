@@ -1,7 +1,10 @@
+use crate::objects::instance::Instance;
+use crate::objects::reference::Reference;
 use classfile::FieldType;
+use jni::sys::jint;
 
 #[cfg(unix)]
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_io_FileDescriptor;
 
 	@FIELDSTART
@@ -16,7 +19,7 @@ super::field_module! {
 }
 
 #[cfg(windows)]
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_io_FileDescriptor;
 
 	@FIELDSTART
@@ -32,4 +35,9 @@ super::field_module! {
 	///
 	/// Expected field type: `jboolean`
 	[sym: append_name] @FIELD append: FieldType::Boolean,
+}
+
+pub fn fd(this: &Reference) -> jint {
+	let fd_field_offset = fd_field_offset();
+	this.get_field_value0(fd_field_offset).expect_int()
 }

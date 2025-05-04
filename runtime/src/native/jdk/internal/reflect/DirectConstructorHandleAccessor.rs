@@ -3,19 +3,13 @@ pub mod NativeAccessor {
 		"native/jdk/internal/reflect/def/DirectConstructorHandleAccessor.definitions.rs"
 	);
 
-	use crate::objects::array::Array;
+	use crate::classes;
 	use crate::objects::class::Class;
 	use crate::objects::class_instance::ClassInstance;
-	use crate::objects::reference::{MirrorInstanceRef, Reference};
-	use crate::stack::local_stack::LocalStack;
+	use crate::objects::reference::Reference;
 	use crate::symbols::sym;
-	use crate::thread::exceptions::{handle_exception, throw_and_return_null};
-	use crate::thread::JavaThread;
-	use crate::{classes, java_call};
 
-	use classfile::FieldType;
 	use common::traits::PtrType;
-	use instructions::Operand;
 	use jni::env::JniEnv;
 
 	// throws InstantiationException, InvocationTargetException
@@ -28,10 +22,10 @@ pub mod NativeAccessor {
 		let constructor = c.extract_class();
 		let args = args.extract_object_array();
 
-		let clazz = classes::java_lang_reflect_Constructor::clazz(constructor.get());
-		let slot = classes::java_lang_reflect_Constructor::slot(constructor.get());
+		let clazz = classes::java::lang::reflect::Constructor::clazz(constructor.get());
+		let slot = classes::java::lang::reflect::Constructor::slot(constructor.get());
 		let parameter_types =
-			classes::java_lang_reflect_Constructor::parameterTypes(constructor.get());
+			classes::java::lang::reflect::Constructor::parameterTypes(constructor.get());
 
 		let class = clazz.get().target_class();
 		let method = &class.vtable()[slot as usize];

@@ -740,7 +740,7 @@ pub fn objectFieldOffset1(
 ) -> jlong {
 	let class = class.extract_mirror();
 
-	let name_str = classes::java_lang_String::extract(name.extract_class().get());
+	let name_str = classes::java::lang::String::extract(name.extract_class().get());
 	let classref = class.get().target_class();
 
 	let mut offset = 0;

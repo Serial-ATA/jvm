@@ -55,13 +55,14 @@ pub fn fill_properties_impl(props: &mut PropertySet) -> Result<(), Error> {
 	// Locale props
 	{
 		unsafe { libc::setlocale(libc::LC_ALL, c"".as_ptr()) };
+
 		init_locale(
 			libc::LC_CTYPE,
 			Some(&mut props.format_language),
 			Some(&mut props.format_script),
 			Some(&mut props.format_country),
 			Some(&mut props.format_variant),
-			Some(&mut props.file_encoding),
+			Some(&mut props.native_encoding),
 		);
 		init_locale(
 			libc::LC_MESSAGES,
@@ -72,7 +73,7 @@ pub fn fill_properties_impl(props: &mut PropertySet) -> Result<(), Error> {
 			None,
 		);
 
-		props.sun_jnu_encoding = props.file_encoding.clone();
+		props.sun_jnu_encoding = props.native_encoding.clone();
 	}
 
 	// User props
@@ -106,13 +107,10 @@ pub fn fill_properties_impl(props: &mut PropertySet) -> Result<(), Error> {
 			}
 		}
 
-		let user_home = match user_home {
-			Some(user_home) => user_home,
-			None => match std::env::var("HOME") {
-				Ok(env_home) if env_home.len() > 2 => env_home,
-				_ => String::from("?"),
-			},
-		};
+		props.user_home = user_home.unwrap_or_else(|| match std::env::var("HOME") {
+			Ok(env_home) if env_home.len() > 2 => env_home,
+			_ => String::from("?"),
+		});
 	}
 
 	// Current directory

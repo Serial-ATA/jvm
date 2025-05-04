@@ -1,11 +1,8 @@
-use crate::java_call;
-use crate::symbols::sym;
+use crate::classes;
 use crate::thread::JavaThread;
 
 use core::ffi::c_char;
 
-use classfile::accessflags::MethodAccessFlags;
-use instructions::Operand;
 use jni::sys::{jboolean, jclass, jint, jthrowable, JNIEnv};
 
 #[no_mangle]
@@ -32,22 +29,8 @@ pub extern "system" fn ExceptionDescribe(env: *mut JNIEnv) {
 		return;
 	};
 
-	assert!(exception.is_instance_of(crate::globals::classes::java_lang_Throwable()));
-
 	eprint!("Exception in thread \"{}\" ", thread.name());
-
-	let exception_class = exception.extract_target_class();
-
-	let print_stack_trace = exception_class
-		.vtable()
-		.find(
-			sym!(printStackTrace_name),
-			sym!(void_method_signature),
-			MethodAccessFlags::NONE,
-		)
-		.expect("java/lang/Throwable#printStackTrace should exist");
-
-	java_call!(thread, print_stack_trace, Operand::Reference(exception));
+	classes::java::lang::Throwable::print_stack_trace(exception, thread);
 
 	// Mirroring the behavior of Hotspot, which discards any exceptions thrown in printStackTrace
 	let _ = thread.take_pending_exception();

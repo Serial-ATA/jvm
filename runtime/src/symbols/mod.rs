@@ -282,6 +282,7 @@ vm_symbols::define_symbols! {
 	findMethodHandleType_signature: "(Ljava/lang/Class;[Ljava/lang/Class;)Ljava/lang/invoke/MethodType;",
 	linkMethodHandleConstant_signature: "(Ljava/lang/Class;ILjava/lang/Class;Ljava/lang/String;Ljava/lang/Object;)Ljava/lang/invoke/MethodHandle;",
 	ClassLoader_class_string_string_long_signature: "(Ljava/lang/ClassLoader;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)J",
+	Throwable_signature: "()Ljava/lang/Throwable;",
 
 	Boolean_valueOf_signature: "(Z)Ljava/lang/Boolean;",
 	Integer_valueOf_signature: "(I)Ljava/lang/Integer;",
@@ -330,6 +331,7 @@ vm_symbols::define_symbols! {
 	initPhase3_name: "initPhase3",
 
 	printStackTrace_name: "printStackTrace",
+	getCause,
 	findNative_name: "findNative",
 	run_name: "run",
 
@@ -372,6 +374,7 @@ vm_symbols::define_symbols! {
 	err,
 	stackTrace,
 	backtrace,
+	detailMessage,
 	depth,
 	declaringClassObject,
 	classLoaderName,

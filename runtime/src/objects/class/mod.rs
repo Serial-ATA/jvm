@@ -429,6 +429,25 @@ impl Class {
 		}
 	}
 
+	pub fn source_file_name(&self) -> Option<Symbol> {
+		let ClassType::Instance(desc) = self.class_ty() else {
+			return None;
+		};
+
+		let Some(idx) = desc.source_file_index else {
+			return None;
+		};
+
+		let file_name_sym = self
+			.constant_pool()
+			// Already verified this is an instance class
+			.unwrap()
+			.get::<cp_types::ConstantUtf8>(idx)
+			.expect("file name should always resolve");
+
+		Some(file_name_sym)
+	}
+
 	/// Wrap the class name as an array
 	///
 	/// This will, for example:

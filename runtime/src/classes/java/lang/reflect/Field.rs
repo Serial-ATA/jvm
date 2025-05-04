@@ -91,7 +91,7 @@ pub fn set_annotations(instance: &mut ClassInstance, value: PrimitiveArrayInstan
 	)
 }
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_lang_reflect_Field;
 
 	@FIELDSTART

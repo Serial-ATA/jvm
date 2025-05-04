@@ -50,7 +50,7 @@ pub fn set_vmtarget(instance: &mut ClassInstance, value: &'static Method) {
 	)
 }
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_lang_invoke_ResolvedMethodName;
 
 	@FIELDSTART

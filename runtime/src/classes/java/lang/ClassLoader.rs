@@ -23,7 +23,7 @@ pub fn parallelCapable(instance: &Reference) -> bool {
 		.is_null()
 }
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_lang_ClassLoader;
 
 	@FIELDSTART

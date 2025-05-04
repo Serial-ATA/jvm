@@ -218,7 +218,7 @@ pub fn set_annotationDefault(instance: &mut ClassInstance, value: PrimitiveArray
 	)
 }
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_lang_reflect_Method;
 
 	@FIELDSTART

@@ -1,6 +1,6 @@
 use classfile::FieldType;
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_io_File;
 
 	@FIELDSTART

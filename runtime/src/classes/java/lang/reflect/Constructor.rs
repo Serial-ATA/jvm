@@ -122,7 +122,7 @@ pub fn set_parameterAnnotations(instance: &mut ClassInstance, value: Reference) 
 	)
 }
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_lang_reflect_Constructor;
 
 	@FIELDSTART

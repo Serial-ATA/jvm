@@ -1,11 +1,9 @@
 use crate::objects::array::Array;
 use crate::objects::boxing::Boxable;
 use crate::objects::class::Class;
-use crate::objects::class_instance::ClassInstance;
 use crate::objects::method::Method;
 use crate::objects::reference::{MirrorInstanceRef, ObjectArrayInstanceRef, Reference};
 use crate::stack::local_stack::LocalStack;
-use crate::symbols::sym;
 use crate::thread::exceptions::{handle_exception, throw_and_return_null};
 use crate::thread::JavaThread;
 use crate::{classes, java_call};
@@ -35,13 +33,13 @@ pub mod NativeAccessor {
 		args: Reference, // Object[]
 	) -> Reference /* java.lang.Object */ {
 		let m = m.extract_class();
-		let class = classes::java_lang_reflect_Method::clazz(m.get());
-		let Some(target_method) = classes::java_lang_reflect_Method::vmtarget(m.get()) else {
+		let class = classes::java::lang::reflect::Method::clazz(m.get());
+		let Some(target_method) = classes::java::lang::reflect::Method::vmtarget(m.get()) else {
 			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 			throw_and_return_null!(thread, InternalError, "invoke");
 		};
 
-		let parameter_types = classes::java_lang_reflect_Method::parameterTypes(m.get());
+		let parameter_types = classes::java::lang::reflect::Method::parameterTypes(m.get());
 
 		super::do_invoke(
 			env,
@@ -97,21 +95,25 @@ pub(super) fn do_invoke(
 		if parameter_mirror.is_primitive() {
 			let instance = arg.extract_class();
 			let value = match parameter_mirror.primitive_target() {
-				FieldType::Byte => Operand::from(classes::java_lang_Byte::value(&instance.get())),
+				FieldType::Byte => Operand::from(classes::java::lang::Byte::value(&instance.get())),
 				FieldType::Character => {
-					Operand::from(classes::java_lang_Character::value(&instance.get()))
+					Operand::from(classes::java::lang::Character::value(&instance.get()))
 				},
 				FieldType::Double => {
-					Operand::from(classes::java_lang_Double::value(&instance.get()))
+					Operand::from(classes::java::lang::Double::value(&instance.get()))
 				},
-				FieldType::Float => Operand::from(classes::java_lang_Float::value(&instance.get())),
+				FieldType::Float => {
+					Operand::from(classes::java::lang::Float::value(&instance.get()))
+				},
 				FieldType::Integer => {
-					Operand::from(classes::java_lang_Integer::value(&instance.get()))
+					Operand::from(classes::java::lang::Integer::value(&instance.get()))
 				},
-				FieldType::Long => Operand::from(classes::java_lang_Long::value(&instance.get())),
-				FieldType::Short => Operand::from(classes::java_lang_Short::value(&instance.get())),
+				FieldType::Long => Operand::from(classes::java::lang::Long::value(&instance.get())),
+				FieldType::Short => {
+					Operand::from(classes::java::lang::Short::value(&instance.get()))
+				},
 				FieldType::Boolean => {
-					Operand::from(classes::java_lang_Boolean::value(&instance.get()))
+					Operand::from(classes::java::lang::Boolean::value(&instance.get()))
 				},
 				_ => throw_and_return_null!(
 					thread,

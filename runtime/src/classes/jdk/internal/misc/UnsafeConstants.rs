@@ -2,7 +2,7 @@ use classfile::FieldType;
 use instructions::Operand;
 use jni::sys::jint;
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS jdk_internal_misc_UnsafeConstants;
 
 	@FIELDSTART

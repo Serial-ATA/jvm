@@ -123,7 +123,7 @@ pub fn defineClass0(
 		todo!()
 	}
 
-	let name = Symbol::intern(classes::java_lang_String::extract(
+	let name = Symbol::intern(classes::java::lang::String::extract(
 		name.extract_class().get(),
 	));
 
@@ -179,7 +179,7 @@ pub fn findBootstrapClass(
 	name: Reference, // java.lang.String
 ) -> Reference // java.lang.Class
 {
-	let name = classes::java_lang_String::extract(name.extract_class().get());
+	let name = classes::java::lang::String::extract(name.extract_class().get());
 	if let Some(class) = ClassLoader::bootstrap().lookup_class(Symbol::intern(name)) {
 		return Reference::mirror(class.mirror());
 	}

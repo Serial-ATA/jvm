@@ -48,7 +48,7 @@ pub fn setBootLoaderUnnamedModule0(
 	let module_entry = handle_exception!(thread, module_entry_result);
 
 	let loader = module
-		.get_field_value0(classes::java_lang_Module::loader_field_offset())
+		.get_field_value0(classes::java::lang::Module::loader_field_offset())
 		.expect_reference();
 	if !loader.is_null() {
 		throw!(

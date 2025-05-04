@@ -57,7 +57,7 @@ pub fn holder(instance: &ClassInstance) -> Reference {
 		.expect_reference()
 }
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_lang_Thread;
 	@SUBCLASS holder;
 

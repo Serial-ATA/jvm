@@ -6,6 +6,7 @@ use crate::symbols::sym;
 use crate::thread::frame::stack::VisibleStackFrame;
 use crate::thread::JavaThread;
 use crate::{classes, globals};
+use std::slice;
 
 use std::sync::Once;
 
@@ -41,12 +42,18 @@ include_generated!("native/java/lang/def/Throwable.definitions.rs");
 /// ```
 /// ["java/lang/Foo#foo", 2, "java/lang/Foo#bar", 5]
 /// ```
-struct BackTrace {
+pub struct BackTrace {
 	inner: Vec<jlong>,
 }
 
 impl BackTrace {
 	const NUMBER_OF_FIELDS: usize = 2;
+
+	pub fn from_encoded(backtrace: &[jlong]) -> BackTraceIter<'_> {
+		BackTraceIter {
+			inner: backtrace.iter(),
+		}
+	}
 
 	/// Create a new `BackTrace`
 	///
@@ -81,11 +88,34 @@ impl BackTrace {
 	}
 }
 
+pub struct BackTraceElement {
+	pub method: &'static Method,
+	pub pc: jlong,
+}
+
+pub struct BackTraceIter<'a> {
+	inner: slice::Iter<'a, jlong>,
+}
+
+impl<'a> Iterator for BackTraceIter<'a> {
+	type Item = BackTraceElement;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		match self.inner.next_chunk::<2>() {
+			Ok([method, pc]) => Some(BackTraceElement {
+				method: unsafe { &*(*method as *const Method) },
+				pc: *pc,
+			}),
+			Err(_) => None,
+		}
+	}
+}
+
 // Initialize the java.lang.Throwable field offsets
 unsafe fn initialize() {
 	static ONCE: Once = Once::new();
 	ONCE.call_once(|| unsafe {
-		classes::java_lang_Throwable::init_offsets();
+		classes::java::lang::Throwable::init_offsets();
 	});
 }
 
@@ -98,14 +128,15 @@ pub fn fillInStackTrace(
 	unsafe { initialize() };
 
 	// Reset the current fields
-	classes::java_lang_Throwable::set_backtrace(this.extract_class().get_mut(), Reference::null());
+	classes::java::lang::Throwable::set_backtrace(
+		this.extract_class().get_mut(),
+		Reference::null(),
+	);
 
-	let stack_trace_offset = classes::java_lang_Throwable::stackTrace_field_offset();
+	let stack_trace_offset = classes::java::lang::Throwable::stackTrace_field_offset();
 	this.put_field_value0(stack_trace_offset, Operand::Reference(Reference::null()));
 
 	let current_thread = unsafe { &*JavaThread::for_env(env.raw() as _) };
-
-	let this_class_instance = this.extract_class();
 
 	let stack_depth = current_thread.frame_stack().visible_depth();
 
@@ -146,12 +177,12 @@ pub fn fillInStackTrace(
 		backtrace.push(frame);
 	}
 
-	classes::java_lang_Throwable::set_backtrace(
+	classes::java::lang::Throwable::set_backtrace(
 		this.extract_class().get_mut(),
 		backtrace.into_obj(),
 	);
 
-	let depth_field_offset = classes::java_lang_Throwable::depth_field_offset();
+	let depth_field_offset = classes::java::lang::Throwable::depth_field_offset();
 	this.put_field_value0(depth_field_offset, Operand::Int(backtrace_depth as jint));
 
 	this

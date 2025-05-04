@@ -3,9 +3,8 @@
 use crate::classes;
 use crate::objects::array::Array;
 use crate::objects::class::Class;
-use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
-use crate::thread::exceptions::{throw, throw_with_ret};
+use crate::thread::exceptions::throw_with_ret;
 use crate::thread::JavaThread;
 
 use std::io::{Read, Seek};
@@ -16,18 +15,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
 use common::traits::PtrType;
-use jni::sys::jbyte;
 
 include_generated!("native/java/io/def/FileInputStream.definitions.rs");
-
-// TODO: move to crate::classes
-fn get_fd(this: &Reference) -> jint {
-	// `fd` is a reference to a `java.io.FileDescriptor`
-	let fd_field_offset = classes::java_io_FileInputStream::fd_field_offset();
-	let file_descriptor_ref = this.get_field_value0(fd_field_offset).expect_reference();
-
-	super::FileDescriptor::get_fd(&file_descriptor_ref)
-}
 
 // throws FileNotFoundException
 pub fn open0(_: JniEnv, _this: Reference, _name: Reference /* java.lang.String */) {
@@ -65,7 +54,7 @@ pub fn readBytes(
 	// Need to convert the jbyte[] to a &[u8]
 	let mut window = &mut b.get_mut().as_bytes_mut()[off as usize..(off + len) as usize];
 
-	let current_fd = get_fd(&this);
+	let current_fd = classes::java::io::FileInputStream::fd(&this);
 	if current_fd == -1 {
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw_with_ret!(-1, thread, IOException, "stream closed");
@@ -100,7 +89,7 @@ pub fn skip0(_: JniEnv, _this: Reference, _n: jlong) -> jlong {
 
 // throws IOException
 pub fn available0(env: JniEnv, this: Reference) -> jint {
-	let current_fd = get_fd(&this);
+	let current_fd = classes::java::io::FileInputStream::fd(&this);
 	if current_fd == -1 {
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw_with_ret!(0, thread, IOException, "stream closed");
@@ -139,6 +128,6 @@ pub fn initIDs(_: JniEnv, class: &'static Class) {
 
 	unsafe {
 		crate::globals::classes::set_java_io_FileInputStream(class);
-		classes::java_io_FileInputStream::init_offsets();
+		classes::java::io::FileInputStream::init_offsets();
 	}
 }

@@ -439,12 +439,12 @@ impl EntryType for InvokeDynamic {
 			}
 
 			let resolved_method_name =
-				classes::java_lang_invoke_MemberName::method(member_name.extract_class().get());
+				classes::java::lang::invoke::MemberName::method(member_name.extract_class().get());
 			if resolved_method_name.is_null() {
 				break 'invalid;
 			}
 
-			let vmtarget = classes::java_lang_invoke_ResolvedMethodName::vmtarget(
+			let vmtarget = classes::java::lang::invoke::ResolvedMethodName::vmtarget(
 				resolved_method_name.extract_class().get(),
 			);
 			let Some(target) = vmtarget else {

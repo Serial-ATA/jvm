@@ -41,7 +41,7 @@ fn set_constantPoolOop(instance: &mut ClassInstance, class: &'static Class) {
 	);
 }
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS jdk_internal_reflect_ConstantPool;
 
 	@FIELDSTART

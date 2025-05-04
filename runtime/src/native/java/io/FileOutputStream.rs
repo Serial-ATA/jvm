@@ -1,8 +1,9 @@
 #![allow(non_upper_case_globals)]
 
+use crate::classes;
 use crate::objects::class::Class;
-use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
+use crate::thread::exceptions::throw;
 use crate::thread::JavaThread;
 
 use std::io::Write;
@@ -10,23 +11,11 @@ use std::mem::ManuallyDrop;
 use std::os::fd::{FromRawFd, RawFd};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use crate::classes;
-use crate::thread::exceptions::throw;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint};
 use common::traits::PtrType;
-use jni::sys::jbyte;
 
 include_generated!("native/java/io/def/FileOutputStream.definitions.rs");
-
-// TODO: move to crate::classes
-fn get_fd(this: &Reference) -> jint {
-	// `fd` is a reference to a `java.io.FileDescriptor`
-	let fd_field_offset = classes::java_io_FileOutputStream::fd_field_offset();
-	let file_descriptor_ref = this.get_field_value0(fd_field_offset).expect_reference();
-
-	super::FileDescriptor::get_fd(&file_descriptor_ref)
-}
 
 // throws FileNotFoundException
 pub fn open0(_: JniEnv, _this: Reference, _name: Reference /* java.lang.String */) {
@@ -69,7 +58,7 @@ pub fn writeBytes(
 	let mut offset = 0;
 	let mut len = len;
 	while len > 0 {
-		let current_fd = get_fd(&this);
+		let current_fd = classes::java::io::FileOutputStream::fd(&this);
 		if current_fd == -1 {
 			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 			throw!(thread, IOException, "stream closed");
@@ -101,6 +90,6 @@ pub fn initIDs(_: JniEnv, class: &'static Class) {
 
 	unsafe {
 		crate::globals::classes::set_java_io_FileOutputStream(class);
-		classes::java_io_FileOutputStream::init_offsets();
+		classes::java::io::FileOutputStream::init_offsets();
 	}
 }

@@ -47,7 +47,7 @@ pub fn set_lineNumber(instance: &mut ClassInstance, value: jint) {
 	instance.put_field_value0(lineNumber_field_offset(), Operand::Int(value))
 }
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_lang_StackTraceElement;
 
 	@FIELDSTART

@@ -57,7 +57,7 @@ pub fn forName0(
 		throw_and_return_null!(thread, NullPointerException);
 	}
 
-	let binary_name = classes::java_lang_String::extract(name.extract_class().get());
+	let binary_name = classes::java::lang::String::extract(name.extract_class().get());
 	let internal_name = binary_name.replace('.', "/");
 	let internal_name_sym = Symbol::intern(internal_name);
 
@@ -123,7 +123,7 @@ pub fn initClassName(
 	let name_string = StringInterner::intern(&*this_binary_name);
 
 	this_mirror.get_mut().put_field_value0(
-		classes::java_lang_Class::name_field_offset(),
+		classes::java::lang::Class::name_field_offset(),
 		Operand::Reference(Reference::class(Arc::clone(&name_string))),
 	);
 
@@ -331,7 +331,7 @@ pub fn getPrimitiveClass(
 ) -> Reference /* Class */
 {
 	let string_class = name.extract_class();
-	let name_string = classes::java_lang_String::extract(string_class.get());
+	let name_string = classes::java::lang::String::extract(string_class.get());
 
 	for (name, ty) in crate::globals::PRIMITIVE_TYPE_NAMES_TO_FIELD_TYPES {
 		if &name_string == name {
@@ -377,7 +377,8 @@ pub fn getConstantPool(
 	}
 
 	let constant_pool =
-		match classes::jdk_internal_reflect_ConstantPool::new(this.get().target_class(), thread) {
+		match classes::jdk::internal::reflect::ConstantPool::new(this.get().target_class(), thread)
+		{
 			Throws::Ok(cp) => cp,
 			Throws::Exception(e) => {
 				e.throw(thread);
@@ -444,7 +445,7 @@ pub fn getDeclaredMethods0(
 	};
 
 	for (index, method) in methods.iter().enumerate() {
-		let reflect_method = match classes::java_lang_reflect_Method::new(method) {
+		let reflect_method = match classes::java::lang::reflect::Method::new(method) {
 			Throws::Ok(method) => method,
 			Throws::Exception(e) => {
 				e.throw(thread);
@@ -511,7 +512,7 @@ pub fn getDeclaredConstructors0(
 		let constructor: ClassInstanceRef = handle_exception!(
 			Reference::null(),
 			thread,
-			classes::java_lang_reflect_Constructor::new(constructor)
+			classes::java::lang::reflect::Constructor::new(constructor)
 		);
 
 		// SAFETY: The array is known to have the correct length

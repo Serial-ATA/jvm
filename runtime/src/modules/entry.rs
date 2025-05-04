@@ -124,7 +124,7 @@ impl Module {
 
 		// Store the pointer in the module, to make future lookups cheaper
 		obj.extract_class().get_mut().put_field_value0(
-			classes::java_lang_Module::module_ptr_field_offset(),
+			classes::java::lang::Module::module_ptr_field_offset(),
 			Operand::Long(self as *const Module as jlong),
 		);
 
@@ -151,7 +151,7 @@ impl Module {
 		verify_obj(obj.clone())?;
 
 		let name = obj
-			.get_field_value0(classes::java_lang_Module::name_field_offset())
+			.get_field_value0(classes::java::lang::Module::name_field_offset())
 			.expect_reference();
 		if !name.is_null() {
 			throw!(@DEFER IllegalArgumentException);
@@ -182,15 +182,15 @@ impl Module {
 		verify_obj(obj.clone())?;
 
 		let name_obj = obj
-			.get_field_value0(classes::java_lang_Module::name_field_offset())
+			.get_field_value0(classes::java::lang::Module::name_field_offset())
 			.expect_reference();
 		if name_obj.is_null() {
 			throw!(@DEFER IllegalArgumentException, "Module name cannot be null");
 		}
 
-		let module_name = classes::java_lang_String::extract(name_obj.extract_class().get());
+		let module_name = classes::java::lang::String::extract(name_obj.extract_class().get());
 		let loader = obj
-			.get_field_value0(classes::java_lang_Module::loader_field_offset())
+			.get_field_value0(classes::java::lang::Module::loader_field_offset())
 			.expect_reference();
 
 		if &module_name == "java.base" {

@@ -38,31 +38,31 @@ mod patterns {
 /// ```
 ///
 /// * Feature (**REQUIRED**):<br />
-///     The feature-release counter, incremented for every feature release regardless of content.
+///   The feature-release counter, incremented for every feature release regardless of content.
 ///
 /// * Interim (**OPTIONAL**):<br />
-///     The interim-release counter, incremented for non-feature releases contain compatible bug-fixes
-///     and enhancements but no incompatible changes, no feature removals, and no changes to standard APIs.
+///   The interim-release counter, incremented for non-feature releases contain compatible bug-fixes
+///   and enhancements but no incompatible changes, no feature removals, and no changes to standard APIs.
 ///
 /// * Update (**OPTIONAL**):<br />
-///     The update-release counter, incremented for compatible update releases that fix security issues,
-///     regressions and bugs in newer features.
+///   The update-release counter, incremented for compatible update releases that fix security issues,
+///   regressions and bugs in newer features.
 ///
 /// * Patch (**OPTIONAL**):<br />
-///     The emergency path-release counter, incremented only it's necessary to produce an emergency release
-///     to fix a critical issue.
+///   The emergency path-release counter, incremented only it's necessary to produce an emergency release
+///   to fix a critical issue.
 ///
 /// Additional elements:
 ///
 /// * Pre-release identifier (`[a-zA-Z0-9]+`):<br />
-///     Typically `ea`, for a potentially unstable early-access release under active development, or `internal`
-///     for an internal developer build.
+///   Typically `ea`, for a potentially unstable early-access release under active development, or `internal`
+///   for an internal developer build.
 ///
 /// * Build (`0|[1-9][0-9]*`):<br />
-///     The build number, incremented for each promoted build.
+///   The build number, incremented for each promoted build.
 ///
 /// * Opt (`[-a-zA-Z0-9.]+`):<br />
-///     Additional build information.
+///   Additional build information.
 ///
 /// # Examples
 ///

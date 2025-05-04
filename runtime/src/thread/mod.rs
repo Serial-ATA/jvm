@@ -6,7 +6,7 @@ pub use builder::JavaThreadBuilder;
 mod hash;
 pub mod pool;
 
-use crate::classes::java_lang_Thread::ThreadStatus;
+use crate::classes::java::lang::Thread::ThreadStatus;
 use crate::interpreter::Interpreter;
 use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::invocation_api::new_env;
@@ -259,7 +259,7 @@ impl JavaThread {
 		self.set_obj(Reference::class(ClassInstanceRef::clone(&thread_instance)));
 		let obj = self.obj().unwrap();
 
-		classes::java_lang_Thread::set_eetop(
+		classes::java::lang::Thread::set_eetop(
 			obj.extract_class().get_mut(),
 			JavaThread::current_ptr() as jni::sys::jlong,
 		);
@@ -283,8 +283,8 @@ impl JavaThread {
 			Operand::Reference(Reference::class(thread_name)),
 		);
 
-		let holder = classes::java_lang_Thread::holder(obj.extract_class().get());
-		classes::java_lang_Thread::holder::set_threadStatus(
+		let holder = classes::java::lang::Thread::holder(obj.extract_class().get());
+		classes::java::lang::Thread::holder::set_threadStatus(
 			holder.extract_class().get_mut(),
 			ThreadStatus::Runnable,
 		);
@@ -315,12 +315,12 @@ impl JavaThread {
 			return String::from("Unknown thread");
 		};
 
-		let name = classes::java_lang_Thread::name(obj.extract_class().get());
+		let name = classes::java::lang::Thread::name(obj.extract_class().get());
 		if name.is_null() {
 			return String::from("<un-named>");
 		}
 
-		classes::java_lang_String::extract(name.extract_class().get())
+		classes::java::lang::String::extract(name.extract_class().get())
 	}
 }
 

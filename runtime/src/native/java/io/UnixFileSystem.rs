@@ -17,15 +17,16 @@ use common::traits::PtrType;
 
 include_generated!("native/java/io/def/UnixFileSystem.definitions.rs");
 
+// TODO: move to classes
 fn get_file_path(file: Reference) -> String {
-	let path_field_offset = classes::java_io_File::path_field_offset();
+	let path_field_offset = classes::java::io::File::path_field_offset();
 	let f = file.extract_class();
 	let value = f
 		.get()
 		.get_field_value0(path_field_offset)
 		.expect_reference();
 
-	classes::java_lang_String::extract(value.extract_class().get())
+	classes::java::lang::String::extract(value.extract_class().get())
 }
 
 pub fn canonicalize0(
@@ -37,7 +38,7 @@ pub fn canonicalize0(
 		throw_and_return_null!(JavaThread::current(), NullPointerException);
 	}
 
-	let path_str = classes::java_lang_String::extract(path.extract_class().get());
+	let path_str = classes::java::lang::String::extract(path.extract_class().get());
 	let Ok(path) = std::path::Path::new(&path_str).canonicalize() else {
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw_and_return_null!(thread, IOException);
@@ -209,6 +210,6 @@ pub fn initIDs(_: JniEnv, class: &'static Class) {
 	let file_class = class.loader().load(sym!(java_io_File)).unwrap();
 	unsafe {
 		crate::globals::classes::set_java_io_File(file_class);
-		classes::java_io_File::init_offsets();
+		classes::java::io::File::init_offsets();
 	}
 }

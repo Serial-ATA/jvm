@@ -186,7 +186,7 @@ impl Method {
 		Box::leak(Box::new(method))
 	}
 
-	pub fn get_line_number(&self, pc: isize) -> s4 {
+	pub fn line_number(&self, pc: isize) -> s4 {
 		if self.is_native() {
 			return -2;
 		}

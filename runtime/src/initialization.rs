@@ -1,3 +1,4 @@
+use crate::classes::jdk::internal::misc;
 use crate::classpath::loader::ClassLoader;
 use crate::modules::Module;
 use crate::native::java::lang::String::StringInterner;
@@ -16,7 +17,21 @@ use jni::error::JniError;
 use jni::java_vm::JavaVm;
 use jni::sys::{JavaVMInitArgs, JNI_OK};
 
-pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> Result<JavaVm, JniError> {
+/// Creates and initializes the Java VM
+///
+/// # Errors
+///
+/// Errors come in the form ([`JniError`], Option<[`Reference`]>), where the [`Reference`] is the exception thrown.
+///
+/// There are two error cases:
+///
+/// * **Before** the creation of the main thread, in which case the exception will be `None` since the
+///   VM will not be able to throw any exception.
+/// * **After** the creation of the main thread, where the exception *should* be `Some`. In this case,
+///   the caller should print the contents of the exception.
+pub fn create_java_vm(
+	args: Option<&JavaVMInitArgs>,
+) -> Result<JavaVm, (JniError, Option<Reference>)> {
 	let _span = tracing::debug_span!("initialization").entered();
 	tracing::debug!("Creating Java VM");
 
@@ -25,7 +40,18 @@ pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> Result<JavaVm, JniError>
 		JavaThread::set_current_thread(thread);
 	}
 
-	initialize_thread(JavaThread::current())?;
+	if let Err((e, thread_available)) = initialize_thread(JavaThread::current()) {
+		if !thread_available {
+			return Err((e, None));
+		}
+
+		let Some(exception) = JavaThread::current().take_pending_exception() else {
+			tracing::warn!("Exception thrown but not set?");
+			return Err((e, None));
+		};
+
+		return Err((e, Some(exception)));
+	}
 
 	Ok(unsafe { main_java_vm() })
 }
@@ -45,12 +71,12 @@ pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> Result<JavaVm, JniError>
 /// 4. Create the initial `java.lang.Thread` for the current thread.
 ///
 /// [`create_java_base()`]: crate::modules::ModuleLockGuard::create_java_base()
-fn initialize_thread(thread: &JavaThread) -> Result<(), JniError> {
+fn initialize_thread(thread: &JavaThread) -> Result<(), (JniError, bool)> {
 	crate::modules::with_module_lock(|guard| Module::create_java_base(guard));
 
 	// Load some important classes
 	if let Throws::Exception(_) = load_global_classes() {
-		return Err(JniError::ExceptionThrown);
+		return Err((JniError::ExceptionThrown, false));
 	}
 
 	init_field_offsets();
@@ -58,25 +84,25 @@ fn initialize_thread(thread: &JavaThread) -> Result<(), JniError> {
 	// Init some important classes
 	if let Throws::Exception(_) = initialize_global_classes(thread) {
 		// An exception was thrown while initializing classes, no thread exists to handle it.
-		return Err(JniError::ExceptionThrown);
+		return Err((JniError::ExceptionThrown, false));
 	}
 
 	if !create_thread_object(thread) {
 		// An exception was thrown, this thread is NOT safe to use.
-		return Err(JniError::ExceptionThrown);
+		return Err((JniError::ExceptionThrown, false));
 	}
 
 	// SAFETY: Preconditions filled in `init_field_offsets` & `initialize_global_classes`
 	unsafe {
-		classes::jdk_internal_misc_UnsafeConstants::init();
+		misc::UnsafeConstants::init();
 	}
 
 	// Create native entrypoints for `java.lang.invoke.MethodHandle#link*` methods
-	classes::java_lang_invoke_MethodHandle::init_entry_points();
+	classes::java::lang::invoke::MethodHandle::init_entry_points();
 
-	init_phase_1(thread)?;
-	init_phase_2(thread)?;
-	init_phase_3(thread)?;
+	init_phase_1(thread).map_err(|e| (e, true))?;
+	init_phase_2(thread).map_err(|e| (e, true))?;
+	init_phase_3(thread).map_err(|e| (e, true))?;
 
 	Ok(())
 }
@@ -111,7 +137,7 @@ fn load_global_classes() -> Throws<()> {
 	// Pre-fire java.lang.Class field offset initialization, as it's needed by mirrors. All other
 	// classes handle this in `init_field_offsets()`.
 	unsafe {
-		classes::java_lang_Class::init_offsets();
+		classes::java::lang::Class::init_offsets();
 	}
 
 	// Fixup mirrors, as we have classes that were loaded before java.lang.Class
@@ -182,59 +208,59 @@ fn load_global_classes() -> Throws<()> {
 fn init_field_offsets() {
 	// java.lang.ClassLoader
 	unsafe {
-		classes::java_lang_ClassLoader::init_offsets();
+		classes::java::lang::ClassLoader::init_offsets();
 	}
 
 	// java.lang.String
 	unsafe {
-		classes::java_lang_String::init_offsets();
+		classes::java::lang::String::init_offsets();
 	}
 
 	// java.lang.Module
 	unsafe {
-		classes::java_lang_Module::init_offsets();
+		classes::java::lang::Module::init_offsets();
 	}
 
 	// java.lang.ref.Reference
 	unsafe {
-		classes::java_lang_ref_Reference::init_offsets();
+		crate::classes::java::lang::r#ref::Reference::init_offsets();
 	}
 
 	// jdk.internal.misc.UnsafeConstants
 	unsafe {
-		classes::jdk_internal_misc_UnsafeConstants::init_offsets();
+		misc::UnsafeConstants::init_offsets();
 	}
 
 	// java.lang.Thread
 	unsafe {
-		classes::java_lang_Thread::init_offsets();
+		classes::java::lang::Thread::init_offsets();
 	}
 
 	// MethodHandle stuff
 	{
 		// java.lang.invoke.MethodHandle
 		unsafe {
-			classes::java_lang_invoke_MethodHandle::init_offsets();
+			classes::java::lang::invoke::MethodHandle::init_offsets();
 		}
 
 		// java.lang.invoke.LambdaForm
 		unsafe {
-			classes::java_lang_invoke_LambdaForm::init_offsets();
+			classes::java::lang::invoke::LambdaForm::init_offsets();
 		}
 
 		// java.lang.invoke.MemberName
 		unsafe {
-			classes::java_lang_invoke_MemberName::init_offsets();
+			classes::java::lang::invoke::MemberName::init_offsets();
 		}
 
 		// java.lang.invoke.ResolvedMethodName
 		unsafe {
-			classes::java_lang_invoke_ResolvedMethodName::init_offsets();
+			classes::java::lang::invoke::ResolvedMethodName::init_offsets();
 		}
 
 		// java.lang.invoke.MethodType
 		unsafe {
-			classes::java_lang_invoke_MethodType::init_offsets();
+			classes::java::lang::invoke::MethodType::init_offsets();
 		}
 	}
 
@@ -242,17 +268,17 @@ fn init_field_offsets() {
 	{
 		// java.lang.reflect.Method
 		unsafe {
-			classes::java_lang_reflect_Method::init_offsets();
+			classes::java::lang::reflect::Method::init_offsets();
 		}
 
 		// java.lang.reflect.Field
 		unsafe {
-			classes::java_lang_reflect_Field::init_offsets();
+			classes::java::lang::reflect::Field::init_offsets();
 		}
 
 		// java.lang.reflect.Constructor
 		unsafe {
-			classes::java_lang_reflect_Constructor::init_offsets();
+			classes::java::lang::reflect::Constructor::init_offsets();
 		}
 	}
 }
@@ -321,9 +347,14 @@ fn create_thread_object(thread: &JavaThread) -> bool {
 /// * Thread group of the main thread
 fn init_phase_1(thread: &JavaThread) -> Result<(), JniError> {
 	let system_class = crate::globals::classes::java_lang_System();
-	let init_phase_1 = system_class
-		.resolve_method_step_two(sym!(initPhase1_name), sym!(void_method_signature))
-		.unwrap();
+	let init_phase_1;
+	match system_class.resolve_method(sym!(initPhase1_name), sym!(void_method_signature)) {
+		Throws::Ok(method) => init_phase_1 = method,
+		Throws::Exception(e) => {
+			e.throw(thread);
+			return Err(JniError::ExceptionThrown);
+		},
+	}
 
 	java_call!(thread, init_phase_1);
 
@@ -345,9 +376,14 @@ fn init_phase_2(thread: &JavaThread) -> Result<(), JniError> {
 	let display_vm_output_to_stderr = false;
 	let print_stacktrace_on_exception = true;
 
-	let init_phase_2 = system_class
-		.resolve_method_step_two(sym!(initPhase2_name), sym!(bool_bool_int_signature))
-		.unwrap();
+	let init_phase_2;
+	match system_class.resolve_method(sym!(initPhase2_name), sym!(bool_bool_int_signature)) {
+		Throws::Ok(method) => init_phase_2 = method,
+		Throws::Exception(e) => {
+			e.throw(thread);
+			return Err(JniError::ExceptionThrown);
+		},
+	}
 
 	let result = java_call!(
 		thread,
@@ -378,9 +414,14 @@ fn init_phase_2(thread: &JavaThread) -> Result<(), JniError> {
 fn init_phase_3(thread: &JavaThread) -> Result<(), JniError> {
 	let system_class = crate::globals::classes::java_lang_System();
 
-	let init_phase_3 = system_class
-		.resolve_method_step_two(sym!(initPhase3_name), sym!(void_method_signature))
-		.unwrap();
+	let init_phase_3;
+	match system_class.resolve_method(sym!(initPhase3_name), sym!(void_method_signature)) {
+		Throws::Ok(method) => init_phase_3 = method,
+		Throws::Exception(e) => {
+			e.throw(thread);
+			return Err(JniError::ExceptionThrown);
+		},
+	}
 
 	java_call!(thread, init_phase_3);
 

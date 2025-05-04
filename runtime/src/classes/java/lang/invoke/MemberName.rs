@@ -88,7 +88,7 @@ pub fn target_method(instance: &ClassInstance) -> Throws<&'static Method> {
 	Throws::Ok(&defining_class.vtable()[vmindex as usize])
 }
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_lang_invoke_MemberName;
 
 	@FIELDSTART

@@ -15,7 +15,7 @@ pub fn injected_module_ptr_for(obj: Reference) -> Option<*const Module> {
 	Some(ptr as *const Module)
 }
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_lang_Module;
 
 	@FIELDSTART

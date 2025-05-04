@@ -11,7 +11,7 @@ pub fn vmentry(instance: &ClassInstance) -> ClassInstanceRef {
 		.extract_class()
 }
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_lang_invoke_LambdaForm;
 
 	@FIELDSTART

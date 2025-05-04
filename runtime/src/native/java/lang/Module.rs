@@ -24,13 +24,13 @@ pub fn defineModule0(
 
 	let mut version_sym = None;
 	if !version.is_null() {
-		let version_str = classes::java_lang_String::extract(version.extract_class().get());
+		let version_str = classes::java::lang::String::extract(version.extract_class().get());
 		version_sym = Some(Symbol::intern(version_str));
 	}
 
 	let mut location_sym = None;
 	if !location.is_null() {
-		let location_str = classes::java_lang_String::extract(location.extract_class().get());
+		let location_str = classes::java::lang::String::extract(location.extract_class().get());
 		location_sym = Some(Symbol::intern(location_str));
 	}
 
@@ -45,7 +45,7 @@ pub fn defineModule0(
 			}
 
 			let package_name =
-				classes::java_lang_String::extract(package_name.extract_class().get());
+				classes::java::lang::String::extract(package_name.extract_class().get());
 			package_names.push(Package::name_to_internal(package_name));
 		}
 	}
@@ -79,7 +79,7 @@ pub fn addReads0(
 		return;
 	}
 
-	let Some(from_ptr) = classes::java_lang_Module::injected_module_ptr_for(from) else {
+	let Some(from_ptr) = classes::java::lang::Module::injected_module_ptr_for(from) else {
 		throw!(thread, IllegalArgumentException, "from_module is not valid");
 	};
 
@@ -91,7 +91,7 @@ pub fn addReads0(
 
 	let mut to_module = None;
 	if !to.is_null() {
-		let Some(to_ptr) = classes::java_lang_Module::injected_module_ptr_for(to) else {
+		let Some(to_ptr) = classes::java::lang::Module::injected_module_ptr_for(to) else {
 			throw!(thread, IllegalArgumentException, "to_module is not valid");
 		};
 
@@ -124,15 +124,15 @@ pub fn addExports0(
 		throw!(thread, NullPointerException, "package is null");
 	}
 
-	let Some(from_ptr) = classes::java_lang_Module::injected_module_ptr_for(from) else {
+	let Some(from_ptr) = classes::java::lang::Module::injected_module_ptr_for(from) else {
 		throw!(thread, IllegalArgumentException, "from_module is not valid");
 	};
 
-	let Some(to_ptr) = classes::java_lang_Module::injected_module_ptr_for(to) else {
+	let Some(to_ptr) = classes::java::lang::Module::injected_module_ptr_for(to) else {
 		throw!(thread, IllegalArgumentException, "to_module is not valid");
 	};
 
-	let package_name = classes::java_lang_String::extract(pn.extract_class().get());
+	let package_name = classes::java::lang::String::extract(pn.extract_class().get());
 	let package_name = Package::name_to_internal(package_name);
 
 	let from_module = unsafe { &*from_ptr };
@@ -156,11 +156,11 @@ pub fn addExportsToAll0(
 		throw!(thread, NullPointerException, "package is null");
 	}
 
-	let Some(from_ptr) = classes::java_lang_Module::injected_module_ptr_for(from) else {
+	let Some(from_ptr) = classes::java::lang::Module::injected_module_ptr_for(from) else {
 		throw!(thread, IllegalArgumentException, "from_module is not valid");
 	};
 
-	let package_name = classes::java_lang_String::extract(pn.extract_class().get());
+	let package_name = classes::java::lang::String::extract(pn.extract_class().get());
 	let package_name = Package::name_to_internal(package_name);
 
 	let from_module = unsafe { &*from_ptr };

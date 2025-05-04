@@ -33,7 +33,7 @@ pub fn set_rtype(instance: &mut ClassInstance, value: MirrorInstanceRef) {
 	)
 }
 
-super::field_module! {
+crate::classes::field_module! {
 	@CLASS java_lang_invoke_MethodType;
 
 	@FIELDSTART
