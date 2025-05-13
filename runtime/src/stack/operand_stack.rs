@@ -31,7 +31,7 @@ pub struct OperandStack {
 
 impl Debug for OperandStack {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.debug_list().entries(self.inner.iter()).finish()
+		f.debug_list().entries(self.inner.iter().rev()).finish()
 	}
 }
 

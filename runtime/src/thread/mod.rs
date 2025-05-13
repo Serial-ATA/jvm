@@ -479,7 +479,8 @@ impl JavaThread {
 	fn restore_pc(&self) {
 		if let Some(current_frame) = self.frame_stack.current() {
 			let pc = current_frame.stashed_pc();
-			self.pc.store(pc, Ordering::Relaxed);
+			let cached_depth = current_frame.take_cached_depth();
+			self.pc.store(pc + cached_depth, Ordering::Relaxed);
 		}
 	}
 

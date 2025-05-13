@@ -3,7 +3,11 @@ use crate::native::java::lang::String::StringInterner;
 use crate::objects::array::Array;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
+use crate::objects::class::Class;
+use crate::objects::constant_pool::cp_types;
+use crate::symbols::{sym, Symbol};
 
+use common::int_types::u2;
 use common::traits::PtrType;
 use instructions::OpCode;
 use jni::env::JniEnv;
@@ -48,7 +52,7 @@ pub fn getExtendedNPEMessage(
 		operand_pos += 1;
 	}
 
-	let Some(description) = description(target_opcode, operand_pos) else {
+	let Some(description) = description(target_opcode, method, operand_pos) else {
 		// There is no extra description for this instruction, nothing to do
 		return Reference::null();
 	};
@@ -56,8 +60,7 @@ pub fn getExtendedNPEMessage(
 	Reference::class(StringInterner::intern(description.as_str()))
 }
 
-#[rustfmt::skip]
-fn description(opcode: OpCode, _operand_pos: usize) -> Option<String> {
+fn description(opcode: OpCode, method: &'static Method, operand_pos: usize) -> Option<String> {
 	match opcode {
 		OpCode::iaload => Some(String::from("Cannot load from int array")),
 		OpCode::faload => Some(String::from("Cannot load from float array")),
@@ -87,9 +90,39 @@ fn description(opcode: OpCode, _operand_pos: usize) -> Option<String> {
 		OpCode::getfield => todo!(),
 		OpCode::putfield => todo!(),
 
-		OpCode::invokevirtual | OpCode::invokespecial | OpCode::invokeinterface => todo!(),
+		OpCode::invokevirtual | OpCode::invokespecial | OpCode::invokeinterface => {
+			let cp_index = u2::from_be_bytes([
+				method.code.code[operand_pos],
+				method.code.code[operand_pos + 1],
+			]);
+			let methodref = method
+				.class()
+				.constant_pool()
+				.unwrap()
+				.get::<cp_types::MethodRef>(cp_index)
+				.expect("method should be resolved at this point");
+
+			Some(format!(
+				"Cannot invoke \"{}.{}({})\"",
+				pretty_class_name(methodref.method.class()),
+				methodref.method.name,
+				methodref.method.external_signature(true)
+			))
+		},
 
 		// Nothing to do for other instructions
 		_ => None,
 	}
+}
+
+fn pretty_class_name(class: &'static Class) -> Symbol {
+	if class.name() == sym!(java_lang_Object) {
+		return sym!(Object);
+	}
+
+	if class.name() == sym!(java_lang_String) {
+		return sym!(String);
+	}
+
+	class.external_name()
 }

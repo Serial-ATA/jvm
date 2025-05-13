@@ -6,8 +6,8 @@ use crate::symbols::sym;
 use crate::thread::frame::stack::VisibleStackFrame;
 use crate::thread::JavaThread;
 use crate::{classes, globals};
-use std::slice;
 
+use std::slice;
 use std::sync::Once;
 
 use ::jni::env::JniEnv;
@@ -70,8 +70,6 @@ impl BackTrace {
 	fn push(&mut self, frame: VisibleStackFrame<'_>) {
 		let method = frame.method();
 		let pc = match frame {
-			// TODO: The stashed pc will never be correct, since the pc is immediately incremented on every read.
-			//       This needs to be fixed in the interpreter to only progress the pc when the instruction is finished.
 			VisibleStackFrame::Regular(frame) => frame.stashed_pc(),
 			_ => -1,
 		};
@@ -147,20 +145,16 @@ pub fn fillInStackTrace(
 			.class()
 			.is_subclass_of(globals::classes::java_lang_Throwable())
 		{
-			frames_to_skip += 1;
+			if frame.method().name == sym!(fillInStackTrace_name)
+				|| frame.method().name == sym!(object_initializer_name)
+			{
+				frames_to_skip += 1;
+			}
+
 			continue;
 		}
 
 		break;
-	}
-
-	// We need to skip the <athrow> method
-	let athrow_frame = current_thread
-		.frame_stack()
-		.get(frames_to_skip)
-		.expect("Frame should exist");
-	if athrow_frame.method().name == sym!(athrow_name) {
-		frames_to_skip += 1;
 	}
 
 	assert!(frames_to_skip < stack_depth);

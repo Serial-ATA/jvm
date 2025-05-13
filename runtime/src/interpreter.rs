@@ -17,7 +17,7 @@ use crate::symbols::{sym, Symbol};
 use crate::thread::exceptions::{
 	handle_exception, throw, throw_with_ret, Exception, ExceptionKind, Throws,
 };
-use crate::thread::frame::Frame;
+use crate::thread::frame::{Frame, PcUpdateStrategy};
 use crate::thread::{exceptions, JavaThread};
 use crate::{classes, java_call};
 
@@ -200,32 +200,26 @@ macro_rules! conversions {
 	}};
 }
 
-/// The way branching is implemented requires that we add the `branch` to the `pc`
-/// of the instruction. Since the `read_byte*` implementations seek `pc`, we need to subtract
-/// the *2* branch bytes and *1* opcode byte from the branch before jumping.
-const COMPARISON_SEEK_BACK: isize = -3;
 macro_rules! comparisons {
     ($frame:ident, $instruction:ident, $operator:tt) => {{
         let stack = $frame.stack_mut();
         let rhs = stack.pop_int();
         let lhs = stack.pop_int();
 
+        let branch = $frame.read_byte2_signed() as isize;
         if lhs $operator rhs {
-            let branch = $frame.read_byte2_signed() as isize;
-            let _ = $frame.thread().pc.fetch_add(branch + COMPARISON_SEEK_BACK, std::sync::atomic::Ordering::Relaxed);
-        } else {
-            let _ = $frame.thread().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
+            $frame.commit_pc(PcUpdateStrategy::Offset(branch));
+            return;
         }
     }};
     ($frame:ident, $instruction:ident, $operator:tt, $rhs:literal) => {{
         let stack = $frame.stack_mut();
         let lhs = stack.pop_int();
 
+        let branch = $frame.read_byte2_signed() as isize;
         if lhs $operator $rhs {
-            let branch = $frame.read_byte2_signed() as isize;
-            let _ = $frame.thread().pc.fetch_add(branch + COMPARISON_SEEK_BACK, std::sync::atomic::Ordering::Relaxed);
-        } else {
-            let _ = $frame.thread().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
+            $frame.commit_pc(PcUpdateStrategy::Offset(branch));
+            return;
         }
     }};
     ($frame:ident, $instruction:ident, $operator:tt, $ty:ident) => {{
@@ -235,11 +229,10 @@ macro_rules! comparisons {
             let lhs = stack.[<pop_ $ty>]();
         }
 
+        let branch = $frame.read_byte2_signed() as isize;
         if lhs $operator rhs {
-            let branch = $frame.read_byte2_signed() as isize;
-            let _ = $frame.thread().pc.fetch_add(branch + COMPARISON_SEEK_BACK, std::sync::atomic::Ordering::Relaxed);
-        } else {
-            let _ = $frame.thread().pc.fetch_add(2, std::sync::atomic::Ordering::Relaxed);
+            $frame.commit_pc(PcUpdateStrategy::Offset(branch));
+            return;
         }
     }};
 }
@@ -248,6 +241,7 @@ macro_rules! control_return {
 	($frame:ident, $instruction:ident) => {{
 		let thread = $frame.thread();
 		thread.drop_to_previous_frame(None);
+		return;
 	}};
 	($frame:ident, $instruction:ident, $return_ty:ident) => {{
 		let stack = $frame.stack_mut();
@@ -264,6 +258,7 @@ macro_rules! control_return {
 
 		let thread = $frame.thread();
 		thread.drop_to_previous_frame(Some(value));
+		return;
 	}};
 }
 
@@ -277,7 +272,13 @@ impl Interpreter {
         // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-7.html
         
         let opcode = OpCode::from(frame.read_byte());
-        
+
+        // Remember how deep we are in the current method's code.
+        //
+        // This is used for method calls, due to the thread caching the pc on the frame *before* the
+        // instruction ends (and with it, the increment of the pc to the next instruction). When the thread
+        // drops back to this frame, it will add this depth to the cached pc.
+        let mut retain_depth = false;
         define_instructions! {
             frame: frame,
             match opcode {
@@ -647,15 +648,24 @@ impl Interpreter {
                 },
                 OpCode::invokedynamic => {
                     Self::invoke_dynamic(frame);
+                    retain_depth = true;
                 },
-                OpCode::invokevirtual => { Self::invoke_virtual(frame) },
+                OpCode::invokevirtual => {
+                    Self::invoke_virtual(frame);
+                    retain_depth = true;
+                },
                 OpCode::invokespecial => {
                     let Some(entry) = Self::fetch_method(frame, false) else {
                         return;
                     };
+
                     MethodInvoker::invoke(frame, entry.method);
+                    retain_depth = true;
                 },
-                OpCode::invokestatic => { Self::invoke_static(frame) },
+                OpCode::invokestatic => {
+                    Self::invoke_static(frame);
+                    retain_depth = true;
+                },
                 OpCode::invokeinterface => {
                     let Some(entry) = Self::fetch_method(frame, false) else {
                         return;
@@ -669,6 +679,7 @@ impl Interpreter {
                     assert_eq!(frame.read_byte(), 0);
 
                     MethodInvoker::invoke_interface(frame, entry.method);
+                    retain_depth = true;
                 },
                 OpCode::new => {
                     if let Some(new_class_instance) = Self::new(frame) {
@@ -752,13 +763,18 @@ impl Interpreter {
                 CATEGORY: control
                 OpCode::goto => {
                     let address = frame.read_byte2_signed() as isize;
-                    let _ = frame.thread().pc.fetch_add(address + COMPARISON_SEEK_BACK, MemOrdering::Relaxed);
+                    frame.commit_pc(PcUpdateStrategy::Offset(address));
+                    return;
                 },
                 OpCode::tableswitch => {
-                    Self::tableswitch(frame)
+                    let offset = Self::tableswitch(frame);
+                    frame.commit_pc(PcUpdateStrategy::Offset(offset));
+                    return;
                 },
                 OpCode::lookupswitch => {
-                    Self::lookupswitch(frame)
+                    let offset = Self::lookupswitch(frame);
+                    frame.commit_pc(PcUpdateStrategy::Offset(offset));
+                    return;
                 },
                 @GROUP {
                     [
@@ -779,31 +795,29 @@ impl Interpreter {
                 },
                 OpCode::ifnull => {
                     let reference = frame.stack_mut().pop_reference();
-                    
+
+                    let branch = frame.read_byte2_signed() as isize;
                     if reference.is_null() {
-                        let branch = frame.read_byte2_signed() as isize;
-                        let _ = frame.thread().pc.fetch_add(branch + COMPARISON_SEEK_BACK, MemOrdering::Relaxed);
-                    } else {
-                        let _ = frame.thread().pc.fetch_add(2, MemOrdering::Relaxed);
+                        frame.commit_pc(PcUpdateStrategy::Offset(branch));
+                        return;
                     }
                 },
                 OpCode::ifnonnull => {
                     let reference = frame.stack_mut().pop_reference();
-                    
-                    if reference.is_null() {
-                        let _ = frame.thread().pc.fetch_add(2, MemOrdering::Relaxed);
-                    } else {
-                        let branch = frame.read_byte2_signed() as isize;
-                        let _ = frame.thread().pc.fetch_add(branch + COMPARISON_SEEK_BACK, MemOrdering::Relaxed);
+
+                    let branch = frame.read_byte2_signed() as isize;
+                    if !reference.is_null() {
+                        frame.commit_pc(PcUpdateStrategy::Offset(branch));
+                        return;
                     }
                 },
                 OpCode::goto_w => {
                     let address = frame.read_byte4_signed() as isize;
                     
                     assert!(address <= s2::MAX as isize, "goto_w offset too large!");
-    
-                    // See doc comment on `COMPARISON_SEEK_BACK` above for explanation of this subtraction
-                    let _ = frame.thread().pc.fetch_add(address - 4, MemOrdering::Relaxed);
+
+                    frame.commit_pc(PcUpdateStrategy::Offset(address));
+                    return;
                 };
                 
                 // ========= Reserved =========
@@ -813,6 +827,10 @@ impl Interpreter {
                     unimplemented!("{:?}", unknown_code)
                 };
             }
+        }
+
+        if !retain_depth {
+            frame.commit_pc(PcUpdateStrategy::FromInstruction);
         }
     }
 
@@ -825,7 +843,13 @@ impl Interpreter {
         };
 
         let constant_pool = frame.constant_pool();
-        let constant = constant_pool.get_any(idx).unwrap(); // TODO
+        let constant = match constant_pool.get_any(idx) {
+            Throws::Ok(c) => c,
+            Throws::Exception(e) => {
+                e.throw(frame.thread());
+                return;
+            }
+        };
 
         // The run-time constant pool entry at index must be loadable (§5.1),
         match constant {
@@ -1040,12 +1064,12 @@ impl Interpreter {
         let Some(entry) = Self::fetch_method(frame, true) else {
             return;
         };
-        
+
         if let Some(MethodEntryPoint::MethodHandleLinker(mh)) = entry.method.entry_point() {
             mh(frame);
             return;
         }
-        
+
         let call_args = frame.stack_mut().popn(entry.parameter_count as usize);
         MethodInvoker::invoke_with_args(frame.thread(), entry.method, call_args);
     }
@@ -1056,7 +1080,7 @@ impl Interpreter {
         let Some(entry) = Self::fetch_method(frame, false) else {
             return;
         };
-        
+
         // Nothing special to do if the method isn't signature polymorphic
         if !entry.method.is_signature_polymorphic() {
             MethodInvoker::invoke_virtual(frame, entry.method);
@@ -1161,9 +1185,7 @@ impl Interpreter {
         Some(ClassInstance::new(class))
     }
 
-    fn tableswitch(frame: &mut Frame) {
-        // Subtract 1, since we already read the opcode
-        let opcode_address = frame.thread().pc.load(MemOrdering::Relaxed) - 1;
+    fn tableswitch(frame: &mut Frame) -> isize {
         frame.skip_padding();
         
         let default = frame.read_byte4_signed() as isize;
@@ -1185,12 +1207,10 @@ impl Interpreter {
             offset = jump_offsets[(index - low) as usize] as isize;
         }
         
-        frame.thread().pc.store(opcode_address + offset, MemOrdering::Relaxed);
+        offset
     }
 
-    fn lookupswitch(frame: &mut Frame) {
-        // Subtract 1, since we already read the opcode
-        let opcode_address = frame.thread().pc.load(MemOrdering::Relaxed) - 1;
+    fn lookupswitch(frame: &mut Frame) -> isize {
         frame.skip_padding();
         
         let default = frame.read_byte4_signed() as isize;
@@ -1212,7 +1232,7 @@ impl Interpreter {
             offset = default;
         }
 
-        frame.thread().pc.store(opcode_address + offset, MemOrdering::Relaxed);
+        offset
     }
 	
 	fn multianewarray(frame: &mut Frame) {

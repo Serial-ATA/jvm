@@ -293,6 +293,20 @@ impl Method {
 		external_name
 	}
 
+	pub fn external_signature(&self, pretty: bool) -> String {
+		let mut external_signature = String::new();
+		for param in &self.descriptor.parameters {
+			external_signature.push_str(&param.as_java_type());
+		}
+
+		if pretty {
+			external_signature = external_signature.replace("java.lang.Object", "Object");
+			external_signature = external_signature.replace("java.lang.String", "String");
+		}
+
+		external_signature
+	}
+
 	pub fn generic_signature(&self) -> Option<Symbol> {
 		self.attributes
 			.iter()

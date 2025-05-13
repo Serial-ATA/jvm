@@ -9,6 +9,7 @@ use crate::thread::JavaThread;
 
 use std::cell::UnsafeCell;
 use std::fmt::{Debug, Formatter};
+use std::mem;
 use std::sync::atomic::{AtomicIsize, Ordering};
 
 use common::int_types::{s1, s2, s4, u1, u2, u4};
@@ -29,6 +30,7 @@ pub struct Frame {
 	
 	// Used to remember the last pc when we return to a frame after a method invocation
 	cached_pc: AtomicIsize,
+	pub depth: isize,
 }
 
 impl Debug for Frame {
@@ -61,6 +63,7 @@ impl Frame {
 			method,
 			thread: UnsafeCell::new(&raw const *thread),
 			cached_pc: AtomicIsize::default(),
+			depth: 0,
 		}
 	}
 }
@@ -142,20 +145,23 @@ impl Frame {
 	/// Read a byte from the associated method's code at the current [pc]
 	///
 	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.5.1
-	pub fn read_byte(&self) -> u1 {
+	pub fn read_byte(&mut self) -> u1 {
 		let pc;
 		{
 			let thread = self.thread();
-			pc = thread.pc.fetch_add(1, Ordering::Relaxed);
+			pc = thread.pc.load(Ordering::Relaxed);
 		}
 
-		self.method.code.code[pc as usize]
+		let ret = self.method.code.code[(pc + self.depth) as usize];
+		self.depth += 1;
+
+		ret
 	}
 
 	/// Read 2 bytes from the associated method's code at the current [pc]
 	///
 	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.5.1
-	pub fn read_byte2(&self) -> u2 {
+	pub fn read_byte2(&mut self) -> u2 {
 		let b1 = u2::from(self.read_byte());
 		let b2 = u2::from(self.read_byte());
 
@@ -165,7 +171,7 @@ impl Frame {
 	/// Read 4 bytes from the associated method's code at the current [pc]
 	///
 	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.5.1
-	pub fn read_byte4(&self) -> u4 {
+	pub fn read_byte4(&mut self) -> u4 {
 		let b1 = u4::from(self.read_byte());
 		let b2 = u4::from(self.read_byte());
 		let b3 = u4::from(self.read_byte());
@@ -175,31 +181,52 @@ impl Frame {
 	}
 
 	/// Same as [`read_byte()`](Self::read_byte), casting to `s1`
-	pub fn read_byte_signed(&self) -> s1 {
+	pub fn read_byte_signed(&mut self) -> s1 {
 		self.read_byte() as s1
 	}
 
 	/// Same as [`read_byte2()`](Self::read_byte2), casting to `s2`
-	pub fn read_byte2_signed(&self) -> s2 {
+	pub fn read_byte2_signed(&mut self) -> s2 {
 		self.read_byte2() as s2
 	}
 
 	/// Same as [`read_byte4()`](Self::read_byte4), casting to `s4`
-	pub fn read_byte4_signed(&self) -> s4 {
+	pub fn read_byte4_signed(&mut self) -> s4 {
 		self.read_byte4() as s4
 	}
 
 	/// Skip padding bytes in an instruction
 	///
 	/// This is used in the `tableswitch` and `lookupswitch` instructions.
-	pub fn skip_padding(&self) {
-		let thread = self.thread();
+	pub fn skip_padding(&mut self) {
+		let current_pc = self.thread().pc.load(Ordering::Relaxed) + self.depth;
 
-		let mut pc = thread.pc.load(Ordering::Relaxed);
+		let mut pc = current_pc;
 		while pc % 4 != 0 {
 			pc += 1;
+			self.depth += 1;
+		}
+	}
+
+	pub fn take_cached_depth(&mut self) -> isize {
+		mem::replace(&mut self.depth, 0)
+	}
+
+	pub fn commit_pc(&mut self, strategy: PcUpdateStrategy) {
+		match strategy {
+			PcUpdateStrategy::Offset(off) => {
+				let _ = self.thread().pc.fetch_add(off, Ordering::Relaxed);
+			},
+			PcUpdateStrategy::FromInstruction => {
+				let _ = self.thread().pc.fetch_add(self.depth, Ordering::Relaxed);
+			},
 		}
 
-		thread.pc.store(pc, Ordering::Relaxed);
+		self.depth = 0;
 	}
+}
+
+pub enum PcUpdateStrategy {
+	Offset(isize),
+	FromInstruction,
 }

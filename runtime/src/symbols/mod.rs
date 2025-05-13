@@ -194,6 +194,10 @@ vm_symbols::define_symbols! {
 
 	// Classes
 
+	// Pretty names
+	Object,
+	String,
+
 	// Primitive
 	java_lang_Boolean: "java/lang/Boolean",
 	java_lang_Byte: "java/lang/Byte",
