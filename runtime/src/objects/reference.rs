@@ -163,7 +163,7 @@ impl Reference {
 	/// Generate a new hash for this object
 	///
 	/// In the event that another thread is already generating a hash, this thread will spin until it finishes.
-	pub fn generate_hash(&self, thread: &JavaThread) -> jint {
+	pub fn generate_hash(&self, thread: &'static JavaThread) -> jint {
 		// Null references are always 0
 		if self.is_null() {
 			return 0;

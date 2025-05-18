@@ -6,16 +6,16 @@ use crate::objects::constant_pool::cp_types;
 use crate::objects::field::Field;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
-use crate::symbols::{sym, Symbol};
-use crate::thread::exceptions::{throw, Throws};
+use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, throw};
+use crate::globals::PRIMITIVES;
 
 use std::cell::UnsafeCell;
 use std::sync::{Condvar, Mutex, MutexGuard};
 
-use crate::globals::PRIMITIVES;
-use classfile::accessflags::MethodAccessFlags;
 use classfile::FieldType;
+use classfile::accessflags::MethodAccessFlags;
 use instructions::Operand;
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.5
@@ -94,7 +94,7 @@ impl InitializationGuard {
 
 	/// Whether `thread` initiated the initialization of this class
 	#[allow(trivial_casts)]
-	pub fn is_initialized_by(&self, thread: &JavaThread) -> bool {
+	pub fn is_initialized_by(&self, thread: &'static JavaThread) -> bool {
 		// SAFETY: We hold the lock, no one can write to this, reads are safe.
 		let init_thread = unsafe { *self.init_thread.get() };
 		match init_thread {
@@ -431,7 +431,7 @@ impl Class {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.5
-	pub fn initialization(&self, thread: &JavaThread) -> Throws<()> {
+	pub fn initialization(&self, thread: &'static JavaThread) -> Throws<()> {
 		// 1. Synchronize on the initialization lock, LC, for C. This involves waiting until the current thread can acquire LC.
 		let init = self.initialization_lock();
 		let mut guard = init.lock();
@@ -600,7 +600,7 @@ impl Class {
 	#[tracing::instrument(skip_all)]
 	pub fn construct(
 		&self,
-		thread: &JavaThread,
+		thread: &'static JavaThread,
 		descriptor: Symbol,
 		args: Vec<Operand<Reference>>,
 	) {
@@ -629,7 +629,7 @@ impl Class {
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.9.2
     #[rustfmt::skip]
 	#[tracing::instrument(skip_all)]
-	fn clinit(&self, thread: &JavaThread) -> bool {
+	fn clinit(&self, thread: &'static JavaThread) -> bool {
 		// A class or interface has at most one class or interface initialization method and is initialized
 		// by the Java Virtual Machine invoking that method (§5.5).
 

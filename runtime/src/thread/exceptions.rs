@@ -5,7 +5,7 @@ use crate::native::java::lang::String::StringInterner;
 use crate::objects::class::Class;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::reference::Reference;
-use crate::symbols::{sym, Symbol};
+use crate::symbols::{Symbol, sym};
 
 use std::ops::{ControlFlow, FromResidual, Try};
 
@@ -251,7 +251,7 @@ impl Exception {
 		self.kind
 	}
 
-	pub fn throw(self, thread: &JavaThread) {
+	pub fn throw(self, thread: &'static JavaThread) {
 		if self.kind == ExceptionKind::PendingException {
 			// The exception is already constructed and pending, will be handled eventually.
 			assert!(thread.has_pending_exception());
@@ -341,9 +341,7 @@ macro_rules! throw_and_return_null {
 }
 
 macro_rules! handle_exception {
-	($thread:expr, $throwsy_expr:expr) => {{
-		crate::thread::exceptions::handle_exception!((), $thread, $throwsy_expr)
-	}};
+	($thread:expr, $throwsy_expr:expr) => {{ crate::thread::exceptions::handle_exception!((), $thread, $throwsy_expr) }};
 	($ret:expr, $thread:expr, $throwsy_expr:expr) => {{
 		match $throwsy_expr {
 			crate::thread::exceptions::Throws::Ok(__val) => __val,

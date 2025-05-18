@@ -34,7 +34,7 @@ impl ThreadPool {
 	}
 
 	/// Whether `thread` is in this pool
-	pub fn contains(thread: &JavaThread) -> bool {
+	pub fn contains(thread: &'static JavaThread) -> bool {
 		let list = unsafe { &mut *VM_THREAD_POOL.list.get() };
 		list.iter().any(|t| t.env == thread.env)
 	}

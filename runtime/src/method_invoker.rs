@@ -1,8 +1,8 @@
 use crate::objects::method::{Method, MethodEntryPoint};
 use crate::objects::reference::Reference;
 use crate::stack::local_stack::LocalStack;
-use crate::thread::frame::Frame;
 use crate::thread::JavaThread;
+use crate::thread::frame::Frame;
 
 use crate::thread::exceptions::{Exception, ExceptionKind};
 use common::int_types::{u1, u2};
@@ -24,7 +24,7 @@ impl MethodInvoker {
 	///
 	/// This will not pop anything off of the stack of the current Frame
 	pub fn invoke_with_args(
-		thread: &JavaThread,
+		thread: &'static JavaThread,
 		method: &'static Method,
 		args: Vec<Operand<Reference>>,
 	) {
@@ -118,7 +118,7 @@ impl MethodInvoker {
 		Self::invoke0_(frame.thread(), method, local_stack);
 	}
 
-	fn invoke0_(thread: &JavaThread, method: &'static Method, local_stack: LocalStack) {
+	fn invoke0_(thread: &'static JavaThread, method: &'static Method, local_stack: LocalStack) {
 		trace_method!(method);
 		thread.invoke_method_with_local_stack(method, local_stack);
 	}
