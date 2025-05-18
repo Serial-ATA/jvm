@@ -33,13 +33,6 @@ use jni::sys::JNIEnv;
 #[thread_local]
 static CURRENT_JAVA_THREAD: SyncUnsafeCell<Option<&'static JavaThread>> = SyncUnsafeCell::new(None);
 
-pub struct JVMOptions {
-	pub dry_run: bool,
-	pub system_properties: Option<Vec<String>>,
-	pub showversion: bool,
-	pub show_version: bool,
-}
-
 #[derive(Copy, Clone, Debug)]
 pub enum ControlFlow {
 	Continue,

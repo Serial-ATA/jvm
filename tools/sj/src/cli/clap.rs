@@ -63,13 +63,8 @@ pub struct JVMOptions {
 	pub show_version: bool,
 }
 
-impl Into<jvm_runtime::thread::JVMOptions> for JVMOptions {
-	fn into(self) -> jvm_runtime::thread::JVMOptions {
-		jvm_runtime::thread::JVMOptions {
-			dry_run: self.dry_run,
-			system_properties: self.system_properties,
-			showversion: self.showversion,
-			show_version: self.show_version,
-		}
+impl Into<jni::java_vm::VmInitArgs> for JVMOptions {
+	fn into(self) -> jni::java_vm::VmInitArgs {
+		jni::java_vm::VmInitArgs::default().options(self.system_properties.unwrap_or_default())
 	}
 }

@@ -1,12 +1,12 @@
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 use std::ops::Deref;
 
 use jni::env::JniEnv;
 use jni::error::JniError;
 use jni::java_vm::{JavaVm, JavaVmBuilder, VmInitArgs};
-use jni::objects::{JClass, JObjectArray};
-use jni::sys::jsize;
+use jni::objects::{JClass, JObjectArray, JValue};
+use jni::sys::{jint, jsize};
 use jni::version::JniVersion;
 
 const MAIN_METHOD_SIGNATURE: &str = "([Ljava/lang/String;)V";
@@ -15,7 +15,7 @@ pub fn init_java_vm(
 	system_properties: impl IntoIterator<Item = String>,
 ) -> Result<(JavaVm, JniEnv)> {
 	let init_args = VmInitArgs::new(JniVersion::LATEST).options(system_properties);
-	Ok(JavaVmBuilder::new().args(init_args).build()?)
+	Ok(JavaVm::builder().args(init_args).build()?)
 }
 
 /// Wrapper to force a type to implement `Send`
@@ -60,4 +60,65 @@ fn args_as_jstring_array(env: JniEnv, args: Vec<String>) -> Result<JObjectArray>
 	}
 
 	Ok(array)
+}
+
+pub(super) fn print_version(env: JniEnv, use_stderr: bool) -> Result<()> {
+	let version_props_class = env.find_class("java/lang/VersionProps")?;
+	let print_method = env.get_static_method_id(version_props_class, "print", "(Z)V")?;
+	env.call_static_void_method(version_props_class, print_method, [use_stderr])?;
+
+	Ok(())
+}
+
+pub enum LaunchMode {
+	Unknown = 0,
+	Class = 1,
+	Jar = 2,
+	Module = 3,
+	Source = 4,
+}
+
+pub(super) struct LauncherHelper(JClass);
+
+impl LauncherHelper {
+	const CLASS_NAME: &'static str = "sun/launcher/LauncherHelper";
+
+	pub fn new(env: JniEnv) -> Result<Self> {
+		Ok(LauncherHelper(env.find_class(Self::CLASS_NAME)?))
+	}
+
+	pub fn check_and_load_main(
+		&self,
+		env: JniEnv,
+		use_stderr: bool,
+		mode: LaunchMode,
+		target: String,
+	) -> Result<JClass> {
+		let check_and_load_main = env.get_static_method_id(
+			self.0,
+			"checkAndLoadMain",
+			"(ZILjava/lang/String;)Ljava/lang/Class;",
+		)?;
+
+		let target = env.new_string_utf(target)?;
+
+		let main_class_obj = env.call_static_object_method(
+			self.0,
+			check_and_load_main,
+			[
+				JValue::from(use_stderr),
+				JValue::from(mode as jint),
+				JValue::from(target),
+			],
+		)?;
+
+		if main_class_obj.is_null() {
+			return Err(Error::Jni(JniError::Unknown));
+		}
+
+		let raw = main_class_obj.raw();
+		let main_class = unsafe { JClass::from_raw(raw as _) };
+
+		Ok(main_class)
+	}
 }
