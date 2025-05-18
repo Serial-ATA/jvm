@@ -1,15 +1,15 @@
 mod attach_args;
+pub use attach_args::*;
 mod error;
+pub use error::*;
 mod init_args;
+pub use init_args::*;
 
 use crate::env::JniEnv;
 use crate::error::{JniError, Result};
 use crate::version::JniVersion;
-pub use attach_args::*;
-pub use error::*;
-pub use init_args::*;
-use std::ffi::c_void;
 
+use std::ffi::c_void;
 use std::path::PathBuf;
 
 use jni_sys::JNIEnv;
@@ -81,12 +81,12 @@ impl JavaVmBuilder {
 		let libjvm_path = self.jvm_lib_path.unwrap_or_else(default_libjvm_path);
 		let args = self.args.unwrap_or_default().finish();
 
+		let libjvm;
 		let ret;
 		let mut javavm_raw = core::ptr::null_mut::<jni_sys::JavaVM>();
 		let mut jni_env_raw = core::ptr::null_mut::<c_void>();
 		unsafe {
-			let libjvm =
-				libloading::Library::new(libjvm_path).map_err(|_| Error::LibJvmNotFound)?;
+			libjvm = libloading::Library::new(libjvm_path).map_err(|_| Error::LibJvmNotFound)?;
 
 			let create_java_vm: libloading::Symbol<'_, CreateJavaVmFn> = libjvm
 				.get(b"JNI_CreateJavaVM\0")
@@ -103,7 +103,10 @@ impl JavaVmBuilder {
 			return Err(Error::JavaVmNull.into());
 		}
 
-		let java_vm = unsafe { JavaVm::from_raw(javavm_raw) };
+		let java_vm = JavaVm {
+			inner: javavm_raw,
+			_libjvm: Some(libjvm),
+		};
 		let jni_env = unsafe { JniEnv::from_raw(jni_env_raw as *mut JNIEnv) };
 
 		Ok((java_vm, jni_env))
@@ -143,8 +146,20 @@ fn default_libjvm_path() -> PathBuf {
 /// A wrapper around a built [`jni_sys::JavaVM`]
 ///
 /// See [`JavaVmBuilder`].
-#[derive(PartialEq, Eq)]
-pub struct JavaVm(*mut jni_sys::JavaVM);
+pub struct JavaVm {
+	inner: *mut jni_sys::JavaVM,
+	// Not used outside of the original load, just kept here to prevent unloading.
+	// Optional since it's also used in libjvm, where it, of course, isn't applicable.
+	_libjvm: Option<libloading::Library>,
+}
+
+impl PartialEq for JavaVm {
+	fn eq(&self, other: &Self) -> bool {
+		self.inner == other.inner
+	}
+}
+
+impl Eq for JavaVm {}
 
 impl JavaVm {
 	pub fn builder() -> JavaVmBuilder {
@@ -158,7 +173,7 @@ impl JavaVm {
 		let ret;
 		unsafe {
 			let invoke_interface = self.as_invoke_interface();
-			ret = ((*invoke_interface).DestroyJavaVM)(self.0);
+			ret = ((*invoke_interface).DestroyJavaVM)(self.inner);
 		}
 
 		if let Some(err) = JniError::from_jint(ret) {
@@ -180,7 +195,7 @@ impl JavaVm {
 				args_ptr = args.raw() as _;
 			}
 
-			ret = ((*invoke_interface).AttachCurrentThread)(self.0, &mut env, args_ptr);
+			ret = ((*invoke_interface).AttachCurrentThread)(self.inner, &mut env, args_ptr);
 		}
 
 		if let Some(err) = JniError::from_jint(ret) {
@@ -200,7 +215,7 @@ impl JavaVm {
 		let ret;
 		unsafe {
 			let invoke_interface = self.as_invoke_interface();
-			ret = ((*invoke_interface).GetEnv)(self.0, &mut env, version.into());
+			ret = ((*invoke_interface).GetEnv)(self.inner, &mut env, version.into());
 		}
 
 		if let Some(err) = JniError::from_jint(ret) {
@@ -215,16 +230,19 @@ impl JavaVm {
 	}
 
 	unsafe fn as_invoke_interface(&self) -> *const jni_sys::JNIInvokeInterface_ {
-		self.0 as _
+		self.inner as _
 	}
 }
 
 impl JavaVm {
 	pub const fn raw(&self) -> *const jni_sys::JavaVM {
-		self.0 as _
+		self.inner as _
 	}
 
 	pub const unsafe fn from_raw(ptr: *mut jni_sys::JavaVM) -> Self {
-		Self(ptr)
+		Self {
+			inner: ptr,
+			_libjvm: None,
+		}
 	}
 }

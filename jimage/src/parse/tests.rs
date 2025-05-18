@@ -37,7 +37,7 @@ fn read_classes() {
 
 		let size;
 		if let Some(location) = &location {
-			size = location.get_uncompressed_size();
+			size = location.uncompressed_size();
 		} else {
 			size = 0;
 		};

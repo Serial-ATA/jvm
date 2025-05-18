@@ -42,7 +42,7 @@ pub fn print(this: &ClassInstance) {
 	eprint!(": {detail_message}");
 }
 
-pub fn print_stack_trace(this: Reference, thread: &JavaThread) {
+pub fn print_stack_trace(this: Reference, thread: &'static JavaThread) {
 	assert!(this.is_instance_of(crate::globals::classes::java_lang_Throwable()));
 
 	let exception_class = this.extract_instance_class();
@@ -62,7 +62,7 @@ pub fn print_stack_trace(this: Reference, thread: &JavaThread) {
 ///
 /// This is used for exceptions that occur early in VM initialization, which may happen prior to the
 /// print streams being set.
-pub fn print_stack_trace_without_java_system(this: Reference, thread: &JavaThread) {
+pub fn print_stack_trace_without_java_system(this: Reference, thread: &'static JavaThread) {
 	assert!(this.is_instance_of(crate::globals::classes::java_lang_Throwable()));
 
 	let instance = this.extract_class();

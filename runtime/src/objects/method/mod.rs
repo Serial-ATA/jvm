@@ -616,7 +616,7 @@ impl Method {
 
 					unsafe {
 						let obj_raw = args.arg::<*mut ()>();
-						obj = unsafe { reference_from_jobject(obj_raw as jobject) };
+						obj = reference_from_jobject(obj_raw as jobject);
 					}
 
 					let Some(obj) = obj else {

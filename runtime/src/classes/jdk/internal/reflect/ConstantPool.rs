@@ -3,8 +3,8 @@ use crate::objects::class_instance::ClassInstance;
 use crate::objects::constant_pool::ConstantPool;
 use crate::objects::instance::Instance;
 use crate::objects::reference::{ClassInstanceRef, Reference};
-use crate::thread::exceptions::Throws;
 use crate::thread::JavaThread;
+use crate::thread::exceptions::Throws;
 
 use classfile::FieldType;
 use common::traits::PtrType;
@@ -13,7 +13,7 @@ use instructions::Operand;
 /// Create a new instance of `jdk.internal.reflect.ConstantPool` for the given class' constant pool
 ///
 /// NOTE: This takes a thread, as `jdk.internal.reflect.ConstantPool` is not initialized ahead of time.
-pub fn new(class: &'static Class, thread: &JavaThread) -> Throws<ClassInstanceRef> {
+pub fn new(class: &'static Class, thread: &'static JavaThread) -> Throws<ClassInstanceRef> {
 	let cp_class = crate::globals::classes::jdk_internal_reflect_ConstantPool();
 	cp_class.initialize(thread)?;
 

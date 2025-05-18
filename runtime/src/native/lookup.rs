@@ -5,10 +5,10 @@ use crate::objects::method::{Method, MethodEntryPoint};
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, throw};
 
 use std::os::raw::c_int;
 
-use crate::thread::exceptions::{throw, Throws};
 use classfile::accessflags::MethodAccessFlags;
 use instructions::Operand;
 // The JNI specification defines the mapping from a Java native method name to
@@ -195,7 +195,7 @@ impl<'a> NativeNameConverter<'a> {
 
 fn lookup_style(
 	method: &Method,
-	thread: &JavaThread,
+	thread: &'static JavaThread,
 	name_converter: &NativeNameConverter<'_>,
 	num_args: usize,
 	include_long: bool,
@@ -250,7 +250,7 @@ fn lookup_style(
 	Some(unsafe { NativeMethodPtr::from_raw(entry) })
 }
 
-fn lookup_entry(method: &Method, thread: &JavaThread) -> Option<NativeMethodPtr> {
+fn lookup_entry(method: &Method, thread: &'static JavaThread) -> Option<NativeMethodPtr> {
 	let mut name_converter = NativeNameConverter::new(method);
 
 	// Compute pure name
@@ -320,12 +320,15 @@ fn lookup_entry(method: &Method, thread: &JavaThread) -> Option<NativeMethodPtr>
 }
 
 /// Check if there are any JVM TI prefixes which have been applied to the native method name.
-fn lookup_entry_prefixed(_method: &Method, _thread: &JavaThread) -> Option<NativeMethodPtr> {
+fn lookup_entry_prefixed(
+	_method: &Method,
+	_thread: &'static JavaThread,
+) -> Option<NativeMethodPtr> {
 	// TODO
 	None
 }
 
-fn lookup_base(method: &Method, thread: &JavaThread) -> Throws<NativeMethodPtr> {
+fn lookup_base(method: &Method, thread: &'static JavaThread) -> Throws<NativeMethodPtr> {
 	if let Some(entry) = lookup_entry(method, thread) {
 		return Throws::Ok(entry);
 	}
@@ -337,7 +340,10 @@ fn lookup_base(method: &Method, thread: &JavaThread) -> Throws<NativeMethodPtr> 
 	throw!(@DEFER UnsatisfiedLinkError, "'{}'", method.external_name());
 }
 
-pub fn lookup_native_method(method: &Method, thread: &JavaThread) -> Throws<NativeMethodPtr> {
+pub fn lookup_native_method(
+	method: &Method,
+	thread: &'static JavaThread,
+) -> Throws<NativeMethodPtr> {
 	if let Some(MethodEntryPoint::NativeMethod(native_method)) = method.entry_point() {
 		return Throws::Ok(native_method);
 	}

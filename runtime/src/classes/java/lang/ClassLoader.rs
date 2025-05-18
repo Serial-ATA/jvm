@@ -56,15 +56,17 @@ pub mod calls {
 	use crate::objects::method::Method;
 	use crate::objects::reference::{MirrorInstanceRef, Reference};
 	use crate::symbols::sym;
-	use crate::thread::exceptions::Throws;
 	use crate::thread::JavaThread;
+	use crate::thread::exceptions::Throws;
 	use crate::{globals, java_call};
-	use instructions::Operand;
+
 	use std::sync::LazyLock;
+
+	use instructions::Operand;
 
 	// TODO: Would be nice to have a macro similar to `field_module` which lets us define globally, resolved once, methods
 	pub fn addClass(
-		thread: &JavaThread,
+		thread: &'static JavaThread,
 		loader: &ClassLoader,
 		class: MirrorInstanceRef,
 	) -> Throws<()> {

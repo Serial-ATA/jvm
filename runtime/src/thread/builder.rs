@@ -11,7 +11,7 @@ use std::thread;
 #[derive(Default)]
 pub struct JavaThreadBuilder {
 	obj: Option<Reference>,
-	entry_point: Option<Box<dyn Fn(&JavaThread) + Send + Sync + 'static>>,
+	entry_point: Option<Box<dyn Fn(&'static JavaThread) + Send + Sync + 'static>>,
 	stack_size: usize,
 }
 
@@ -42,7 +42,10 @@ impl JavaThreadBuilder {
 	/// which calls `java.lang.Thread#run` on the associated [`obj`].
 	///
 	/// [`obj`]: Self::obj
-	pub fn entry_point(mut self, entry: impl Fn(&JavaThread) + Send + Sync + 'static) -> Self {
+	pub fn entry_point(
+		mut self,
+		entry: impl Fn(&'static JavaThread) + Send + Sync + 'static,
+	) -> Self {
 		self.entry_point = Some(Box::new(entry));
 		self
 	}

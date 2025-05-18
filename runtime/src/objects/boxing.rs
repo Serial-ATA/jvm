@@ -1,9 +1,9 @@
 use crate::java_call;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
-use crate::symbols::{sym, Symbol};
-use crate::thread::exceptions::Throws;
+use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::Throws;
 
 use instructions::Operand;
 use jni::sys::{jboolean, jdouble, jfloat, jint, jlong};
@@ -17,7 +17,7 @@ where
 
 	fn class() -> &'static Class;
 
-	fn into_box(self, thread: &JavaThread) -> Throws<Reference> {
+	fn into_box(self, thread: &'static JavaThread) -> Throws<Reference> {
 		let value_of_method =
 			Self::class().resolve_method(sym!(valueOf_name), Self::VALUE_OF_SIGNATURE)?;
 		let result = java_call!(thread, value_of_method, self);
@@ -32,7 +32,7 @@ impl Boxable for Operand<Reference> {
 		unimplemented!()
 	}
 
-	fn into_box(self, thread: &JavaThread) -> Throws<Reference> {
+	fn into_box(self, thread: &'static JavaThread) -> Throws<Reference> {
 		match self {
 			Operand::Reference(reference) => Throws::Ok(reference),
 			Operand::Int(value) => jint::into_box(value, thread),

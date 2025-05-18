@@ -135,7 +135,7 @@ fn extract(dir: String, path: PathBuf) -> Result<()> {
 				return Ok(());
 			};
 
-			let mut bytes = vec![0; location.get_uncompressed_size() as usize];
+			let mut bytes = vec![0; location.uncompressed_size() as usize];
 			jimage.get_resource_from_location(location, &mut bytes);
 			if resource.write_all(&bytes).is_err() {
 				exit(format!(
@@ -193,7 +193,7 @@ fn verify(path: PathBuf) -> Result<()> {
 		|_| {},
 		|name, location, jimage| {
 			if name.ends_with(".class") && !name.ends_with("module-info.class") {
-				let mut resource = vec![0; location.get_uncompressed_size() as usize];
+				let mut resource = vec![0; location.uncompressed_size() as usize];
 				jimage.get_resource_from_location(location, &mut resource);
 
 				if let Err(err) = ClassFile::read_from(&mut &resource[..]) {
@@ -261,9 +261,9 @@ fn trim_module(name: &str) -> &str {
 
 fn print(name: &str, location: Option<&JImageLocation<'_>>) {
 	if let Some(location) = location {
-		print!("{:>12} ", location.get_content_offset());
-		print!("{:>10} ", location.get_uncompressed_size());
-		print!("{:>10} ", location.get_compressed_size());
+		print!("{:>12} ", location.content_offset());
+		print!("{:>10} ", location.uncompressed_size());
+		print!("{:>10} ", location.compressed_size());
 	}
 
 	println!("{}", trim_module(name));

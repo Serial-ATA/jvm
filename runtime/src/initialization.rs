@@ -84,7 +84,7 @@ pub fn create_java_vm(
 /// 4. Create the initial `java.lang.Thread` for the current thread.
 ///
 /// [`create_java_base()`]: crate::modules::ModuleLockGuard::create_java_base()
-fn initialize_thread(thread: &JavaThread) -> Result<(), (JniError, bool)> {
+fn initialize_thread(thread: &'static JavaThread) -> Result<(), (JniError, bool)> {
 	crate::modules::with_module_lock(|guard| Module::create_java_base(guard));
 
 	// Load some important classes
@@ -296,7 +296,7 @@ fn init_field_offsets() {
 	}
 }
 
-fn initialize_global_classes(thread: &JavaThread) -> Throws<()> {
+fn initialize_global_classes(thread: &'static JavaThread) -> Throws<()> {
 	crate::globals::classes::java_lang_Object().initialize(thread)?;
 	crate::globals::classes::java_lang_Class().initialize(thread)?;
 	crate::globals::classes::java_lang_String().initialize(thread)?;
@@ -315,7 +315,7 @@ fn initialize_global_classes(thread: &JavaThread) -> Throws<()> {
 	Throws::Ok(())
 }
 
-fn create_thread_object(thread: &JavaThread) -> bool {
+fn create_thread_object(thread: &'static JavaThread) -> bool {
 	let thread_group_class = crate::globals::classes::java_lang_ThreadGroup();
 	let system_thread_group_instance = Reference::class(ClassInstance::new(thread_group_class));
 
@@ -358,7 +358,7 @@ fn create_thread_object(thread: &JavaThread) -> bool {
 /// * Signal handlers
 /// * OS-specific system settings
 /// * Thread group of the main thread
-fn init_phase_1(thread: &JavaThread) -> Result<(), JniError> {
+fn init_phase_1(thread: &'static JavaThread) -> Result<(), JniError> {
 	let system_class = crate::globals::classes::java_lang_System();
 	let init_phase_1;
 	match system_class.resolve_method(sym!(initPhase1_name), sym!(void_method_signature)) {
@@ -382,7 +382,7 @@ fn init_phase_1(thread: &JavaThread) -> Result<(), JniError> {
 ///
 /// This is responsible for initializing the module system. Prior to this point, the only module
 /// available to us is `java.base`.
-fn init_phase_2(thread: &JavaThread) -> Result<(), JniError> {
+fn init_phase_2(thread: &'static JavaThread) -> Result<(), JniError> {
 	let system_class = crate::globals::classes::java_lang_System();
 
 	// TODO: Actually set these arguments accordingly
@@ -424,7 +424,7 @@ fn init_phase_2(thread: &JavaThread) -> Result<(), JniError> {
 /// * Initialization of and setting the security manager
 /// * Setting the system class loader
 /// * Setting the thread context class loader
-fn init_phase_3(thread: &JavaThread) -> Result<(), JniError> {
+fn init_phase_3(thread: &'static JavaThread) -> Result<(), JniError> {
 	let system_class = crate::globals::classes::java_lang_System();
 
 	let init_phase_3;

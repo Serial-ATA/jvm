@@ -66,7 +66,7 @@ unsafe impl Send for JavaThread {}
 
 impl PartialEq for JavaThread {
 	fn eq(&self, other: &Self) -> bool {
-		self.env() == other.env()
+		self.env == other.env
 	}
 }
 
@@ -182,7 +182,7 @@ impl JavaThread {
 	/// This simply calls `java.lang.Thread#run` with the [`obj`] associated with this `JavaThread`.
 	///
 	/// [`obj`]: JavaThread::obj
-	pub fn default_entry_point(&self) {
+	pub fn default_entry_point(&'static self) {
 		let obj = self.obj().expect("entrypoint should exist");
 
 		let thread_class = crate::globals::classes::java_lang_Thread();
@@ -196,7 +196,12 @@ impl JavaThread {
 	/// Allocates a new `java.lang.Thread` for this `JavaThread`
 	///
 	/// This is called from the JNI `AttachCurrentThread`/`AttachCurrentThreadAsDaemon`.
-	pub fn attach_thread_obj(&self, name: Option<&str>, thread_group: Reference, daemon: bool) {
+	pub fn attach_thread_obj(
+		&'static self,
+		name: Option<&str>,
+		thread_group: Reference,
+		daemon: bool,
+	) {
 		assert!(self.obj().is_none());
 
 		let thread_class = crate::globals::classes::java_lang_Thread();
@@ -244,7 +249,7 @@ impl JavaThread {
 		self.set_obj(Reference::class(thread_instance));
 	}
 
-	pub fn init_obj(&self, thread_group: Reference) {
+	pub fn init_obj(&'static self, thread_group: Reference) {
 		let thread_class = crate::globals::classes::java_lang_Thread();
 		let thread_instance = ClassInstance::new(thread_class);
 
@@ -319,7 +324,7 @@ impl JavaThread {
 
 impl JavaThread {
 	/// Get a pointer to the associated [`JNIEnv`]
-	pub fn env(&self) -> JniEnv {
+	pub fn env(&'static self) -> JniEnv {
 		unsafe {
 			JniEnv::from_raw(
 				std::ptr::from_ref(self).add(core::mem::offset_of!(JavaThread, env)) as _,
@@ -354,7 +359,7 @@ impl JavaThread {
 	/// This will run the method on the current thread, separate from normal execution. This is used
 	/// by [`java_call!`](crate::java_call) to allow us to manually invoke methods in the runtime.
 	pub fn invoke_method_scoped(
-		&self,
+		&'static self,
 		method: &'static Method,
 		locals: LocalStack,
 	) -> Option<Operand<Reference>> {
@@ -399,7 +404,11 @@ impl JavaThread {
 		ret
 	}
 
-	pub fn invoke_method_with_local_stack(&self, method: &'static Method, locals: LocalStack) {
+	pub fn invoke_method_with_local_stack(
+		&'static self,
+		method: &'static Method,
+		locals: LocalStack,
+	) {
 		if method.is_native() {
 			self.invoke_native(method, locals);
 			tracing::debug!(target: "JavaThread", "Native method `{method:?}` finished");
@@ -414,7 +423,7 @@ impl JavaThread {
 		self.frame_stack.push(StackFrame::Real(frame));
 	}
 
-	fn invoke_native(&self, method: &'static Method, locals: LocalStack) {
+	fn invoke_native(&'static self, method: &'static Method, locals: LocalStack) {
 		// Try to lookup and set the method prior to calling
 		let fn_ptr;
 		match crate::native::lookup::lookup_native_method(method, self) {
@@ -512,7 +521,7 @@ impl JavaThread {
 		unsafe { *self.control_flow.get() = control_flow }
 	}
 
-	pub fn exit(&self, exception_check: bool) {
+	pub fn exit(&'static self, exception_check: bool) {
 		let obj = self.obj().expect("thread object should exist");
 
 		if exception_check && self.has_pending_exception() {

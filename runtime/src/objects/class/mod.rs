@@ -569,7 +569,7 @@ impl Class {
 	/// Get the external name of this class (for user-facing messages)
 	///
 	/// This just takes the class name and replaces all '/' with '.'
-	pub fn nest_host(&'static self, thread: &JavaThread) -> Throws<&'static Class> {
+	pub fn nest_host(&'static self, thread: &'static JavaThread) -> Throws<&'static Class> {
 		if let Some(nest_host) = unsafe { (*self.misc_cache.get()).nest_host } {
 			return Throws::Ok(nest_host);
 		}
@@ -762,7 +762,9 @@ impl Class {
 
 		for (idx, field) in fields.into_iter().enumerate() {
 			assert!(!field.is_static());
-			field.set_index(max_instance_index + idx + 1);
+			unsafe {
+				field.set_index(max_instance_index + idx + 1);
+			}
 			new_fields.push(field);
 		}
 
@@ -784,7 +786,9 @@ impl Class {
 	/// This should only be used in `java.lang.ClassLoader#defineClass0`. Setting an incorrect
 	/// nest host can result in permission issues.
 	pub unsafe fn set_nest_host(&self, nest_host: &'static Self) {
-		(*self.misc_cache.get()).nest_host = Some(nest_host);
+		unsafe {
+			(*self.misc_cache.get()).nest_host = Some(nest_host);
+		}
 	}
 }
 
@@ -898,7 +902,7 @@ impl Class {
 	pub fn is_nestmate_of(
 		&'static self,
 		other: &'static Class,
-		thread: &JavaThread,
+		thread: &'static JavaThread,
 	) -> Throws<bool> {
 		let self_host = self.nest_host(thread)?;
 		let other_host = other.nest_host(thread)?;
@@ -1199,7 +1203,7 @@ impl Class {
 	/// Attempt to initialize this class
 	///
 	/// NOTE: If the class is being initialized by another thread, this will block until it is completed.
-	pub fn initialize(&self, thread: &JavaThread) -> Throws<()> {
+	pub fn initialize(&self, thread: &'static JavaThread) -> Throws<()> {
 		if self.is_initialized.get() {
 			return Throws::Ok(());
 		}

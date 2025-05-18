@@ -47,7 +47,7 @@ impl Debug for Frame {
 impl Frame {
 	/// Create a new `Frame` for a [`Method`] invocation
 	pub fn new(
-		thread: &JavaThread,
+		thread: &'static JavaThread,
 		locals: LocalStack,
 		max_stack: u2,
 		method: &'static Method,
@@ -72,7 +72,7 @@ impl Frame {
 impl Frame {
 	/// Get a reference to the associated [`JavaThread`]
 	#[inline]
-	pub fn thread(&self) -> &JavaThread {
+	pub fn thread(&self) -> &'static JavaThread {
 		unsafe { &**self.thread.get() }
 	}
 

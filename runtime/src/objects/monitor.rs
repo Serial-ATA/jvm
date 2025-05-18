@@ -87,7 +87,7 @@ impl Monitor {
 	/// NOTE: This will do nothing if `thread` is not the owner.
 	///
 	/// This will decrement the count for the owner thread, dropping the lock if it is the last entry.
-	pub fn exit(&self, thread: &JavaThread) {
+	pub fn exit(&self, thread: &'static JavaThread) {
 		let mut owner = self.owner.lock().unwrap();
 		if *owner != Some(thread) {
 			return;

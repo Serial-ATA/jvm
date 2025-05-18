@@ -314,7 +314,7 @@ impl PrimitiveArrayInstance {
 		let ty = T::TYPE_CODE;
 
 		let base = alloc_zeroed_array::<T>(length);
-		let new_array_slice = slice::from_raw_parts_mut::<T>(base as *mut T, length);
+		let new_array_slice = unsafe { slice::from_raw_parts_mut::<T>(base as *mut T, length) };
 		new_array_slice.copy_from_slice(&*elements);
 
 		PrimitiveArrayInstancePtr::new(Self {

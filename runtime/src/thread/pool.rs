@@ -18,7 +18,7 @@ pub struct ThreadPool {
 	//
 	// This is a `LinkedList`, as reads will do a lifetime-extension, and are not guarded. We cannot
 	// risk a realloc invalidating a reference.
-	list: SyncUnsafeCell<LinkedList<&'static JavaThread>>,
+	list: SyncUnsafeCell<LinkedList<JavaThread>>,
 	write_mutex: Mutex<()>,
 }
 
@@ -27,16 +27,14 @@ impl ThreadPool {
 	pub fn push(thread: JavaThread) -> &'static JavaThread {
 		let _guard = VM_THREAD_POOL.write_mutex.lock().unwrap();
 
-		let thread = Box::leak(Box::new(thread));
-
 		let list = unsafe { &mut *VM_THREAD_POOL.list.get() };
 		list.push_back(thread);
 
-		thread
+		list.back().unwrap()
 	}
 
 	/// Whether `thread` is in this pool
-	pub fn contains(thread: &JavaThread) -> bool {
+	pub fn contains(thread: &'static JavaThread) -> bool {
 		let list = unsafe { &mut *VM_THREAD_POOL.list.get() };
 		list.iter().any(|t| t.env == thread.env)
 	}
