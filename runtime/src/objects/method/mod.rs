@@ -7,10 +7,10 @@ use crate::objects::class::Class;
 use crate::objects::constant_pool::cp_types;
 use crate::objects::constant_pool::cp_types::MethodEntry;
 use crate::objects::reference::{MirrorInstanceRef, ObjectArrayInstanceRef, Reference};
-use crate::symbols::{sym, Symbol};
+use crate::symbols::{Symbol, sym};
+use crate::thread::JavaThread;
 use crate::thread::exceptions::Throws;
 use crate::thread::frame::Frame;
-use crate::thread::JavaThread;
 use crate::{globals, java_call};
 
 use std::cell::SyncUnsafeCell;
@@ -597,19 +597,28 @@ impl Method {
 		for parameter in &self.descriptor.parameters {
 			match parameter {
 				FieldType::Byte | FieldType::Character | FieldType::Short | FieldType::Integer => {
-					parameters.push(Operand::from(args.arg::<jint>()))
+					parameters.push(Operand::from(unsafe { args.arg::<jint>() }))
 				},
 
-				FieldType::Boolean => parameters.push(Operand::from(args.arg::<jint>() != 0)),
+				FieldType::Boolean => {
+					parameters.push(Operand::from(unsafe { args.arg::<jint>() != 0 }))
+				},
 
-				FieldType::Long => parameters.push(Operand::from(args.arg::<jlong>())),
-				FieldType::Double => parameters.push(Operand::from(args.arg::<jdouble>())),
+				FieldType::Long => parameters.push(Operand::from(unsafe { args.arg::<jlong>() })),
+				FieldType::Double => {
+					parameters.push(Operand::from(unsafe { args.arg::<jdouble>() }))
+				},
 				FieldType::Float => todo!("float parameter"),
 
 				FieldType::Object(_) | FieldType::Array(_) => {
 					// TODO: Is this correct?
-					let obj_raw = args.arg::<*mut ()>();
-					let obj = unsafe { reference_from_jobject(obj_raw as jobject) };
+					let obj;
+
+					unsafe {
+						let obj_raw = args.arg::<*mut ()>();
+						obj = reference_from_jobject(obj_raw as jobject);
+					}
+
 					let Some(obj) = obj else {
 						return None;
 					};

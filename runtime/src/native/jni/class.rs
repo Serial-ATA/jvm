@@ -1,16 +1,16 @@
-use super::{classref_from_jclass, IntoJni};
+use super::{IntoJni, classref_from_jclass};
 use crate::classpath::loader::ClassLoader;
 use crate::objects::class::Class;
 use crate::symbols::Symbol;
-use crate::thread::exceptions::{throw_with_ret, Throws};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, throw_with_ret};
 
-use core::ffi::{c_char, CStr};
+use core::ffi::{CStr, c_char};
 
-use ::jni::sys::{jboolean, jbyte, jclass, jobject, jsize, JNIEnv};
+use ::jni::sys::{JNIEnv, jboolean, jbyte, jclass, jobject, jsize};
 use common::traits::PtrType;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn DefineClass(
 	env: *mut JNIEnv,
 	name: *const c_char,
@@ -21,7 +21,7 @@ pub unsafe extern "system" fn DefineClass(
 	unimplemented!("jni::DefineClass")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -> jclass {
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
@@ -46,7 +46,7 @@ pub unsafe extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -
 	throw_with_ret!(ret, thread, NoClassDefFoundError, name.to_string_lossy());
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn GetSuperclass(env: *mut JNIEnv, sub: jclass) -> jclass {
 	// Comments from https://github.com/openjdk/jdk/blob/6c59185475eeca83153f085eba27cc0b3acf9bb4/src/java.base/share/classes/java/lang/Class.java#L1034-L1044
 
@@ -79,7 +79,7 @@ pub unsafe extern "system" fn GetSuperclass(env: *mut JNIEnv, sub: jclass) -> jc
 	return core::ptr::null::<&'static Class>() as jclass;
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn IsAssignableFrom(
 	env: *mut JNIEnv,
 	sub: jclass,

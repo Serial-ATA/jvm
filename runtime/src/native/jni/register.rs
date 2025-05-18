@@ -1,6 +1,6 @@
-use jni::sys::{jclass, jint, JNIEnv, JNINativeMethod};
+use jni::sys::{JNIEnv, JNINativeMethod, jclass, jint};
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn RegisterNatives(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -10,7 +10,7 @@ pub extern "system" fn RegisterNatives(
 	unimplemented!("jni::RegisterNatives")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn UnregisterNatives(env: *mut JNIEnv, clazz: jclass) -> jint {
 	unimplemented!("jni::UnregisterNatives");
 }

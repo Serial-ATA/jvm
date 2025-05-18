@@ -8,6 +8,7 @@ use crate::version::JniVersion;
 pub use attach_args::*;
 pub use error::*;
 pub use init_args::*;
+use std::ffi::c_void;
 
 use std::path::PathBuf;
 
@@ -21,8 +22,8 @@ pub struct JavaVmBuilder {
 
 type CreateJavaVmFn = unsafe extern "system" fn(
 	*mut *mut jni_sys::JavaVM,
-	*mut *mut (),
-	*mut jni_sys::JavaVMInitArgs,
+	*mut *mut c_void,
+	*mut c_void,
 ) -> jni_sys::jint;
 
 impl JavaVmBuilder {
@@ -49,13 +50,40 @@ impl JavaVmBuilder {
 		self
 	}
 
+	/// Finalize this `JavaVmBuilder` and create the Java VM
+	///
+	/// TODO: Document default libjvm_path
+	///
+	/// # Errors
+	///
+	/// TODO: Document errors
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use jni::java_vm::JavaVm;
+	///
+	/// # fn main() -> jni::error::Result<()> {
+	/// // Simplest case, create a VM with all default options
+	/// let (vm, env) = JavaVm::builder().build()?;
+	///
+	/// // VM is active now, it can be interacted with through the VM and env interfaces
+	/// match env.find_class("java/lang/Object") {
+	/// 	Ok(_) => println!("Found java/lang/Object"),
+	/// 	Err(e) => eprintln!("Couldn't find java/lang/Object: {e}"),
+	/// }
+	///
+	/// println!("Shutting down VM!");
+	/// vm.destroy()?;
+	/// # Ok(()) }
+	/// ```
 	pub fn build(self) -> Result<(JavaVm, JniEnv)> {
 		let libjvm_path = self.jvm_lib_path.unwrap_or_else(default_libjvm_path);
 		let args = self.args.unwrap_or_default().finish();
 
 		let ret;
-		let mut javavm_raw = core::ptr::null_mut();
-		let mut jni_env_raw = core::ptr::null_mut();
+		let mut javavm_raw = core::ptr::null_mut::<jni_sys::JavaVM>();
+		let mut jni_env_raw = core::ptr::null_mut::<c_void>();
 		unsafe {
 			let libjvm =
 				libloading::Library::new(libjvm_path).map_err(|_| Error::LibJvmNotFound)?;
@@ -117,6 +145,12 @@ fn default_libjvm_path() -> PathBuf {
 /// See [`JavaVmBuilder`].
 #[derive(PartialEq, Eq)]
 pub struct JavaVm(*mut jni_sys::JavaVM);
+
+impl JavaVm {
+	pub fn builder() -> JavaVmBuilder {
+		JavaVmBuilder::new()
+	}
+}
 
 impl JavaVm {
 	/// Unloads the Java VM and reclaims its resources.

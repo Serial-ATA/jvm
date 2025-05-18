@@ -6,13 +6,13 @@ use crate::objects::class::ClassInitializationState;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
-use crate::thread::exceptions::{throw, throw_with_ret, Throws};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, throw, throw_with_ret};
 
 use std::marker::PhantomData;
 use std::ptr;
 use std::sync::atomic::{
-	AtomicBool, AtomicI16, AtomicI32, AtomicI64, AtomicI8, AtomicU16, Ordering,
+	AtomicBool, AtomicI8, AtomicI16, AtomicI32, AtomicI64, AtomicU16, Ordering,
 };
 
 use ::jni::env::JniEnv;
@@ -52,15 +52,15 @@ where
 {
 	unsafe fn get(&self) -> T {
 		if self.object.is_null() {
-			return self.__get_raw();
+			return unsafe { self.__get_raw() };
 		}
 
 		if self.object.is_primitive_array() {
-			return self.__get_array();
+			return unsafe { self.__get_array() };
 		}
 
 		assert!(self.object.is_class());
-		self.__get_field()
+		unsafe { self.__get_field() }
 	}
 
 	#[doc(hidden)]

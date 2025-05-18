@@ -7,8 +7,8 @@ use super::mirror::MirrorInstancePtr;
 use super::monitor::Monitor;
 use crate::objects::array::Array;
 use crate::symbols::Symbol;
-use crate::thread::exceptions::{throw, Throws};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, throw};
 
 use std::ptr::NonNull;
 use std::sync::Arc;
@@ -29,8 +29,7 @@ pub type MirrorInstanceRef = Arc<MirrorInstancePtr>;
 /// It is important to note that calling [`clone()`](Clone::clone) on this will **not** clone the
 /// object. It will simply clone the *reference*, as well as a reference to the [`Monitor`].
 ///
-/// In order to clone objects, see the [`CloneableInstance::clone`] impl on each respective instance
-/// type.
+/// To clone objects, see the [`CloneableInstance::clone`] impl on each respective instance type.
 ///
 /// [`CloneableInstance::clone`]: super::instance::CloneableInstance::clone
 #[derive(Debug, Clone)]
@@ -358,8 +357,12 @@ impl Instance for Reference {
 
 	unsafe fn get_field_value_raw(&self, field_idx: usize) -> NonNull<Operand<Reference>> {
 		match &self.instance {
-			ReferenceInstance::Class(class) => class.get_mut().get_field_value_raw(field_idx),
-			ReferenceInstance::Mirror(mirror) => mirror.get_mut().get_field_value_raw(field_idx),
+			ReferenceInstance::Class(class) => unsafe {
+				class.get_mut().get_field_value_raw(field_idx)
+			},
+			ReferenceInstance::Mirror(mirror) => unsafe {
+				mirror.get_mut().get_field_value_raw(field_idx)
+			},
 			ReferenceInstance::Null => panic!("NullPointerException"),
 			_ => panic!("Expected a class reference!"),
 		}

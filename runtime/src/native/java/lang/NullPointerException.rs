@@ -1,10 +1,10 @@
 use crate::classes;
 use crate::native::java::lang::String::StringInterner;
 use crate::objects::array::Array;
-use crate::objects::method::Method;
-use crate::objects::reference::Reference;
 use crate::objects::class::Class;
 use crate::objects::constant_pool::cp_types;
+use crate::objects::method::Method;
+use crate::objects::reference::Reference;
 use crate::symbols::{sym, Symbol};
 
 use common::int_types::u2;

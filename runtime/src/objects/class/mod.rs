@@ -14,19 +14,19 @@ use crate::modules::{Module, Package};
 use crate::objects::constant_pool::cp_types;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
 use crate::symbols::Symbol;
-use crate::thread::exceptions::Throws;
 use crate::thread::JavaThread;
+use crate::thread::exceptions::Throws;
 
 use std::cell::{Cell, UnsafeCell};
 use std::fmt::{Debug, Formatter};
 use std::mem::MaybeUninit;
-use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicPtr, Ordering};
 use std::{mem, ptr};
 
 use classfile::accessflags::ClassAccessFlags;
 use classfile::attribute::resolved::ResolvedBootstrapMethod;
-use classfile::constant_pool::types::{raw as raw_types, ClassNameEntry};
+use classfile::constant_pool::types::{ClassNameEntry, raw as raw_types};
 use classfile::{ClassFile, FieldType, MethodInfo};
 use common::box_slice;
 use common::int_types::{u1, u2, u4};
@@ -752,10 +752,9 @@ impl Class {
 			old_fields.assume_init()
 		};
 
-		let max_instance_index =
-			old_fields
-				.iter()
-				.fold(0, |a, b| if b.is_static() { a } else { a.max(b.index()) });
+		let max_instance_index = old_fields
+			.iter()
+			.fold(0, |a, b| if b.is_static() { a } else { a.max(b.index()) });
 
 		let expected_len = old_fields.len() + field_count;
 		let mut new_fields = Vec::with_capacity(expected_len);
@@ -763,7 +762,9 @@ impl Class {
 
 		for (idx, field) in fields.into_iter().enumerate() {
 			assert!(!field.is_static());
-			field.set_index(max_instance_index + idx + 1);
+			unsafe {
+				field.set_index(max_instance_index + idx + 1);
+			}
 			new_fields.push(field);
 		}
 
@@ -785,7 +786,9 @@ impl Class {
 	/// This should only be used in `java.lang.ClassLoader#defineClass0`. Setting an incorrect
 	/// nest host can result in permission issues.
 	pub unsafe fn set_nest_host(&self, nest_host: &'static Self) {
-		(*self.misc_cache.get()).nest_host = Some(nest_host);
+		unsafe {
+			(*self.misc_cache.get()).nest_host = Some(nest_host);
+		}
 	}
 }
 
@@ -855,7 +858,7 @@ impl Class {
 	/// Whether the class is a record
 	pub fn is_record(&self) -> bool {
 		match self.class_ty() {
-			ClassType::Instance(ref instance) => instance.is_record,
+			ClassType::Instance(instance) => instance.is_record,
 			_ => false,
 		}
 	}

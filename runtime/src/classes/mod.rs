@@ -104,10 +104,12 @@ macro_rules! field_constructor {
 			let class = crate::globals::classes::$class_name();
 
 			if INJECTED_FIELD_COUNT > 0 {
-				class.inject_fields(
-					crate::classes::injected_field_definition!(class, $($field_tt)*),
-					INJECTED_FIELD_COUNT
-				);
+				unsafe {
+					class.inject_fields(
+						crate::classes::injected_field_definition!(class, $($field_tt)*),
+						INJECTED_FIELD_COUNT
+					);
+				}
 			}
 
 			let mut field_set = 0;
@@ -151,7 +153,7 @@ macro_rules! field_constructor {
 			}
 
 			unsafe fn [<set_ $field_name _field_offset>](value: usize) {
-				[<__ $field_name:snake:upper _FIELD_OFFSET>] = value;
+				unsafe { [<__ $field_name:snake:upper _FIELD_OFFSET>] = value; }
 			}
 		}
 

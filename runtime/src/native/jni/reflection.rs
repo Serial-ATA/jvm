@@ -5,19 +5,19 @@
 //! The Java Core Reflection API allows programmers to introspect Java classes at runtime.
 //! JNI provides a set of conversion functions between field and method IDs used in the JNI to field and method objects used in the Java Core Reflection API.
 
-use jni::sys::{jboolean, jclass, jfieldID, jmethodID, jobject, JNIEnv};
+use jni::sys::{JNIEnv, jboolean, jclass, jfieldID, jmethodID, jobject};
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn FromReflectedMethod(env: *mut JNIEnv, method: jobject) -> jmethodID {
 	unimplemented!("jni::FromReflectedMethod")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn FromReflectedField(env: *mut JNIEnv, field: jobject) -> jfieldID {
 	unimplemented!("jni::FromReflectedField")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn ToReflectedMethod(
 	env: *mut JNIEnv,
 	cls: jclass,
@@ -27,7 +27,7 @@ pub extern "system" fn ToReflectedMethod(
 	unimplemented!("jni::ToReflectedMethod")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn ToReflectedField(
 	env: *mut JNIEnv,
 	cls: jclass,

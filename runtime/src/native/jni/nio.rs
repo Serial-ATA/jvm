@@ -16,7 +16,7 @@
 //! If a JVM does support such access then these three functions must be implemented to return the appropriate values.
 
 use core::ffi::c_void;
-use jni::sys::{jlong, jobject, JNIEnv};
+use jni::sys::{JNIEnv, jlong, jobject};
 
 pub extern "system" fn NewDirectByteBuffer(
 	env: *mut JNIEnv,
@@ -26,12 +26,12 @@ pub extern "system" fn NewDirectByteBuffer(
 	unimplemented!("jni::NewDirectByteBuffer")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn GetDirectBufferAddress(env: *mut JNIEnv, buf: jobject) -> *mut c_void {
 	unimplemented!("jni::GetDirectBufferAddress");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn GetDirectBufferCapacity(env: *mut JNIEnv, buf: jobject) -> jlong {
 	unimplemented!("jni::GetDirectBufferCapacity");
 }

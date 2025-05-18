@@ -241,11 +241,11 @@ crate::classes::field_module! {
 	/// `java.lang.reflect.Method#parameterTypes` field offset
 	///
 	/// Expected field type: `Reference` to `java.lang.Class[]`
-	@FIELD parameterTypes: FieldType::Array(ref val) if val.is_class(b"java/lang/Class"),
+	@FIELD parameterTypes: FieldType::Array(val) if val.is_class(b"java/lang/Class"),
 	/// `java.lang.reflect.Method#exceptionTypes` field offset
 	///
 	/// Expected field type: `Reference` to `java.lang.Class[]`
-	@FIELD exceptionTypes: FieldType::Array(ref val) if val.is_class(b"java/lang/Class"),
+	@FIELD exceptionTypes: FieldType::Array(val) if val.is_class(b"java/lang/Class"),
 	/// `java.lang.reflect.Method#modifiers` field offset
 	///
 	/// Expected field type: `jint`
@@ -257,13 +257,13 @@ crate::classes::field_module! {
 	/// `java.lang.reflect.Method#annotations` field offset
 	///
 	/// Expected field type: `Reference` to `byte[]`
-	@FIELD annotations: FieldType::Array(ref val) if **val == FieldType::Byte,
+	@FIELD annotations: FieldType::Array(val) if **val == FieldType::Byte,
 	/// `java.lang.reflect.Method#parameterAnnotations` field offset
 	///
 	/// Expected field type: `Reference` to `byte[]`
-	@FIELD parameterAnnotations: FieldType::Array(ref val) if **val == FieldType::Byte,
+	@FIELD parameterAnnotations: FieldType::Array(val) if **val == FieldType::Byte,
 	/// `java.lang.reflect.Method#annotationDefault` field offset
 	///
 	/// Expected field type: `Reference` to `byte[]`
-	@FIELD annotationDefault: FieldType::Array(ref val) if **val == FieldType::Byte,
+	@FIELD annotationDefault: FieldType::Array(val) if **val == FieldType::Byte,
 }
