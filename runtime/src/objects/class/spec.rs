@@ -1,3 +1,4 @@
+use crate::globals::PRIMITIVES;
 use crate::java_call;
 use crate::method_invoker::MethodInvoker;
 use crate::native::java::lang::String::StringInterner;
@@ -9,7 +10,6 @@ use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
-use crate::globals::PRIMITIVES;
 
 use std::cell::UnsafeCell;
 use std::sync::{Condvar, Mutex, MutexGuard};

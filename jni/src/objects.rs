@@ -159,6 +159,10 @@ impl JObject {
 	pub fn raw(&self) -> jni_sys::jobject {
 		self.0
 	}
+
+	pub fn is_null(&self) -> bool {
+		self.raw().is_null()
+	}
 }
 
 impl From<JObject> for JValue {

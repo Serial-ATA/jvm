@@ -61,7 +61,7 @@ pub mod calls {
 	use crate::{globals, java_call};
 
 	use std::sync::LazyLock;
-	
+
 	use instructions::Operand;
 
 	// TODO: Would be nice to have a macro similar to `field_module` which lets us define globally, resolved once, methods
