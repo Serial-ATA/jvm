@@ -1,6 +1,6 @@
 use crate::objects::reference::Reference;
-use crate::thread::pool::ThreadPool;
 use crate::thread::JavaThread;
+use crate::thread::pool::ThreadPool;
 
 use std::thread;
 
@@ -60,9 +60,6 @@ impl JavaThreadBuilder {
 	/// Construct the `JavaThread`
 	///
 	/// This will also spawn an OS thread if applicable.
-	///
-	/// The return type of this depends on whether an OS thread has been spawned. If no [`entry_point`]
-	/// was set, it is safe to unwrap it as [`MaybeArc::Not`].
 	///
 	/// [`entry_point`]: Self::entry_point
 	pub fn finish(self) -> &'static JavaThread {
