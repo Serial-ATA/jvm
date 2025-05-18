@@ -240,7 +240,7 @@ crate::classes::field_module! {
 	/// `java.lang.String#value` field offset
 	///
 	/// Expected type: `jByteArray`
-	@FIELD value: FieldType::Array(ref val) if **val == FieldType::Byte,
+	@FIELD value: FieldType::Array(val) if **val == FieldType::Byte,
 	/// `java.lang.String#coder` field offset
 	///
 	/// Expected type: `jbyte`

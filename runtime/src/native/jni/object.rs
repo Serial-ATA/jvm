@@ -1,16 +1,16 @@
-use jni::sys::{jboolean, jclass, jmethodID, jobject, jobjectRefType, jvalue, va_list, JNIEnv};
+use jni::sys::{JNIEnv, jboolean, jclass, jmethodID, jobject, jobjectRefType, jvalue, va_list};
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn AllocObject(env: *mut JNIEnv, clazz: jclass) -> jobject {
 	unimplemented!("jni::AllocObject");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn IsSameObject(env: *mut JNIEnv, obj1: jobject, obj2: jobject) -> jboolean {
 	unimplemented!("jni::IsSameObject");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn NewObject(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -20,7 +20,7 @@ pub unsafe extern "C" fn NewObject(
 	unimplemented!("jni::NewObject");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn NewObjectV(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -30,7 +30,7 @@ pub unsafe extern "system" fn NewObjectV(
 	unimplemented!("jni::NewObjectV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn NewObjectA(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -40,12 +40,12 @@ pub extern "system" fn NewObjectA(
 	unimplemented!("jni::NewObjectA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn GetObjectClass(env: *mut JNIEnv, obj: jobject) -> jclass {
 	unimplemented!("jni::GetObjectClass");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn IsInstanceOf(env: *mut JNIEnv, obj: jobject, clazz: jclass) -> jboolean {
 	unimplemented!("jni::IsInstanceOf");
 }

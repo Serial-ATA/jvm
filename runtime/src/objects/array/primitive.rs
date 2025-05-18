@@ -3,10 +3,10 @@ use crate::objects::class::Class;
 use crate::objects::instance::{CloneableInstance, Header};
 use crate::objects::monitor::Monitor;
 use crate::objects::reference::{PrimitiveArrayInstanceRef, Reference};
-use crate::symbols::{sym, Symbol};
-use crate::thread::exceptions::{throw, Throws};
+use crate::symbols::{Symbol, sym};
+use crate::thread::exceptions::{Throws, throw};
 
-use std::alloc::{alloc_zeroed, Layout};
+use std::alloc::{Layout, alloc_zeroed};
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use std::{fmt, ptr, slice};
@@ -133,61 +133,131 @@ impl CloneableInstance for PrimitiveArrayInstance {
 		let new_array = self.ty.alloc_zeroed(self.length as usize);
 		match self.ty {
 			TypeCode::Boolean => {
-				let new_array_slice = slice::from_raw_parts_mut::<jboolean>(
-					new_array as *mut _,
-					self.length as usize,
-				);
-				let previous_slice =
-					slice::from_raw_parts::<jboolean>(self.base as *const _, self.length as usize);
+				let new_array_slice;
+				let previous_slice;
+
+				unsafe {
+					new_array_slice = slice::from_raw_parts_mut::<jboolean>(
+						new_array as *mut _,
+						self.length as usize,
+					);
+					previous_slice = slice::from_raw_parts::<jboolean>(
+						self.base as *const _,
+						self.length as usize,
+					);
+				}
+
 				new_array_slice.copy_from_slice(previous_slice);
 			},
 			TypeCode::Char => {
-				let new_array_slice =
-					slice::from_raw_parts_mut::<jchar>(new_array as *mut _, self.length as usize);
-				let previous_slice =
-					slice::from_raw_parts::<jchar>(self.base as *const _, self.length as usize);
+				let new_array_slice;
+				let previous_slice;
+
+				unsafe {
+					new_array_slice = slice::from_raw_parts_mut::<jchar>(
+						new_array as *mut _,
+						self.length as usize,
+					);
+					previous_slice =
+						slice::from_raw_parts::<jchar>(self.base as *const _, self.length as usize);
+				}
+
 				new_array_slice.copy_from_slice(previous_slice);
 			},
 			TypeCode::Float => {
-				let new_array_slice =
-					slice::from_raw_parts_mut::<jfloat>(new_array as *mut _, self.length as usize);
-				let previous_slice =
-					slice::from_raw_parts::<jfloat>(self.base as *const _, self.length as usize);
+				let new_array_slice;
+				let previous_slice;
+
+				unsafe {
+					new_array_slice = slice::from_raw_parts_mut::<jfloat>(
+						new_array as *mut _,
+						self.length as usize,
+					);
+					previous_slice = slice::from_raw_parts::<jfloat>(
+						self.base as *const _,
+						self.length as usize,
+					);
+				}
+
 				new_array_slice.copy_from_slice(previous_slice);
 			},
 			TypeCode::Double => {
-				let new_array_slice =
-					slice::from_raw_parts_mut::<jdouble>(new_array as *mut _, self.length as usize);
-				let previous_slice =
-					slice::from_raw_parts::<jdouble>(self.base as *const _, self.length as usize);
+				let new_array_slice;
+				let previous_slice;
+
+				unsafe {
+					new_array_slice = slice::from_raw_parts_mut::<jdouble>(
+						new_array as *mut _,
+						self.length as usize,
+					);
+					previous_slice = slice::from_raw_parts::<jdouble>(
+						self.base as *const _,
+						self.length as usize,
+					);
+				}
+
 				new_array_slice.copy_from_slice(previous_slice);
 			},
 			TypeCode::Byte => {
-				let new_array_slice =
-					slice::from_raw_parts_mut::<jbyte>(new_array as *mut _, self.length as usize);
-				let previous_slice =
-					slice::from_raw_parts::<jbyte>(self.base as *const _, self.length as usize);
+				let new_array_slice;
+				let previous_slice;
+
+				unsafe {
+					new_array_slice = slice::from_raw_parts_mut::<jbyte>(
+						new_array as *mut _,
+						self.length as usize,
+					);
+					previous_slice =
+						slice::from_raw_parts::<jbyte>(self.base as *const _, self.length as usize);
+				}
+
 				new_array_slice.copy_from_slice(previous_slice);
 			},
 			TypeCode::Short => {
-				let new_array_slice =
-					slice::from_raw_parts_mut::<jshort>(new_array as *mut _, self.length as usize);
-				let previous_slice =
-					slice::from_raw_parts::<jshort>(self.base as *const _, self.length as usize);
+				let new_array_slice;
+				let previous_slice;
+
+				unsafe {
+					new_array_slice = slice::from_raw_parts_mut::<jshort>(
+						new_array as *mut _,
+						self.length as usize,
+					);
+					previous_slice = slice::from_raw_parts::<jshort>(
+						self.base as *const _,
+						self.length as usize,
+					);
+				}
+
 				new_array_slice.copy_from_slice(previous_slice);
 			},
 			TypeCode::Int => {
-				let new_array_slice =
-					slice::from_raw_parts_mut::<jint>(new_array as *mut _, self.length as usize);
-				let previous_slice =
-					slice::from_raw_parts::<jint>(self.base as *const _, self.length as usize);
+				let new_array_slice;
+				let previous_slice;
+
+				unsafe {
+					new_array_slice = slice::from_raw_parts_mut::<jint>(
+						new_array as *mut _,
+						self.length as usize,
+					);
+					previous_slice =
+						slice::from_raw_parts::<jint>(self.base as *const _, self.length as usize);
+				}
+
 				new_array_slice.copy_from_slice(previous_slice);
 			},
 			TypeCode::Long => {
-				let new_array_slice =
-					slice::from_raw_parts_mut::<jlong>(new_array as *mut _, self.length as usize);
-				let previous_slice =
-					slice::from_raw_parts::<jlong>(self.base as *const _, self.length as usize);
+				let new_array_slice;
+				let previous_slice;
+
+				unsafe {
+					new_array_slice = slice::from_raw_parts_mut::<jlong>(
+						new_array as *mut _,
+						self.length as usize,
+					);
+					previous_slice =
+						slice::from_raw_parts::<jlong>(self.base as *const _, self.length as usize);
+				}
+
 				new_array_slice.copy_from_slice(previous_slice);
 			},
 		}
@@ -316,7 +386,7 @@ impl PrimitiveArrayInstance {
 	}
 
 	pub fn as_bytes_mut(&mut self) -> &mut [u8] {
-		// SAFETY: Every primtive type can be represented as bytes
+		// SAFETY: Every primitive type can be represented as bytes
 		unsafe { slice::from_raw_parts_mut(self.base, self.length as usize) }
 	}
 
@@ -359,37 +429,53 @@ impl super::Array for PrimitiveArrayInstance {
 			Operand::Int(val) => match self.ty {
 				TypeCode::Boolean => {
 					let base = self.base as *mut jboolean;
-					ptr::write::<jboolean>(base, (val & 1) == 1)
+					unsafe {
+						ptr::write::<jboolean>(base, (val & 1) == 1);
+					}
 				},
 				TypeCode::Byte => {
 					let base = self.base as *mut jbyte;
-					ptr::write::<jbyte>(base.add(index), val as jbyte)
+					unsafe {
+						ptr::write::<jbyte>(base.add(index), val as jbyte);
+					}
 				},
 				TypeCode::Short => {
 					let base = self.base as *mut jshort;
-					ptr::write::<jshort>(base.add(index), val as jshort)
+					unsafe {
+						ptr::write::<jshort>(base.add(index), val as jshort);
+					}
 				},
 				TypeCode::Char => {
 					let base = self.base as *mut jchar;
-					ptr::write::<jchar>(base.add(index), val as jchar)
+					unsafe {
+						ptr::write::<jchar>(base.add(index), val as jchar);
+					}
 				},
 				TypeCode::Int => {
 					let base = self.base as *mut jint;
-					ptr::write::<jint>(base.add(index), val)
+					unsafe {
+						ptr::write::<jint>(base.add(index), val);
+					}
 				},
 				_ => unreachable!(),
 			},
 			Operand::Float(val) => {
 				let base = self.base as *mut jfloat;
-				ptr::write::<jfloat>(base.add(index), val);
+				unsafe {
+					ptr::write::<jfloat>(base.add(index), val);
+				}
 			},
 			Operand::Double(val) => {
 				let base = self.base as *mut jdouble;
-				ptr::write::<jdouble>(base.add(index), val);
+				unsafe {
+					ptr::write::<jdouble>(base.add(index), val);
+				}
 			},
 			Operand::Long(val) => {
 				let base = self.base as *mut jlong;
-				ptr::write::<jlong>(base.add(index), val);
+				unsafe {
+					ptr::write::<jlong>(base.add(index), val);
+				}
 			},
 			_ => unreachable!(),
 		}

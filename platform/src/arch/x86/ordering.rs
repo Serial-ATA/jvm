@@ -1,7 +1,7 @@
 #[inline(always)]
 unsafe fn compiler_barrier() {
 	// Create a compiler barrier to prevent instruction reordering
-	core::arch::asm!("", options(nomem))
+	unsafe { core::arch::asm!("", options(nomem)) }
 }
 
 #[inline(always)]

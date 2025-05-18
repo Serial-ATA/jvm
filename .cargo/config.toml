@@ -1,5 +1,6 @@
 [build]
 target-dir = "target"
+artifact-dir = "./build/out"
 
 [env]
 

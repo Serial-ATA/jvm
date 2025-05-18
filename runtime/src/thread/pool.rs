@@ -1,34 +1,44 @@
 use super::JavaThread;
+use crate::classes;
 use crate::objects::reference::Reference;
 
-use crate::classes;
-use common::traits::PtrType;
-use std::sync::RwLock;
+use std::cell::SyncUnsafeCell;
+use std::collections::LinkedList;
+use std::sync::{LazyLock, Mutex};
 
-static VM_THREAD_POOL: RwLock<ThreadPool> = RwLock::new(ThreadPool::new());
+use common::traits::PtrType;
+
+static VM_THREAD_POOL: LazyLock<ThreadPool> = LazyLock::new(|| ThreadPool {
+	list: SyncUnsafeCell::new(LinkedList::new()),
+	write_mutex: Mutex::new(()),
+});
 
 pub struct ThreadPool {
-	threads: Vec<&'static JavaThread>,
+	// A list of all currently alive threads.
+	//
+	// This is a `LinkedList`, as reads will do a lifetime-extension, and are not guarded. We cannot
+	// risk a realloc invalidating a reference.
+	list: SyncUnsafeCell<LinkedList<&'static JavaThread>>,
+	write_mutex: Mutex<()>,
 }
 
 impl ThreadPool {
-	const fn new() -> ThreadPool {
-		Self {
-			threads: Vec::new(),
-		}
-	}
-
 	/// Add a thread to the pool
 	pub fn push(thread: JavaThread) -> &'static JavaThread {
-		let mut guard = VM_THREAD_POOL.write().unwrap();
+		let _guard = VM_THREAD_POOL.write_mutex.lock().unwrap();
+
 		let thread = Box::leak(Box::new(thread));
-		guard.threads.push(thread);
+
+		let list = unsafe { &mut *VM_THREAD_POOL.list.get() };
+		list.push_back(thread);
+
 		thread
 	}
 
 	/// Whether `thread` is in this pool
 	pub fn contains(thread: &JavaThread) -> bool {
-		VM_THREAD_POOL.read().unwrap().threads.contains(&thread)
+		let list = unsafe { &mut *VM_THREAD_POOL.list.get() };
+		list.iter().any(|t| t.env == thread.env)
 	}
 
 	/// Find the [`JavaThread`] associated with `obj`

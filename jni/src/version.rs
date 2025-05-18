@@ -6,21 +6,21 @@ use jni_sys::jint;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JniVersion {
 	/// 1.1
-	V1,
+	V1 = jni_sys::JNI_VERSION_1_1 as isize,
 	/// 1.2
-	V2,
+	V2 = jni_sys::JNI_VERSION_1_2 as isize,
 	/// 1.4
-	V4,
+	V4 = jni_sys::JNI_VERSION_1_4 as isize,
 	/// 1.6
-	V6,
+	V6 = jni_sys::JNI_VERSION_1_6 as isize,
 	/// 1.8
-	V8,
-	V9,
-	V10,
-	V19,
-	V20,
-	V21,
-	V24,
+	V8 = jni_sys::JNI_VERSION_1_8 as isize,
+	V9 = jni_sys::JNI_VERSION_9 as isize,
+	V10 = jni_sys::JNI_VERSION_10 as isize,
+	V19 = jni_sys::JNI_VERSION_19 as isize,
+	V20 = jni_sys::JNI_VERSION_20 as isize,
+	V21 = jni_sys::JNI_VERSION_21 as isize,
+	V24 = jni_sys::JNI_VERSION_24 as isize,
 }
 
 impl JniVersion {

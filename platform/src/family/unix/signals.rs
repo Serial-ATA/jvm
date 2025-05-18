@@ -104,26 +104,28 @@ impl crate::SignalOsExt for crate::Signal {
 		let mut sig_action = unsafe { MaybeUninit::<libc::sigaction>::zeroed().assume_init() };
 		let mut old_action = unsafe { MaybeUninit::<libc::sigaction>::zeroed().assume_init() };
 
-		libc::sigfillset(&raw mut sig_action.sa_mask);
-		for sig in ERROR_SIGNALS_TO_REMOVE {
-			libc::sigdelset(&raw mut sig_action.sa_mask, sig);
+		unsafe {
+			libc::sigfillset(&raw mut sig_action.sa_mask);
+			for sig in ERROR_SIGNALS_TO_REMOVE {
+				libc::sigdelset(&raw mut sig_action.sa_mask, sig);
+			}
+
+			let handler = handler.as_usize();
+			if handler == libc::SIG_IGN || handler == libc::SIG_DFL {
+				sig_action.sa_sigaction = sigaction_t {
+					sa_handler: handler,
+				}
+				.sa_handler;
+			} else {
+				sig_action.sa_flags |= libc::SA_SIGINFO;
+				sig_action.sa_sigaction = sigaction_t {
+					sa_sigaction: handler,
+				}
+				.sa_sigaction;
+			}
 		}
 
-		let handler = handler.as_usize();
-		if handler == libc::SIG_IGN || handler == libc::SIG_DFL {
-			sig_action.sa_sigaction = sigaction_t {
-				sa_handler: handler,
-			}
-			.sa_handler;
-		} else {
-			sig_action.sa_flags |= libc::SA_SIGINFO;
-			sig_action.sa_sigaction = sigaction_t {
-				sa_sigaction: handler,
-			}
-			.sa_sigaction;
-		}
-
-		let ok = libc::sigaction(self.0, &raw const sig_action, &raw mut old_action);
+		let ok = unsafe { libc::sigaction(self.0, &raw const sig_action, &raw mut old_action) };
 		if ok < 0 {
 			return None;
 		}

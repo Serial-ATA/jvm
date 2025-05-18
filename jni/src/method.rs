@@ -11,15 +11,15 @@ pub struct NativeMethod {
 	pub fnPtr: *mut c_void,
 }
 
-impl From<JNINativeMethod> for NativeMethod {
-	fn from(value: JNINativeMethod) -> Self {
-		let name = unsafe { JniString::from_raw(value.name) };
-		let signature = unsafe { JniString::from_raw(value.signature) };
+impl NativeMethod {
+	pub unsafe fn from_raw(raw: JNINativeMethod) -> Self {
+		let name = unsafe { JniString::from_raw(raw.name) };
+		let signature = unsafe { JniString::from_raw(raw.signature) };
 
 		Self {
 			name,
 			signature,
-			fnPtr: value.fnPtr,
+			fnPtr: raw.fnPtr,
 		}
 	}
 }

@@ -11,13 +11,13 @@ use std::ffi::CStr;
 use jni::error::JniError;
 use jni::java_vm::JavaVm;
 use jni::sys::{
-	jint, jsize, JNIInvokeInterface_, JNINativeInterface_, JavaVM, JNI_EVERSION, JNI_OK,
+	JNI_EVERSION, JNI_OK, JNIInvokeInterface_, JNINativeInterface_, JavaVM, jint, jsize,
 };
 use jni::version::JniVersion;
 
 pub mod library;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn DestroyJavaVM(vm: *mut JavaVM) -> jint {
 	{
 		JavaThread::current().exit(false)
@@ -29,7 +29,7 @@ pub extern "system" fn DestroyJavaVM(vm: *mut JavaVM) -> jint {
 	JNI_OK
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn AttachCurrentThread(
 	vm: *mut JavaVM,
 	penv: *mut *mut c_void,
@@ -38,17 +38,17 @@ pub extern "system" fn AttachCurrentThread(
 	attach_current_thread_impl(vm, penv, args, false)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn DetachCurrentThread(vm: *mut JavaVM) -> jint {
 	unimplemented!("jni::DetachCurrentThread")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn GetEnv(vm: *mut JavaVM, penv: *mut *mut c_void, version: jint) -> jint {
 	unimplemented!("jni::GetEnv")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn AttachCurrentThreadAsDaemon(
 	vm: *mut JavaVM,
 	penv: *mut *mut c_void,
@@ -57,12 +57,12 @@ pub extern "system" fn AttachCurrentThreadAsDaemon(
 	attach_current_thread_impl(vm, penv, args, true)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn JNI_GetDefaultJavaVMInitArgs(args: *mut c_void) -> jint {
 	unimplemented!("jni::JNI_GetDefaultJavaVMInitArgs")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn JNI_CreateJavaVM(
 	pvm: *mut *mut JavaVM,
 	penv: *mut *mut c_void,
@@ -106,7 +106,7 @@ pub extern "system" fn JNI_CreateJavaVM(
 	JNI_OK
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn JNI_GetCreatedJavaVMs(
 	vmBuf: *mut *mut JavaVM,
 	bufLen: jsize,

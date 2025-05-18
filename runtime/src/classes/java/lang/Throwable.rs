@@ -1,13 +1,13 @@
 use crate::java_call;
+use crate::native::java::lang::Throwable::BackTrace;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
 use crate::thread::JavaThread;
 
-use crate::native::java::lang::Throwable::BackTrace;
-use classfile::accessflags::MethodAccessFlags;
 use classfile::FieldType;
+use classfile::accessflags::MethodAccessFlags;
 use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::jlong;
@@ -143,7 +143,7 @@ crate::classes::field_module! {
 	/// `java.lang.Throwable#stackTrace` field offset
 	///
 	/// Expected field type: `Reference` to `StackTraceElement[]`
-	@FIELD stackTrace: FieldType::Array(ref val) if val.is_class(b"java/lang/StackTraceElement"),
+	@FIELD stackTrace: FieldType::Array(val) if val.is_class(b"java/lang/StackTraceElement"),
 	/// `java.lang.Throwable#backtrace` field offset
 	///
 	/// Expected field type: `Reference` to `java.lang.Object`

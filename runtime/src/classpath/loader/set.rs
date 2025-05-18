@@ -1,4 +1,5 @@
 use super::ClassLoader;
+use crate::classes;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 
@@ -6,7 +7,6 @@ use std::cell::SyncUnsafeCell;
 use std::collections::LinkedList;
 use std::sync::{LazyLock, Mutex};
 
-use crate::classes;
 use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::jlong;

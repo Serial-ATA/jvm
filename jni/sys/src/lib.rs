@@ -34,7 +34,7 @@ pub type jfloat = f32;
 pub type jdouble = f64;
 pub type jsize = jint;
 
-extern "C" { pub type _jobject; }
+unsafe extern "C" { pub type _jobject; }
 pub type jobject = *mut _jobject;
 pub type jclass = jobject;
 pub type jthrowable = jobject;
@@ -71,9 +71,9 @@ impl Clone for jvalue {
 	}
 }
 
-extern "C" { pub type _jfieldID; }
+unsafe extern "C" { pub type _jfieldID; }
 pub type jfieldID = *mut _jfieldID;
-extern "C" { pub type _jmethodID; }
+unsafe extern "C" { pub type _jmethodID; }
 pub type jmethodID = *mut _jmethodID;
 
 /// Return values from `jobjectRefType`
@@ -2683,7 +2683,7 @@ impl Clone for JNIInvokeInterface_ {
 	}
 }
 
-extern "system" {
+unsafe extern "system" {
 	/// Returns a default configuration for the Java VM.
 	/// 
 	/// Before calling this function, native code must set the vm_args->version field to the JNI version it expects the VM to support.

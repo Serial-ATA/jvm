@@ -16,8 +16,8 @@ use crate::objects::reference::{ClassInstanceRef, Reference};
 use crate::stack::local_stack::LocalStack;
 use crate::symbols::sym;
 use crate::thread::exceptions::Throws;
-use crate::thread::frame::native::NativeFrame;
 use crate::thread::frame::Frame;
+use crate::thread::frame::native::NativeFrame;
 use crate::{classes, globals, java_call};
 
 use std::cell::{Cell, SyncUnsafeCell, UnsafeCell};
@@ -32,13 +32,6 @@ use jni::sys::JNIEnv;
 
 #[thread_local]
 static CURRENT_JAVA_THREAD: SyncUnsafeCell<Option<&'static JavaThread>> = SyncUnsafeCell::new(None);
-
-pub struct JVMOptions {
-	pub dry_run: bool,
-	pub system_properties: Option<Vec<String>>,
-	pub showversion: bool,
-	pub show_version: bool,
-}
 
 #[derive(Copy, Clone, Debug)]
 pub enum ControlFlow {

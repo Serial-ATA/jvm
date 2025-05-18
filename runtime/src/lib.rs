@@ -25,6 +25,7 @@ mod method_invoker;
 pub mod modules;
 pub mod native;
 pub mod objects;
+pub mod options;
 pub mod stack;
 mod symbols;
 pub mod thread;

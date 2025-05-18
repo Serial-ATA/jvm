@@ -126,5 +126,5 @@ crate::classes::field_module! {
 	/// `java.lang.reflect.Field#annotations` field offset
 	///
 	/// Expected field type: `Reference` to `byte[]`
-	@FIELD annotations: FieldType::Array(ref val) if **val == FieldType::Byte,
+	@FIELD annotations: FieldType::Array(val) if **val == FieldType::Byte,
 }

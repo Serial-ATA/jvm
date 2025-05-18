@@ -1,7 +1,7 @@
 //! Safe string wrapper that handles Java's modified UTF-8 encoding
 
 use std::borrow::Cow;
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{CStr, CString, c_char};
 
 use common::unicode;
 
@@ -41,7 +41,7 @@ impl JniString {
 	/// * `raw` must be a valid modified UTF-8 string
 	/// * `raw` must be a valid **null-terminated** C string
 	///
-	/// otherwise the behavior is undefined.
+	/// Otherwise, the behavior is undefined.
 	pub unsafe fn from_raw(raw: *mut c_char) -> Self {
 		Self {
 			inner: unsafe { CString::from_raw(raw) },

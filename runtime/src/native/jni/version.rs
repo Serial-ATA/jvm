@@ -1,6 +1,7 @@
-use jni::sys::{jint, JNIEnv};
+use jni::sys::{JNIEnv, jint};
+use jni::version::JniVersion;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "system" fn GetVersion(env: *mut JNIEnv) -> jint {
-	unimplemented!("jni::GetVersion")
+	JniVersion::LATEST as jint
 }

@@ -59,7 +59,7 @@ impl IntoJni for &'static Class {
 
 	#[allow(trivial_casts)]
 	fn into_jni(self) -> Self::RawJniTy {
-		self as *const _ as jclass
+		Reference::mirror(self.mirror()).into_jni() as Self::RawJniTy
 	}
 
 	fn into_jni_safe(self) -> Self::SafeJniTy {
@@ -155,29 +155,5 @@ pub unsafe fn reference_from_jobject(obj: jobject) -> Option<Reference> {
 	unsafe {
 		let obj = core::mem::transmute::<jobject, *mut Reference>(obj);
 		Some((&*obj).clone())
-	}
-}
-
-/// Create a `Class` from a `JClass`
-#[allow(trivial_casts)]
-pub fn safe_classref_from_jclass(class: JClass) -> &'static Class {
-	debug_assert!(!class.raw().is_null());
-
-	// SAFETY: We assume that a `JClass`, being from the safe API, was created in a valid way
-	unsafe {
-		let class_ptr = core::mem::transmute::<jclass, *const Class>(class.raw());
-		&*class_ptr
-	}
-}
-
-/// Create a `ClassRef` from a `jclass`
-pub unsafe fn classref_from_jclass(class: jclass) -> Option<&'static Class> {
-	if class.is_null() {
-		return None;
-	}
-
-	unsafe {
-		let class_ptr = core::mem::transmute::<jclass, *const Class>(class);
-		Some(&*class_ptr)
 	}
 }

@@ -35,7 +35,7 @@ impl core::fmt::Debug for VmInitArgs {
 
 const HOOKS: [&str; 3] = ["vfprintf", "exit", "abort"];
 
-pub type VFPrintFHookFn = extern "C" fn(stream: *mut c_void, format: *const c_char, ...);
+pub type VFPrintFHookFn = unsafe extern "C" fn(stream: *mut c_void, format: *const c_char, ...);
 pub type ExitHookFn = extern "C" fn(status: c_int);
 pub type AbortHookFn = extern "C" fn();
 

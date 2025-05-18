@@ -40,7 +40,7 @@ crate::classes::field_module! {
 	/// `java.lang.invoke.MethodType#ptypes` field offset
 	///
 	/// Expected field type: `Reference` to `java.lang.Class[]`
-	@FIELD ptypes: FieldType::Array(ref val) if val.is_class(b"java/lang/Class"),
+	@FIELD ptypes: FieldType::Array(val) if val.is_class(b"java/lang/Class"),
 	/// `java.lang.invoke.MethodType#rtype` field offset
 	///
 	/// Expected field type: `Reference` to `java.lang.Class`

@@ -27,6 +27,9 @@ Cargo.lock
 
 # Generated files
 generated
+build/cache
+build/out
+build/dist
 
 # IDE config
 .idea

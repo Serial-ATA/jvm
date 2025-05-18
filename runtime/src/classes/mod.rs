@@ -101,21 +101,31 @@ macro_rules! field_constructor {
 				assert!(INSTANCE_FIELD_COUNT + INJECTED_FIELD_COUNT <= crate::classes::MAX_FIELD_COUNT);
 			};
 
+			crate::classes::field_constructor!(
+				[enum FieldNames {}, [], 0]
+				@FIELDS_ENUM $($field_tt)*
+			);
+
 			let class = crate::globals::classes::$class_name();
 
 			if INJECTED_FIELD_COUNT > 0 {
-				class.inject_fields(
-					crate::classes::injected_field_definition!(class, $($field_tt)*),
-					INJECTED_FIELD_COUNT
-				);
+				unsafe {
+					class.inject_fields(
+						crate::classes::injected_field_definition!(class, $($field_tt)*),
+						INJECTED_FIELD_COUNT
+					);
+				}
 			}
 
 			let mut field_set = 0;
 			for field in class.fields() {
-				crate::classes::field_constructor!(@CHECKS field, field_set, $($field_tt)*);
+				crate::classes::field_constructor!(@CHECKS field, field_set, 0, $($field_tt)*);
 			}
 
-			assert_eq!(field_set, EXPECTED_FIELD_SET, "Not all fields found in {}", stringify!($class_name));
+			if field_set != EXPECTED_FIELD_SET {
+				let missing = FieldNames::find_missing(field_set).into_iter().flatten().collect::<Vec<_>>();
+				panic!("Not all fields found in {}, missing {missing:?}", stringify!($class_name))
+			}
 
 			$(
 				unsafe {
@@ -124,6 +134,85 @@ macro_rules! field_constructor {
 			)?
 		}
 	};
+
+	(
+		[
+			enum FieldNames { $($existing_variants:tt)* },
+			[$($variant_acc:tt)*],
+			$current_shift:expr
+		]
+
+		@FIELDS_ENUM
+		$(#[$meta:meta])*
+		$([sym: $specified_sym_name:ident])?
+		@INJECTED $field_name:ident: $_descriptor:expr => $field_ty:ty, $($rest:tt)*
+	) => {
+		// Ignore injected fields
+		crate::classes::field_constructor!(
+			[
+				enum FieldNames { $($existing_variants)* },
+				[$($variant_acc)*],
+				$current_shift
+			]
+
+			@FIELDS_ENUM
+			$($rest)*
+		);
+	};
+	(
+		[
+			enum FieldNames { $($existing_variants:tt)* },
+			[$($variant_acc:tt)*],
+			$current_shift:expr
+		]
+
+        @FIELDS_ENUM
+		$(#[$meta:meta])*
+		$([sym: $specified_sym_name:ident])?
+		@FIELD $field_name:ident: $matcher:pat $(if $guard:expr)?, $($rest:tt)*
+	) => {
+		crate::classes::field_constructor!(
+			[
+				enum FieldNames { $($existing_variants)* $field_name = 1usize << $current_shift, },
+				[$($variant_acc)* FieldNames::$field_name,],
+				($current_shift + 1)
+			]
+
+			@FIELDS_ENUM $($rest)*
+		);
+	};
+	(
+		[
+			enum FieldNames { $($existing_variants:tt)* },
+			[$($variant_acc:tt)*],
+			$current_shift:expr
+		]
+
+		@FIELDS_ENUM) => {
+		#[allow(non_camel_case_types)]
+		#[repr(usize)]
+		#[derive(Debug, Copy, Clone)]
+		enum FieldNames {
+			$($existing_variants)*
+		}
+
+		impl FieldNames {
+			const VARIANTS: [FieldNames; $current_shift] = [$($variant_acc)*];
+
+			fn find_missing(found: usize) -> [Option<FieldNames>; $current_shift] {
+				let mut missing = [None; $current_shift];
+
+				for (index, variant) in Self::VARIANTS.into_iter().enumerate() {
+					if found & variant as usize == 0 {
+						missing[index] = Some(variant);
+					}
+				}
+
+				missing
+			}
+		}
+	};
+
 	(@METHODS
 		$(#[$meta:meta])*
 		$([sym: $specified_sym_name:ident])?
@@ -151,7 +240,7 @@ macro_rules! field_constructor {
 			}
 
 			unsafe fn [<set_ $field_name _field_offset>](value: usize) {
-				[<__ $field_name:snake:upper _FIELD_OFFSET>] = value;
+				unsafe { [<__ $field_name:snake:upper _FIELD_OFFSET>] = value; }
 			}
 		}
 
@@ -163,6 +252,7 @@ macro_rules! field_constructor {
 		@CHECKS
 		$field_ident:ident,
 		$field_set_ident:ident,
+		$current_shift:expr,
 
 		$(#[$meta:meta])*
 		$([sym: $specified_sym_name:ident])?
@@ -170,18 +260,19 @@ macro_rules! field_constructor {
 	) => {
 		paste::paste! {
 			if $field_ident.name == crate::classes::get_sym!($($specified_sym_name)? $field_name) && matches!(&$field_ident.descriptor, $matcher $(if $guard)?) {
-				$field_set_ident |= 1 << crate::classes::instance_field_count!($($rest)*);
+				$field_set_ident |= 1 << $current_shift;
 				unsafe { [<set_ $field_name _field_offset>]($field_ident.index()); }
 				continue;
 			}
 		}
 
-		crate::classes::field_constructor!(@CHECKS $field_ident, $field_set_ident, $($rest)*);
+		crate::classes::field_constructor!(@CHECKS $field_ident, $field_set_ident, ($current_shift + 1), $($rest)*);
 	};
 	(
 		@CHECKS
 		$field_ident:ident,
 		$field_set_ident:ident,
+		$current_shift:expr,
 
 		$(#[$meta:meta])*
 		$([sym: $specified_sym_name:ident])?
@@ -195,12 +286,13 @@ macro_rules! field_constructor {
 			}
 		}
 
-		crate::classes::field_constructor!(@CHECKS $field_ident, $field_set_ident, $($rest)*);
+		crate::classes::field_constructor!(@CHECKS $field_ident, $field_set_ident, $current_shift, $($rest)*);
 	};
 	(
 		@CHECKS
 		$field_ident:ident,
 		$field_set_ident:ident,
+		$current_shift:expr,
 	) => {};
 }
 

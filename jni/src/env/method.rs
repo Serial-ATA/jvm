@@ -1,5 +1,5 @@
 use crate::error::{JniError, Result};
-use crate::objects::{JClass, JMethodId, JValue};
+use crate::objects::{JClass, JMethodId, JObject, JValue};
 use crate::string::JniString;
 
 impl super::JniEnv {
@@ -124,7 +124,36 @@ impl super::JniEnv {
 		Ok(unsafe { JMethodId::from_raw(ret) })
 	}
 
-	// TODO: CallStaticObjectMethod
+	pub fn call_static_object_method(
+		&self,
+		class: JClass,
+		method_id: JMethodId,
+		args: impl IntoIterator<Item = impl Into<JValue>>,
+	) -> Result<JObject> {
+		let new_args = args
+			.into_iter()
+			.map(Into::into)
+			.map(JValue::raw)
+			.collect::<Vec<_>>();
+
+		let ret;
+		unsafe {
+			let invoke_interface = self.as_native_interface();
+			ret = ((*invoke_interface).CallStaticObjectMethodA)(
+				self.0 as _,
+				class.raw(),
+				method_id.raw(),
+				new_args.as_ptr(),
+			);
+		}
+
+		if self.exception_check() {
+			return Err(JniError::ExceptionThrown);
+		}
+
+		Ok(unsafe { JObject::from_raw(ret) })
+	}
+
 	// TODO: CallStaticObjectMethodV
 	// TODO: CallStaticObjectMethodA
 	// TODO: CallStaticBooleanMethod

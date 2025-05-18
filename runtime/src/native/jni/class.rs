@@ -1,16 +1,17 @@
-use super::{classref_from_jclass, IntoJni};
+use super::{IntoJni, reference_from_jobject};
 use crate::classpath::loader::ClassLoader;
 use crate::objects::class::Class;
+use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
-use crate::thread::exceptions::{throw_with_ret, Throws};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, throw_with_ret};
 
-use core::ffi::{c_char, CStr};
+use core::ffi::{CStr, c_char};
 
-use ::jni::sys::{jboolean, jbyte, jclass, jobject, jsize, JNIEnv};
+use ::jni::sys::{JNIEnv, jboolean, jbyte, jclass, jobject, jsize};
 use common::traits::PtrType;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn DefineClass(
 	env: *mut JNIEnv,
 	name: *const c_char,
@@ -21,7 +22,7 @@ pub unsafe extern "system" fn DefineClass(
 	unimplemented!("jni::DefineClass")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -> jclass {
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
@@ -42,17 +43,19 @@ pub unsafe extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -
 		Throws::Exception(e) => e.throw(thread),
 	}
 
-	let ret = core::ptr::null::<&'static Class>() as jclass;
+	let ret = core::ptr::null::<&'static Reference>() as jclass;
 	throw_with_ret!(ret, thread, NoClassDefFoundError, name.to_string_lossy());
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn GetSuperclass(env: *mut JNIEnv, sub: jclass) -> jclass {
 	// Comments from https://github.com/openjdk/jdk/blob/6c59185475eeca83153f085eba27cc0b3acf9bb4/src/java.base/share/classes/java/lang/Class.java#L1034-L1044
 
-	let Some(sub) = (unsafe { classref_from_jclass(sub) }) else {
+	let Some(sub_obj) = (unsafe { reference_from_jobject(sub) }) else {
 		panic!("Invalid arguments to `GetSuperclass`");
 	};
+
+	let sub = sub_obj.extract_target_class();
 
 	// If this `Class` represents either:
 	// * the `Object` class
@@ -79,18 +82,21 @@ pub unsafe extern "system" fn GetSuperclass(env: *mut JNIEnv, sub: jclass) -> jc
 	return core::ptr::null::<&'static Class>() as jclass;
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn IsAssignableFrom(
 	env: *mut JNIEnv,
 	sub: jclass,
 	sup: jclass,
 ) -> jboolean {
-	let sub = unsafe { classref_from_jclass(sub) };
-	let sup = unsafe { classref_from_jclass(sup) };
+	let sub_obj = unsafe { reference_from_jobject(sub) };
+	let sup_obj = unsafe { reference_from_jobject(sup) };
 
-	let (Some(sub), Some(sup)) = (sub, sup) else {
+	let (Some(sub), Some(sup)) = (sub_obj, sup_obj) else {
 		panic!("Invalid arguments to `IsAssignableFrom`");
 	};
+
+	let sub = sub.extract_target_class();
+	let sup = sup.extract_target_class();
 
 	if sub.mirror().get().is_primitive() && sup.mirror().get().is_primitive() {
 		return sub == sup;

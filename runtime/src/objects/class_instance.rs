@@ -4,11 +4,12 @@ use crate::objects::field::Field;
 use crate::objects::monitor::Monitor;
 use crate::objects::reference::{ClassInstanceRef, Reference};
 
-use common::traits::PtrType;
-use instructions::Operand;
 use std::fmt::{Debug, Formatter};
 use std::ptr::NonNull;
 use std::sync::Arc;
+
+use common::traits::PtrType;
+use instructions::Operand;
 
 #[derive(Debug)]
 pub struct ClassInstance {

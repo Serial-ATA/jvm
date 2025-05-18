@@ -1,23 +1,23 @@
-use super::{classref_from_jclass, method_ref_from_jmethodid, IntoJni};
+use super::{IntoJni, method_ref_from_jmethodid, reference_from_jobject};
 use crate::objects::method::Method;
 use crate::stack::local_stack::LocalStack;
 use crate::symbols::Symbol;
-use crate::thread::exceptions::Throws;
 use crate::thread::JavaThread;
+use crate::thread::exceptions::Throws;
 
 use core::ffi::c_char;
 use std::ffi::CStr;
 
 use jni::sys::{
-	jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, jobject, jshort,
-	jvalue, va_list, JNIEnv,
+	JNIEnv, jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, jobject,
+	jshort, jvalue, va_list,
 };
 
 // --------------
 //   NON-STATIC
 // --------------
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn GetMethodID(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -27,7 +27,7 @@ pub unsafe extern "system" fn GetMethodID(
 	unimplemented!("jni::GetMethodID")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallObjectMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -46,7 +46,7 @@ pub unsafe extern "system" fn CallObjectMethodV(
 	unimplemented!("jni::CallObjectMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallObjectMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -56,7 +56,7 @@ pub unsafe extern "system" fn CallObjectMethodA(
 	unimplemented!("jni::CallObjectMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallBooleanMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -66,7 +66,7 @@ pub unsafe extern "C" fn CallBooleanMethod(
 	unimplemented!("jni::CallBooleanMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallBooleanMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -76,7 +76,7 @@ pub unsafe extern "system" fn CallBooleanMethodV(
 	unimplemented!("jni::CallBooleanMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallBooleanMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -86,7 +86,7 @@ pub unsafe extern "system" fn CallBooleanMethodA(
 	unimplemented!("jni::CallBooleanMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallByteMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -96,7 +96,7 @@ pub unsafe extern "C" fn CallByteMethod(
 	unimplemented!("jni::CallByteMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallByteMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -106,7 +106,7 @@ pub unsafe extern "system" fn CallByteMethodV(
 	unimplemented!("jni::CallByteMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallByteMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -116,7 +116,7 @@ pub unsafe extern "system" fn CallByteMethodA(
 	unimplemented!("jni::CallByteMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallCharMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -126,7 +126,7 @@ pub unsafe extern "C" fn CallCharMethod(
 	unimplemented!("jni::CallCharMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallCharMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -136,7 +136,7 @@ pub unsafe extern "system" fn CallCharMethodV(
 	unimplemented!("jni::CallCharMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallCharMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -146,7 +146,7 @@ pub unsafe extern "system" fn CallCharMethodA(
 	unimplemented!("jni::CallCharMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallShortMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -156,7 +156,7 @@ pub unsafe extern "C" fn CallShortMethod(
 	unimplemented!("jni::CallShortMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallShortMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -166,7 +166,7 @@ pub unsafe extern "system" fn CallShortMethodV(
 	unimplemented!("jni::CallShortMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallShortMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -176,7 +176,7 @@ pub unsafe extern "system" fn CallShortMethodA(
 	unimplemented!("jni::CallShortMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallIntMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -186,7 +186,7 @@ pub unsafe extern "C" fn CallIntMethod(
 	unimplemented!("jni::CallIntMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallIntMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -196,7 +196,7 @@ pub unsafe extern "system" fn CallIntMethodV(
 	unimplemented!("jni::CallIntMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallIntMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -206,7 +206,7 @@ pub unsafe extern "system" fn CallIntMethodA(
 	unimplemented!("jni::CallIntMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallLongMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -216,7 +216,7 @@ pub unsafe extern "C" fn CallLongMethod(
 	unimplemented!("jni::CallLongMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallLongMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -226,7 +226,7 @@ pub unsafe extern "system" fn CallLongMethodV(
 	unimplemented!("jni::CallLongMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallLongMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -236,7 +236,7 @@ pub unsafe extern "system" fn CallLongMethodA(
 	unimplemented!("jni::CallLongMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallFloatMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -246,7 +246,7 @@ pub unsafe extern "C" fn CallFloatMethod(
 	unimplemented!("jni::CallFloatMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallFloatMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -256,7 +256,7 @@ pub unsafe extern "system" fn CallFloatMethodV(
 	unimplemented!("jni::CallFloatMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallFloatMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -266,7 +266,7 @@ pub unsafe extern "system" fn CallFloatMethodA(
 	unimplemented!("jni::CallFloatMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallDoubleMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -276,7 +276,7 @@ pub unsafe extern "C" fn CallDoubleMethod(
 	unimplemented!("jni::CallDoubleMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallDoubleMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -286,7 +286,7 @@ pub unsafe extern "system" fn CallDoubleMethodV(
 	unimplemented!("jni::CallDoubleMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallDoubleMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -296,12 +296,12 @@ pub unsafe extern "system" fn CallDoubleMethodA(
 	unimplemented!("jni::CallDoubleMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallVoidMethod(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...) {
 	unimplemented!("jni::CallVoidMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallVoidMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -311,7 +311,7 @@ pub unsafe extern "system" fn CallVoidMethodV(
 	unimplemented!("jni::CallVoidMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallVoidMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -325,7 +325,7 @@ pub unsafe extern "system" fn CallVoidMethodA(
 //   NON-VIRTUAL
 // --------------
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallNonvirtualObjectMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -336,7 +336,7 @@ pub unsafe extern "C" fn CallNonvirtualObjectMethod(
 	unimplemented!("jni::CallNonvirtualObjectMethod")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualObjectMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -347,7 +347,7 @@ pub unsafe extern "system" fn CallNonvirtualObjectMethodV(
 	unimplemented!("jni::CallNonvirtualObjectMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualObjectMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -358,7 +358,7 @@ pub unsafe extern "system" fn CallNonvirtualObjectMethodA(
 	unimplemented!("jni::CallNonvirtualObjectMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallNonvirtualBooleanMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -369,7 +369,7 @@ pub unsafe extern "C" fn CallNonvirtualBooleanMethod(
 	unimplemented!("jni::CallNonvirtualBooleanMethod")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualBooleanMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -380,7 +380,7 @@ pub unsafe extern "system" fn CallNonvirtualBooleanMethodV(
 	unimplemented!("jni::CallNonvirtualBooleanMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualBooleanMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -391,7 +391,7 @@ pub unsafe extern "system" fn CallNonvirtualBooleanMethodA(
 	unimplemented!("jni::CallNonvirtualBooleanMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallNonvirtualByteMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -402,7 +402,7 @@ pub unsafe extern "C" fn CallNonvirtualByteMethod(
 	unimplemented!("jni::CallNonvirtualByteMethod")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualByteMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -413,7 +413,7 @@ pub unsafe extern "system" fn CallNonvirtualByteMethodV(
 	unimplemented!("jni::CallNonvirtualByteMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualByteMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -424,7 +424,7 @@ pub unsafe extern "system" fn CallNonvirtualByteMethodA(
 	unimplemented!("jni::CallNonvirtualByteMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallNonvirtualCharMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -435,7 +435,7 @@ pub unsafe extern "C" fn CallNonvirtualCharMethod(
 	unimplemented!("jni::CallNonvirtualCharMethod")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualCharMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -446,7 +446,7 @@ pub unsafe extern "system" fn CallNonvirtualCharMethodV(
 	unimplemented!("jni::CallNonvirtualCharMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualCharMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -457,7 +457,7 @@ pub unsafe extern "system" fn CallNonvirtualCharMethodA(
 	unimplemented!("jni::CallNonvirtualCharMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallNonvirtualShortMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -468,7 +468,7 @@ pub unsafe extern "C" fn CallNonvirtualShortMethod(
 	unimplemented!("jni::CallNonvirtualShortMethod")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualShortMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -479,7 +479,7 @@ pub unsafe extern "system" fn CallNonvirtualShortMethodV(
 	unimplemented!("jni::CallNonvirtualShortMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualShortMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -490,7 +490,7 @@ pub unsafe extern "system" fn CallNonvirtualShortMethodA(
 	unimplemented!("jni::CallNonvirtualShortMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallNonvirtualIntMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -501,7 +501,7 @@ pub unsafe extern "C" fn CallNonvirtualIntMethod(
 	unimplemented!("jni::CallNonvirtualIntMethod")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualIntMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -512,7 +512,7 @@ pub unsafe extern "system" fn CallNonvirtualIntMethodV(
 	unimplemented!("jni::CallNonvirtualIntMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualIntMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -523,7 +523,7 @@ pub unsafe extern "system" fn CallNonvirtualIntMethodA(
 	unimplemented!("jni::CallNonvirtualIntMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallNonvirtualLongMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -534,7 +534,7 @@ pub unsafe extern "C" fn CallNonvirtualLongMethod(
 	unimplemented!("jni::CallNonvirtualLongMethod")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualLongMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -545,7 +545,7 @@ pub unsafe extern "system" fn CallNonvirtualLongMethodV(
 	unimplemented!("jni::CallNonvirtualLongMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualLongMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -556,7 +556,7 @@ pub unsafe extern "system" fn CallNonvirtualLongMethodA(
 	unimplemented!("jni::CallNonvirtualLongMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallNonvirtualFloatMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -567,7 +567,7 @@ pub unsafe extern "C" fn CallNonvirtualFloatMethod(
 	unimplemented!("jni::CallNonvirtualFloatMethod")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualFloatMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -578,7 +578,7 @@ pub unsafe extern "system" fn CallNonvirtualFloatMethodV(
 	unimplemented!("jni::CallNonvirtualFloatMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualFloatMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -589,7 +589,7 @@ pub unsafe extern "system" fn CallNonvirtualFloatMethodA(
 	unimplemented!("jni::CallNonvirtualFloatMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallNonvirtualDoubleMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -600,7 +600,7 @@ pub unsafe extern "C" fn CallNonvirtualDoubleMethod(
 	unimplemented!("jni::CallNonvirtualDoubleMethod")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualDoubleMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -611,7 +611,7 @@ pub unsafe extern "system" fn CallNonvirtualDoubleMethodV(
 	unimplemented!("jni::CallNonvirtualDoubleMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualDoubleMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -622,7 +622,7 @@ pub unsafe extern "system" fn CallNonvirtualDoubleMethodA(
 	unimplemented!("jni::CallNonvirtualDoubleMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallNonvirtualVoidMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -633,7 +633,7 @@ pub unsafe extern "C" fn CallNonvirtualVoidMethod(
 	unimplemented!("jni::CallNonvirtualVoidMethod")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualVoidMethodV(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -644,7 +644,7 @@ pub unsafe extern "system" fn CallNonvirtualVoidMethodV(
 	unimplemented!("jni::CallNonvirtualVoidMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallNonvirtualVoidMethodA(
 	env: *mut JNIEnv,
 	obj: jobject,
@@ -659,7 +659,7 @@ pub unsafe extern "system" fn CallNonvirtualVoidMethodA(
 //     STATIC
 // --------------
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn GetStaticMethodID(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -672,10 +672,11 @@ pub unsafe extern "system" fn GetStaticMethodID(
 	let name = Symbol::intern(name.to_bytes());
 	let sig = Symbol::intern(sig.to_bytes());
 
-	let Some(class) = classref_from_jclass(clazz) else {
+	let Some(class_obj) = (unsafe { reference_from_jobject(clazz) }) else {
 		return core::ptr::null::<Method>() as jmethodID;
 	};
 
+	let class = class_obj.extract_target_class();
 	match class.resolve_method(name, sig) {
 		Throws::Ok(method) => method.into_jni(),
 		Throws::Exception(e) => {
@@ -688,7 +689,7 @@ pub unsafe extern "system" fn GetStaticMethodID(
 	}
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallStaticObjectMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -698,7 +699,7 @@ pub unsafe extern "C" fn CallStaticObjectMethod(
 	unimplemented!("jni::CallStaticObjectMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticObjectMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -708,7 +709,7 @@ pub unsafe extern "system" fn CallStaticObjectMethodV(
 	unimplemented!("jni::CallStaticObjectMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticObjectMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -718,7 +719,7 @@ pub unsafe extern "system" fn CallStaticObjectMethodA(
 	unimplemented!("jni::CallStaticObjectMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallStaticBooleanMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -728,7 +729,7 @@ pub unsafe extern "C" fn CallStaticBooleanMethod(
 	unimplemented!("jni::CallStaticBooleanMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticBooleanMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -738,7 +739,7 @@ pub unsafe extern "system" fn CallStaticBooleanMethodV(
 	unimplemented!("jni::CallStaticBooleanMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticBooleanMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -748,7 +749,7 @@ pub unsafe extern "system" fn CallStaticBooleanMethodA(
 	unimplemented!("jni::CallStaticBooleanMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallStaticByteMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -758,7 +759,7 @@ pub unsafe extern "C" fn CallStaticByteMethod(
 	unimplemented!("jni::CallStaticByteMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticByteMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -768,7 +769,7 @@ pub unsafe extern "system" fn CallStaticByteMethodV(
 	unimplemented!("jni::CallStaticByteMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticByteMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -778,7 +779,7 @@ pub unsafe extern "system" fn CallStaticByteMethodA(
 	unimplemented!("jni::CallStaticByteMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallStaticCharMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -788,7 +789,7 @@ pub unsafe extern "C" fn CallStaticCharMethod(
 	unimplemented!("jni::CallStaticCharMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticCharMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -798,7 +799,7 @@ pub unsafe extern "system" fn CallStaticCharMethodV(
 	unimplemented!("jni::CallStaticCharMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticCharMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -808,7 +809,7 @@ pub unsafe extern "system" fn CallStaticCharMethodA(
 	unimplemented!("jni::CallStaticCharMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallStaticShortMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -818,7 +819,7 @@ pub unsafe extern "C" fn CallStaticShortMethod(
 	unimplemented!("jni::CallStaticShortMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticShortMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -828,7 +829,7 @@ pub unsafe extern "system" fn CallStaticShortMethodV(
 	unimplemented!("jni::CallStaticShortMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticShortMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -838,7 +839,7 @@ pub unsafe extern "system" fn CallStaticShortMethodA(
 	unimplemented!("jni::CallStaticShortMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallStaticIntMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -848,7 +849,7 @@ pub unsafe extern "C" fn CallStaticIntMethod(
 	unimplemented!("jni::CallStaticIntMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticIntMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -858,7 +859,7 @@ pub unsafe extern "system" fn CallStaticIntMethodV(
 	unimplemented!("jni::CallStaticIntMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticIntMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -868,7 +869,7 @@ pub unsafe extern "system" fn CallStaticIntMethodA(
 	unimplemented!("jni::CallStaticIntMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallStaticLongMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -878,7 +879,7 @@ pub unsafe extern "C" fn CallStaticLongMethod(
 	unimplemented!("jni::CallStaticLongMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticLongMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -888,7 +889,7 @@ pub unsafe extern "system" fn CallStaticLongMethodV(
 	unimplemented!("jni::CallStaticLongMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticLongMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -898,7 +899,7 @@ pub unsafe extern "system" fn CallStaticLongMethodA(
 	unimplemented!("jni::CallStaticLongMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallStaticFloatMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -908,7 +909,7 @@ pub unsafe extern "C" fn CallStaticFloatMethod(
 	unimplemented!("jni::CallStaticFloatMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticFloatMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -918,7 +919,7 @@ pub unsafe extern "system" fn CallStaticFloatMethodV(
 	unimplemented!("jni::CallStaticFloatMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticFloatMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -928,7 +929,7 @@ pub unsafe extern "system" fn CallStaticFloatMethodA(
 	unimplemented!("jni::CallStaticFloatMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallStaticDoubleMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -938,7 +939,7 @@ pub unsafe extern "C" fn CallStaticDoubleMethod(
 	unimplemented!("jni::CallStaticDoubleMethod");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticDoubleMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -948,7 +949,7 @@ pub unsafe extern "system" fn CallStaticDoubleMethodV(
 	unimplemented!("jni::CallStaticDoubleMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticDoubleMethodA(
 	env: *mut JNIEnv,
 	clazz: jclass,
@@ -958,7 +959,7 @@ pub unsafe extern "system" fn CallStaticDoubleMethodA(
 	unimplemented!("jni::CallStaticDoubleMethodA")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn CallStaticVoidMethod(
 	env: *mut JNIEnv,
 	cls: jclass,
@@ -968,7 +969,7 @@ pub unsafe extern "C" fn CallStaticVoidMethod(
 	unimplemented!("jni::CallStaticVoidMethod")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticVoidMethodV(
 	env: *mut JNIEnv,
 	cls: jclass,
@@ -978,7 +979,7 @@ pub unsafe extern "system" fn CallStaticVoidMethodV(
 	unimplemented!("jni::CallStaticVoidMethodV")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn CallStaticVoidMethodA(
 	env: *mut JNIEnv,
 	cls: jclass,
@@ -988,10 +989,12 @@ pub unsafe extern "system" fn CallStaticVoidMethodA(
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
 
-	let class = unsafe { classref_from_jclass(cls) };
-	let Some(class) = class else {
+	let class_obj = unsafe { reference_from_jobject(cls) };
+	let Some(class_obj) = class_obj else {
 		return; // TODO: Exception?
 	};
+
+	let class = class_obj.extract_target_class();
 
 	let method = unsafe { method_ref_from_jmethodid(methodID) };
 	let Some(method) = method else {
