@@ -5,6 +5,7 @@ use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::invocation_api::main_java_vm;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::reference::Reference;
+use crate::options::JvmOptions;
 use crate::symbols::sym;
 use crate::thread::exceptions::Throws;
 use crate::thread::{JavaThread, JavaThreadBuilder};
@@ -15,7 +16,7 @@ use common::int_types::s4;
 use instructions::Operand;
 use jni::error::JniError;
 use jni::java_vm::JavaVm;
-use jni::sys::{JavaVMInitArgs, JNI_OK};
+use jni::sys::{JNI_OK, JavaVMInitArgs};
 
 /// Creates and initializes the Java VM
 ///
@@ -34,6 +35,18 @@ pub fn create_java_vm(
 ) -> Result<JavaVm, (JniError, Option<Reference>)> {
 	let _span = tracing::debug_span!("initialization").entered();
 	tracing::debug!("Creating Java VM");
+
+	if let Some(_vm_options) = crate::classpath::jimage::lookup_vm_options() {
+		// TODO: Actually parse the options, for now this is just here to load the JImage
+		// https://github.com/openjdk/jdk/blob/03a9a88efbb68537e24b7de28c5b81d6cd8fdb04/src/hotspot/share/runtime/arguments.cpp#L3322
+	}
+
+	let options = match args {
+		Some(args) => {
+			unsafe { JvmOptions::load(args) }.map_err(|_| (JniError::InvalidArguments, None))?
+		},
+		None => JvmOptions::default(),
+	};
 
 	let thread = JavaThreadBuilder::new().finish();
 	unsafe {
