@@ -34,4 +34,4 @@ native_methods = { path = "../generators/native_methods" }
 
 [lib]
 name = "jvm_runtime"
-crate-type = ["dylib"]
+crate-type = ["rlib", "dylib"]
