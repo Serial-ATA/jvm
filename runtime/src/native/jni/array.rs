@@ -1,4 +1,4 @@
-use super::{IntoJni, classref_from_jclass, reference_from_jobject};
+use super::{IntoJni, reference_from_jobject};
 use crate::objects::array::{Array, ObjectArrayInstance};
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
@@ -30,11 +30,12 @@ pub extern "system" fn NewObjectArray(
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
 
-	let class = unsafe { classref_from_jclass(clazz) };
-	let Some(class) = class else {
+	let obj = unsafe { reference_from_jobject(clazz as _) };
+	let Some(obj) = obj else {
 		return ptr::null_mut() as jobjectArray;
 	};
 
+	let class = obj.extract_target_class();
 	if init.is_null() {
 		return match ObjectArrayInstance::new(len as s4, class) {
 			Throws::Ok(array) => Reference::object_array(array).into_jni(),

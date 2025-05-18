@@ -1,4 +1,4 @@
-use super::{IntoJni, classref_from_jclass, method_ref_from_jmethodid};
+use super::{IntoJni, method_ref_from_jmethodid, reference_from_jobject};
 use crate::objects::method::Method;
 use crate::stack::local_stack::LocalStack;
 use crate::symbols::Symbol;
@@ -672,10 +672,11 @@ pub unsafe extern "system" fn GetStaticMethodID(
 	let name = Symbol::intern(name.to_bytes());
 	let sig = Symbol::intern(sig.to_bytes());
 
-	let Some(class) = classref_from_jclass(clazz) else {
+	let Some(class_obj) = (unsafe { reference_from_jobject(clazz) }) else {
 		return core::ptr::null::<Method>() as jmethodID;
 	};
 
+	let class = class_obj.extract_target_class();
 	match class.resolve_method(name, sig) {
 		Throws::Ok(method) => method.into_jni(),
 		Throws::Exception(e) => {
@@ -988,10 +989,12 @@ pub unsafe extern "system" fn CallStaticVoidMethodA(
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
 
-	let class = unsafe { classref_from_jclass(cls) };
-	let Some(class) = class else {
+	let class_obj = unsafe { reference_from_jobject(cls) };
+	let Some(class_obj) = class_obj else {
 		return; // TODO: Exception?
 	};
+
+	let class = class_obj.extract_target_class();
 
 	let method = unsafe { method_ref_from_jmethodid(methodID) };
 	let Some(method) = method else {

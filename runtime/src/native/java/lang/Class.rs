@@ -1,6 +1,6 @@
 use crate::classpath::loader::ClassLoaderSet;
 use crate::native::java::lang::String::StringInterner;
-use crate::native::jni::{safe_classref_from_jclass, IntoJni};
+use crate::native::jni::{IntoJni, reference_from_jobject};
 use crate::objects::array::{Array, ObjectArrayInstance};
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
@@ -8,11 +8,11 @@ use crate::objects::method::Method;
 use crate::objects::reference::{
 	ClassInstanceRef, MirrorInstanceRef, ObjectArrayInstanceRef, Reference,
 };
-use crate::symbols::{sym, Symbol};
-use crate::thread::exceptions::{
-	handle_exception, throw, throw_and_return_null, throw_with_ret, Throws,
-};
+use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{
+	Throws, handle_exception, throw, throw_and_return_null, throw_with_ret,
+};
 use crate::{classes, globals, include_generated};
 
 use std::sync::Arc;
@@ -23,6 +23,7 @@ use classfile::accessflags::ClassAccessFlags;
 use common::int_types::s4;
 use common::traits::PtrType;
 use instructions::Operand;
+use jni::objects::JClass;
 
 include_generated!("native/java/lang/def/Class.registerNatives.rs");
 include_generated!("native/java/lang/def/Class.definitions.rs");
@@ -136,11 +137,14 @@ pub fn getSuperclass(
 ) -> Reference /* Class<? super T> */
 {
 	let target_class = this.extract_target_class();
-	let Some(super_class_raw) = env.get_super_class(target_class.into_jni_safe()) else {
+	let Some(super_class_jni) = env.get_super_class(target_class.into_jni_safe()) else {
 		return Reference::null();
 	};
 
-	let super_class = safe_classref_from_jclass(super_class_raw);
+	let super_class_obj = unsafe { reference_from_jobject(super_class_jni.raw() as _) }
+		.expect("should never be null");
+	let super_class = super_class_obj.extract_target_class();
+
 	Reference::mirror(super_class.mirror())
 }
 pub fn getInterfaces0(
