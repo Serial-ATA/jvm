@@ -9,8 +9,9 @@ use crate::objects::field::Field;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 
-use jni::objects::{JClass, JFieldId, JMethodId, JObject};
-use jni::sys::{jclass, jfieldID, jmethodID, jobject};
+use instructions::Operand;
+use jni::objects::{JClass, JFieldId, JMethodId, JObject, JValue};
+use jni::sys::{jclass, jfieldID, jmethodID, jobject, jvalue};
 
 pub mod array;
 pub mod class;
@@ -51,6 +52,34 @@ pub trait IntoJni {
 	/// let class_jni_safe: jni::objects::JClass = class.into_jni_safe();
 	/// ```
 	fn into_jni_safe(self) -> Self::SafeJniTy;
+}
+
+impl IntoJni for Operand<Reference> {
+	type RawJniTy = jvalue;
+	type SafeJniTy = JValue;
+
+	fn into_jni(self) -> Self::RawJniTy {
+		match self {
+			// Integers cover all over types (boolean, short, etc)
+			Operand::Int(v) => jvalue { i: v },
+			Operand::Float(v) => jvalue { f: v },
+			Operand::Double(v) => jvalue { d: v },
+			Operand::Long(v) => jvalue { j: v },
+			Operand::Reference(v) => jvalue { l: v.into_jni() },
+			Operand::Empty => unreachable!(),
+		}
+	}
+
+	fn into_jni_safe(self) -> Self::SafeJniTy {
+		match self {
+			Operand::Int(v) => JValue::Int(v),
+			Operand::Float(v) => JValue::Float(v),
+			Operand::Double(v) => JValue::Double(v),
+			Operand::Long(v) => JValue::Long(v),
+			Operand::Reference(v) => JValue::Object(v.into_jni_safe()),
+			Operand::Empty => unreachable!(),
+		}
+	}
 }
 
 impl IntoJni for &'static Class {

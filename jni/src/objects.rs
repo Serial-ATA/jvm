@@ -1,4 +1,4 @@
-use jni_sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort, jvalue};
+use jni_sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort, jvalue};
 use std::fmt::{Debug, Formatter};
 
 #[derive(Copy, Clone)]
@@ -11,7 +11,7 @@ pub enum JValue {
 	Long(jlong),
 	Float(jfloat),
 	Double(jdouble),
-	Object(jobject),
+	Object(JObject),
 }
 
 impl Debug for JValue {
@@ -25,7 +25,7 @@ impl Debug for JValue {
 			JValue::Long(v) => v.fmt(f),
 			JValue::Float(v) => v.fmt(f),
 			JValue::Double(v) => v.fmt(f),
-			JValue::Object(v) => v.fmt(f),
+			JValue::Object(v) => v.0.fmt(f),
 		}
 	}
 }
@@ -41,7 +41,7 @@ impl JValue {
 			JValue::Long(l) => jvalue { j: l },
 			JValue::Float(f) => jvalue { f },
 			JValue::Double(d) => jvalue { d },
-			JValue::Object(o) => jvalue { l: o },
+			JValue::Object(o) => jvalue { l: o.raw() },
 		}
 	}
 }
@@ -117,7 +117,7 @@ macro_rules! define_object_types {
 
 		impl From<$name> for JValue {
 			fn from(value: $name) -> Self {
-				JValue::Object(value.0)
+				JValue::Object(unsafe { JObject::from_raw(value.0) })
 			}
 		}
 
@@ -167,7 +167,7 @@ impl JObject {
 
 impl From<JObject> for JValue {
 	fn from(value: JObject) -> Self {
-		JValue::Object(value.0)
+		JValue::Object(value)
 	}
 }
 

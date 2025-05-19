@@ -340,6 +340,7 @@ vm_symbols::define_symbols! {
 	run_name: "run",
 
 	addClass,
+	loadClass,
 
 	valueOf_name: "valueOf",
 	// -- GENERATED METHOD NAME MARKER, DO NOT DELETE --

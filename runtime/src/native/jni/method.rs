@@ -4,15 +4,15 @@ use crate::stack::local_stack::LocalStack;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::Throws;
+use crate::objects::reference::Reference;
 
 use core::ffi::c_char;
-use std::ffi::CStr;
-
+use instructions::Operand;
 use jni::sys::{
 	JNIEnv, jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, jobject,
 	jshort, jvalue, va_list,
 };
-
+use std::ffi::CStr;
 // --------------
 //   NON-STATIC
 // --------------
@@ -716,7 +716,11 @@ pub unsafe extern "system" fn CallStaticObjectMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jobject {
-	unimplemented!("jni::CallStaticObjectMethodA")
+	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+		return Default::default();
+	};
+
+	unsafe { ret.into_jni().l }
 }
 
 #[unsafe(no_mangle)]
@@ -746,7 +750,11 @@ pub unsafe extern "system" fn CallStaticBooleanMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jboolean {
-	unimplemented!("jni::CallStaticBooleanMethodA")
+	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+		return Default::default();
+	};
+
+	unsafe { ret.into_jni().z }
 }
 
 #[unsafe(no_mangle)]
@@ -776,7 +784,11 @@ pub unsafe extern "system" fn CallStaticByteMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jbyte {
-	unimplemented!("jni::CallStaticByteMethodA")
+	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+		return Default::default();
+	};
+
+	unsafe { ret.into_jni().b }
 }
 
 #[unsafe(no_mangle)]
@@ -806,7 +818,11 @@ pub unsafe extern "system" fn CallStaticCharMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jchar {
-	unimplemented!("jni::CallStaticCharMethodA")
+	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+		return Default::default();
+	};
+
+	unsafe { ret.into_jni().c }
 }
 
 #[unsafe(no_mangle)]
@@ -836,7 +852,11 @@ pub unsafe extern "system" fn CallStaticShortMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jshort {
-	unimplemented!("jni::CallStaticShortMethodA")
+	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+		return Default::default();
+	};
+
+	unsafe { ret.into_jni().s }
 }
 
 #[unsafe(no_mangle)]
@@ -866,7 +886,11 @@ pub unsafe extern "system" fn CallStaticIntMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jint {
-	unimplemented!("jni::CallStaticIntMethodA")
+	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+		return Default::default();
+	};
+
+	unsafe { ret.into_jni().i }
 }
 
 #[unsafe(no_mangle)]
@@ -896,7 +920,11 @@ pub unsafe extern "system" fn CallStaticLongMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jlong {
-	unimplemented!("jni::CallStaticLongMethodA")
+	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+		return Default::default();
+	};
+
+	unsafe { ret.into_jni().j }
 }
 
 #[unsafe(no_mangle)]
@@ -926,7 +954,11 @@ pub unsafe extern "system" fn CallStaticFloatMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jfloat {
-	unimplemented!("jni::CallStaticFloatMethodA")
+	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+		return Default::default();
+	};
+
+	unsafe { ret.into_jni().f }
 }
 
 #[unsafe(no_mangle)]
@@ -956,7 +988,11 @@ pub unsafe extern "system" fn CallStaticDoubleMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jdouble {
-	unimplemented!("jni::CallStaticDoubleMethodA")
+	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+		return Default::default();
+	};
+
+	unsafe { ret.into_jni().d }
 }
 
 #[unsafe(no_mangle)]
@@ -986,27 +1022,36 @@ pub unsafe extern "system" fn CallStaticVoidMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) {
+	call_with_c_array_args(env, cls, methodID, args);
+}
+
+fn call_with_c_array_args(
+	env: *mut JNIEnv,
+	cls: jclass,
+	methodID: jmethodID,
+	args: *const jvalue,
+) -> Option<Operand<Reference>> {
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
 
 	let class_obj = unsafe { reference_from_jobject(cls) };
 	let Some(class_obj) = class_obj else {
-		return; // TODO: Exception?
+		return None; // TODO: Exception?
 	};
 
 	let class = class_obj.extract_target_class();
 
 	let method = unsafe { method_ref_from_jmethodid(methodID) };
 	let Some(method) = method else {
-		return; // TODO: Exception?
+		return None; // TODO: Exception?
 	};
 
 	let Some(arguments) = (unsafe { method.args_for_c_array(args) }) else {
-		return; // TODO: Exception?
+		return None; // TODO: Exception?
 	};
 
 	// SAFETY: `Method::args_for_c_args` ensures that the arguments are constructed correctly
 	let call_args =
 		unsafe { LocalStack::new_with_args(arguments, method.code.max_locals as usize) };
-	thread.invoke_method_scoped(method, call_args);
+	thread.invoke_method_scoped(method, call_args)
 }

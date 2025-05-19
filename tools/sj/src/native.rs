@@ -35,7 +35,7 @@ impl<T> Deref for IsSend<T> {
 /// Invoke the main method in a new thread
 ///
 /// This is the last stop in the launcher, all remaining action occurs in the VM runtime.
-pub fn invoke_main_method(env: JniEnv, main_class: JClass, args: Vec<String>) -> Result<()> {
+pub fn invoke_main_method(env: JniEnv, main_class: JClass, args: Vec<String>) -> Result<i32> {
 	let env = IsSend(env);
 	let main_class = IsSend(main_class);
 
@@ -47,7 +47,7 @@ pub fn invoke_main_method(env: JniEnv, main_class: JClass, args: Vec<String>) ->
 		return Err(JniError::ExceptionThrown.into());
 	}
 
-	Ok(())
+	Ok(0)
 }
 
 fn args_as_jstring_array(env: JniEnv, args: Vec<String>) -> Result<JObjectArray> {

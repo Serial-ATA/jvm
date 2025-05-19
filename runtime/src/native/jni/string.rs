@@ -1,5 +1,13 @@
+use crate::classes;
+use crate::native::jni::IntoJni;
+use crate::objects::reference::Reference;
+
 use core::ffi::c_char;
+use std::{ptr, slice};
+
+use common::unicode;
 use jni::sys::{JNIEnv, jboolean, jchar, jsize, jstring};
+use libc::strlen;
 
 #[unsafe(no_mangle)]
 pub extern "system" fn NewString(env: *mut JNIEnv, unicode: *const jchar, len: jsize) -> jstring {
@@ -27,7 +35,23 @@ pub extern "system" fn ReleaseStringChars(env: *mut JNIEnv, str: jstring, chars:
 
 #[unsafe(no_mangle)]
 pub extern "system" fn NewStringUTF(env: *mut JNIEnv, utf: *const c_char) -> jstring {
-	unimplemented!("jni::NewStringUTF");
+	if utf.is_null() {
+		return ptr::null_mut();
+	}
+
+	// SAFETY: It's entirely up to the caller to pass in a valid string
+	let len = unsafe { strlen(utf) };
+
+	// SAFETY: c_char is always 8 bits
+	let utf = unsafe { slice::from_raw_parts(utf as *const u8, len as usize) };
+
+	let Ok(utf_8) = unicode::decode(utf) else {
+		// I guess this is the best we can do?
+		return ptr::null_mut();
+	};
+
+	let new_string = classes::java::lang::String::new(utf_8);
+	Reference::class(new_string).into_jni() as _
 }
 
 #[unsafe(no_mangle)]

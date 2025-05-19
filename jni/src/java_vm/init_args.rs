@@ -83,6 +83,7 @@ impl VmInitArgs {
 			self.__strings.push(s);
 		}
 
+		self.options = vm_options;
 		self
 	}
 

@@ -6,6 +6,7 @@ use crate::objects::reference::{ClassInstanceRef, PrimitiveArrayInstanceRef, Ref
 use crate::symbols::Symbol;
 use crate::{globals, native};
 
+use std::borrow::Cow;
 use std::ptr::slice_from_raw_parts;
 
 use byte_slice_cast::AsSliceOf;
@@ -18,7 +19,7 @@ use jni::sys::{jboolean, jbyte, jint};
 pub trait IntoJavaStringInternable: sealed::Sealed {
 	const IS_UTF8: bool;
 
-	fn as_bytes(&self) -> &[u8];
+	fn byte_slice(&self) -> &[u8];
 }
 
 mod sealed {
@@ -26,24 +27,33 @@ mod sealed {
 
 	pub trait Sealed {}
 
+	impl Sealed for Cow<'_, str> {}
 	impl Sealed for &str {}
 	impl Sealed for String {}
 	impl Sealed for Symbol {}
 	impl Sealed for &[u16] {}
 }
 
+impl IntoJavaStringInternable for Cow<'_, str> {
+	const IS_UTF8: bool = true;
+
+	fn byte_slice(&self) -> &[u8] {
+		self.as_bytes()
+	}
+}
+
 impl IntoJavaStringInternable for &str {
 	const IS_UTF8: bool = true;
 
-	fn as_bytes(&self) -> &[u8] {
-		str::as_bytes(self)
+	fn byte_slice(&self) -> &[u8] {
+		self.as_bytes()
 	}
 }
 
 impl IntoJavaStringInternable for String {
 	const IS_UTF8: bool = true;
 
-	fn as_bytes(&self) -> &[u8] {
+	fn byte_slice(&self) -> &[u8] {
 		self.as_bytes()
 	}
 }
@@ -52,7 +62,7 @@ impl IntoJavaStringInternable for Symbol {
 	// * All `Symbols` are valid UTF-8
 	const IS_UTF8: bool = true;
 
-	fn as_bytes(&self) -> &[u8] {
+	fn byte_slice(&self) -> &[u8] {
 		self.as_bytes()
 	}
 }
@@ -60,7 +70,7 @@ impl IntoJavaStringInternable for Symbol {
 impl IntoJavaStringInternable for &[u16] {
 	const IS_UTF8: bool = false;
 
-	fn as_bytes(&self) -> &[u8] {
+	fn byte_slice(&self) -> &[u8] {
 		bytemuck::cast_slice(self)
 	}
 }
@@ -93,7 +103,7 @@ where
 					.into_boxed_slice()
 			} else {
 				// Otherwise, the source is a UTF-16 encoded string (hopefully)
-				assert!(string.len() % 2 == 0);
+				assert_eq!(string.len() % 2, 0);
 				let byte_slice: &[jbyte] = bytemuck::cast_slice(string);
 				encoded_str = byte_slice.to_vec().into_boxed_slice();
 			}
@@ -123,7 +133,7 @@ where
 		new_java_string_instance
 	}
 
-	let string = content.as_bytes();
+	let string = content.byte_slice();
 	inner(string, T::IS_UTF8)
 }
 

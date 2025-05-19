@@ -23,7 +23,6 @@ use classfile::accessflags::ClassAccessFlags;
 use common::int_types::s4;
 use common::traits::PtrType;
 use instructions::Operand;
-use jni::objects::JClass;
 
 include_generated!("native/java/lang/def/Class.registerNatives.rs");
 include_generated!("native/java/lang/def/Class.definitions.rs");

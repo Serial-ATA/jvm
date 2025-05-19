@@ -54,6 +54,21 @@ pub fn launch() -> Result<i32> {
 }
 
 fn main(args: cli::Args) -> Result<i32> {
+	macro_rules! handle_error {
+		(($vm:expr, $env:expr) $e:expr) => {
+			match $e {
+				Err(Error::Jni(JniError::ExceptionThrown)) => {
+					$env.exception_describe();
+					// TODO: Detach thread
+					$vm.destroy()?;
+					return Ok(1);
+				},
+				Err(e) => return Err(e),
+				Ok(val) => val,
+			}
+		};
+	}
+
 	let (vm, env) = native::init_java_vm(args.options.system_properties.unwrap_or_default())?;
 
 	if let Some(version) = args.version {
@@ -79,39 +94,28 @@ fn main(args: cli::Args) -> Result<i32> {
 			},
 		}
 
-		native::print_version(env, use_stderr)?;
+		handle_error!((vm, env) native::print_version(env, use_stderr));
 		if exit {
 			return Ok(0);
 		}
 	}
 
 	// Load the main class
-	let launcher_helper = native::LauncherHelper::new(env)?;
+	let launcher_helper = handle_error!((vm, env) native::LauncherHelper::new(env));
 
 	let launch_target = args.launch_target.as_ref().expect("launch_target");
 	let launch_mode = launch_target.mode();
 
-	let main_class = launcher_helper.check_and_load_main(
+	let main_class = handle_error!((vm, env) launcher_helper.check_and_load_main(
 		env,
 		true,
 		launch_mode,
 		launch_target.target().to_string(),
-	)?;
+	));
 
 	if args.dry_run {
 		return Ok(0);
 	}
 
-	match native::invoke_main_method(env, main_class, args.args) {
-		Err(Error::Jni(JniError::ExceptionThrown)) => {
-			env.exception_describe();
-			// TODO: Detach thread
-			vm.destroy()?;
-			return Ok(1);
-		},
-		Err(e) => return Err(e),
-		_ => {},
-	}
-
-	Ok(0)
+	handle_error!((vm, env) native::invoke_main_method(env, main_class, args.args).map(Ok))
 }

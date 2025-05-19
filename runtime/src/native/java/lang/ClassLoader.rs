@@ -3,8 +3,8 @@ use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
-use crate::thread::exceptions::{handle_exception, throw_and_return_null, Throws};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, handle_exception, throw_and_return_null};
 
 use ::jni::env::JniEnv;
 use ::jni::sys::jint;
@@ -189,11 +189,28 @@ pub fn findBootstrapClass(
 
 pub fn findLoadedClass0(
 	_env: JniEnv,
-	_this: Reference, // java.lang.Class
-	_name: Reference, // java.lang.String
+	this: Reference, // java.lang.ClassLoader
+	name: Reference, // java.lang.String
 ) -> Reference // java.lang.Class
 {
-	unimplemented!("java.lang.ClassLoader#findLoadedClass0")
+	if name.is_null() {
+		return Reference::null();
+	}
+
+	let name_str = classes::java::lang::String::extract(name.extract_class().get());
+	let internal_name = name_str.replace('.', "/");
+
+	let internal_name_sym = Symbol::intern(internal_name);
+
+	let Some(loader) = ClassLoaderSet::find(this, false) else {
+		// Unknown loader
+		return Reference::null();
+	};
+
+	match loader.lookup_class(internal_name_sym) {
+		None => Reference::null(),
+		Some(class) => Reference::mirror(class.mirror()),
+	}
 }
 
 pub fn retrieveDirectives(_env: JniEnv, _class: &'static Class) -> Reference // AssertionStatusDirectives

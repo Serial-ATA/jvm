@@ -1,18 +1,19 @@
 mod set;
 pub use set::*;
 
-use crate::classes;
 use crate::modules::{Module, ModuleLockGuard, ModuleSet, Package};
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
-use crate::symbols::Symbol;
-use crate::thread::exceptions::{throw, Throws};
+use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, throw};
+use crate::{classes, java_call};
+use crate::native::java::lang::String::StringInterner;
 
 use std::cell::SyncUnsafeCell;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
 use std::sync::{LazyLock, Mutex};
@@ -21,6 +22,7 @@ use classfile::constant_pool::types::raw as raw_types;
 use classfile::{ClassFile, FieldType};
 use common::int_types::u1;
 use common::traits::PtrType;
+use instructions::Operand;
 
 const SUPPORTED_MAJOR_LOWER_BOUND: u1 = 45;
 const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 69;
@@ -336,7 +338,7 @@ impl ClassLoader {
 			return self.load_bootstrap(name);
 		}
 
-		unimplemented!("User-defined class loaders")
+		self.load_user_defined(name)
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.3.1
@@ -363,6 +365,43 @@ impl ClassLoader {
 
 		// Otherwise, the process of loading and creating C succeeds.
 		Throws::Ok(classref)
+	}
+
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.3.2
+	fn load_user_defined(&'static self, name: Symbol) -> Throws<&'static Class> {
+		// First, the Java Virtual Machine determines whether the bootstrap class loader has
+		// already been recorded as an initiating loader of a class or interface denoted by N.
+		// If so, this class or interface is C, and no class loading or creation is necessary.
+		if let Some(ret) = self.lookup_class(name) {
+			return Throws::Ok(ret);
+		}
+
+		// Otherwise, the Java Virtual Machine invokes the loadClass method of class ClassLoader on L,
+		// passing the name N of a class or interface.
+
+		let name_string = StringInterner::intern(name);
+
+		let load_class_method = self
+			.obj
+			.extract_target_class()
+			.resolve_method(sym!(loadClass), sym!(String_Class_signature))?;
+
+		let ret = java_call!(
+			JavaThread::current(),
+			load_class_method,
+			Operand::Reference(self.obj()),
+			Operand::Reference(Reference::class(name_string))
+		);
+
+		if JavaThread::current().has_pending_exception() {
+			return Throws::PENDING_EXCEPTION;
+		}
+
+		let Some(Operand::Reference(ret)) = ret else {
+			throw!(@DEFER InternalError, "Unexpected return value from Classloader#loadClass");
+		};
+
+		Throws::Ok(ret.extract_target_class())
 	}
 
 	// Deriving a Class from a class File Representation

@@ -57,7 +57,7 @@ impl JvmOptions {
 			let option = unsafe { *init.options.add(pos) };
 			let option_string = unsafe { CStr::from_ptr(option.optionString) };
 
-			let mut opt_split = option_string.to_str().unwrap().splitn(1, "=");
+			let mut opt_split = option_string.to_str().unwrap().splitn(2, "=");
 
 			let key = opt_split.next().unwrap();
 
