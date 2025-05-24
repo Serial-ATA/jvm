@@ -60,7 +60,7 @@ pub fn ensureMaterializedForStackWalk(
 	_class: &'static Class,
 	_o: Reference, // java.lang.Object
 ) {
-	unimplemented!("java.lang.Thread#ensureMaterializedForStackWalk");
+	// Nothing to do
 }
 
 pub fn yield0(_env: JniEnv, _class: &'static Class) {

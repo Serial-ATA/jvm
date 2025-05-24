@@ -2,10 +2,12 @@ use crate::objects::field::Field;
 use crate::objects::monitor::Monitor;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
+use crate::thread::exceptions::Throws;
 
 use std::cell::Cell;
 use std::ptr::NonNull;
 use std::sync::Arc;
+use std::time::Duration;
 
 use instructions::Operand;
 use jni::sys::jint;
@@ -24,8 +26,16 @@ pub trait Instance {
 		self.monitor().exit(thread);
 	}
 
-	fn notify_all(&self) {
-		self.monitor().notify_all();
+	fn notify(&self, thread: &'static JavaThread) -> Throws<()> {
+		self.monitor().notify(thread)
+	}
+
+	fn notify_all(&self, thread: &'static JavaThread) -> Throws<()> {
+		self.monitor().notify_all(thread)
+	}
+
+	fn wait(&self, thread: &'static JavaThread, timeout: Option<Duration>) -> Throws<()> {
+		self.monitor().wait(thread, timeout)
 	}
 
 	fn get_field_value(&self, field: &Field) -> Operand<Reference>;

@@ -44,7 +44,13 @@ pub unsafe extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -
 	}
 
 	let ret = core::ptr::null::<Reference>() as jclass;
-	throw_with_ret!(ret, thread, NoClassDefFoundError, name.to_string_lossy());
+	throw_with_ret!(
+		ret,
+		thread,
+		NoClassDefFoundError,
+		"{}",
+		name.to_string_lossy()
+	);
 }
 
 #[unsafe(no_mangle)]

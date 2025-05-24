@@ -7,7 +7,58 @@ impl super::JniEnv {
 	//   NON-STATIC
 	// --------------
 
-	// TODO: GetMethodID
+	/// Returns the method ID for an instance (nonstatic) method of a class or interface.
+	///
+	/// This causes an uninitialized class to be initialized.
+	///
+	/// The method may be defined in one of the class’s superclasses and inherited by class.
+	/// The method is determined by its name and signature.
+	///
+	/// To obtain the method ID of a constructor, supply `<init>` as the method name and void (V) as the return type.
+	///
+	/// # Parameters
+	///
+	/// * `class`: The Java class object
+	/// * `name`: The method name
+	/// * `sig`: The method signature
+	///
+	/// # Errors
+	///
+	/// This will error if an exception is thrown.
+	///
+	/// Possible exceptions:
+	///
+	/// * `NoSuchMethodError`: The specified method cannot be found.
+	/// * `ExceptionInInitializerError`: The class initializer fails due to an exception.
+	/// * `OutOfMemoryError`: The system runs out of memory.
+	pub fn get_method_id(
+		&self,
+		class: JClass,
+		name: impl Into<JniString>,
+		sig: impl Into<JniString>,
+	) -> Result<JMethodId> {
+		let name = name.into();
+		let sig = sig.into();
+
+		let ret;
+		unsafe {
+			let invoke_interface = self.as_native_interface();
+			ret = ((*invoke_interface).GetMethodID)(
+				self.0 as _,
+				class.raw(),
+				name.as_cstr().as_ptr(),
+				sig.as_cstr().as_ptr(),
+			);
+		}
+
+		if self.exception_check() {
+			return Err(JniError::ExceptionThrown);
+		}
+
+		// Native call should've thrown `NoSuchMethodError`
+		assert!(!ret.is_null());
+		Ok(unsafe { JMethodId::from_raw(ret) })
+	}
 	// TODO: CallObjectMethod
 	// TODO: CallObjectMethodV
 	// TODO: CallObjectMethodA
@@ -79,6 +130,8 @@ impl super::JniEnv {
 	// --------------
 
 	/// Returns the method ID for a static method of a class.
+	///
+	/// This causes an uninitialized class to be initialized.
 	///
 	/// # Parameters
 	///

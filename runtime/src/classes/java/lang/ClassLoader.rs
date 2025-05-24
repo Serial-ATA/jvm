@@ -1,6 +1,7 @@
 use crate::classpath::loader::ClassLoader;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
+
 use classfile::FieldType;
 
 pub fn injected_loader_ptr_for(obj: Reference) -> Option<*const ClassLoader> {

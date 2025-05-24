@@ -209,7 +209,7 @@ impl Method {
 	pub fn find_exception_handler(&self, class: &'static Class, pc: isize) -> Option<isize> {
 		for exception_handler in &self.code.exception_table {
 			let active_range =
-				(exception_handler.start_pc as isize)..(exception_handler.end_pc as isize);
+				(exception_handler.start_pc as isize)..=(exception_handler.end_pc as isize);
 			if !active_range.contains(&pc) {
 				continue;
 			}

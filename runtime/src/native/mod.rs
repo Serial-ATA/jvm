@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+mod class;
 pub mod intrinsics;
 pub mod jni;
 pub mod lookup;
@@ -32,6 +33,7 @@ pub(crate) mod java {
 			pub(crate) mod MethodHandle;
 		}
 		pub(crate) mod r#ref {
+			pub(crate) mod PhantomReference;
 			pub(crate) mod Reference;
 			pub(crate) mod Finalizer;
 		}

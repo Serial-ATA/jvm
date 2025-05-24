@@ -4,6 +4,7 @@ use crate::classes;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 
+use std::os::fd::FromRawFd;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
@@ -56,6 +57,14 @@ pub fn getAppend(_: JniEnv, _class: &'static Class, fd_: jint) -> jboolean {
 }
 
 // throws IOException
-pub fn close0(_: JniEnv, _this: Reference) {
-	unimplemented!("java.io.FileDescriptor#close0");
+pub fn close0(_: JniEnv, this: Reference) {
+	let current_fd = classes::java::io::FileDescriptor::fd(this.clone());
+
+	classes::java::io::FileDescriptor::set_fd(this.clone(), -1);
+
+	#[cfg(windows)]
+	classes::java::io::FileDescriptor::set_handle(this, -1);
+
+	// Drop impl closes the file
+	let _ = unsafe { std::fs::File::from_raw_fd(current_fd) };
 }

@@ -2,6 +2,7 @@ mod set;
 pub use set::*;
 
 use crate::modules::{Module, ModuleLockGuard, ModuleSet, Package};
+use crate::native::java::lang::String::StringInterner;
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
@@ -9,7 +10,6 @@ use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 use crate::{classes, java_call};
-use crate::native::java::lang::String::StringInterner;
 
 use std::cell::SyncUnsafeCell;
 use std::collections::HashMap;

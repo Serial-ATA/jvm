@@ -148,6 +148,8 @@ pub enum ExceptionKind {
 	IndexOutOfBoundsException,
 	/// java.lang.IllegalThreadStateException
 	IllegalThreadStateException,
+	/// java.lang.IllegalMonitorStateException
+	IllegalMonitorStateException,
 
 	/// java.io.IOException
 	IOException,
@@ -197,6 +199,9 @@ impl ExceptionKind {
 			ExceptionKind::IndexOutOfBoundsException => sym!(java_lang_IndexOutOfBoundsException),
 			ExceptionKind::IllegalThreadStateException => {
 				sym!(java_lang_IllegalThreadStateException)
+			},
+			ExceptionKind::IllegalMonitorStateException => {
+				sym!(java_lang_IllegalMonitorStateException)
 			},
 
 			ExceptionKind::IOException => sym!(java_io_IOException),
@@ -312,7 +317,7 @@ macro_rules! throw {
 	}};
 	(@CONSTRUCT $exception_variant:ident, $message:expr) => {{
 		crate::thread::exceptions::Exception::with_message(
-			crate::thread::exceptions::ExceptionKind::$exception_variant, $message
+			crate::thread::exceptions::ExceptionKind::$exception_variant, format!($message)
 		)
 	}};
 	(@CONSTRUCT $exception_variant:ident, $message:expr, $($arg:expr),+ $(,)?) => {{

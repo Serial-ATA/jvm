@@ -19,5 +19,5 @@ pub fn fd(this: &Reference) -> jint {
 	let fd_field_offset = fd_field_offset();
 	let file_descriptor_ref = this.get_field_value0(fd_field_offset).expect_reference();
 
-	FileDescriptor::fd(&file_descriptor_ref)
+	FileDescriptor::fd(file_descriptor_ref)
 }

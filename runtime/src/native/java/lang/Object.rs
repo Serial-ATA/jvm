@@ -1,7 +1,9 @@
 use crate::objects::instance::{CloneableInstance, Instance};
 use crate::objects::reference::Reference;
-use crate::thread::exceptions::throw_and_return_null;
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, throw_and_return_null};
+
+use std::time::Duration;
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jint, jlong};
@@ -53,18 +55,38 @@ pub fn clone(_: JniEnv, this: Reference /* java.lang.Object */) -> Reference /* 
 	Reference::class(cloned)
 }
 
-pub fn notify(_: JniEnv, _this: Reference /* java.lang.Object */) {
-	unimplemented!("Object#notify")
+pub fn notify(env: JniEnv, this: Reference /* java.lang.Object */) {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	if let Throws::Exception(e) = this.notify(thread) {
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		e.throw(thread);
+	}
 }
 
-pub fn notifyAll(_: JniEnv, this: Reference /* java.lang.Object */) {
-	this.notify_all();
+pub fn notifyAll(env: JniEnv, this: Reference /* java.lang.Object */) {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	if let Throws::Exception(e) = this.notify_all(thread) {
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		e.throw(thread);
+	}
 }
 
 pub fn wait0(
-	_: JniEnv,
-	_this: Reference, // java.lang.Object
-	_timeout_millis: jlong,
+	env: JniEnv,
+	this: Reference, // java.lang.Object
+	timeout_millis: jlong,
 ) {
-	unimplemented!("Object#wait0")
+	let timeout;
+	if timeout_millis > 0 {
+		timeout = Some(Duration::from_millis(timeout_millis as u64));
+	} else {
+		timeout = None;
+	}
+
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	if let Throws::Exception(e) = this.wait(thread, timeout) {
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		e.throw(thread);
+	}
 }

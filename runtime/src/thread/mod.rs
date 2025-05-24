@@ -595,6 +595,8 @@ impl JavaThread {
 			return;
 		};
 
+		assert!(!exception.is_null(), "failed to construct exception?");
+
 		// https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-6.html#jvms-6.5.athrow
 		// The objectref must be of type reference and must refer to an object that is an instance of class Throwable or of a subclass of Throwable.
 
@@ -619,6 +621,7 @@ impl JavaThread {
 				// The pc register is reset to that location, the operand stack of the current frame is cleared, objectref
 				// is pushed back onto the operand stack, and execution continues.
 				self.pc.store(handler_pc, Ordering::Relaxed);
+				let _ = current_frame.take_cached_depth();
 
 				let stack = current_frame.stack_mut();
 				stack.clear();

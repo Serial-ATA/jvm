@@ -31,6 +31,7 @@ bumpalo = "3.16.0"
 
 [build-dependencies]
 native_methods = { path = "../generators/native_methods" }
+build-deps.workspace = true
 
 [lib]
 name = "jvm_runtime"

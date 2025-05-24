@@ -1,10 +1,10 @@
 use super::{IntoJni, method_ref_from_jmethodid, reference_from_jobject};
 use crate::objects::method::Method;
+use crate::objects::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::Throws;
-use crate::objects::reference::Reference;
 
 use core::ffi::c_char;
 use instructions::Operand;
@@ -24,7 +24,27 @@ pub unsafe extern "system" fn GetMethodID(
 	name: *const c_char,
 	sig: *const c_char,
 ) -> jmethodID {
-	unimplemented!("jni::GetMethodID")
+	let name = unsafe { CStr::from_ptr(name) };
+	let sig = unsafe { CStr::from_ptr(sig) };
+
+	let name = Symbol::intern(name.to_bytes());
+	let sig = Symbol::intern(sig.to_bytes());
+
+	let Some(class_obj) = (unsafe { reference_from_jobject(clazz) }) else {
+		return core::ptr::null::<Method>() as jmethodID;
+	};
+
+	let class = class_obj.extract_target_class();
+	match class.resolve_method(name, sig) {
+		Throws::Ok(method) => method.into_jni(),
+		Throws::Exception(e) => {
+			let thread = JavaThread::current();
+			assert_eq!(thread.env().raw(), env);
+			e.throw(thread);
+
+			core::ptr::null::<Method>() as jmethodID
+		},
+	}
 }
 
 #[unsafe(no_mangle)]
@@ -666,27 +686,7 @@ pub unsafe extern "system" fn GetStaticMethodID(
 	name: *const c_char,
 	sig: *const c_char,
 ) -> jmethodID {
-	let name = unsafe { CStr::from_ptr(name) };
-	let sig = unsafe { CStr::from_ptr(sig) };
-
-	let name = Symbol::intern(name.to_bytes());
-	let sig = Symbol::intern(sig.to_bytes());
-
-	let Some(class_obj) = (unsafe { reference_from_jobject(clazz) }) else {
-		return core::ptr::null::<Method>() as jmethodID;
-	};
-
-	let class = class_obj.extract_target_class();
-	match class.resolve_method(name, sig) {
-		Throws::Ok(method) => method.into_jni(),
-		Throws::Exception(e) => {
-			let thread = JavaThread::current();
-			assert_eq!(thread.env().raw(), env);
-			e.throw(thread);
-
-			core::ptr::null::<Method>() as jmethodID
-		},
-	}
+	unsafe { GetMethodID(env, clazz, name, sig) }
 }
 
 #[unsafe(no_mangle)]
@@ -1025,7 +1025,7 @@ pub unsafe extern "system" fn CallStaticVoidMethodA(
 	call_with_c_array_args(env, cls, methodID, args);
 }
 
-fn call_with_c_array_args(
+pub(super) fn call_with_c_array_args(
 	env: *mut JNIEnv,
 	cls: jclass,
 	methodID: jmethodID,

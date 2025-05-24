@@ -1,4 +1,9 @@
+use crate::native::jni::{IntoJni, reference_from_jobject};
+use crate::objects::class_instance::ClassInstance;
+use crate::objects::reference::Reference;
+use instructions::Operand;
 use jni::sys::{JNIEnv, jboolean, jclass, jmethodID, jobject, jobjectRefType, jvalue, va_list};
+use std::ptr;
 
 #[unsafe(no_mangle)]
 pub extern "system" fn AllocObject(env: *mut JNIEnv, clazz: jclass) -> jobject {
@@ -37,7 +42,29 @@ pub extern "system" fn NewObjectA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jobject {
-	unimplemented!("jni::NewObjectA")
+	let class_obj = unsafe { reference_from_jobject(clazz) };
+	let Some(class_obj) = class_obj else {
+		return ptr::null_mut();
+	};
+
+	let class = class_obj.extract_target_class();
+	let obj = Reference::class(ClassInstance::new(class));
+
+	let mut args_with_receiver = vec![jvalue {
+		l: obj.clone().into_jni(),
+	}];
+	for i in 0usize.. {
+		if unsafe { args.add(i) }.is_null() {
+			break;
+		}
+
+		args_with_receiver.push(unsafe { *args });
+	}
+
+	unsafe {
+		super::method::call_with_c_array_args(env, clazz, methodID, args_with_receiver.as_ptr())
+	};
+	obj.into_jni()
 }
 
 #[unsafe(no_mangle)]

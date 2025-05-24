@@ -2,8 +2,8 @@
 
 use crate::dynamic::var_handle;
 use crate::method_invoker::MethodInvoker;
-use crate::native::java::lang::invoke::MethodHandle;
 use crate::native::java::lang::String::StringInterner;
+use crate::native::java::lang::invoke::MethodHandle;
 use crate::objects::array::{Array, ObjectArrayInstance, PrimitiveArrayInstance};
 use crate::objects::class::{Class, ClassInitializationState};
 use crate::objects::class_instance::ClassInstance;
@@ -13,20 +13,20 @@ use crate::objects::instance::Instance;
 use crate::objects::method::{Method, MethodEntryPoint};
 use crate::objects::reference::{ClassInstanceRef, ObjectArrayInstanceRef, Reference};
 use crate::stack::local_stack::LocalStack;
-use crate::symbols::{sym, Symbol};
+use crate::symbols::{Symbol, sym};
 use crate::thread::exceptions::{
-	handle_exception, throw, throw_with_ret, Exception, ExceptionKind, Throws,
+	Exception, ExceptionKind, Throws, handle_exception, throw, throw_with_ret,
 };
 use crate::thread::frame::{Frame, PcUpdateStrategy};
-use crate::thread::{exceptions, JavaThread};
+use crate::thread::{JavaThread, exceptions};
 use crate::{classes, java_call};
 
 use std::cmp::Ordering;
-use std::sync::atomic::Ordering as MemOrdering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering as MemOrdering;
 
-use classfile::constant_pool::ConstantPoolValueInfo;
 use classfile::FieldType;
+use classfile::constant_pool::ConstantPoolValueInfo;
 use common::int_types::{s2, s4, s8, u2};
 use common::traits::PtrType;
 use instructions::{OpCode, Operand, StackLike};
@@ -743,7 +743,12 @@ impl Interpreter {
                 OpCode::athrow => {
                     let object_ref = frame.stack_mut().pop_reference();
                     let thread = frame.thread();
-                    thread.set_pending_exception(object_ref);
+                    if object_ref.is_null() {
+                        Exception::new(ExceptionKind::NullPointerException).throw(thread);
+                    } else {
+                        thread.set_pending_exception(object_ref);
+                    }
+
                     thread.handle_pending_exception();
                     return;
                 },
@@ -751,11 +756,11 @@ impl Interpreter {
                 OpCode::checkcast => { Self::instanceof_checkcast(frame, opcode) },
                 OpCode::monitorenter => {
                     let object_ref = frame.stack_mut().pop_reference();
-                    object_ref.monitor_enter(JavaThread::current())
+                    object_ref.monitor_enter(frame.thread())
                 },
                 OpCode::monitorexit => {
                     let object_ref = frame.stack_mut().pop_reference();
-                    object_ref.monitor_exit(JavaThread::current())
+                    object_ref.monitor_exit(frame.thread())
                 };
 
                 // ========= Control =========

@@ -47,8 +47,8 @@ pub fn intern(_env: JniEnv, this: Reference /* java.lang.String */) -> Reference
 		computed_hash = StringHash(0);
 	} else {
 		let hash = match coder {
-			LATIN1 => <&[u1] as StringHashDerivable<&[u1]>>::hash(&value_unsigned),
-			UTF16 => <&[u2] as StringHashDerivable<&[u2]>>::hash(
+			LATIN1 => <&[u1] as StringHashDerivable<&[u1]>>::string_hash(&value_unsigned),
+			UTF16 => <&[u2] as StringHashDerivable<&[u2]>>::string_hash(
 				&value_unsigned.as_slice_of::<u2>().unwrap(),
 			),
 			_ => panic!("Invalid string coder `{coder}`"),
@@ -82,20 +82,21 @@ fn lookup(hash: StringHash) -> Option<ClassInstanceRef> {
 pub struct StringHash(i32);
 
 pub trait StringHashDerivable<T> {
-	fn hash(value: &T) -> StringHash;
+	fn string_hash(value: &T) -> StringHash;
 }
 
+impl StringHashDerivable<String> for String {
+	fn string_hash(value: &String) -> StringHash {
+		<&str as StringHashDerivable<&str>>::string_hash(&value.as_str())
+	}
+}
 impl<'a> StringHashDerivable<&'a str> for &'a str {
-	fn hash(value: &Self) -> StringHash {
-		let mut h = 0;
-		for b in value.as_bytes() {
-			h = (31_u32.wrapping_mul(h)) + (*b as u32);
-		}
-		StringHash(h as i32)
+	fn string_hash(value: &Self) -> StringHash {
+		<&[u1] as StringHashDerivable<&[u1]>>::string_hash(&value.as_bytes())
 	}
 }
 impl<'a> StringHashDerivable<&'a [u1]> for &'a [u1] {
-	fn hash(value: &Self) -> StringHash {
+	fn string_hash(value: &Self) -> StringHash {
 		let mut h = 0;
 		for b in value.iter() {
 			h = (31_u32.wrapping_mul(h)) + (*b as u32);
@@ -104,7 +105,7 @@ impl<'a> StringHashDerivable<&'a [u1]> for &'a [u1] {
 	}
 }
 impl<'a> StringHashDerivable<&'a [u2]> for &'a [u2] {
-	fn hash(value: &Self) -> StringHash {
+	fn string_hash(value: &Self) -> StringHash {
 		let mut h = 0;
 		for b in value.iter() {
 			h = (31_u32.wrapping_mul(h)) + (*b as u32);
@@ -114,8 +115,8 @@ impl<'a> StringHashDerivable<&'a [u2]> for &'a [u2] {
 }
 
 impl StringHashDerivable<Symbol> for Symbol {
-	fn hash(value: &Self) -> StringHash {
-		<&str as StringHashDerivable<&str>>::hash(&value.as_str())
+	fn string_hash(value: &Self) -> StringHash {
+		<&str as StringHashDerivable<&str>>::string_hash(&value.as_str())
 	}
 }
 
@@ -127,7 +128,7 @@ where
 	T: Into<Symbol>,
 {
 	pub fn intern(string: T) -> ClassInstanceRef {
-		let hash = <T as StringHashDerivable<T>>::hash(&string);
+		let hash = <T as StringHashDerivable<T>>::string_hash(&string);
 
 		if let Some(entry) = lookup(hash) {
 			return entry;

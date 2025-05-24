@@ -6,9 +6,10 @@ use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
-use crate::thread::exceptions::throw_and_return_null;
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{throw_and_return_null, throw_with_ret};
 
+use std::fs;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
@@ -16,18 +17,6 @@ use ::jni::sys::{jboolean, jint, jlong};
 use common::traits::PtrType;
 
 include_generated!("native/java/io/def/UnixFileSystem.definitions.rs");
-
-// TODO: move to classes
-fn get_file_path(file: Reference) -> String {
-	let path_field_offset = classes::java::io::File::path_field_offset();
-	let f = file.extract_class();
-	let value = f
-		.get()
-		.get_field_value0(path_field_offset)
-		.expect_reference();
-
-	classes::java::lang::String::extract(value.extract_class().get())
-}
 
 pub fn canonicalize0(
 	env: JniEnv,
@@ -57,7 +46,7 @@ pub fn getBooleanAttributes0(
 	use super::FileSystem::{BA_DIRECTORY, BA_EXISTS, BA_REGULAR};
 
 	use std::os::unix::fs::MetadataExt;
-	let path = get_file_path(f);
+	let path = classes::java::io::File::path(f);
 
 	let Ok(metadata) = std::fs::metadata(path) else {
 		return 0;
@@ -105,11 +94,21 @@ pub fn getLastModifiedTime0(
 }
 
 pub fn getLength0(
-	_: JniEnv,
+	env: JniEnv,
 	_this: Reference,
-	_f: Reference, // java.io.File
+	f: Reference, // java.io.File
 ) -> jlong {
-	unimplemented!("java.io.UnixFileSystem#getLength0");
+	if f.is_null() {
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		throw_with_ret!(0, thread, NullPointerException);
+	}
+
+	let path = classes::java::io::File::path(f);
+	let Ok(metadata) = fs::metadata(path) else {
+		return 0;
+	};
+
+	metadata.len() as jlong
 }
 
 pub fn setPermission0(

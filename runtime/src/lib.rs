@@ -12,6 +12,9 @@
 #![feature(associated_type_defaults)]
 #![feature(ptr_as_ref_unchecked)]
 #![feature(iter_next_chunk)]
+#![feature(if_let_guard)]
+#![feature(reentrant_lock)]
+#![feature(std_internals)]
 
 pub mod calls;
 pub mod classes;

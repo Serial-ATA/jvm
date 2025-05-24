@@ -4,8 +4,11 @@ pub mod Raw {
 	use crate::objects::array::{Array, ObjectArrayInstance};
 	use crate::objects::class::Class;
 	use crate::objects::reference::Reference;
-	use crate::thread::exceptions::Throws;
 	use crate::thread::JavaThread;
+	use crate::thread::exceptions::Throws;
+
+	use std::collections::HashMap;
+	use std::sync::{LazyLock, Mutex};
 
 	use ::jni::env::JniEnv;
 	use common::traits::PtrType;
@@ -19,31 +22,27 @@ pub mod Raw {
 	const VM_VERSION: &str = env!("CARGO_PKG_VERSION");
 	const VM_VENDOR: &str = env!("SYSTEM_PROPS_VM_VENDOR");
 
+	pub static SYSTEM_PROPERTIES: LazyLock<Mutex<HashMap<String, String>>> = LazyLock::new(|| {
+		let mut m = HashMap::new();
+
+		m.insert(String::from("java.version"), String::from(JAVA_VERSION));
+		m.insert(
+			String::from("java.vm.specification.name"),
+			String::from(VM_SPECIFICATION_NAME),
+		);
+		m.insert(String::from("java.vm.name"), String::from(VM_NAME));
+		m.insert(String::from("java.vm.version"), String::from(VM_VERSION));
+		m.insert(String::from("java.vm.vendor"), String::from(VM_VENDOR));
+		// TODO: This isn't entirely accurate, there are more steps to determining java home.
+		m.insert(
+			String::from("java.home"),
+			std::env::var("JAVA_HOME").unwrap(),
+		);
+		Mutex::new(m)
+	});
+
 	pub fn vmProperties(env: JniEnv, _class: &'static Class) -> Reference /* [Ljava/lang/String; */
 	{
-		macro_rules! store_properties {
-			($prop_array:ident; $($key:literal => $value:expr),+ $(,)?) => {
-				let mut index = 0;
-				$(
-					let interned_key_string = StringInterner::intern($key);
-					let interned_value_string = StringInterner::intern(&*String::from($value));
-					if let Throws::Exception(e) = $prop_array.store(index, Reference::class(interned_key_string)) {
-						let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-						e.throw(thread);
-						return Reference::null();
-					}
-					index += 1;
-					if let Throws::Exception(e) = $prop_array.store(index, Reference::class(interned_value_string)) {
-						let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-						e.throw(thread);
-						return Reference::null();
-					}
-					index += 1;
-					let _ = index;
-				)+
-			};
-		}
-
 		// TODO: FIXED_LENGTH is not the correct size here
 		let string_array_class = crate::globals::classes::string_array();
 		let prop_array;
@@ -59,22 +58,35 @@ pub mod Raw {
 		}
 
 		let prop_array_mut = prop_array.get_mut();
-		store_properties!(prop_array_mut;
-			// TODO: Set more properties
-			"java.version" => JAVA_VERSION,
 
-			"java.vm.specification.name" => VM_SPECIFICATION_NAME,
+		let mut index = 0;
+		for (key, val) in SYSTEM_PROPERTIES.lock().unwrap().iter() {
+			let interned_key_string = StringInterner::intern(&**key);
+			let interned_value_string = StringInterner::intern(&**val);
+			if let Throws::Exception(e) =
+				prop_array_mut.store(index, Reference::class(interned_key_string))
+			{
+				let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+				e.throw(thread);
+				return Reference::null();
+			}
 
-			"java.vm.name" => VM_NAME,
-			"java.vm.version" => VM_VERSION,
-			"java.vm.vendor" => VM_VENDOR,
+			index += 1;
+			if let Throws::Exception(e) =
+				prop_array_mut.store(index, Reference::class(interned_value_string))
+			{
+				let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+				e.throw(thread);
+				return Reference::null();
+			}
 
-			// TODO: This isn't entirely accurate, there are more steps to determining java home.
-			"java.home" => std::env::var("JAVA_HOME").unwrap(),
-
-			"sj.debug" => "true",
-			"java.lang.invoke.MethodHandle.DEBUG_NAMES" => "true",
-		);
+			index += 1;
+		}
+		// store_properties!(prop_array_mut;
+		// 	"sun.misc.URLClassPath.debug" => "true",
+		// 	"jdk.net.URLClassPath.showIgnoredClassPathEntries" => "true",
+		// 	"java.lang.invoke.MethodHandle.DEBUG_NAMES" => "true",
+		// );
 
 		Reference::object_array(prop_array)
 	}
@@ -111,50 +123,50 @@ pub mod Raw {
 
 		let prop_array_mut = prop_array.get_mut();
 
-		let mut system_properties = platform::properties::PropertySet::default();
-		system_properties.fill().unwrap();
+		let mut platform_properties = platform::properties::PropertySet::default();
+		platform_properties.fill().unwrap();
 
 		store_properties!(prop_array_mut;
-			_display_country_NDX         => system_properties.display_country,
-			_display_language_NDX        => system_properties.display_language,
-			_display_script_NDX          => system_properties.display_script,
-			_display_variant_NDX         => system_properties.display_variant,
-			_file_separator_NDX          => system_properties.file_separator,
-			_format_country_NDX          => system_properties.format_country,
-			_format_language_NDX         => system_properties.format_language,
-			_format_script_NDX           => system_properties.format_script,
-			_format_variant_NDX          => system_properties.format_variant,
-			_ftp_nonProxyHosts_NDX       => system_properties.ftp_nonProxyHosts,
-			_ftp_proxyHost_NDX           => system_properties.ftp_proxyHost,
-			_ftp_proxyPort_NDX           => system_properties.ftp_proxyPort,
-			_http_nonProxyHosts_NDX      => system_properties.http_nonProxyHosts,
-			_http_proxyHost_NDX          => system_properties.http_proxyHost,
-			_http_proxyPort_NDX          => system_properties.http_proxyPort,
-			_https_proxyHost_NDX         => system_properties.https_proxyHost,
-			_https_proxyPort_NDX         => system_properties.https_proxyPort,
-			_java_io_tmpdir_NDX          => system_properties.java_io_tmpdir,
-			_line_separator_NDX          => system_properties.line_separator,
-			_native_encoding_NDX         => system_properties.native_encoding,
-			_os_arch_NDX                 => system_properties.os_arch,
-			_os_name_NDX                 => system_properties.os_name,
-			_os_version_NDX              => system_properties.os_version,
-			_path_separator_NDX          => system_properties.path_separator,
-			_socksNonProxyHosts_NDX      => system_properties.socksNonProxyHosts,
-			_socksProxyHost_NDX          => system_properties.socksProxyHost,
-			_socksProxyPort_NDX          => system_properties.socksProxyPort,
-			_stderr_encoding_NDX         => system_properties.stderr_encoding,
-			_stdin_encoding_NDX          => system_properties.stdin_encoding,
-			_stdout_encoding_NDX         => system_properties.stdout_encoding,
-			_sun_arch_abi_NDX            => system_properties.sun_arch_abi,
-			_sun_arch_data_model_NDX     => system_properties.sun_arch_data_model,
-			_sun_cpu_endian_NDX          => system_properties.sun_cpu_endian,
-			_sun_cpu_isalist_NDX         => system_properties.sun_cpu_isalist,
-			_sun_io_unicode_encoding_NDX => system_properties.sun_io_unicode_encoding,
-			_sun_jnu_encoding_NDX        => system_properties.sun_jnu_encoding,
-			_sun_os_patch_level_NDX      => system_properties.sun_os_patch_level,
-			_user_dir_NDX                => system_properties.user_dir,
-			_user_home_NDX               => system_properties.user_home,
-			_user_name_NDX               => system_properties.user_name,
+			_display_country_NDX         => platform_properties.display_country,
+			_display_language_NDX        => platform_properties.display_language,
+			_display_script_NDX          => platform_properties.display_script,
+			_display_variant_NDX         => platform_properties.display_variant,
+			_file_separator_NDX          => platform_properties.file_separator,
+			_format_country_NDX          => platform_properties.format_country,
+			_format_language_NDX         => platform_properties.format_language,
+			_format_script_NDX           => platform_properties.format_script,
+			_format_variant_NDX          => platform_properties.format_variant,
+			_ftp_nonProxyHosts_NDX       => platform_properties.ftp_nonProxyHosts,
+			_ftp_proxyHost_NDX           => platform_properties.ftp_proxyHost,
+			_ftp_proxyPort_NDX           => platform_properties.ftp_proxyPort,
+			_http_nonProxyHosts_NDX      => platform_properties.http_nonProxyHosts,
+			_http_proxyHost_NDX          => platform_properties.http_proxyHost,
+			_http_proxyPort_NDX          => platform_properties.http_proxyPort,
+			_https_proxyHost_NDX         => platform_properties.https_proxyHost,
+			_https_proxyPort_NDX         => platform_properties.https_proxyPort,
+			_java_io_tmpdir_NDX          => platform_properties.java_io_tmpdir,
+			_line_separator_NDX          => platform_properties.line_separator,
+			_native_encoding_NDX         => platform_properties.native_encoding,
+			_os_arch_NDX                 => platform_properties.os_arch,
+			_os_name_NDX                 => platform_properties.os_name,
+			_os_version_NDX              => platform_properties.os_version,
+			_path_separator_NDX          => platform_properties.path_separator,
+			_socksNonProxyHosts_NDX      => platform_properties.socksNonProxyHosts,
+			_socksProxyHost_NDX          => platform_properties.socksProxyHost,
+			_socksProxyPort_NDX          => platform_properties.socksProxyPort,
+			_stderr_encoding_NDX         => platform_properties.stderr_encoding,
+			_stdin_encoding_NDX          => platform_properties.stdin_encoding,
+			_stdout_encoding_NDX         => platform_properties.stdout_encoding,
+			_sun_arch_abi_NDX            => platform_properties.sun_arch_abi,
+			_sun_arch_data_model_NDX     => platform_properties.sun_arch_data_model,
+			_sun_cpu_endian_NDX          => platform_properties.sun_cpu_endian,
+			_sun_cpu_isalist_NDX         => platform_properties.sun_cpu_isalist,
+			_sun_io_unicode_encoding_NDX => platform_properties.sun_io_unicode_encoding,
+			_sun_jnu_encoding_NDX        => platform_properties.sun_jnu_encoding,
+			_sun_os_patch_level_NDX      => platform_properties.sun_os_patch_level,
+			_user_dir_NDX                => platform_properties.user_dir,
+			_user_home_NDX               => platform_properties.user_home,
+			_user_name_NDX               => platform_properties.user_name,
 		);
 
 		Reference::object_array(prop_array)

@@ -2,6 +2,7 @@ mod error;
 
 use crate::classpath::{ClassPathEntry, add_classpath_entry};
 use crate::options::error::OptionsError;
+use crate::native::jdk::internal::util::SystemProps::Raw::SYSTEM_PROPERTIES;
 
 use std::ffi::{CStr, c_char, c_int, c_void};
 use std::mem;
@@ -37,22 +38,26 @@ impl Default for Hooks {
 	}
 }
 
-pub struct JvmOptions {
-	hooks: Hooks,
+#[derive(Copy, Clone, Default, Debug, PartialEq, Eq)]
+pub enum Verbosity {
+	#[default]
+	Class,
+	Module,
+	Gc,
+	Jni,
 }
 
-impl Default for JvmOptions {
-	fn default() -> Self {
-		Self {
-			hooks: Hooks::default(),
-		}
-	}
+#[derive(Default)]
+pub struct JvmOptions {
+	hooks: Hooks,
+	verbosity: Option<Verbosity>,
 }
 
 impl JvmOptions {
 	pub unsafe fn load(init: &JavaVMInitArgs) -> Result<Self, OptionsError> {
 		let mut options = JvmOptions::default();
 
+		let mut system_props_guard = SYSTEM_PROPERTIES.lock().unwrap();
 		for pos in 0..init.nOptions as usize {
 			let option = unsafe { *init.options.add(pos) };
 			let option_string = unsafe { CStr::from_ptr(option.optionString) };
@@ -66,6 +71,18 @@ impl JvmOptions {
 				"vfprintf" => options.hooks.vfprintf = unsafe { mem::transmute(option.extraInfo) },
 				"exit" => options.hooks.exit = unsafe { mem::transmute(option.extraInfo) },
 				"abort" => options.hooks.abort = unsafe { mem::transmute(option.extraInfo) },
+				_ if let Some(verbosity) = key.strip_prefix("-verbose") => {
+					options.verbosity = Some(match verbosity.split_once(":") {
+						Some((_, target)) => match target {
+							"class" => Verbosity::Class,
+							"module" => Verbosity::Module,
+							"gc" => Verbosity::Gc,
+							"jni" => Verbosity::Jni,
+							_ => Verbosity::default(),
+						},
+						None => Verbosity::default(),
+					});
+				},
 				_ => {},
 			}
 
@@ -76,6 +93,11 @@ impl JvmOptions {
 					for path in val.split(':') {
 						add_classpath_entry(ClassPathEntry::new(path));
 					}
+
+					system_props_guard.insert(String::from("java.class.path"), String::from(val));
+				},
+				_ if let Some(system_prop) = key.strip_prefix("-D") => {
+					system_props_guard.insert(String::from(system_prop), String::from(val));
 				},
 				_ => {
 					if !init.ignoreUnrecognized {

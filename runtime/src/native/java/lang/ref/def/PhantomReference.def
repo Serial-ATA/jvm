@@ -1,0 +1,9 @@
+import java.lang.Object;
+
+public abstract class PhantomReference {
+    @IntrinsicCandidate
+    private native boolean refersTo0(Object o);
+
+    @IntrinsicCandidate
+    private native void clear0();
+}

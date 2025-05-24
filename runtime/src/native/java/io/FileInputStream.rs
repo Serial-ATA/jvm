@@ -1,26 +1,60 @@
 #![allow(non_upper_case_globals)]
 
-use crate::classes;
+use crate::native::java::lang::String::StringInterner;
+use crate::native::jni::IntoJni;
 use crate::objects::array::Array;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
-use crate::thread::exceptions::throw_with_ret;
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{throw, throw_with_ret};
+use crate::{classes, native};
 
+use std::fs;
 use std::io::{Read, Seek};
 use std::mem::ManuallyDrop;
-use std::os::fd::{FromRawFd, RawFd};
+use std::os::fd::{AsRawFd, FromRawFd, RawFd};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
 use common::traits::PtrType;
+use jni::objects::JString;
 
 include_generated!("native/java/io/def/FileInputStream.definitions.rs");
 
 // throws FileNotFoundException
-pub fn open0(_: JniEnv, _this: Reference, _name: Reference /* java.lang.String */) {
-	unimplemented!("java.io.FileInputStream#open0");
+pub fn open0(env: JniEnv, this: Reference, name: Reference /* java.lang.String */) {
+	if name.is_null() {
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		throw!(thread, NullPointerException);
+	}
+
+	let path = classes::java::lang::String::extract(name.extract_class().get());
+
+	let file;
+	match fs::OpenOptions::new().read(true).open(path) {
+		Ok(f) => file = ManuallyDrop::new(f),
+		Err(e) => {
+			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+			let path_jstring = unsafe { JString::from_raw(name.into_jni()) };
+			let reason = Reference::class(StringInterner::intern(e.to_string()));
+			let reason_jstring = unsafe { JString::from_raw(reason.into_jni()) };
+
+			if let Some(exception) = native::class::construct_class(
+				thread,
+				"java/io/FileNotFoundException",
+				"(Ljava/lang/String;Ljava/lang/String;)V",
+				[path_jstring, reason_jstring],
+			) {
+				thread.set_pending_exception(exception);
+			}
+
+			return;
+		},
+	}
+
+	classes::java::io::FileInputStream::set_fd(this, file.as_raw_fd())
 }
 
 // throws IOException
@@ -52,18 +86,18 @@ pub fn readBytes(
 	}
 
 	// Need to convert the jbyte[] to a &[u8]
-	let mut window = &mut b.get_mut().as_bytes_mut()[off as usize..(off + len) as usize];
+	let window = &mut b.get_mut().as_bytes_mut()[off as usize..(off + len) as usize];
 
-	let current_fd = classes::java::io::FileInputStream::fd(&this);
+	let current_fd = classes::java::io::FileInputStream::fd(this);
 	if current_fd == -1 {
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw_with_ret!(-1, thread, IOException, "stream closed");
 	}
 
 	// Wrap in `ManuallyDrop` so the file descriptor doesn't get closed
-	let mut file = ManuallyDrop::new(unsafe { std::fs::File::from_raw_fd(current_fd as RawFd) });
+	let mut file = ManuallyDrop::new(unsafe { fs::File::from_raw_fd(current_fd as RawFd) });
 
-	match file.read(&mut window[off as usize..]) {
+	match file.read(window) {
 		Ok(n) => n as jint,
 		Err(e) => {
 			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
@@ -89,14 +123,14 @@ pub fn skip0(_: JniEnv, _this: Reference, _n: jlong) -> jlong {
 
 // throws IOException
 pub fn available0(env: JniEnv, this: Reference) -> jint {
-	let current_fd = classes::java::io::FileInputStream::fd(&this);
+	let current_fd = classes::java::io::FileInputStream::fd(this);
 	if current_fd == -1 {
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw_with_ret!(0, thread, IOException, "stream closed");
 	}
 
 	// Wrap in `ManuallyDrop` so the file descriptor doesn't get closed
-	let mut file = ManuallyDrop::new(unsafe { std::fs::File::from_raw_fd(current_fd as RawFd) });
+	let mut file = ManuallyDrop::new(unsafe { fs::File::from_raw_fd(current_fd as RawFd) });
 
 	let Ok(current) = file.stream_position() else {
 		return 0;

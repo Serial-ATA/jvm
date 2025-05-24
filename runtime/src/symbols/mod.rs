@@ -269,6 +269,7 @@ vm_symbols::define_symbols! {
 	java_lang_IllegalStateException: "java/lang/IllegalStateException",
 	java_lang_IndexOutOfBoundsException: "java/lang/IndexOutOfBoundsException",
 	java_lang_IllegalThreadStateException: "java/lang/IllegalThreadStateException",
+	java_lang_IllegalMonitorStateException: "java/lang/IllegalMonitorStateException",
 
 	java_io_IOException: "java/io/IOException",
 
