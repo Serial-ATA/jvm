@@ -1,5 +1,5 @@
-use super::native::NativeFrame;
 use super::Frame;
+use super::native::NativeFrame;
 use crate::objects::method::Method;
 
 use std::cell::UnsafeCell;

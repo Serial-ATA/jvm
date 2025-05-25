@@ -135,13 +135,23 @@ fn extract(dir: String, path: PathBuf) -> Result<()> {
 				return Ok(());
 			};
 
-			let mut bytes = vec![0; location.uncompressed_size() as usize];
-			jimage.get_resource_from_location(location, &mut bytes);
-			if resource.write_all(&bytes).is_err() {
-				exit(format!(
-					"Cannot write to file '{}'",
-					local_resource_path.to_string_lossy()
-				));
+			match jimage.get_resource_from_location(location) {
+				Ok(bytes) => {
+					if resource.write_all(&bytes).is_err() {
+						exit(format!(
+							"Cannot write to file '{}'",
+							local_resource_path.to_string_lossy()
+						));
+					}
+				},
+				Err(e) => {
+					exit(format!(
+						"Failed to get resource from location {}: {e}",
+						location
+							.full_name(true)
+							.unwrap_or(String::from("(unknown/invalid location)")),
+					));
+				},
 			}
 
 			Ok(())
@@ -193,11 +203,20 @@ fn verify(path: PathBuf) -> Result<()> {
 		|_| {},
 		|name, location, jimage| {
 			if name.ends_with(".class") && !name.ends_with("module-info.class") {
-				let mut resource = vec![0; location.uncompressed_size() as usize];
-				jimage.get_resource_from_location(location, &mut resource);
-
-				if let Err(err) = ClassFile::read_from(&mut &resource[..]) {
-					exit(err.to_string())
+				match jimage.get_resource_from_location(location) {
+					Ok(resource) => {
+						if let Err(err) = ClassFile::read_from(&mut &resource[..]) {
+							exit(err.to_string())
+						}
+					},
+					Err(e) => {
+						exit(format!(
+							"Failed to get resource from location {}: {e}",
+							location
+								.full_name(true)
+								.unwrap_or(String::from("(unknown/invalid location)")),
+						));
+					},
 				}
 			}
 
@@ -280,7 +299,7 @@ fn list_module(module: &str, verbose: bool) {
 	}
 }
 
-fn exit(message: String) {
+fn exit(message: String) -> ! {
 	eprintln!("Error: {}", message);
 	std::process::exit(1);
 }

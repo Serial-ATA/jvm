@@ -44,7 +44,9 @@ macro_rules! define_primitive_mirrors {
     };
 }
 
-define_primitive_mirrors!(Byte, Character, Double, Float, Integer, Long, Short, Boolean, Void,);
+define_primitive_mirrors!(
+	Byte, Character, Double, Float, Integer, Long, Short, Boolean, Void,
+);
 
 pub fn primitive_mirror_for(ty: &FieldType) -> Reference {
 	assert!(

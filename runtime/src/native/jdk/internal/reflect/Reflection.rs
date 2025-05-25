@@ -1,7 +1,7 @@
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
-use crate::thread::exceptions::{throw_and_return_null, Throws};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, throw_and_return_null};
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint};

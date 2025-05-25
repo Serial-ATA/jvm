@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
-use jni_sys::{jint, JNI_EDETACHED, JNI_EEXIST, JNI_EINVAL, JNI_ENOMEM, JNI_ERR, JNI_EVERSION};
+use jni_sys::{JNI_EDETACHED, JNI_EEXIST, JNI_EINVAL, JNI_ENOMEM, JNI_ERR, JNI_EVERSION, jint};
 
 pub type Result<T> = std::result::Result<T, JniError>;
 

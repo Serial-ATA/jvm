@@ -566,9 +566,6 @@ impl Class {
 		}
 	}
 
-	/// Get the external name of this class (for user-facing messages)
-	///
-	/// This just takes the class name and replaces all '/' with '.'
 	pub fn nest_host(&'static self, thread: &'static JavaThread) -> Throws<&'static Class> {
 		if let Some(nest_host) = unsafe { (*self.misc_cache.get()).nest_host } {
 			return Throws::Ok(nest_host);

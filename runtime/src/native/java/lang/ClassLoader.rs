@@ -21,18 +21,72 @@ const MN_STRONG_LOADER_LINK: s4 = 0x00000004;
 const MN_ACCESS_VM_ANNOTATIONS: s4 = 0x00000008;
 
 pub fn defineClass1(
-	_env: JniEnv,
+	env: JniEnv,
 	_class: &'static Class,
-	_loader: Reference, // java.lang.ClassLoader
-	_name: Reference,   // java.lang.String
-	_b: Reference,      // byte[],
-	_off: jint,
-	_len: jint,
-	_pd: Reference,     // ProtectionDomain
-	_source: Reference, // java.lang.String
+	loader: Reference, // java.lang.ClassLoader
+	name: Reference,   // java.lang.String
+	b: Reference,      // byte[],
+	off: jint,
+	len: jint,
+	_pd: Reference,    // ProtectionDomain
+	source: Reference, // java.lang.String
 ) -> Reference // java.lang.Class
 {
-	unimplemented!("java.lang.ClassLoader#defineClass1")
+	if b.is_null() {
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		throw_and_return_null!(thread, NullPointerException);
+	}
+
+	let bytes = b.extract_primitive_array();
+	let bytes_slice = bytes.get().as_slice::<jbyte>();
+
+	let off = off as usize;
+	let len = len as usize;
+
+	let bytes_window_signed = &bytes_slice[off..off + len];
+
+	// SAFETY: `i8` and `u8` have the same size and alignment
+	let bytes_window: &[u8] = unsafe {
+		std::slice::from_raw_parts(
+			bytes_window_signed.as_ptr() as *const u8,
+			bytes_window_signed.len(),
+		)
+	};
+
+	let name_sym;
+	if name.is_null() {
+		// TODO: In this case, the name is just to be derived from the class file itself.
+		//       Will need to train the loader to be able to do that.
+		todo!()
+	} else {
+		let external_name = classes::java::lang::String::extract(name.extract_class().get());
+		let internal_name = external_name.replace('.', "/");
+		name_sym = Symbol::intern(internal_name);
+	}
+
+	let source_str;
+	if source.is_null() {
+		source_str = None;
+	} else {
+		source_str = Some(classes::java::lang::String::extract(
+			source.extract_class().get(),
+		));
+	}
+
+	// Not a thing in defineClass1
+	let is_hidden = false;
+
+	let loader = ClassLoaderSet::find_or_add(loader, is_hidden);
+	let class = match loader.derive_class(name_sym, Some(bytes_window), is_hidden) {
+		Throws::Ok(class) => class,
+		Throws::Exception(e) => {
+			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+			e.throw(thread);
+			return Reference::null();
+		},
+	};
+
+	Reference::mirror(class.mirror())
 }
 
 pub fn defineClass2(
@@ -51,7 +105,7 @@ pub fn defineClass2(
 }
 
 pub fn defineClass0(
-	_env: JniEnv,
+	env: JniEnv,
 	_class: &'static Class,
 	loader: Reference, // java.lang.ClassLoader
 	lookup: Reference, // java.lang.Class
@@ -65,7 +119,7 @@ pub fn defineClass0(
 	classData: Reference, // java.lang.Object
 ) -> Reference // java.lang.Class
 {
-	let thread = unsafe { &*JavaThread::for_env(_env.raw()) };
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 
 	if lookup.is_null() {
 		throw_and_return_null!(thread, IllegalArgumentException, "Lookup class is null");
@@ -146,7 +200,7 @@ pub fn defineClass0(
 	let class = match loader.derive_class(name, Some(bytes_window), is_hidden) {
 		Throws::Ok(class) => class,
 		Throws::Exception(e) => {
-			let thread = unsafe { &*JavaThread::for_env(_env.raw()) };
+			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 			e.throw(thread);
 			return Reference::null();
 		},

@@ -10,5 +10,5 @@ repository.workspace = true
 
 [dependencies]
 jni_sys.workspace = true
-libloading.workspace = true
+platform.workspace = true
 common.workspace = true

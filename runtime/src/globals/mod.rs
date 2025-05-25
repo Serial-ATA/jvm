@@ -2,7 +2,7 @@ pub mod classes;
 pub mod mirrors;
 pub mod threads;
 
-use crate::symbols::{sym, Symbol};
+use crate::symbols::{Symbol, sym};
 
 use classfile::FieldType;
 

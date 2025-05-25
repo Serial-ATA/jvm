@@ -1,4 +1,4 @@
-use super::{read_attribute, Location};
+use super::{Location, read_attribute};
 use crate::attribute::{AttributeTag, AttributeType, Code, CodeException};
 use crate::constant_pool::ConstantPool;
 use crate::error::Result;

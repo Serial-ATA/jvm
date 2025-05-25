@@ -22,7 +22,7 @@ mod synthetic;
 
 use super::error::{ClassFileParseError, Result};
 use crate::attribute::{Attribute, AttributeTag};
-use crate::constant_pool::{types, ConstantPool};
+use crate::constant_pool::{ConstantPool, types};
 
 use std::io::Read;
 

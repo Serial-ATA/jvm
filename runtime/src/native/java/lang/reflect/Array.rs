@@ -1,8 +1,8 @@
 use crate::objects::array::{ObjectArrayInstance, PrimitiveArrayInstance};
 use crate::objects::class::Class;
 use crate::objects::reference::{PrimitiveArrayInstanceRef, Reference};
-use crate::thread::exceptions::{handle_exception, throw_and_return_null};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{handle_exception, throw_and_return_null};
 
 use common::traits::PtrType;
 use jni::env::JniEnv;

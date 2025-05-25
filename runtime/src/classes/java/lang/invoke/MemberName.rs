@@ -2,7 +2,7 @@ use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::{MirrorInstanceRef, Reference};
-use crate::thread::exceptions::{throw, Throws};
+use crate::thread::exceptions::{Throws, throw};
 
 use classfile::FieldType;
 use common::traits::PtrType;

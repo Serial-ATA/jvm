@@ -7,8 +7,8 @@ use std::path::Path;
 use std::str::FromStr;
 
 use common::int_types::u1;
-use zip::read::ZipFile;
 use zip::ZipArchive;
+use zip::read::ZipFile;
 
 const MAJOR_VERSION: u1 = 1;
 const MINOR_VERSION: u1 = 0;
@@ -63,13 +63,13 @@ impl FromStr for Section {
 }
 
 pub struct JmodEntry<'a> {
-	zip_entry: ZipFile<'a>,
+	zip_entry: ZipFile<'a, File>,
 	section: Section,
 	name_start: usize,
 }
 
 impl<'a> JmodEntry<'a> {
-	fn new(entry: ZipFile<'a>, section: Option<Section>) -> Self {
+	fn new(entry: ZipFile<'a, File>, section: Option<Section>) -> Self {
 		let slash_idx = entry
 			.name()
 			.find('/')

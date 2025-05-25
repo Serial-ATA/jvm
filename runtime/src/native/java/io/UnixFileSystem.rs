@@ -3,7 +3,6 @@
 use crate::classes;
 use crate::native::java::lang::String::StringInterner;
 use crate::objects::class::Class;
-use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
 use crate::thread::JavaThread;

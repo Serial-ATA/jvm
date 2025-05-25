@@ -10,7 +10,7 @@ mod parse;
 mod strings;
 
 pub use header::{
-	JImageHeader, JIMAGE_MAGIC, JIMAGE_MAGIC_INVERTED, JIMAGE_MAJOR_VERSION, JIMAGE_MINOR_VERSION,
+	JIMAGE_MAGIC, JIMAGE_MAGIC_INVERTED, JIMAGE_MAJOR_VERSION, JIMAGE_MINOR_VERSION, JImageHeader,
 };
 pub use image::JImage;
 pub use index::JImageIndex;

@@ -12,7 +12,7 @@ use crate::version::JniVersion;
 use std::ffi::c_void;
 use std::path::PathBuf;
 
-use jni_sys::JNIEnv;
+use jni_sys::{JNIEnv, JavaVM, jint};
 
 #[derive(Default, Debug, Clone)]
 pub struct JavaVmBuilder {
@@ -25,6 +25,10 @@ type CreateJavaVmFn = unsafe extern "system" fn(
 	*mut *mut c_void,
 	*mut c_void,
 ) -> jni_sys::jint;
+
+pub type JniOnLoadFn = unsafe extern "system" fn(vm: *mut JavaVM, reserved: *mut c_void) -> jint;
+
+pub type JniOnUnloadFn = unsafe extern "system" fn(vm: *mut JavaVM, reserved: *mut c_void);
 
 impl JavaVmBuilder {
 	/// Create a new `JavaVmBuilder`
@@ -81,15 +85,19 @@ impl JavaVmBuilder {
 		let libjvm_path = self.jvm_lib_path.unwrap_or_else(default_libjvm_path);
 		let args = self.args.unwrap_or_default().finish();
 
+		let libjvm_path_str = libjvm_path
+			.to_str()
+			.ok_or(JniError::JavaVm(Error::NonUtf8Path))?;
+
 		let libjvm;
 		let ret;
 		let mut javavm_raw = core::ptr::null_mut::<jni_sys::JavaVM>();
 		let mut jni_env_raw = core::ptr::null_mut::<c_void>();
 		unsafe {
-			libjvm = libloading::Library::new(libjvm_path).map_err(|_| Error::LibJvmNotFound)?;
+			libjvm = platform::libs::Library::load(libjvm_path_str).map_err(Error::LibJvmLoad)?;
 
-			let create_java_vm: libloading::Symbol<'_, CreateJavaVmFn> = libjvm
-				.get(b"JNI_CreateJavaVM\0")
+			let create_java_vm = libjvm
+				.symbol::<CreateJavaVmFn>(c"JNI_CreateJavaVM")
 				.map_err(|_| Error::SymbolNotFound(b"JNI_CreateJavaVM\0"))?;
 
 			ret = create_java_vm(&mut javavm_raw, &mut jni_env_raw, args.raw() as _);
@@ -150,7 +158,7 @@ pub struct JavaVm {
 	inner: *mut jni_sys::JavaVM,
 	// Not used outside of the original load, just kept here to prevent unloading.
 	// Optional since it's also used in libjvm, where it, of course, isn't applicable.
-	_libjvm: Option<libloading::Library>,
+	_libjvm: Option<platform::libs::Library>,
 }
 
 impl PartialEq for JavaVm {
@@ -243,6 +251,14 @@ impl JavaVm {
 		Self {
 			inner: ptr,
 			_libjvm: None,
+		}
+	}
+}
+
+impl Drop for JavaVm {
+	fn drop(&mut self) {
+		if let Some(libjvm) = self._libjvm.take() {
+			let _ = unsafe { libjvm.close() };
 		}
 	}
 }

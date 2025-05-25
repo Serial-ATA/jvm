@@ -1,5 +1,5 @@
-use crate::error::{Error, Result};
 use crate::ImageStrings;
+use crate::error::{Error, Result};
 
 use std::io::Write;
 
@@ -75,7 +75,7 @@ pub fn decompress_resource(
 			_ => {
 				return Err(Error::DecompressorNotFound(
 					String::from_utf8_lossy(decompressor_name).into_owned(),
-				))
+				));
 			},
 		}
 

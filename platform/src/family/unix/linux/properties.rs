@@ -133,12 +133,20 @@ fn init_locale(
 	variant_field: Option<&mut String>,
 	encoding_field: Option<&mut String>,
 ) {
+	struct Locale<'a> {
+		language: &'a [u8],
+		country: Option<&'a [u8]>,
+		encoding: Option<&'a [u8]>,
+		variant: Option<&'a [u8]>,
+	}
+
 	// Parses the locale in the form: `language_country.encoding@variant`
 	//
-	// `language_country`: Required
+	// `language`: Required
+	// `country`: Optional, preceded by _
 	// `encoding`: Optional, preceded by .
 	// `variant`: Optional, preceded by @
-	fn split_locale(locale: &CStr) -> (&[u8], &[u8], Option<&[u8]>, Option<&[u8]>) {
+	fn split_locale(locale: &CStr) -> Locale<'_> {
 		let bytes = locale.to_bytes();
 
 		let mut has_encoding_or_variant = false;
@@ -168,10 +176,14 @@ fn init_locale(
 
 		let mut language_country = bytes[..language_country_end_pos].split(|b| *b == b'_');
 
-		let language = language_country.next().expect("TODO: Nice error");
-		let country = language_country.next().expect("TODO: Nice error");
+		let language = language_country.next().unwrap();
 
-		(language, country, encoding, variant)
+		Locale {
+			language,
+			country: language_country.next(),
+			encoding,
+			variant,
+		}
 	}
 
 	let locale_raw = unsafe { libc::setlocale(category, ptr::null()) };
@@ -183,11 +195,11 @@ fn init_locale(
 		locale = unsafe { CStr::from_ptr(locale_raw) };
 	}
 
-	let (mut language, mut country, mut encoding, mut variant) = split_locale(locale);
+	let mut parsed_locale = split_locale(locale);
 
-	if encoding.is_none() && variant.is_none() {
+	if parsed_locale.encoding.is_none() && parsed_locale.variant.is_none() {
 		if let Some((_, new_locale)) = super::locale::locale_aliases().find(|(k, _)| *k == locale) {
-			(language, country, encoding, variant) = split_locale(new_locale);
+			parsed_locale = split_locale(new_locale);
 		}
 	}
 
@@ -197,7 +209,7 @@ fn init_locale(
 		*language_field = String::from("en");
 
 		if let Some((_, language)) =
-			super::locale::language_names().find(|(k, _)| k.to_bytes() == language)
+			super::locale::language_names().find(|(k, _)| k.to_bytes() == parsed_locale.language)
 		{
 			let language = language
 				.to_str()
@@ -207,20 +219,22 @@ fn init_locale(
 	}
 
 	// Normalize the country name
-	if let Some(country_field) = country_field {
-		if let Some((_, country)) =
-			super::locale::country_names().find(|(k, _)| k.to_bytes() == country)
-		{
-			let country = country
-				.to_str()
-				.expect("normalized table entries should never be invalid");
-			*country_field = String::from(country);
+	if let Some(parsed_country) = parsed_locale.country {
+		if let Some(country_field) = country_field {
+			if let Some((_, country)) =
+				super::locale::country_names().find(|(k, _)| k.to_bytes() == parsed_country)
+			{
+				let country = country
+					.to_str()
+					.expect("normalized table entries should never be invalid");
+				*country_field = String::from(country);
+			}
 		}
 	}
 
 	// Normalize the script and variant name.
 	// Note that we only use variants listed in the mapping array; others are ignored.
-	if let Some(variant) = variant {
+	if let Some(variant) = parsed_locale.variant {
 		if let Some(script_field) = script_field {
 			if let Some((_, script)) =
 				super::locale::script_names().find(|(k, _)| k.to_bytes() == variant)
@@ -248,7 +262,7 @@ fn init_locale(
 	// locale name above.  Instead, we use the more reliable method of calling `nl_langinfo(CODESET)`.
 	// This function returns an empty string if no encoding is set for the given
 	// locale (e.g., the C or POSIX locales); we use the default ISO 8859-1 converter for such locales.
-	if let Some(encoding) = encoding {
+	if let Some(encoding) = parsed_locale.encoding {
 		if let Some(encoding_field) = encoding_field {
 			let ret_encoding;
 			match encoding {

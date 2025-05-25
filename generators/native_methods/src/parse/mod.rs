@@ -11,8 +11,8 @@ pub use types::Type;
 
 use combine::parser::char::{space, string};
 use combine::{
-	attempt, many1, not_followed_by, satisfy, sep_by, skip_many, skip_many1, token, ParseError,
-	Parser, Stream, StreamOnce,
+	ParseError, Parser, Stream, StreamOnce, attempt, many1, not_followed_by, satisfy, sep_by,
+	skip_many, skip_many1, token,
 };
 
 fn lex<Input, P>(p: P) -> impl Parser<Input, Output = P::Output>
@@ -20,10 +20,10 @@ where
 	P: Parser<Input>,
 	Input: Stream<Token = char>,
 	<Input as StreamOnce>::Error: ParseError<
-		<Input as StreamOnce>::Token,
-		<Input as StreamOnce>::Range,
-		<Input as StreamOnce>::Position,
-	>,
+			<Input as StreamOnce>::Token,
+			<Input as StreamOnce>::Range,
+			<Input as StreamOnce>::Position,
+		>,
 {
 	p.skip(whitespace_or_comment())
 }

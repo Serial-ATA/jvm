@@ -4,8 +4,8 @@ use crate::objects::class::Class;
 use crate::objects::method::Method;
 use crate::objects::reference::{MirrorInstanceRef, ObjectArrayInstanceRef, Reference};
 use crate::stack::local_stack::LocalStack;
-use crate::thread::exceptions::{handle_exception, throw_and_return_null};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{handle_exception, throw_and_return_null};
 use crate::{classes, java_call};
 
 use classfile::FieldType;
@@ -19,8 +19,8 @@ pub mod NativeAccessor {
 	use crate::classes;
 	use crate::objects::class::Class;
 	use crate::objects::reference::Reference;
-	use crate::thread::exceptions::throw_and_return_null;
 	use crate::thread::JavaThread;
+	use crate::thread::exceptions::throw_and_return_null;
 
 	use common::traits::PtrType;
 	use jni::env::JniEnv;

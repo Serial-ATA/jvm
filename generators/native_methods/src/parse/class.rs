@@ -10,8 +10,8 @@ use combine::parser::char::{char, string};
 use combine::parser::combinator::{no_partial, opaque};
 use combine::stream::position::Stream as PositionStream;
 use combine::{
-	attempt, choice, dispatch, many, many1, optional, token, value, EasyParser, ParseError, Parser,
-	Stream,
+	EasyParser, ParseError, Parser, Stream, attempt, choice, dispatch, many, many1, optional,
+	token, value,
 };
 
 pub(super) static IMPORTS: LazyLock<Mutex<HashMap<String, String>>> =

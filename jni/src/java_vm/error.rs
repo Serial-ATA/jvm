@@ -1,7 +1,8 @@
 #[derive(Debug)]
 pub enum Error {
 	LibJvmNotFound,
-	LibJvmLoad(libloading::Error),
+	LibJvmLoad(platform::libs::Error),
+	NonUtf8Path,
 	SymbolNotFound(&'static [u8]),
 	JavaVmNull,
 }
@@ -19,12 +20,13 @@ impl core::fmt::Display for Error {
 				)
 			},
 			Error::JavaVmNull => write!(f, "Java VM was not populated"),
+			Error::NonUtf8Path => write!(f, "The library path is not UTF-8"),
 		}
 	}
 }
 
-impl From<libloading::Error> for Error {
-	fn from(e: libloading::Error) -> Self {
+impl From<platform::libs::Error> for Error {
+	fn from(e: platform::libs::Error) -> Self {
 		Error::LibJvmLoad(e)
 	}
 }

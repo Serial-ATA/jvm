@@ -1,6 +1,6 @@
 use core::ffi::c_char;
 use jni::sys::{
-	jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, jobject, jshort, JNIEnv,
+	JNIEnv, jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, jobject, jshort,
 };
 
 // --------------

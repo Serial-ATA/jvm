@@ -1,6 +1,6 @@
 use super::entry::ResolvedEntry;
-use crate::native::java::lang::invoke::MethodHandleNatives;
 use crate::native::java::lang::String::StringInterner;
+use crate::native::java::lang::invoke::MethodHandleNatives;
 use crate::objects::array::{Array, ObjectArrayInstance};
 use crate::objects::boxing::Boxable;
 use crate::objects::class::Class as ClassObj;
@@ -8,15 +8,15 @@ use crate::objects::constant_pool::ConstantPool;
 use crate::objects::field::Field;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
-use crate::symbols::{sym, Symbol};
-use crate::thread::exceptions::{throw, Throws};
+use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, throw};
 use crate::{classes, java_call};
 
-use classfile::constant_pool::types::{
-	raw as raw_types, CpEntry, LoadableConstantPoolValueInner, ReferenceEntry, ReferenceKind,
-};
 use classfile::MethodDescriptor;
+use classfile::constant_pool::types::{
+	CpEntry, LoadableConstantPoolValueInner, ReferenceEntry, ReferenceKind, raw as raw_types,
+};
 use common::int_types::{s4, s8, u1, u2};
 use common::traits::PtrType;
 use instructions::Operand;

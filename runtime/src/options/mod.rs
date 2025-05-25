@@ -1,8 +1,8 @@
 mod error;
 
 use crate::classpath::{ClassPathEntry, add_classpath_entry};
-use crate::options::error::OptionsError;
 use crate::native::jdk::internal::util::SystemProps::Raw::SYSTEM_PROPERTIES;
+use crate::options::error::OptionsError;
 
 use std::ffi::{CStr, c_char, c_int, c_void};
 use std::mem;

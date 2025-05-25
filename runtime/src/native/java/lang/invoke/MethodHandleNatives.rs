@@ -1,13 +1,13 @@
-use crate::native::java::lang::invoke::MethodHandleNatives;
 use crate::native::java::lang::String::StringInterner;
+use crate::native::java::lang::invoke::MethodHandleNatives;
 use crate::objects::class::Class;
 use crate::objects::class_instance::ClassInstance;
 use crate::objects::field::Field;
 use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, MirrorInstanceRef, Reference};
-use crate::symbols::{sym, Symbol};
-use crate::thread::exceptions::{handle_exception, throw, throw_and_return_null, Throws};
+use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, handle_exception, throw, throw_and_return_null};
 use crate::{classes, globals};
 
 use std::fmt::Write;

@@ -4,7 +4,7 @@ mod primitive;
 pub use primitive::*;
 
 use super::instance::Header;
-use crate::thread::exceptions::{throw, Throws};
+use crate::thread::exceptions::{Throws, throw};
 
 use common::int_types::s4;
 

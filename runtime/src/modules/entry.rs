@@ -4,8 +4,8 @@ use crate::classpath::jimage;
 use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
-use crate::symbols::{sym, Symbol};
-use crate::thread::exceptions::{throw, Throws};
+use crate::symbols::{Symbol, sym};
+use crate::thread::exceptions::{Throws, throw};
 
 use std::cell::SyncUnsafeCell;
 use std::collections::HashSet;

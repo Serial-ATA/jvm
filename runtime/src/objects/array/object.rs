@@ -3,9 +3,9 @@ use crate::objects::class::Class;
 use crate::objects::instance::{CloneableInstance, Header};
 use crate::objects::monitor::Monitor;
 use crate::objects::reference::{ObjectArrayInstanceRef, Reference};
-use crate::thread::exceptions::{throw, Throws};
+use crate::thread::exceptions::{Throws, throw};
 
-use std::alloc::{alloc, Layout};
+use std::alloc::{Layout, alloc};
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use std::{iter, ptr, slice};

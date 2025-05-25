@@ -124,7 +124,7 @@ fn collect_symbols_from_files() -> syn::Result<TokenStream> {
 					"Unable to read symbols from `{}`: {e}",
 					generated_dir.display()
 				),
-			))
+			));
 		},
 	};
 
@@ -144,7 +144,7 @@ fn collect_symbols_from_files() -> syn::Result<TokenStream> {
 						"Unable to read symbols from `{}`: {e}",
 						file.path().display()
 					),
-				))
+				));
 			},
 		};
 

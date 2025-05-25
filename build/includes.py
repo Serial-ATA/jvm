@@ -4,3 +4,7 @@ BINARIES = [
     ("jmod", "jmod"),
     ("jimage", "jimage"),
 ]
+
+LIBRARIES = [
+    "nio",
+]

@@ -4,7 +4,7 @@ use crate::objects::reference::Reference;
 use classfile::FieldType;
 use common::traits::PtrType;
 use instructions::Operand;
-use jni::sys::{jint, jlong, jobject};
+use jni::sys::jint;
 
 #[cfg(unix)]
 crate::classes::field_module! {

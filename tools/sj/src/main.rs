@@ -12,7 +12,7 @@ fn main() {
 // TODO: Make the format nicer
 fn init_logger() {
 	use tracing_subscriber::prelude::*;
-	use tracing_subscriber::{fmt, EnvFilter};
+	use tracing_subscriber::{EnvFilter, fmt};
 
 	tracing_subscriber::registry()
 		.with(fmt::layer().compact().with_thread_names(true))

@@ -102,6 +102,7 @@ macro_rules! define_object_types {
         $(;)?
     ) => {
         $(
+		#[repr(transparent)]
 		#[derive(Copy, Clone, PartialEq, Eq)]
 		pub struct $name($ty);
 
@@ -148,6 +149,7 @@ define_object_types! {
 	struct JObjectArray(jni_sys::jobjectArray);
 }
 
+#[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct JObject(jni_sys::jobject);
 
@@ -171,6 +173,7 @@ impl From<JObject> for JValue {
 	}
 }
 
+#[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct JFieldId(jni_sys::jfieldID);
 
@@ -184,6 +187,7 @@ impl JFieldId {
 	}
 }
 
+#[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct JMethodId(jni_sys::jmethodID);
 

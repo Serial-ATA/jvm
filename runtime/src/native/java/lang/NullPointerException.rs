@@ -5,7 +5,7 @@ use crate::objects::class::Class;
 use crate::objects::constant_pool::cp_types;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
-use crate::symbols::{sym, Symbol};
+use crate::symbols::{Symbol, sym};
 
 use common::int_types::u2;
 use common::traits::PtrType;

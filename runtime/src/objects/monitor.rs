@@ -3,9 +3,8 @@ use crate::thread::exceptions::{Throws, throw};
 
 use std::cell::{Cell, UnsafeCell};
 use std::fmt::Debug;
-use std::mem::MaybeUninit;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Condvar, Mutex, MutexGuard, ReentrantLock, ReentrantLockGuard};
+use std::sync::{Condvar, Mutex, ReentrantLock, ReentrantLockGuard};
 use std::time::Duration;
 
 type OwnerGuard<'a> = ReentrantLockGuard<'a, Cell<Option<&'static JavaThread>>>;
@@ -61,7 +60,7 @@ impl Monitor {
 	///
 	/// This will block if another thread owns this monitor.
 	pub fn enter(&self, thread: &'static JavaThread) {
-		let mut owner = self.owner.lock();
+		let owner = self.owner.lock();
 
 		// sanity
 		assert!(owner.get() == Some(thread) || owner.get().is_none());

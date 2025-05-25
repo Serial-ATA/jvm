@@ -3,8 +3,8 @@
 use crate::classes;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
-use crate::thread::exceptions::throw;
 use crate::thread::JavaThread;
+use crate::thread::exceptions::throw;
 
 use std::io::Write;
 use std::mem::ManuallyDrop;

@@ -1,9 +1,11 @@
+use crate::classes;
+use crate::native::java::lang::String::StringInterner;
 use crate::objects::array::Array;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
-use crate::thread::exceptions::{throw, Throws};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, throw, throw_and_return_null};
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -11,6 +13,7 @@ use ::jni::env::JniEnv;
 use ::jni::sys::{jint, jlong};
 use common::traits::PtrType;
 use instructions::Operand;
+use platform::{JNI_LIB_PREFIX, JNI_LIB_SUFFIX};
 
 include_generated!("native/java/lang/def/System.registerNatives.rs");
 include_generated!("native/java/lang/def/System.definitions.rs");
@@ -187,6 +190,14 @@ pub fn identityHashCode(
 	crate::native::java::lang::Object::hashCode(env, x)
 }
 
-pub fn mapLibraryName(_env: JniEnv, _class: &'static Class, _libname: Reference) -> Reference {
-	unimplemented!("System#mapLibraryName")
+pub fn mapLibraryName(env: JniEnv, _class: &'static Class, libname: Reference) -> Reference {
+	if libname.is_null() {
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		throw_and_return_null!(thread, NullPointerException);
+	}
+
+	let libname = classes::java::lang::String::extract(libname.extract_class().get());
+	Reference::class(StringInterner::intern(format!(
+		"{JNI_LIB_PREFIX}{libname}{JNI_LIB_SUFFIX}"
+	)))
 }

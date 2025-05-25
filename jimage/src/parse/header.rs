@@ -1,5 +1,5 @@
 use crate::error::{Error, Result};
-use crate::header::{JImageHeader, JIMAGE_MAGIC, JIMAGE_MAGIC_INVERTED};
+use crate::header::{JIMAGE_MAGIC, JIMAGE_MAGIC_INVERTED, JImageHeader};
 
 use std::io::Read;
 

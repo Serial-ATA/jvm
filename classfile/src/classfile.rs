@@ -3,7 +3,7 @@ use crate::attribute::resolved::{
 	ResolvedBootstrapMethod, ResolvedEnclosingMethod, ResolvedInnerClass,
 };
 use crate::attribute::{Attribute, AttributeType, SourceFile};
-use crate::constant_pool::types::{raw as raw_types, ClassNameEntry};
+use crate::constant_pool::types::{ClassNameEntry, raw as raw_types};
 use crate::constant_pool::{self, ConstantPool};
 use crate::fieldinfo::FieldInfo;
 use crate::methodinfo::MethodInfo;

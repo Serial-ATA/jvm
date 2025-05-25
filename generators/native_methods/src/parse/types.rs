@@ -5,7 +5,7 @@ use std::fmt::Write;
 
 use combine::parser::char::{char, string};
 use combine::parser::combinator::no_partial;
-use combine::{choice, many1, opaque, optional, token, value, ParseError, Parser, Stream};
+use combine::{ParseError, Parser, Stream, choice, many1, opaque, optional, token, value};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Type {

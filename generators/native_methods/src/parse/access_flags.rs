@@ -1,7 +1,7 @@
 use crate::parse::lex;
 
 use combine::parser::char::string;
-use combine::{attempt, choice, many1, ParseError, Parser, Stream};
+use combine::{ParseError, Parser, Stream, attempt, choice, many1};
 
 use common::int_types::u2;
 

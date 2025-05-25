@@ -5,11 +5,11 @@ use crate::classpath::loader::ClassLoader;
 use crate::objects::class::{Class, ClassInitializationState};
 use crate::objects::method::Method;
 use crate::objects::vtable::VTable;
-use crate::symbols::{sym, Symbol};
+use crate::symbols::{Symbol, sym};
 
+use classfile::MethodDescriptor;
 use classfile::accessflags::MethodAccessFlags;
 use classfile::attribute::Attribute;
-use classfile::MethodDescriptor;
 
 pub(super) trait ClassAccessorExt {
 	/// Extracts the name, `ClassName`, of the class `Class`.

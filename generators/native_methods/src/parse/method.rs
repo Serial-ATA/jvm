@@ -1,11 +1,11 @@
-use crate::parse::access_flags::{access_flags, AccessFlags};
-use crate::parse::types::{ty, Type};
-use crate::parse::{lex, word1, Class};
+use crate::parse::access_flags::{AccessFlags, access_flags};
+use crate::parse::types::{Type, ty};
+use crate::parse::{Class, lex, word1};
 
 use std::fmt::Write;
 
 use combine::parser::char::{char, string};
-use combine::{attempt, optional, sep_by, ParseError, Parser, Stream};
+use combine::{ParseError, Parser, Stream, attempt, optional, sep_by};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Method {
@@ -195,8 +195,8 @@ where
 		})
 }
 
-fn method_def<Input>(
-) -> impl Parser<Input, Output = (AccessFlags, Type, String, Vec<(Type, String)>)>
+fn method_def<Input>()
+-> impl Parser<Input, Output = (AccessFlags, Type, String, Vec<(Type, String)>)>
 where
 	Input: Stream<Token = char>,
 	Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,

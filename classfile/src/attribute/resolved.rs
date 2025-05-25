@@ -3,8 +3,8 @@ use super::{
 	InnerClass,
 };
 use crate::attribute::BootstrapMethod;
-use crate::constant_pool::types::{self, LoadableConstantPoolValue, MethodHandleEntry};
 use crate::constant_pool::ConstantPool;
+use crate::constant_pool::types::{self, LoadableConstantPoolValue, MethodHandleEntry};
 
 use std::fmt::{Debug, Formatter};
 

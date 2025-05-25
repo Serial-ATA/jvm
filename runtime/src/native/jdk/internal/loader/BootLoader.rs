@@ -4,8 +4,8 @@ use crate::modules::Module;
 use crate::objects::class::Class;
 use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
-use crate::thread::exceptions::{handle_exception, throw};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{handle_exception, throw};
 
 use ::jni::env::JniEnv;
 

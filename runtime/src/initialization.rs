@@ -36,17 +36,17 @@ pub fn create_java_vm(
 	let _span = tracing::debug_span!("initialization").entered();
 	tracing::debug!("Creating Java VM");
 
-	if let Some(_vm_options) = crate::classpath::jimage::lookup_vm_options() {
-		// TODO: Actually parse the options, for now this is just here to load the JImage
-		// https://github.com/openjdk/jdk/blob/03a9a88efbb68537e24b7de28c5b81d6cd8fdb04/src/hotspot/share/runtime/arguments.cpp#L3322
-	}
-
 	let options = match args {
 		Some(args) => {
 			unsafe { JvmOptions::load(args) }.map_err(|_| (JniError::InvalidArguments, None))?
 		},
 		None => JvmOptions::default(),
 	};
+
+	if let Some(_vm_options) = crate::classpath::jimage::lookup_vm_options() {
+		// TODO: Actually parse the options, for now this is just here to load the JImage
+		// https://github.com/openjdk/jdk/blob/03a9a88efbb68537e24b7de28c5b81d6cd8fdb04/src/hotspot/share/runtime/arguments.cpp#L3322
+	}
 
 	let thread = JavaThreadBuilder::new().finish();
 	unsafe {
@@ -329,7 +329,7 @@ fn create_thread_object(thread: &'static JavaThread) -> bool {
 		.expect("java.lang.ThreadGroup should have an initializer");
 
 	let name = StringInterner::intern("main");
-	let result = java_call!(
+	java_call!(
 		thread,
 		init_method,
 		Operand::Reference(Reference::clone(&system_thread_group_instance))

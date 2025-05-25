@@ -82,11 +82,6 @@ pub mod Raw {
 
 			index += 1;
 		}
-		// store_properties!(prop_array_mut;
-		// 	"sun.misc.URLClassPath.debug" => "true",
-		// 	"jdk.net.URLClassPath.showIgnoredClassPathEntries" => "true",
-		// 	"java.lang.invoke.MethodHandle.DEBUG_NAMES" => "true",
-		// );
 
 		Reference::object_array(prop_array)
 	}

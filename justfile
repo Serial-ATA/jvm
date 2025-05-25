@@ -13,6 +13,14 @@ debug:
 release:
     cargo +nightly -Z unstable-options build --release
 
+native-debug:
+    cargo +nightly -Z unstable-options build -p native-meta
+
+native-release:
+    cargo +nightly -Z unstable-options build --release -p native-meta
+
+native: native-debug
+
 dist *ARGS:
     python3 {{ justfile_directory() }}/build/entry.py {{ ARGS }}
 

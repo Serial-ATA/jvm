@@ -26,7 +26,7 @@
 //!                                                     null
 //! ```
 
-use crate::symbols::{sym, Symbol};
+use crate::symbols::{Symbol, sym};
 
 pub mod types {
 	use super::VerificationType;

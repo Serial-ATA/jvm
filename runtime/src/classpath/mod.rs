@@ -19,13 +19,13 @@ pub fn add_classpath_entry(entry: ClassPathEntry) {
 }
 
 // TODO: throw ClassNotFoundException
-pub fn find_classpath_entry(name: Symbol) -> Vec<u1> {
+pub fn find_classpath_entry(name: Symbol) -> Option<Vec<u1>> {
 	let mut name = name.as_str().replace('.', "/");
 	name.push_str(".class");
 
 	if jimage::initialized() {
 		if let Some(resource) = jimage::lookup_vm_resource(&name) {
-			return resource;
+			return Some(resource.into_vec());
 		}
 	}
 
@@ -34,7 +34,7 @@ pub fn find_classpath_entry(name: Symbol) -> Vec<u1> {
 			ClassPathEntry::Dir(path) => {
 				let class_path = path.join(&name);
 				if class_path.exists() {
-					return std::fs::read(class_path).unwrap();
+					return Some(std::fs::read(class_path).unwrap());
 				}
 			},
 			ClassPathEntry::Zip(archive) => {
@@ -42,13 +42,13 @@ pub fn find_classpath_entry(name: Symbol) -> Vec<u1> {
 				if let Ok(mut file) = archive.by_name(&name) {
 					let mut file_contents = Vec::with_capacity(file.size() as usize);
 					file.read_to_end(&mut file_contents).unwrap();
-					return file_contents;
+					return Some(file_contents);
 				};
 			},
 		}
 	}
 
-	panic!("Class `{}` not found", name);
+	None
 }
 
 pub enum ClassPathEntry {

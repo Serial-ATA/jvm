@@ -1,7 +1,7 @@
+use crate::SymbolCollector;
 use crate::error::Result;
 use crate::modules::Module;
 use crate::parse::{AccessFlags, Method};
-use crate::SymbolCollector;
 
 use std::collections::HashMap;
 use std::fmt::Write as _;

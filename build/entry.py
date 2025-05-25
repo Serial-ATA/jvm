@@ -5,7 +5,7 @@ import sys
 import cli
 from enum import StrEnum
 
-from includes import BINARIES
+from includes import BINARIES, LIBRARIES
 
 
 class ModuleType(StrEnum):
@@ -39,6 +39,23 @@ def mk_dist_dir_if_needed():
         os.mkdir(os.path.join(DIST_DIR, mod.value))
 
 
+if sys.platform.startswith("linux"):
+    LIBRARY_PREFIX = "lib"
+    LIBRARY_SUFFIX = ".so"
+elif sys.platform.startswith("darwin"):
+    LIBRARY_PREFIX = "lib"
+    LIBRARY_SUFFIX = ".dylib"
+elif sys.platform.startswith("win32"):
+    LIBRARY_PREFIX = ""
+    LIBRARY_SUFFIX = ".dll"
+else:
+    print(
+        f"Unable to determine the current platform ({sys.platform})",
+        file=sys.stderr,
+    )
+    exit(1)
+
+
 def main():
     args = cli.args()
 
@@ -62,6 +79,13 @@ def main():
     for binary, packaged_binary_name in BINARIES:
         src = os.path.join(target_dir, binary)
         dest = os.path.join(bin_dir, packaged_binary_name)
+        shutil.copy(src, dest)
+
+    lib_dir = os.path.join(DIST_DIR, "lib")
+    for lib in LIBRARIES:
+        packaged_lib_name = LIBRARY_PREFIX + lib + LIBRARY_SUFFIX
+        src = os.path.join(target_dir, packaged_lib_name)
+        dest = os.path.join(lib_dir, packaged_lib_name)
         shutil.copy(src, dest)
 
 

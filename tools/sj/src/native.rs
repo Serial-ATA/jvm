@@ -4,7 +4,7 @@ use std::ops::Deref;
 
 use jni::env::JniEnv;
 use jni::error::JniError;
-use jni::java_vm::{JavaVm, JavaVmBuilder, VmInitArgs};
+use jni::java_vm::{JavaVm, VmInitArgs};
 use jni::objects::{JClass, JObjectArray, JValue};
 use jni::sys::{jint, jsize};
 use jni::version::JniVersion;

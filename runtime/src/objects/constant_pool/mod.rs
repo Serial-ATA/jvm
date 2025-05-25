@@ -8,8 +8,8 @@ use crate::thread::exceptions::Throws;
 
 use std::fmt::{Debug, Formatter};
 
-use classfile::constant_pool::types::CpEntry;
 use classfile::constant_pool::ConstantPoolValueInfo;
+use classfile::constant_pool::types::CpEntry;
 use common::box_slice;
 use common::int_types::u2;
 

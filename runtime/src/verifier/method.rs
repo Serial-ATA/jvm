@@ -1,10 +1,10 @@
 use super::accessors::MethodAccessorExt;
 use super::error::{Error, Result};
-use super::type_system::{types, IsAssignable, VerificationType};
+use super::type_system::{IsAssignable, VerificationType, types};
 use crate::objects::class::Class;
 use crate::objects::constant_pool::cp_types;
 use crate::objects::method::Method;
-use crate::symbols::{sym, Symbol};
+use crate::symbols::{Symbol, sym};
 
 use classfile::attribute::{Attribute, CodeException, StackMapTable};
 use common::int_types::{u1, u2};

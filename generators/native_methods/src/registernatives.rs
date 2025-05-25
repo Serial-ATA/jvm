@@ -1,5 +1,5 @@
 use crate::parse::{AccessFlags, Class, Member};
-use crate::{util, SymbolCollector};
+use crate::{SymbolCollector, util};
 
 use std::fs::OpenOptions;
 use std::io::Write;

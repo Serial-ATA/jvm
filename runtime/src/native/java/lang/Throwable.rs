@@ -3,8 +3,8 @@ use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
-use crate::thread::frame::stack::VisibleStackFrame;
 use crate::thread::JavaThread;
+use crate::thread::frame::stack::VisibleStackFrame;
 use crate::{classes, globals};
 
 use std::slice;

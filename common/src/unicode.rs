@@ -325,7 +325,7 @@ pub fn decode(input: &[u8]) -> Result<Cow<'_, str>, Error> {
 									byte: next,
 									index: i,
 									expected: None,
-								})
+								});
 							},
 						}
 					},
@@ -334,7 +334,7 @@ pub fn decode(input: &[u8]) -> Result<Cow<'_, str>, Error> {
 							byte: b,
 							index: i,
 							expected: None,
-						})
+						});
 					},
 				}
 			},

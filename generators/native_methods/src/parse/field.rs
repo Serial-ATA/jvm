@@ -1,10 +1,10 @@
 use crate::parse::access_flags::access_flags;
-use crate::parse::types::{ty, Type};
+use crate::parse::types::{Type, ty};
 use crate::parse::{lex, word1};
 
 use combine::parser::char::char;
 use combine::parser::repeat::take_until;
-use combine::{struct_parser, ParseError, Parser, Stream};
+use combine::{ParseError, Parser, Stream, struct_parser};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Field {

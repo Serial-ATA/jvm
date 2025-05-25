@@ -716,7 +716,7 @@ pub unsafe extern "system" fn CallStaticObjectMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jobject {
-	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
@@ -750,7 +750,7 @@ pub unsafe extern "system" fn CallStaticBooleanMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jboolean {
-	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
@@ -784,7 +784,7 @@ pub unsafe extern "system" fn CallStaticByteMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jbyte {
-	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
@@ -818,7 +818,7 @@ pub unsafe extern "system" fn CallStaticCharMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jchar {
-	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
@@ -852,7 +852,7 @@ pub unsafe extern "system" fn CallStaticShortMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jshort {
-	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
@@ -886,7 +886,7 @@ pub unsafe extern "system" fn CallStaticIntMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jint {
-	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
@@ -920,7 +920,7 @@ pub unsafe extern "system" fn CallStaticLongMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jlong {
-	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
@@ -954,7 +954,7 @@ pub unsafe extern "system" fn CallStaticFloatMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jfloat {
-	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
@@ -988,7 +988,7 @@ pub unsafe extern "system" fn CallStaticDoubleMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jdouble {
-	let Some(ret) = call_with_c_array_args(env, clazz, methodID, args) else {
+	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
@@ -1022,10 +1022,10 @@ pub unsafe extern "system" fn CallStaticVoidMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) {
-	call_with_c_array_args(env, cls, methodID, args);
+	unsafe { call_with_c_array_args(env, cls, methodID, args) };
 }
 
-pub(super) fn call_with_c_array_args(
+pub(super) unsafe fn call_with_c_array_args(
 	env: *mut JNIEnv,
 	cls: jclass,
 	methodID: jmethodID,

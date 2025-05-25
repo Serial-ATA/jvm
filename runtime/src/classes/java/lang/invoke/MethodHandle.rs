@@ -10,9 +10,11 @@ use classfile::FieldType;
 
 /// `java.lang.invoke.MethodHandle#form` field
 pub fn form(instance: &ClassInstance) -> ClassInstanceRef {
-	assert!(instance
-		.class()
-		.is_subclass_of(globals::classes::java_lang_invoke_MethodHandle()));
+	assert!(
+		instance
+			.class()
+			.is_subclass_of(globals::classes::java_lang_invoke_MethodHandle())
+	);
 	instance
 		.get_field_value0(form_field_offset())
 		.expect_reference()
@@ -92,7 +94,7 @@ mod _dynamic {
 	use crate::objects::method::Method;
 	use crate::objects::reference::{ClassInstanceRef, Reference};
 	use crate::stack::local_stack::LocalStack;
-	use crate::thread::exceptions::{throw, Throws};
+	use crate::thread::exceptions::{Throws, throw};
 	use crate::thread::frame::Frame;
 	use crate::{classes, java_call};
 	use common::traits::PtrType;

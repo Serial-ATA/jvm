@@ -3,9 +3,9 @@ pub(crate) mod index;
 #[cfg(test)]
 mod tests;
 
+use crate::JImageHeader;
 use crate::error::{Error, Result};
 use crate::image::JImage;
-use crate::JImageHeader;
 
 use std::io::Read;
 

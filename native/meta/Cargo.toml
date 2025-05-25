@@ -1,0 +1,11 @@
+[package]
+name = "native-meta"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+native-macros.workspace = true
+native-nio = { path = "../nio" }

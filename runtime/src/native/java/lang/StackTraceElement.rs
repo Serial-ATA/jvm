@@ -3,8 +3,8 @@ use crate::native::java::lang::String::StringInterner;
 use crate::objects::class::Class;
 use crate::objects::method::Method;
 use crate::objects::reference::{ClassInstanceRef, Reference};
-use crate::thread::exceptions::throw;
 use crate::thread::JavaThread;
+use crate::thread::exceptions::throw;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 

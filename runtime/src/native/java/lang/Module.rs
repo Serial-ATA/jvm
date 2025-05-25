@@ -3,8 +3,8 @@ use crate::modules::{Module, Package};
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
-use crate::thread::exceptions::{handle_exception, throw, Throws};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, handle_exception, throw};
 
 use ::jni::env::JniEnv;
 use common::traits::PtrType;

@@ -1,5 +1,5 @@
 use crate::parse::{Class, Member};
-use crate::{definitions, field, parse, registernatives, util, SymbolCollector};
+use crate::{SymbolCollector, definitions, field, parse, registernatives, util};
 
 use indexmap::IndexMap;
 use std::path::{Path, PathBuf};

@@ -55,9 +55,9 @@ fn read_classes() {
 		assert!(location.is_some(), "location not found: {}", class);
 		assert!(size > 0, "size of {} should be > 0: ", class);
 
-		let mut buffer = vec![0; size as usize];
-		file.get_resource_from_location(location.as_ref().unwrap(), &mut buffer);
-
+		let buffer = file
+			.get_resource_from_location(location.as_ref().unwrap())
+			.unwrap();
 		if class.ends_with(".class") {
 			let magic = u32::from_be_bytes(buffer[..4].try_into().unwrap());
 			assert_eq!(magic, CLASS_MAGIC, "Classfile has bad magic number");

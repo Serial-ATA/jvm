@@ -423,7 +423,10 @@ impl ClassLoader {
 				self.derive_class_inner(name, name_str, classfile_bytes, is_hidden)
 			},
 			None => {
-				let classfile_bytes = super::find_classpath_entry(name);
+				let Some(classfile_bytes) = super::find_classpath_entry(name) else {
+					throw!(@DEFER ClassNotFoundException, "{name}");
+				};
+
 				self.derive_class_inner(name, name_str, &classfile_bytes, is_hidden)
 			},
 		}
