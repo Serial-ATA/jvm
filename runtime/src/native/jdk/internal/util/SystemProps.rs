@@ -33,11 +33,11 @@ pub mod Raw {
 		m.insert(String::from("java.vm.name"), String::from(VM_NAME));
 		m.insert(String::from("java.vm.version"), String::from(VM_VERSION));
 		m.insert(String::from("java.vm.vendor"), String::from(VM_VENDOR));
-		// TODO: This isn't entirely accurate, there are more steps to determining java home.
 		m.insert(
-			String::from("java.home"),
-			std::env::var("JAVA_HOME").unwrap(),
+			String::from("java.library.path"),
+			platform::env::java_library_path(),
 		);
+		m.insert(String::from("java.home"), platform::env::java_home());
 		Mutex::new(m)
 	});
 

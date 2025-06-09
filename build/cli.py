@@ -1,6 +1,8 @@
 import argparse
 from argparse import Namespace
 
+from entry import VmVariant
+
 
 def args() -> Namespace:
     parser = argparse.ArgumentParser(
@@ -12,6 +14,13 @@ def args() -> Namespace:
         type=str,
         help="the Cargo build profile",
         default="release",
+    )
+    parser.add_argument(
+        "--variant",
+        nargs=1,
+        choices=[x for x in VmVariant.__members__.keys()],
+        help="the variant of the VM",
+        default=str(VmVariant.SERVER),
     )
     parser.add_argument(
         "--force",

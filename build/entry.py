@@ -1,11 +1,12 @@
 import os
 import shutil
 import sys
+from pathlib import Path
 
 import cli
 from enum import StrEnum
 
-from includes import BINARIES, LIBRARIES
+from includes import BINARIES, LIBRARIES, VM_LIBRARIES
 
 
 class ModuleType(StrEnum):
@@ -18,11 +19,15 @@ class ModuleType(StrEnum):
     MAN = "man"
 
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BUILD_DIR = os.path.join(PROJECT_ROOT, "build")
-TARGET_DIR = os.path.join(PROJECT_ROOT, "target")
-OUT_DIR = os.path.join(BUILD_DIR, "out")
-DIST_DIR = os.path.join(BUILD_DIR, "dist")
+class VmVariant(StrEnum):
+    SERVER = "server"
+
+
+PROJECT_ROOT = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+BUILD_DIR = PROJECT_ROOT.joinpath("build")
+TARGET_DIR = PROJECT_ROOT.joinpath("target")
+OUT_DIR = BUILD_DIR.joinpath("out")
+DIST_DIR = BUILD_DIR.joinpath("dist")
 
 
 def needs_repackage() -> bool:
@@ -30,13 +35,14 @@ def needs_repackage() -> bool:
 
 
 def mk_dist_dir_if_needed():
-    if os.path.exists(DIST_DIR):
+    if DIST_DIR.exists():
         shutil.rmtree(DIST_DIR)
 
-    os.mkdir(DIST_DIR)
+    DIST_DIR.mkdir(parents=True)
 
     for mod in ModuleType.__members__.values():
-        os.mkdir(os.path.join(DIST_DIR, mod.value))
+        new_dir = DIST_DIR.joinpath(mod.value)
+        new_dir.mkdir(parents=True)
 
 
 if sys.platform.startswith("linux"):
@@ -65,7 +71,7 @@ def main():
             return
 
     print(f"Packaging for profile `{args.profile}`")
-    target_dir = os.path.join(TARGET_DIR, args.profile)
+    target_dir = TARGET_DIR.joinpath(args.profile)
     if not os.path.isdir(target_dir):
         print(
             f"Project not built for profile `{args.profile}` (searched {str(target_dir)})",
@@ -75,17 +81,25 @@ def main():
 
     mk_dist_dir_if_needed()
 
-    bin_dir = os.path.join(DIST_DIR, "bin")
+    bin_dir = DIST_DIR.joinpath("bin")
     for binary, packaged_binary_name in BINARIES:
         src = os.path.join(target_dir, binary)
         dest = os.path.join(bin_dir, packaged_binary_name)
         shutil.copy(src, dest)
 
-    lib_dir = os.path.join(DIST_DIR, "lib")
+    lib_dir = DIST_DIR.joinpath("lib")
     for lib in LIBRARIES:
         packaged_lib_name = LIBRARY_PREFIX + lib + LIBRARY_SUFFIX
         src = os.path.join(target_dir, packaged_lib_name)
-        dest = os.path.join(lib_dir, packaged_lib_name)
+
+        # Special case for VM libraries, copy them into a Hotspot-style directory (<out>/lib/<vm_variant>/<lib_name>)
+        if lib in VM_LIBRARIES:
+            out = lib_dir.joinpath(args.variant)
+            out.mkdir(parents=True, exist_ok=True)
+
+            dest = os.path.join(out, packaged_lib_name)
+        else:
+            dest = os.path.join(lib_dir, packaged_lib_name)
         shutil.copy(src, dest)
 
 

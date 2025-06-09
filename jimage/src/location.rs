@@ -34,8 +34,6 @@ impl AttributeKind {
 struct Attribute(u1);
 
 impl Attribute {
-	const NULL: Self = Self(0);
-
 	pub fn kind(&self) -> AttributeKind {
 		match self.0 >> 3 {
 			0 => AttributeKind::End,

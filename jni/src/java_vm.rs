@@ -13,6 +13,7 @@ use std::ffi::c_void;
 use std::path::PathBuf;
 
 use jni_sys::{JNIEnv, JavaVM, jint};
+use platform::{JNI_LIB_PREFIX, JNI_LIB_SUFFIX};
 
 #[derive(Default, Debug, Clone)]
 pub struct JavaVmBuilder {
@@ -82,7 +83,14 @@ impl JavaVmBuilder {
 	/// # Ok(()) }
 	/// ```
 	pub fn build(self) -> Result<(JavaVm, JniEnv)> {
-		let libjvm_path = self.jvm_lib_path.unwrap_or_else(default_libjvm_path);
+		let Some(libjvm_path) = self.jvm_lib_path.or_else(default_libjvm_path) else {
+			return Err(Error::LibJvmNotFound.into());
+		};
+
+		if !libjvm_path.exists() {
+			return Err(Error::LibJvmNotFound.into());
+		}
+
 		let args = self.args.unwrap_or_default().finish();
 
 		let libjvm_path_str = libjvm_path
@@ -121,34 +129,10 @@ impl JavaVmBuilder {
 	}
 }
 
-#[cfg(debug_assertions)]
-fn default_libjvm_path() -> PathBuf {
-	let target = std::env::var("CARGO_TARGET_DIR").map_or_else(
-		|_| {
-			PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-				.parent()
-				.unwrap()
-				.join("target")
-		},
-		PathBuf::from,
-	);
-
-	target.join("debug").join("libjvm_runtime.so")
-}
-
-#[cfg(not(debug_assertions))]
-fn default_libjvm_path() -> PathBuf {
-	let target = std::env::var("CARGO_TARGET_DIR").map_or_else(
-		|_| {
-			PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-				.parent()
-				.unwrap()
-				.join("target")
-		},
-		PathBuf::from,
-	);
-
-	target.join("release").join("libjvm_runtime.so")
+fn default_libjvm_path() -> Option<PathBuf> {
+	let java_home = PathBuf::from(std::env::var("JAVA_HOME").ok()?);
+	let file_name = format!("{JNI_LIB_PREFIX}jvm_runtime{JNI_LIB_SUFFIX}");
+	Some(java_home.join("lib").join("server").join(file_name))
 }
 
 /// A wrapper around a built [`jni_sys::JavaVM`]

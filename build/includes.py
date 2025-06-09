@@ -5,6 +5,10 @@ BINARIES = [
     ("jimage", "jimage"),
 ]
 
+VM_LIBRARIES = ["jvm_runtime"]
+
 LIBRARIES = [
     "nio",
 ]
+
+LIBRARIES.extend(VM_LIBRARIES)
