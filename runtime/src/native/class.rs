@@ -2,7 +2,6 @@ use crate::native::jni::reference_from_jobject;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
-use jni::env::JniEnv;
 use jni::objects::JValue;
 
 /// Construct a new instance of `class` with the given constructor signature

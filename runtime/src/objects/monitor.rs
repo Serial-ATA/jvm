@@ -1,11 +1,55 @@
+use crate::objects::instance::object::Object;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 
-use std::cell::{Cell, UnsafeCell};
+use jni::sys::jint;
+use std::cell::{Cell, SyncUnsafeCell, UnsafeCell};
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Condvar, Mutex, ReentrantLock, ReentrantLockGuard};
+use std::sync::{Condvar, LazyLock, Mutex, ReentrantLock, ReentrantLockGuard};
 use std::time::Duration;
+
+pub struct MonitorMap {
+	// A list of all currently alive monitors.
+	//
+	// This is a `LinkedList`, as reads will do a lifetime-extension, and are not guarded. We cannot
+	// risk a realloc invalidating a reference.
+	list: SyncUnsafeCell<HashMap<jint, &'static Monitor>>,
+	write_mutex: Mutex<()>,
+}
+
+static MONITOR_MAP: LazyLock<MonitorMap> = LazyLock::new(|| MonitorMap {
+	list: SyncUnsafeCell::new(HashMap::new()),
+	write_mutex: Mutex::new(()),
+});
+
+impl MonitorMap {
+	fn add(hash: jint) -> &'static Monitor {
+		let _guard = MONITOR_MAP.write_mutex.lock().unwrap();
+
+		let monitor = Box::leak(Box::new(Monitor::new()));
+
+		let list = unsafe { &mut *MONITOR_MAP.list.get() };
+		list.insert(hash, monitor);
+
+		monitor
+	}
+
+	fn find(hash: jint) -> Option<&'static Monitor> {
+		let list = unsafe { &*MONITOR_MAP.list.get() };
+		list.get(&hash).map(|x| &**x)
+	}
+
+	pub fn find_or_add<O: Object>(obj: &O, thread: &'static JavaThread) -> &'static Monitor {
+		let hash = obj.hash(thread);
+
+		match Self::find(hash) {
+			Some(cl) => cl,
+			None => Self::add(hash),
+		}
+	}
+}
 
 type OwnerGuard<'a> = ReentrantLockGuard<'a, Cell<Option<&'static JavaThread>>>;
 

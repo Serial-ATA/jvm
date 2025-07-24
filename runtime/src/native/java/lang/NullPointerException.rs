@@ -1,14 +1,13 @@
 use crate::classes;
 use crate::native::java::lang::String::StringInterner;
-use crate::objects::array::Array;
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::objects::constant_pool::cp_types;
+use crate::objects::instance::array::Array;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 
 use common::int_types::u2;
-use common::traits::PtrType;
 use instructions::OpCode;
 use jni::env::JniEnv;
 use jni::sys::jlong;
@@ -19,14 +18,13 @@ pub fn getExtendedNPEMessage(
 	_env: JniEnv,
 	this: Reference, // java.lang.NullPointerException
 ) -> Reference /* java.lang.String */ {
-	let backtrace = classes::java::lang::Throwable::backtrace(this.extract_class().get());
+	let backtrace = classes::java::lang::Throwable::backtrace(this.extract_class());
 	if backtrace.is_null() {
 		// Nothing to do
 		return Reference::null();
 	}
 
-	let backtrace_array_instance = backtrace.extract_primitive_array();
-	let backtrace_array = backtrace_array_instance.get();
+	let backtrace_array = backtrace.extract_primitive_array();
 	if backtrace_array.is_empty() {
 		// No backtrace, nothing to do
 		return Reference::null();
@@ -115,7 +113,7 @@ fn description(opcode: OpCode, method: &'static Method, operand_pos: usize) -> O
 	}
 }
 
-fn pretty_class_name(class: &'static Class) -> Symbol {
+fn pretty_class_name(class: ClassPtr) -> Symbol {
 	if class.name() == sym!(java_lang_Object) {
 		return sym!(Object);
 	}

@@ -1,4 +1,51 @@
+use crate::classes::AsMirrorInstanceRef;
+use crate::objects::instance::Instance;
+use crate::objects::reference::Reference;
+
 use classfile::FieldType;
+use instructions::Operand;
+
+/// `java.lang.Class#name` field
+pub fn name<I: AsMirrorInstanceRef>(instance: I) -> Reference {
+	instance
+		.as_mirror_instance_ref()
+		.get_field_value0(name_field_index())
+		.expect_reference()
+}
+
+pub fn set_name<I: AsMirrorInstanceRef>(instance: I, value: Reference) {
+	instance
+		.as_mirror_instance_ref()
+		.put_field_value0(name_field_index(), Operand::Reference(value))
+}
+
+/// `java.lang.Class#module` field
+pub fn module<I: AsMirrorInstanceRef>(instance: I) -> Reference {
+	instance
+		.as_mirror_instance_ref()
+		.get_field_value0(module_field_index())
+		.expect_reference()
+}
+
+pub fn set_module<I: AsMirrorInstanceRef>(instance: I, value: Reference) {
+	instance
+		.as_mirror_instance_ref()
+		.put_field_value0(module_field_index(), Operand::Reference(value))
+}
+
+/// `java.lang.Class#classLoader` field
+pub fn classLoader<I: AsMirrorInstanceRef>(instance: I) -> Reference {
+	instance
+		.as_mirror_instance_ref()
+		.get_field_value0(classLoader_field_index())
+		.expect_reference()
+}
+
+pub fn set_classLoader<I: AsMirrorInstanceRef>(instance: I, value: Reference) {
+	instance
+		.as_mirror_instance_ref()
+		.put_field_value0(classLoader_field_index(), Operand::Reference(value))
+}
 
 crate::classes::field_module! {
 	@CLASS java_lang_Class;

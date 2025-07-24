@@ -2,7 +2,7 @@
 
 use super::type_system::VerificationType;
 use crate::classpath::loader::ClassLoader;
-use crate::objects::class::{Class, ClassInitializationState};
+use crate::objects::class::{Class, ClassPtr};
 use crate::objects::method::Method;
 use crate::objects::vtable::VTable;
 use crate::symbols::{Symbol, sym};
@@ -21,9 +21,9 @@ pub(super) trait ClassAccessorExt {
 	/// Extracts the name, `SuperClassName`, of the superclass of class `Class`.
 	fn super_class_name(&self) -> Symbol;
 	/// Extracts a list, `Interfaces`, of the direct superinterfaces of the class `Class`.
-	fn interfaces(&self) -> &[&'static Class];
+	fn interfaces(&self) -> &[ClassPtr];
 	/// Extracts a list, `Methods`, of the methods declared in the class `Class`.
-	fn methods(&self) -> &VTable<'_>;
+	fn methods(&self) -> &'static VTable<'static>;
 	/// Extracts a list, `Attributes`, of the attributes of the class `Class`.
 	fn attributes(&self) -> &[Attribute];
 	/// Extracts the defining class loader, `Loader`, of the class `Class`.
@@ -33,9 +33,9 @@ pub(super) trait ClassAccessorExt {
 	/// True iff there exists a class named `Name` whose representation (in accordance with this specification) when loaded by the class loader `InitiatingLoader` is `ClassDefinition`.
 	fn loaded_class(&self) -> bool;
 	/// True iff the package names of `self` and `other` are the same.
-	fn same_package_name(&self, other: &Class) -> bool;
+	fn same_package_name(&self, other: ClassPtr) -> bool;
 	/// True iff the package names of `self` and `other` are different.
-	fn different_package_name(&self, other: &Class) -> bool;
+	fn different_package_name(&self, other: ClassPtr) -> bool;
 }
 
 impl ClassAccessorExt for Class {
@@ -62,11 +62,11 @@ impl ClassAccessorExt for Class {
 		self.super_class.as_ref().unwrap().name()
 	}
 
-	fn interfaces(&self) -> &[&'static Class] {
+	fn interfaces(&self) -> &[ClassPtr] {
 		self.interfaces.as_slice()
 	}
 
-	fn methods(&self) -> &VTable<'_> {
+	fn methods(&self) -> &'static VTable<'static> {
 		self.vtable()
 	}
 
@@ -87,12 +87,12 @@ impl ClassAccessorExt for Class {
 	}
 
 	#[inline]
-	fn same_package_name(&self, other: &Class) -> bool {
+	fn same_package_name(&self, other: ClassPtr) -> bool {
 		self.shares_package_with(other)
 	}
 
 	#[inline]
-	fn different_package_name(&self, other: &Class) -> bool {
+	fn different_package_name(&self, other: ClassPtr) -> bool {
 		!self.same_package_name(other)
 	}
 }
@@ -111,26 +111,26 @@ pub(super) trait MethodAccessorExt {
 	/// True iff `Method` (regardless of class) is not `<init>`.
 	fn is_not_init(&self) -> bool;
 	/// True iff Method in class `Class` is not final.
-	fn is_not_final(&self, class: &'static Class) -> bool;
+	fn is_not_final(&self, class: ClassPtr) -> bool;
 	/// True iff Method in class `Class` is static.
-	fn is_static(&self, class: &'static Class) -> bool;
+	fn is_static(&self, class: ClassPtr) -> bool;
 	/// True iff Method in class `Class` is not static.
-	fn is_not_static(&self, class: &'static Class) -> bool;
+	fn is_not_static(&self, class: ClassPtr) -> bool;
 	/// True iff Method in class `Class` is private.
-	fn is_private(&self, class: &'static Class) -> bool;
+	fn is_private(&self, class: ClassPtr) -> bool;
 	/// True iff Method in class `Class` is not private.
-	fn is_not_private(&self, class: &'static Class) -> bool;
+	fn is_not_private(&self, class: ClassPtr) -> bool;
 	/// True iff there is a member named `MemberName` with descriptor `MemberDescriptor` in the class `MemberClass` and it is protected.
 	fn is_protected(
 		&self,
-		member_class: &'static Class,
+		member_class: ClassPtr,
 		member_name: Symbol,
 		member_descriptor: Symbol,
 	) -> bool;
 	/// True iff there is a member named `MemberName` with descriptor `MemberDescriptor` in the class `MemberClass` and it is not protected.
 	fn is_not_protected(
 		&self,
-		member_class: &'static Class,
+		member_class: ClassPtr,
 		member_name: Symbol,
 		member_descriptor: Symbol,
 	) -> bool;
@@ -166,29 +166,29 @@ impl MethodAccessorExt for Method {
 		!self.is_init()
 	}
 
-	fn is_not_final(&self, _: &'static Class) -> bool {
+	fn is_not_final(&self, _: ClassPtr) -> bool {
 		!self.is_final()
 	}
 
-	fn is_static(&self, _: &'static Class) -> bool {
+	fn is_static(&self, _: ClassPtr) -> bool {
 		self.is_static()
 	}
 
-	fn is_not_static(&self, _: &'static Class) -> bool {
+	fn is_not_static(&self, _: ClassPtr) -> bool {
 		!self.is_static()
 	}
 
-	fn is_private(&self, _: &'static Class) -> bool {
+	fn is_private(&self, _: ClassPtr) -> bool {
 		self.is_private()
 	}
 
-	fn is_not_private(&self, _: &'static Class) -> bool {
+	fn is_not_private(&self, _: ClassPtr) -> bool {
 		!self.is_private()
 	}
 
 	fn is_protected(
 		&self,
-		member_class: &'static Class,
+		member_class: ClassPtr,
 		member_name: Symbol,
 		member_descriptor: Symbol,
 	) -> bool {
@@ -197,7 +197,7 @@ impl MethodAccessorExt for Method {
 
 	fn is_not_protected(
 		&self,
-		member_class: &'static Class,
+		member_class: ClassPtr,
 		member_name: Symbol,
 		member_descriptor: Symbol,
 	) -> bool {

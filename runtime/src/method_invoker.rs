@@ -2,9 +2,9 @@ use crate::objects::method::{Method, MethodEntryPoint};
 use crate::objects::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Exception, ExceptionKind};
 use crate::thread::frame::Frame;
 
-use crate::thread::exceptions::{Exception, ExceptionKind};
 use common::int_types::{u1, u2};
 use instructions::{Operand, StackLike};
 

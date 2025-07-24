@@ -1,226 +1,270 @@
-use super::array::{ObjectArrayInstancePtr, PrimitiveArrayInstancePtr};
-use super::class::Class;
-use super::class_instance::ClassInstancePtr;
-use super::field::Field;
-use super::instance::{Header, Instance};
-use super::mirror::MirrorInstancePtr;
-use super::monitor::Monitor;
-use crate::objects::array::Array;
-use crate::symbols::Symbol;
+//! https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.4
+
+use super::class::ClassPtr;
+use super::instance::Instance;
+use crate::objects::field::Field;
+use crate::objects::instance::array::{Array, ObjectArrayInstanceRef, PrimitiveArrayInstanceRef};
+use crate::objects::instance::class::ClassInstanceRef;
+use crate::objects::instance::mirror::MirrorInstanceRef;
+use crate::objects::instance::object::Object;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 
-use std::ptr::NonNull;
-use std::sync::Arc;
-
 use ::jni::sys::jint;
-use common::traits::PtrType;
 use instructions::Operand;
-
-pub type ClassInstanceRef = Arc<ClassInstancePtr>;
-pub type PrimitiveArrayInstanceRef = Arc<PrimitiveArrayInstancePtr>;
-pub type ObjectArrayInstanceRef = Arc<ObjectArrayInstancePtr>;
-pub type MirrorInstanceRef = Arc<MirrorInstancePtr>;
-
-// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.4
 
 /// A reference to an object
 ///
-/// It is important to note that calling [`clone()`](Clone::clone) on this will **not** clone the
-/// object. It will simply clone the *reference*, as well as a reference to the [`Monitor`].
+/// This implements [`Instance`], and calls to the trait's methods will panic at runtime if the
+/// reference isn't an appropriate type.
 ///
-/// To clone objects, see the [`CloneableInstance::clone`] impl on each respective instance type.
+/// It is important to note that calling [`clone()`](Clone::clone) on this will **not** clone the
+/// object. It will simply clone the *reference*.
+///
+/// To clone objects, see the [`CloneableInstance::clone`] impl on each respective reference type.
 ///
 /// [`CloneableInstance::clone`]: super::instance::CloneableInstance::clone
-#[derive(Debug, Clone)]
-#[repr(C)]
-pub struct Reference {
-	instance: ReferenceInstance,
-}
+#[derive(Debug, Copy, Clone, PartialEq)]
+#[repr(transparent)]
+pub struct Reference(*mut ());
 
-const _: () = {
-	let reference_size = size_of::<Reference>();
-	assert!(
-		reference_size & (reference_size - 1) == 0,
-		"size_of(`Reference`) is not a power of two"
-	);
-};
-
-impl PartialEq for Reference {
-	fn eq(&self, other: &Self) -> bool {
-		self.instance == other.instance
-	}
-}
-
-#[derive(Debug, Clone)]
-#[repr(C)]
-enum ReferenceInstance {
-	Class(ClassInstanceRef),
-	Array(PrimitiveArrayInstanceRef),
-	ObjectArray(ObjectArrayInstanceRef),
-	Mirror(MirrorInstanceRef),
-	Null,
-}
-
-impl PartialEq for ReferenceInstance {
-	fn eq(&self, other: &Self) -> bool {
-		match (self, other) {
-			(ReferenceInstance::Class(val), ReferenceInstance::Class(other)) => {
-				val.as_raw() == other.as_raw()
-			},
-			(ReferenceInstance::Array(val), ReferenceInstance::Array(other)) => {
-				val.as_raw() == other.as_raw()
-			},
-			(ReferenceInstance::ObjectArray(val), ReferenceInstance::ObjectArray(other)) => {
-				val.as_raw() == other.as_raw()
-			},
-			(ReferenceInstance::Mirror(val), ReferenceInstance::Mirror(other)) => {
-				val.as_raw() == other.as_raw()
-			},
-			// All null references are equal
-			(ReferenceInstance::Null, ReferenceInstance::Null) => true,
-			_ => false,
-		}
-	}
-}
-
-impl ReferenceInstance {
-	fn raw(&self) -> *const () {
-		match self {
-			ReferenceInstance::Class(val) => val.as_raw() as _,
-			ReferenceInstance::Array(val) => val.as_raw() as _,
-			ReferenceInstance::ObjectArray(val) => val.as_raw() as _,
-			ReferenceInstance::Mirror(val) => val.as_raw() as _,
-			ReferenceInstance::Null => core::ptr::null(),
-		}
-	}
-}
+// SAFETY: Synchronization handled manually
+unsafe impl Send for Reference {}
+unsafe impl Sync for Reference {}
 
 impl Reference {
-	pub fn class(instance: ClassInstanceRef) -> Reference {
-		Self {
-			instance: ReferenceInstance::Class(instance),
-		}
+	const CLASS_TAG: usize = 0x00;
+	const MIRROR_TAG: usize = 0x01;
+	const PRIMITIVE_ARRAY_TAG: usize = 0x02;
+	const OBJECT_ARRAY_TAG: usize = 0x03;
+	const TAG_MASK: usize = 0b11;
+	const ADDRESS_MASK: usize = !Self::TAG_MASK;
+
+	#[inline]
+	pub fn null() -> Self {
+		Self(std::ptr::null_mut())
 	}
 
-	pub fn array(instance: PrimitiveArrayInstanceRef) -> Reference {
-		Self {
-			instance: ReferenceInstance::Array(instance),
-		}
+	#[inline]
+	pub fn is_null(self) -> bool {
+		self.addr().is_null()
 	}
 
-	pub fn object_array(instance: ObjectArrayInstanceRef) -> Reference {
-		Self {
-			instance: ReferenceInstance::ObjectArray(instance),
-		}
+	#[inline]
+	pub fn class(instance: ClassInstanceRef) -> Self {
+		let raw = unsafe { instance.raw() };
+		Self((raw as usize | Self::CLASS_TAG) as *mut ())
 	}
 
-	pub fn mirror(instance: MirrorInstanceRef) -> Reference {
-		Self {
-			instance: ReferenceInstance::Mirror(instance),
-		}
+	#[inline]
+	unsafe fn as_class_unchecked(self) -> ClassInstanceRef {
+		unsafe { std::mem::transmute::<_, ClassInstanceRef>(self.addr()) }
 	}
 
-	pub fn null() -> Reference {
-		Self {
-			instance: ReferenceInstance::Null,
-		}
-	}
-}
-
-impl Reference {
-	pub fn is_class(&self) -> bool {
-		matches!(self.instance, ReferenceInstance::Class(_))
+	#[inline]
+	pub fn mirror(instance: MirrorInstanceRef) -> Self {
+		let raw = unsafe { instance.raw() };
+		Self((raw as usize | Self::MIRROR_TAG) as *mut ())
 	}
 
-	pub fn is_primitive_array(&self) -> bool {
-		matches!(self.instance, ReferenceInstance::Array(_))
+	#[inline]
+	unsafe fn as_mirror_unchecked(self) -> MirrorInstanceRef {
+		unsafe { std::mem::transmute::<_, MirrorInstanceRef>(self.addr()) }
 	}
 
-	pub fn is_object_array(&self) -> bool {
-		matches!(self.instance, ReferenceInstance::ObjectArray(_))
+	#[inline]
+	pub fn array(instance: PrimitiveArrayInstanceRef) -> Self {
+		let raw = unsafe { instance.raw() };
+		Self((raw as usize | Self::PRIMITIVE_ARRAY_TAG) as *mut ())
 	}
 
-	pub fn is_mirror(&self) -> bool {
-		matches!(self.instance, ReferenceInstance::Mirror(_))
+	#[inline]
+	unsafe fn as_primitive_array_unchecked(self) -> PrimitiveArrayInstanceRef {
+		unsafe { std::mem::transmute::<_, PrimitiveArrayInstanceRef>(self.addr()) }
 	}
 
-	pub fn is_null(&self) -> bool {
-		matches!(self.instance, ReferenceInstance::Null)
+	#[inline]
+	pub fn object_array(instance: ObjectArrayInstanceRef) -> Self {
+		let raw = unsafe { instance.raw() };
+		Self((raw as usize | Self::OBJECT_ARRAY_TAG) as *mut ())
 	}
-}
 
-impl Reference {
-	pub fn hash(&self) -> Option<jint> {
-		// Null references are always 0
+	#[inline]
+	unsafe fn as_object_array_unchecked(self) -> ObjectArrayInstanceRef {
+		unsafe { std::mem::transmute::<_, ObjectArrayInstanceRef>(self.addr()) }
+	}
+
+	fn tag(self) -> usize {
 		if self.is_null() {
-			return Some(0);
+			return usize::MAX;
 		}
 
-		self.header().hash()
+		self.0 as usize & Self::TAG_MASK
 	}
 
-	/// Generate a new hash for this object
-	///
-	/// In the event that another thread is already generating a hash, this thread will spin until it finishes.
-	pub fn generate_hash(&self, thread: &'static JavaThread) -> jint {
-		// Null references are always 0
-		if self.is_null() {
-			return 0;
-		}
+	fn addr(self) -> *mut () {
+		(self.0 as usize & Self::ADDRESS_MASK) as *mut ()
+	}
+}
 
-		self.header().generate_hash(thread)
+impl Object for Reference {
+	type Descriptor = ();
+
+	fn hash(&self, thread: &'static JavaThread) -> jint {
+		match self.tag() {
+			Self::CLASS_TAG => unsafe { self.as_class_unchecked() }.hash(thread),
+			Self::MIRROR_TAG => unsafe { self.as_mirror_unchecked() }.hash(thread),
+			Self::PRIMITIVE_ARRAY_TAG => {
+				unsafe { self.as_primitive_array_unchecked() }.hash(thread)
+			},
+			Self::OBJECT_ARRAY_TAG => unsafe { self.as_object_array_unchecked() }.hash(thread),
+			// Null references are always 0
+			_ => 0,
+		}
+	}
+
+	fn class(&self) -> ClassPtr {
+		match self.tag() {
+			Self::CLASS_TAG => unsafe { self.as_class_unchecked() }.class(),
+			Self::MIRROR_TAG => unsafe { self.as_mirror_unchecked() }.class(),
+			Self::PRIMITIVE_ARRAY_TAG => unsafe { self.as_primitive_array_unchecked() }.class(),
+			Self::OBJECT_ARRAY_TAG => unsafe { self.as_object_array_unchecked() }.class(),
+			_ => panic!("NullPointerException"),
+		}
+	}
+
+	#[inline]
+	fn is_object_array(&self) -> bool {
+		self.tag() == Self::OBJECT_ARRAY_TAG
+	}
+
+	#[inline]
+	fn is_primitive_array(&self) -> bool {
+		self.tag() == Self::PRIMITIVE_ARRAY_TAG
+	}
+
+	#[inline]
+	fn is_class(&self) -> bool {
+		self.tag() == Self::CLASS_TAG
+	}
+
+	#[inline]
+	fn is_mirror(&self) -> bool {
+		self.tag() == Self::MIRROR_TAG
+	}
+
+	unsafe fn raw(&self) -> *mut () {
+		self.addr()
+	}
+
+	unsafe fn field_base(&self) -> *mut u8 {
+		unsafe {
+			match self.tag() {
+				Self::CLASS_TAG => self.as_class_unchecked().field_base(),
+				Self::MIRROR_TAG => self.as_mirror_unchecked().field_base(),
+				Self::PRIMITIVE_ARRAY_TAG => self.as_primitive_array_unchecked().field_base(),
+				Self::OBJECT_ARRAY_TAG => self.as_object_array_unchecked().field_base(),
+				_ => std::ptr::null_mut(),
+			}
+		}
+	}
+
+	unsafe fn put<T: Copy>(&self, value: T, offset: usize) {
+		unsafe {
+			match self.tag() {
+				Self::CLASS_TAG => self.as_class_unchecked().put(value, offset),
+				Self::MIRROR_TAG => self.as_mirror_unchecked().put(value, offset),
+				Self::PRIMITIVE_ARRAY_TAG => self.as_primitive_array_unchecked().put(value, offset),
+				Self::OBJECT_ARRAY_TAG => self.as_object_array_unchecked().put(value, offset),
+				_ => panic!("NullPointerException"),
+			}
+		}
+	}
+
+	unsafe fn get<T: Copy>(&self, offset: usize) -> T {
+		unsafe {
+			match self.tag() {
+				Self::CLASS_TAG => self.as_class_unchecked().get(offset),
+				Self::MIRROR_TAG => self.as_mirror_unchecked().get(offset),
+				Self::PRIMITIVE_ARRAY_TAG => {
+					Object::get(&self.as_primitive_array_unchecked(), offset)
+				},
+				Self::OBJECT_ARRAY_TAG => Object::get(&self.as_object_array_unchecked(), offset),
+				_ => panic!("NullPointerException"),
+			}
+		}
+	}
+
+	unsafe fn get_raw<T: Copy>(&self, offset: usize) -> *mut T {
+		unsafe {
+			match self.tag() {
+				Self::CLASS_TAG => self.as_class_unchecked().get_raw(offset),
+				Self::MIRROR_TAG => self.as_mirror_unchecked().get_raw(offset),
+				Self::PRIMITIVE_ARRAY_TAG => self.as_primitive_array_unchecked().get_raw(offset),
+				Self::OBJECT_ARRAY_TAG => self.as_object_array_unchecked().get_raw(offset),
+				_ => std::ptr::null_mut(),
+			}
+		}
 	}
 }
 
 impl Reference {
-	pub fn is_instance_of(&self, other: &'static Class) -> bool {
+	pub fn is_instance_of(&self, other: ClassPtr) -> bool {
 		self.extract_instance_class().can_cast_to(other)
 	}
 
-	pub fn class_name(&self) -> Symbol {
-		match &self.instance {
-			ReferenceInstance::Class(class_instance) => class_instance.get().class().name(),
-			ReferenceInstance::Array(array_instance) => array_instance.get().class.name(),
-			ReferenceInstance::ObjectArray(array_instance) => array_instance.get().class.name(),
-			ReferenceInstance::Mirror(mirror_instance) => {
-				mirror_instance.get().target_class().name()
-			},
-			ReferenceInstance::Null => panic!("NullPointerException"),
-		}
-	}
-
 	pub fn array_length(&self) -> Throws<usize> {
-		match &self.instance {
-			ReferenceInstance::Array(arr) => Throws::Ok(arr.get().len()),
-			ReferenceInstance::ObjectArray(arr) => Throws::Ok(arr.get().len()),
-			ReferenceInstance::Null => throw!(@DEFER NullPointerException),
-			_ => panic!("Expected an array reference!"),
+		if self.is_null() {
+			throw!(@DEFER NullPointerException);
 		}
+
+		if self.is_primitive_array() {
+			let array = unsafe { self.as_primitive_array_unchecked() };
+			return Throws::Ok(array.len());
+		}
+
+		if self.is_object_array() {
+			let array = unsafe { self.as_object_array_unchecked() };
+			return Throws::Ok(array.len());
+		}
+
+		panic!("Expected an array reference!")
 	}
 
 	pub fn extract_primitive_array(&self) -> PrimitiveArrayInstanceRef {
-		match &self.instance {
-			ReferenceInstance::Array(arr) => Arc::clone(arr),
-			ReferenceInstance::Null => panic!("NullPointerException"),
-			_ => panic!("Expected an array reference!"),
+		if self.is_null() {
+			panic!("NullPointerException")
 		}
+
+		if self.is_primitive_array() {
+			return unsafe { self.as_primitive_array_unchecked() };
+		}
+
+		panic!("Expected a primitive array reference!")
 	}
 
 	pub fn extract_object_array(&self) -> ObjectArrayInstanceRef {
-		match &self.instance {
-			ReferenceInstance::ObjectArray(arr) => Arc::clone(arr),
-			ReferenceInstance::Null => panic!("NullPointerException"),
-			_ => panic!("Expected an object array reference!"),
+		if self.is_null() {
+			panic!("NullPointerException")
 		}
+
+		if self.is_object_array() {
+			return unsafe { self.as_object_array_unchecked() };
+		}
+
+		panic!("Expected an object array reference!")
 	}
 
 	pub fn extract_class(&self) -> ClassInstanceRef {
-		match &self.instance {
-			ReferenceInstance::Class(class) => Arc::clone(class),
-			ReferenceInstance::Null => panic!("NullPointerException"),
-			_ => panic!("Expected a class reference!"),
+		if self.is_null() {
+			panic!("NullPointerException")
 		}
+
+		if self.is_class() {
+			return unsafe { self.as_class_unchecked() };
+		}
+
+		panic!("Expected a class reference!")
 	}
 
 	/// Get the class that this reference targets
@@ -237,15 +281,14 @@ impl Reference {
 	///
 	/// For references other than `mirror`, this will return the same as `extract_instance_class`.
 	///
-	/// [`MirrorInstance::target_class`]: crate::objects::mirror::MirrorInstance::target_class
-	pub fn extract_target_class(&self) -> &'static Class {
-		match &self.instance {
-			ReferenceInstance::Class(class) => class.get().class(),
-			ReferenceInstance::Mirror(mirror) => mirror.get().target_class(),
-			ReferenceInstance::Array(arr) => arr.get().class,
-			ReferenceInstance::ObjectArray(arr) => arr.get().class,
-			ReferenceInstance::Null => panic!("NullPointerException"),
+	/// [`MirrorInstance::target_class`]: crate::objects::instance::mirror::MirrorInstance::target_class
+	pub fn extract_target_class(&self) -> ClassPtr {
+		if self.is_mirror() {
+			let mirror = unsafe { self.as_mirror_unchecked() };
+			return mirror.target_class();
 		}
+
+		self.class()
 	}
 
 	/// Get the class of the instance
@@ -257,114 +300,70 @@ impl Reference {
 	/// This is a very important distinction to make when dealing with things such as method resolution.
 	///
 	/// For references other than `mirror`, this will return the same as `extract_target_class`.
-	pub fn extract_instance_class(&self) -> &'static Class {
-		match &self.instance {
-			ReferenceInstance::Class(class) => class.get().class(),
-			ReferenceInstance::Mirror(mirror) => &mirror.get().class(),
-			ReferenceInstance::Array(arr) => &arr.get().class,
-			ReferenceInstance::ObjectArray(arr) => &arr.get().class,
-			ReferenceInstance::Null => panic!("NullPointerException"),
-		}
+	pub fn extract_instance_class(&self) -> ClassPtr {
+		self.class()
 	}
 
 	pub fn extract_mirror(&self) -> MirrorInstanceRef {
-		match &self.instance {
-			ReferenceInstance::Mirror(mirror) => Arc::clone(mirror),
-			ReferenceInstance::Null => panic!("NullPointerException"),
-			_ => panic!("Expected a mirror reference!"),
+		if self.is_null() {
+			panic!("NullPointerException")
 		}
+
+		if self.is_mirror() {
+			return unsafe { self.as_mirror_unchecked() };
+		}
+
+		panic!("Expected a mirror reference!")
 	}
 
 	/// Extract a mirror instance from a `Class` or `Array` instance, this is NOT the same as `Reference::extract_mirror`
 	pub fn extract_class_mirror(&self) -> MirrorInstanceRef {
-		match &self.instance {
-			ReferenceInstance::Class(class) => class.get().class().mirror(),
-			ReferenceInstance::Array(arr) => arr.get().class.mirror(),
-			ReferenceInstance::ObjectArray(arr) => arr.get().class.mirror(),
-			ReferenceInstance::Null => panic!("NullPointerException"),
-			_ => panic!("Expected a class/array reference!"),
+		if self.is_null() {
+			panic!("NullPointerException")
 		}
-	}
 
-	pub fn raw(&self) -> *const () {
-		self.instance.raw()
+		if self.is_mirror() {
+			panic!("Expected a class/array reference!");
+		}
+
+		self.class().mirror()
 	}
 }
 
-// TODO: Can this also handle Reference::Array in the future? Doing many manual checks in jdk.internal.misc.Unsafe
 impl Instance for Reference {
-	fn header(&self) -> &Header {
-		match &self.instance {
-			ReferenceInstance::Class(instance) => instance.get().header(),
-			ReferenceInstance::Array(instance) => instance.get().header(),
-			ReferenceInstance::ObjectArray(instance) => instance.get().header(),
-			ReferenceInstance::Mirror(instance) => instance.get().header(),
-			ReferenceInstance::Null => {
-				unreachable!("Should never attempt to retrieve the header of a null object")
-			},
-		}
-	}
-
-	fn monitor(&self) -> Arc<Monitor> {
-		match &self.instance {
-			ReferenceInstance::Class(instance) => instance.get().monitor(),
-			ReferenceInstance::Array(instance) => instance.get().monitor(),
-			ReferenceInstance::ObjectArray(instance) => instance.get().monitor(),
-			ReferenceInstance::Mirror(instance) => instance.get().monitor(),
-			ReferenceInstance::Null => {
-				unreachable!("Should never attempt to retrieve the monitor of a null object")
-			},
-		}
-	}
-
 	fn get_field_value(&self, field: &Field) -> Operand<Reference> {
-		match &self.instance {
-			ReferenceInstance::Class(class) => class.get().get_field_value(field),
-			ReferenceInstance::Mirror(mirror) => mirror.get().get_field_value(field),
-			ReferenceInstance::Null => panic!("NullPointerException"),
-			_ => panic!("Expected a class reference!"),
+		match self.tag() {
+			Self::CLASS_TAG => unsafe { self.as_class_unchecked() }.get_field_value(field),
+			Self::MIRROR_TAG => unsafe { self.as_mirror_unchecked() }.get_field_value(field),
+			_ => panic!("Expected a class/mirror reference!"),
 		}
 	}
 
 	fn get_field_value0(&self, field_idx: usize) -> Operand<Reference> {
-		match &self.instance {
-			ReferenceInstance::Class(class) => class.get().get_field_value0(field_idx),
-			ReferenceInstance::Mirror(mirror) => mirror.get().get_field_value0(field_idx),
-			ReferenceInstance::Null => panic!("NullPointerException"),
-			_ => panic!("Expected a class reference!"),
+		match self.tag() {
+			Self::CLASS_TAG => unsafe { self.as_class_unchecked() }.get_field_value0(field_idx),
+			Self::MIRROR_TAG => unsafe { self.as_mirror_unchecked() }.get_field_value0(field_idx),
+			_ => panic!("Expected a class/mirror reference!"),
 		}
 	}
 
-	fn put_field_value(&mut self, field: &Field, value: Operand<Reference>) {
-		match &self.instance {
-			ReferenceInstance::Class(class) => class.get_mut().put_field_value(field, value),
-			ReferenceInstance::Mirror(mirror) => mirror.get_mut().put_field_value(field, value),
-			ReferenceInstance::Null => panic!("NullPointerException"),
-			_ => panic!("Expected a class reference!"),
+	fn put_field_value(&self, field: &Field, value: Operand<Reference>) {
+		match self.tag() {
+			Self::CLASS_TAG => unsafe { self.as_class_unchecked() }.put_field_value(field, value),
+			Self::MIRROR_TAG => unsafe { self.as_mirror_unchecked() }.put_field_value(field, value),
+			_ => panic!("Expected a class/mirror reference!"),
 		}
 	}
 
-	fn put_field_value0(&mut self, field_idx: usize, value: Operand<Reference>) {
-		match &self.instance {
-			ReferenceInstance::Class(class) => class.get_mut().put_field_value0(field_idx, value),
-			ReferenceInstance::Mirror(mirror) => {
-				mirror.get_mut().put_field_value0(field_idx, value)
+	fn put_field_value0(&self, field_idx: usize, value: Operand<Reference>) {
+		match self.tag() {
+			Self::CLASS_TAG => {
+				unsafe { self.as_class_unchecked() }.put_field_value0(field_idx, value)
 			},
-			ReferenceInstance::Null => panic!("NullPointerException"),
-			_ => panic!("Expected a class reference!"),
-		}
-	}
-
-	unsafe fn get_field_value_raw(&self, field_idx: usize) -> NonNull<Operand<Reference>> {
-		match &self.instance {
-			ReferenceInstance::Class(class) => unsafe {
-				class.get_mut().get_field_value_raw(field_idx)
+			Self::MIRROR_TAG => {
+				unsafe { self.as_mirror_unchecked() }.put_field_value0(field_idx, value)
 			},
-			ReferenceInstance::Mirror(mirror) => unsafe {
-				mirror.get_mut().get_field_value_raw(field_idx)
-			},
-			ReferenceInstance::Null => panic!("NullPointerException"),
-			_ => panic!("Expected a class reference!"),
+			_ => panic!("Expected a class/mirror reference!"),
 		}
 	}
 }

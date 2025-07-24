@@ -1,11 +1,12 @@
 use crate::accessflags::FieldAccessFlags;
 use crate::attribute::{Attribute, ConstantValue};
 use crate::error::Result;
+
 use std::borrow::Cow;
 use std::fmt::Display;
 use std::io::Read;
 
-use common::int_types::{u1, u2};
+use common::int_types::{s1, s4, u1, u2};
 use common::traits::JavaReadExt;
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.5
@@ -25,7 +26,9 @@ impl FieldInfo {
 	}
 }
 
-// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.3.2
+/// The type of a field, parameter, local variable, or value
+///
+/// <https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.3.2>
 #[derive(Debug, Clone, PartialEq)]
 pub enum FieldType {
 	Byte,
@@ -214,6 +217,37 @@ impl FieldType {
 		match self {
 			FieldType::Double | FieldType::Long => 2,
 			_ => 1,
+		}
+	}
+
+	/// The size of this type in bytes
+	pub fn size(&self) -> usize {
+		match self {
+			FieldType::Byte => size_of::<s1>(),
+			FieldType::Character => size_of::<u2>(),
+			FieldType::Double => size_of::<f64>(),
+			FieldType::Float => size_of::<f32>(),
+			FieldType::Integer => size_of::<s4>(),
+			FieldType::Long => size_of::<u1>(),
+			FieldType::Short => size_of::<u2>(),
+			FieldType::Boolean => size_of::<bool>(),
+			FieldType::Void => 0,
+			FieldType::Object(_) | FieldType::Array(_) => size_of::<*const ()>(),
+		}
+	}
+
+	pub fn align(&self) -> usize {
+		match self {
+			FieldType::Byte => align_of::<s1>(),
+			FieldType::Character => align_of::<u2>(),
+			FieldType::Double => align_of::<f64>(),
+			FieldType::Float => align_of::<f32>(),
+			FieldType::Integer => align_of::<s4>(),
+			FieldType::Long => align_of::<u1>(),
+			FieldType::Short => align_of::<u2>(),
+			FieldType::Boolean => align_of::<bool>(),
+			FieldType::Void => 0,
+			FieldType::Object(_) | FieldType::Array(_) => align_of::<*const ()>(),
 		}
 	}
 }

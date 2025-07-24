@@ -83,22 +83,3 @@ pub trait JavaLittleEndianRead: Read {
 }
 
 impl<R: Read> JavaLittleEndianRead for R {}
-
-/// An extension trait for [`Endian`](crate::endian::Endian) for reading Java integer types
-pub trait JavaEndianAwareRead<R: Read> {
-	fn read_u1(self, reader: &mut R) -> Result<u1>;
-	fn read_u4(self, reader: &mut R) -> Result<u4>;
-	fn read_u8(self, reader: &mut R) -> Result<u8>;
-	fn read_s4(self, reader: &mut R) -> Result<s4>;
-
-	fn read_s4_into(self, reader: &mut R, dst: &mut [s4]) -> Result<()>;
-	fn read_u4_into(self, reader: &mut R, dst: &mut [u4]) -> Result<()>;
-}
-
-pub trait PtrType<T, RefType> {
-	fn new(val: T) -> RefType;
-	fn as_raw(&self) -> *const T;
-	fn as_mut_raw(&self) -> *mut T;
-	fn get(&self) -> &T;
-	fn get_mut(&self) -> &mut T;
-}

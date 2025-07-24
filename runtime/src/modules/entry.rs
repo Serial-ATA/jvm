@@ -2,7 +2,7 @@ use super::package::{Package, PackageExportType};
 use crate::classes;
 use crate::classpath::jimage;
 use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
-use crate::objects::instance::Instance;
+use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 use crate::thread::exceptions::{Throws, throw};
@@ -12,8 +12,6 @@ use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
 
-use common::traits::PtrType;
-use instructions::Operand;
 use jni::sys::jlong;
 
 struct ModuleFlags {
@@ -123,9 +121,9 @@ impl Module {
 		}
 
 		// Store the pointer in the module, to make future lookups cheaper
-		obj.extract_class().get_mut().put_field_value0(
-			classes::java::lang::Module::module_ptr_field_offset(),
-			Operand::Long(self as *const Module as jlong),
+		classes::java::lang::Module::set_injected_module_ptr_for(
+			obj,
+			self as *const Module as jlong,
 		);
 
 		// All classes we've loaded up to this point need to be added to `java.base`
@@ -148,11 +146,9 @@ impl Module {
 	/// * Every unnamed module reads every run-time module.
 	/// * Every unnamed module exports, to every run-time module, every run-time package associated with itself.
 	pub fn unnamed(obj: Reference) -> Throws<Self> {
-		verify_obj(obj.clone())?;
+		verify_obj(obj)?;
 
-		let name = obj
-			.get_field_value0(classes::java::lang::Module::name_field_offset())
-			.expect_reference();
+		let name = classes::java::lang::Module::name(obj);
 		if !name.is_null() {
 			throw!(@DEFER IllegalArgumentException);
 		}
@@ -179,19 +175,15 @@ impl Module {
 		location: Option<Symbol>,
 		package_names: Vec<String>,
 	) -> Throws<()> {
-		verify_obj(obj.clone())?;
+		verify_obj(obj)?;
 
-		let name_obj = obj
-			.get_field_value0(classes::java::lang::Module::name_field_offset())
-			.expect_reference();
+		let name_obj = classes::java::lang::Module::name(obj);
 		if name_obj.is_null() {
 			throw!(@DEFER IllegalArgumentException, "Module name cannot be null");
 		}
 
-		let module_name = classes::java::lang::String::extract(name_obj.extract_class().get());
-		let loader = obj
-			.get_field_value0(classes::java::lang::Module::loader_field_offset())
-			.expect_reference();
+		let module_name = classes::java::lang::String::extract(name_obj.extract_class());
+		let loader = classes::java::lang::Module::loader(obj);
 
 		if &module_name == "java.base" {
 			return init_java_base(obj, is_open, version, location, package_names, loader);

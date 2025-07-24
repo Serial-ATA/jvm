@@ -1,24 +1,18 @@
 use crate::classes;
-use crate::objects::array::{
-	Array, ObjectArrayInstance, PrimitiveArrayInstance, PrimitiveType, TypeCode,
-};
 use crate::objects::class::ClassInitializationState;
-use crate::objects::class_instance::ClassInstance;
-use crate::objects::instance::Instance;
+use crate::objects::instance::array::{Array, ObjectArrayInstanceRef, PrimitiveType, TypeCode};
+use crate::objects::instance::class::ClassInstance;
+use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw, throw_with_ret};
 
 use std::marker::PhantomData;
-use std::ptr;
-use std::sync::atomic::{
-	AtomicBool, AtomicI8, AtomicI16, AtomicI32, AtomicI64, AtomicU16, Ordering,
-};
+use std::sync::atomic::Ordering;
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
-use common::atomic::{Atomic, AtomicF32, AtomicF64};
-use common::traits::PtrType;
+use common::atomic::{Atomic, AtomicCounterpart};
 use instructions::Operand;
 
 include_generated!("native/jdk/internal/misc/def/Unsafe.definitions.rs");
@@ -26,14 +20,16 @@ include_generated!("native/jdk/internal/misc/def/Unsafe.registerNatives.rs");
 
 /// Wrapper for unsafe operations
 ///
-/// This does all the work of checking the object type (class, array, or null) and performing gets/sets.
-struct UnsafeMemoryOp<T, A> {
+/// This does all the work of and performing gets/sets.
+///
+/// If `object` is null, the offset is treated as a raw pointer.
+struct UnsafeMemoryOp<T> {
 	object: Reference,
 	offset: isize,
-	_phantom: PhantomData<(T, A)>,
+	_phantom: PhantomData<T>,
 }
 
-impl<T, A> UnsafeMemoryOp<T, A> {
+impl<T> UnsafeMemoryOp<T> {
 	fn new(object: Reference, offset: jlong) -> Self {
 		let offset = offset as isize;
 		Self {
@@ -44,135 +40,48 @@ impl<T, A> UnsafeMemoryOp<T, A> {
 	}
 }
 
-impl<T, A> UnsafeMemoryOp<T, A>
+impl<T> UnsafeMemoryOp<T>
 where
 	T: UnsafeOpImpl<Output = T>,
 	T: PrimitiveType,
-	A: Atomic<Output = T>,
+	T: AtomicCounterpart,
 {
 	unsafe fn get(&self) -> T {
 		if self.object.is_null() {
-			return unsafe { self.__get_raw() };
+			let offset = self.offset;
+			let ptr = offset as *const T;
+			return unsafe { ptr.read() };
 		}
 
-		if self.object.is_primitive_array() {
-			return unsafe { self.__get_array() };
-		}
-
-		assert!(self.object.is_class());
-		unsafe { self.__get_field() }
-	}
-
-	#[doc(hidden)]
-	unsafe fn __get_raw(&self) -> T {
-		let offset = self.offset;
-		let ptr = offset as *const T;
-		unsafe { ptr.read() }
-	}
-
-	#[doc(hidden)]
-	unsafe fn __get_array(&self) -> T {
-		let offset = self.offset;
-		let instance = self.object.extract_primitive_array();
-		let array = instance.get();
-
-		unsafe {
-			let base = array.base();
-
-			let start = (base as *const u8).offset(offset);
-			*(start as *const T)
-		}
-	}
-
-	#[doc(hidden)]
-	unsafe fn __get_field(&self) -> T {
-		let offset = self.offset as usize;
-		let instance = self.object.extract_class();
-		unsafe {
-			let field_value = instance.get_mut().get_field_value_raw(offset).as_ptr();
-			<T as UnsafeOpImpl>::get_field_impl(field_value)
-		}
+		unsafe { self.object.get::<T>(self.offset as usize) }
 	}
 
 	unsafe fn get_volatile(&self) -> T {
 		if self.object.is_null() {
-			return unsafe { self.__get_raw_volatile() };
+			let offset = self.offset;
+			let ptr = offset as *const T::Counterpart;
+			return unsafe { (&*ptr).load(Ordering::Acquire) };
 		}
 
-		if self.object.is_primitive_array() {
-			return unsafe { self.__get_array_volatile() };
-		}
-
-		assert!(self.object.is_class());
-		unsafe { self.__get_field_volatile() }
-	}
-
-	#[doc(hidden)]
-	unsafe fn __get_raw_volatile(&self) -> T {
 		let offset = self.offset;
-		let ptr = offset as *const T;
-		let atomic_ptr: &A = unsafe { &*ptr.cast() };
-		atomic_ptr.load(Ordering::Acquire)
-	}
-
-	#[doc(hidden)]
-	unsafe fn __get_array_volatile(&self) -> T {
-		unimplemented!("Volatile array access")
-	}
-
-	#[doc(hidden)]
-	unsafe fn __get_field_volatile(&self) -> T {
-		let offset = self.offset as usize;
-		let instance = self.object.extract_class();
 		unsafe {
-			let field_value = instance.get_mut().get_field_value_raw(offset).as_ptr();
-			<T as UnsafeOpImpl>::get_field_volatile_impl(field_value)
+			let ptr = self.object.get_raw::<T>(offset as usize) as *const T::Counterpart;
+			(&*ptr).load(Ordering::Acquire)
 		}
 	}
 
 	unsafe fn put(&self, value: T) {
 		if self.object.is_null() {
-			return unsafe { self.__put_raw(value) };
+			let offset = self.offset;
+			let ptr = offset as *mut T;
+			unsafe {
+				*ptr = value;
+			}
+
+			return;
 		}
 
-		if self.object.is_primitive_array() {
-			return unsafe { self.__put_array(value) };
-		}
-
-		assert!(self.object.is_class());
-		unsafe { self.__put_field(value) }
-	}
-
-	#[doc(hidden)]
-	unsafe fn __put_raw(&self, value: T) {
-		let offset = self.offset;
-		let ptr = offset as *mut T;
-		unsafe {
-			*ptr = value;
-		}
-	}
-
-	#[doc(hidden)]
-	unsafe fn __put_array(&self, value: T) {
-		let offset = self.offset;
-		let instance = self.object.extract_primitive_array();
-		let array = instance.get();
-
-		unsafe {
-			let base = array.base();
-			let start = (base as *const u8).offset(offset);
-			ptr::replace(start as *mut T, value);
-		}
-	}
-
-	#[doc(hidden)]
-	unsafe fn __put_field(&self, value: T) {
-		let offset = self.offset as usize;
-		let instance = self.object.extract_class();
-		unsafe {
-			let field_value = instance.get_mut().get_field_value_raw(offset).as_ptr();
-			<T as UnsafeOpImpl>::put_field_impl(field_value, value)
-		}
+		unsafe { self.object.put::<T>(value, self.offset as usize) }
 	}
 
 	unsafe fn put_volatile(&self, value: T) {
@@ -204,34 +113,11 @@ where
 	}
 }
 
-trait UnsafeOpImpl: Sized {
+trait UnsafeOpImpl: Sized + AtomicCounterpart {
 	type Output;
 
-	unsafe fn get_field_impl(field_value: *mut Operand<Reference>) -> Self::Output;
-	unsafe fn get_field_volatile_impl(field_value: *mut Operand<Reference>) -> Self::Output;
-	unsafe fn put_field_impl(field_value: *mut Operand<Reference>, value: Self::Output);
-}
-
-// bool implemented separated due to `get_field_impl` cast
-impl UnsafeOpImpl for jboolean {
-	type Output = jboolean;
-
-	unsafe fn get_field_impl(field_value: *mut Operand<Reference>) -> jboolean {
-		unsafe { (*field_value).expect_int() != 0 }
-	}
-
-	unsafe fn get_field_volatile_impl(field_value: *mut Operand<Reference>) -> Self::Output {
-		let field_value_ptr =
-			unsafe { core::intrinsics::atomic_load_acquire(&raw const field_value) };
-		let field_value = unsafe { &*field_value_ptr };
-		field_value.expect_int() != 0
-	}
-
-	#[allow(dropping_copy_types)]
-	unsafe fn put_field_impl(field_value: *mut Operand<Reference>, value: Self::Output) {
-		let old = unsafe { field_value.replace(Operand::from(value)) };
-		drop(old);
-	}
+	unsafe fn get_field_volatile_impl(field_value: *mut Self) -> Self::Output;
+	unsafe fn put_field_impl(field_value: *mut Self, value: Self::Output);
 }
 
 macro_rules! unsafe_ops {
@@ -242,22 +128,16 @@ macro_rules! unsafe_ops {
 				type Output = [<j $ty>];
 
 				#[allow(trivial_numeric_casts)]
-				unsafe fn get_field_impl(field_value: *mut Operand<Reference>) -> Self::Output {
+				unsafe fn get_field_volatile_impl(field_value: *mut [<j $ty>]) -> Self::Output {
+					let field_value_atomic = field_value.cast::<Self::Counterpart>();
 					unsafe {
-						(*field_value).[<expect_ $operand_ty>]() as [<j $ty>]
+						(&*field_value_atomic).load(Ordering::Acquire)
 					}
 				}
 
-				#[allow(trivial_numeric_casts)]
-				unsafe fn get_field_volatile_impl(field_value: *mut Operand<Reference>) -> Self::Output {
-					let field_value_ptr = unsafe { core::intrinsics::atomic_load_acquire(&raw const field_value) };
-					let field_value = unsafe { &*field_value_ptr };
-					field_value.[<expect_ $operand_ty>]() as [<j $ty>]
-				}
-
 				#[allow(dropping_copy_types)]
-				unsafe fn put_field_impl(field_value: *mut Operand<Reference>, value: Self::Output) {
-					let old = unsafe { field_value.replace(Operand::from(value)) };
+				unsafe fn put_field_impl(field_value: *mut [<j $ty>], value: Self::Output) {
+					let old = unsafe { field_value.replace(value) };
 					drop(old);
 				}
 			}
@@ -267,6 +147,7 @@ macro_rules! unsafe_ops {
 }
 
 unsafe_ops! {
+	boolean => int,
 	byte => int,
 	short => int,
 	char => int,
@@ -364,7 +245,7 @@ pub fn compareAndExchangeInt(
 	expected: jint,
 	value: jint,
 ) -> jint {
-	let op = UnsafeMemoryOp::<jint, AtomicI32>::new(object, offset);
+	let op = UnsafeMemoryOp::<jint>::new(object, offset);
 	unsafe {
 		let current_field_value = op.get();
 		if current_field_value == expected {
@@ -395,7 +276,7 @@ pub fn compareAndExchangeLong(
 	expected: jlong,
 	value: jlong,
 ) -> jlong {
-	let op = UnsafeMemoryOp::<jlong, AtomicI64>::new(object, offset);
+	let op = UnsafeMemoryOp::<jlong>::new(object, offset);
 
 	unsafe {
 		let current_field_value = op.get();
@@ -434,51 +315,14 @@ pub fn compareAndExchangeReference(
 	expected: Reference, // Object
 	value: Reference,    // Object
 ) -> Reference {
-	if object.is_object_array() {
-		let instance = object.extract_object_array();
-		let array_mut = instance.get_mut();
-		unsafe {
-			let current_value = array_mut.get_unchecked_raw(offset as isize);
-
-			if &*current_value == &expected {
-				*current_value = Reference::clone(&value);
-				return expected;
-			}
-
-			return Reference::clone(&*current_value);
-		}
-	}
-
-	if object.is_mirror() {
-		let instance = object.extract_mirror();
-		unsafe {
-			let current_field_value = instance
-				.get_mut()
-				.get_field_value_raw(offset as usize)
-				.as_ptr();
-			if (*current_field_value).expect_reference() == expected {
-				*current_field_value = Operand::Reference(Reference::clone(&value));
-				return expected;
-			}
-
-			return (*current_field_value).expect_reference();
-		}
-	}
-
-	let instance = object.extract_class();
 	unsafe {
-		let field_value = instance
-			.get_mut()
-			.get_field_value_raw(offset as usize)
-			.as_ptr();
-
-		let current_field_value = (*field_value).expect_reference();
-		if current_field_value == expected {
-			*field_value = Operand::Reference(Reference::clone(&value));
-			return value;
+		let current_value = object.get_raw::<Reference>(offset as usize);
+		if &*current_value == &expected {
+			*current_value = value;
+			return expected;
 		}
 
-		current_field_value
+		*current_value
 	}
 }
 
@@ -488,20 +332,7 @@ pub fn getReference(
 	object: Reference, // Object
 	offset: jlong,
 ) -> Reference /* Object */ {
-	if object.is_object_array() {
-		let instance = object.extract_object_array();
-		let array_mut = instance.get_mut();
-		return Reference::clone(unsafe { &*array_mut.get_unchecked_raw(offset as isize) });
-	}
-
-	let instance = object.extract_class();
-	unsafe {
-		let field_value = instance
-			.get_mut()
-			.get_field_value_raw(offset as usize)
-			.as_ptr();
-		(*field_value).expect_reference()
-	}
+	unsafe { object.get::<Reference>(offset as usize) }
 }
 
 pub fn putReference(
@@ -511,15 +342,6 @@ pub fn putReference(
 	offset: jlong,
 	value: Reference, // Object
 ) {
-	if object.is_object_array() {
-		let instance = object.extract_object_array();
-		let array_mut = instance.get_mut();
-		unsafe {
-			array_mut.store_unchecked_raw(offset as isize, value);
-		}
-		return;
-	}
-
 	// TODO: In hotspot, a mirror holds the static fields of a class. I guess we should do the same?
 	if object.is_mirror() {
 		let target_class = object.extract_target_class();
@@ -529,14 +351,7 @@ pub fn putReference(
 		return;
 	}
 
-	let instance = object.extract_class();
-	unsafe {
-		let field_value = instance
-			.get_mut()
-			.get_field_value_raw(offset as usize)
-			.as_ptr();
-		*field_value = Operand::Reference(Reference::clone(&value));
-	}
+	unsafe { object.put::<Reference>(value, offset as usize) }
 }
 
 pub fn getReferenceVolatile(
@@ -562,7 +377,7 @@ pub fn putReferenceVolatile(
 
 /// Creates the many `{get, put}Ty` and `{get, put}TyVolatile` methods
 macro_rules! get_put_methods {
-	($(($ty:ident; $atomic_ty:ident)),+) => {
+	($($ty:ident),+) => {
 		$(
 			paste::paste! {
 				pub fn [<get $ty:camel>](
@@ -571,7 +386,7 @@ macro_rules! get_put_methods {
 					object: Reference, // Object
 					offset: jlong
 				) -> [<j $ty>] {
-					let op = UnsafeMemoryOp::<[<j $ty>], $atomic_ty>::new(object, offset);
+					let op = UnsafeMemoryOp::<[<j $ty>]>::new(object, offset);
 					unsafe { op.get() }
 				}
 
@@ -582,7 +397,7 @@ macro_rules! get_put_methods {
 					offset: jlong,
 					value: [<j $ty>]
 				) {
-					let op = UnsafeMemoryOp::<[<j $ty>], $atomic_ty>::new(object, offset);
+					let op = UnsafeMemoryOp::<[<j $ty>]>::new(object, offset);
 					unsafe { op.put(value) }
 				}
 
@@ -592,7 +407,7 @@ macro_rules! get_put_methods {
 					object: Reference, // Object
 					offset: jlong
 				) -> [<j $ty>] {
-					let op = UnsafeMemoryOp::<[<j $ty>], $atomic_ty>::new(object, offset);
+					let op = UnsafeMemoryOp::<[<j $ty>]>::new(object, offset);
 					unsafe { op.get_volatile() }
 				}
 
@@ -603,7 +418,7 @@ macro_rules! get_put_methods {
 					offset: jlong,
 					value: [<j $ty>]
 				) {
-					let op = UnsafeMemoryOp::<[<j $ty>], $atomic_ty>::new(object, offset);
+					let op = UnsafeMemoryOp::<[<j $ty>]>::new(object, offset);
 					unsafe { op.put_volatile(value) }
 				}
 			}
@@ -611,7 +426,7 @@ macro_rules! get_put_methods {
 	};
 }
 
-get_put_methods! { (boolean; AtomicBool), (byte; AtomicI8), (short; AtomicI16), (char; AtomicU16), (int; AtomicI32), (long; AtomicI64), (float; AtomicF32), (double; AtomicF64) }
+get_put_methods! { boolean, byte, short, char, int, long, float, double }
 
 pub fn unpark(
 	_env: JniEnv,
@@ -688,27 +503,28 @@ pub fn copyMemory0(
 		let src_base = src_base.extract_primitive_array();
 		let dest_base = dest_base.extract_primitive_array();
 
-		let src_base_element_size = src_base.get().size();
-		let dest_base_element_size = dest_base.get().size();
+		let src_base_element_size = src_base.scale();
+		let dest_base_element_size = dest_base.scale();
 
 		let src_base_offset = (src_offset as usize) * src_base_element_size;
 		let dest_base_offset = (dest_offset as usize) * dest_base_element_size;
 
 		unsafe {
-			let src_base_ptr = src_base.get().base().add(src_base_offset);
-			let dest_base_ptr = dest_base.get().base().add(dest_base_offset);
+			let src_base_ptr = src_base.field_base().add(src_base_offset);
+			let dest_base_ptr = dest_base.field_base().add(dest_base_offset);
 			src_base_ptr.copy_to(dest_base_ptr, size * src_base_element_size);
 			return;
 		}
 	}
 
-	let src_base_ptr;
-	let dest_base_ptr;
-	unsafe {
-		src_base_ptr = src_base.get_field_value_raw(src_offset as usize);
-		dest_base_ptr = dest_base.get_field_value_raw(dest_offset as usize);
-		src_base_ptr.copy_to(dest_base_ptr, size);
-	}
+	todo!()
+	// let src_base_ptr;
+	// let dest_base_ptr;
+	// unsafe {
+	// 	src_base_ptr = src_base.get(src_offset as usize);
+	// 	dest_base_ptr = dest_base.get(dest_offset as usize);
+	// 	src_base_ptr.copy_to(dest_base_ptr, size);
+	// }
 }
 
 pub fn copySwapMemory0(
@@ -740,20 +556,13 @@ pub fn objectFieldOffset1(
 ) -> jlong {
 	let class = class.extract_mirror();
 
-	let name_str = classes::java::lang::String::extract(name.extract_class().get());
-	let classref = class.get().target_class();
+	let name_str = classes::java::lang::String::extract(name.extract_class());
+	let classref = class.target_class();
 
-	let mut offset = 0;
-	for field in classref.fields() {
-		if field.is_static() {
-			continue;
-		}
-
+	for field in classref.instance_fields() {
 		if field.name.as_str() == name_str {
-			return (offset as jlong).into();
+			return field.offset() as jlong;
 		}
-
-		offset += 1;
 	}
 
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
@@ -793,35 +602,32 @@ pub fn ensureClassInitialized0(
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 	let mirror = class.extract_mirror();
 
-	let target_class = mirror.get().target_class();
+	let target_class = mirror.target_class();
 	if let Throws::Exception(e) = target_class.initialize(thread) {
 		e.throw(thread);
 	}
 }
 
-fn base_and_scale_of(array_class: Reference) -> Throws<(jint, jint)> {
+fn scale_of(array_class: Reference) -> Throws<jint> {
 	if array_class.is_null() {
 		throw!(@DEFER InvalidClassException);
 	}
 
 	let array_class_mirror = array_class.extract_mirror();
-	let array_class = array_class_mirror.get().target_class();
+	let array_class = array_class_mirror.target_class();
 	if !array_class.is_array() {
 		throw!(@DEFER InvalidClassException);
 	}
 
 	let array_descriptor = array_class.unwrap_array_instance();
 	if array_descriptor.is_primitive() {
-		let base = PrimitiveArrayInstance::BASE_OFFSET;
-
 		// Safe to unwrap, just verified this is a primitive array
 		let component_type_code = array_descriptor.component.as_array_type_code().unwrap();
 		let type_code = TypeCode::from_u8(component_type_code);
-		Throws::Ok((base as jint, type_code.size() as jint))
+		Throws::Ok(type_code.size() as jint)
 	} else {
-		let base = ObjectArrayInstance::BASE_OFFSET;
-		let scale = size_of::<Reference>() as jint;
-		Throws::Ok((base as jint, scale))
+		let scale = size_of::<<ObjectArrayInstanceRef as Array>::Component>() as jint;
+		Throws::Ok(scale)
 	}
 }
 
@@ -830,22 +636,24 @@ pub fn arrayBaseOffset0(
 	_this: Reference,       // jdk.internal.misc.Unsafe
 	array_class: Reference, // java.lang.Class
 ) -> jint {
-	match base_and_scale_of(array_class) {
-		Throws::Ok((base, _)) => base,
-		Throws::Exception(e) => {
-			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-			e.throw(thread);
-			0
-		},
+	// Just here to verify that the array is valid
+	if let Throws::Exception(e) = scale_of(array_class) {
+		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+		e.throw(thread);
+		return 0;
 	}
+
+	// The Java code doesn't need to know the real base of the array. Object::get() and Object::put()
+	// base on the start of the object's fields already, so the indexing is transparent.
+	0
 }
 pub fn arrayIndexScale0(
 	env: JniEnv,
 	_this: Reference,       // jdk.internal.misc.Unsafe
 	array_class: Reference, // java.lang.Class
 ) -> jint {
-	match base_and_scale_of(array_class) {
-		Throws::Ok((_, scale)) => scale,
+	match scale_of(array_class) {
+		Throws::Ok(scale) => scale,
 		Throws::Exception(e) => {
 			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 			e.throw(thread);

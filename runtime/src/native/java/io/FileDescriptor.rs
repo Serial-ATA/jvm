@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use crate::classes;
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::objects::reference::Reference;
 
 use std::os::fd::FromRawFd;
@@ -17,7 +17,7 @@ pub fn sync0(_: JniEnv, _this: Reference) {
 	unimplemented!("java.io.FileDescriptor#sync0");
 }
 
-pub fn initIDs(_: JniEnv, class: &'static Class) {
+pub fn initIDs(_: JniEnv, class: ClassPtr) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE
 		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -33,23 +33,23 @@ pub fn initIDs(_: JniEnv, class: &'static Class) {
 }
 
 #[cfg(windows)]
-pub fn getHandle(_: JniEnv, _class: &'static Class, _d: jint) -> jlong {
+pub fn getHandle(_: JniEnv, _class: ClassPtr, _d: jint) -> jlong {
 	unimplemented!("java.io.FileDescriptor#getHandle");
 }
 
 // Only windows uses the `handle` field.
 #[cfg(unix)]
-pub fn getHandle(_: JniEnv, _class: &'static Class, _d: jint) -> jlong {
+pub fn getHandle(_: JniEnv, _class: ClassPtr, _d: jint) -> jlong {
 	-1
 }
 
 #[cfg(windows)]
-pub fn getAppend(_: JniEnv, _class: &'static Class, _fd: jint) -> jboolean {
+pub fn getAppend(_: JniEnv, _class: ClassPtr, _fd: jint) -> jboolean {
 	unimplemented!("java.io.FileDescriptor#getAppend");
 }
 
 #[cfg(unix)]
-pub fn getAppend(_: JniEnv, _class: &'static Class, fd_: jint) -> jboolean {
+pub fn getAppend(_: JniEnv, _class: ClassPtr, fd_: jint) -> jboolean {
 	use libc::{F_GETFL, O_APPEND};
 
 	let flags = unsafe { libc::fcntl(fd_, F_GETFL) };

@@ -1,13 +1,12 @@
 use crate::classpath::loader::ClassLoaderSet;
 use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::{IntoJni, reference_from_jobject};
-use crate::objects::array::{Array, ObjectArrayInstance};
-use crate::objects::class::Class;
-use crate::objects::instance::Instance;
+use crate::objects::class::ClassPtr;
+use crate::objects::instance::array::{Array, ObjectArrayInstance, ObjectArrayInstanceRef};
+use crate::objects::instance::class::ClassInstanceRef;
+use crate::objects::instance::mirror::MirrorInstanceRef;
 use crate::objects::method::Method;
-use crate::objects::reference::{
-	ClassInstanceRef, MirrorInstanceRef, ObjectArrayInstanceRef, Reference,
-};
+use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{
@@ -15,14 +14,10 @@ use crate::thread::exceptions::{
 };
 use crate::{classes, globals, include_generated};
 
-use std::sync::Arc;
-
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint};
 use classfile::accessflags::ClassAccessFlags;
 use common::int_types::s4;
-use common::traits::PtrType;
-use instructions::Operand;
 
 include_generated!("native/java/lang/def/Class.registerNatives.rs");
 include_generated!("native/java/lang/def/Class.definitions.rs");
@@ -33,19 +28,18 @@ fn ensure_class_mirror(this: Reference) -> Throws<Option<MirrorInstanceRef>> {
 		throw!(@DEFER NullPointerException);
 	}
 
-	let mirror_ref = this.extract_mirror();
-	let mirror = mirror_ref.get();
+	let mirror = this.extract_mirror();
 	if mirror.is_primitive() || mirror.is_array() {
 		return Throws::Ok(None);
 	}
 
-	Throws::Ok(Some(mirror_ref))
+	Throws::Ok(Some(mirror))
 }
 
 // throws ClassNotFoundException
 pub fn forName0(
 	env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	name: Reference, // java.lang.String
 	initialize: jboolean,
 	loader: Reference,  // java.lang.ClassLoader
@@ -57,12 +51,12 @@ pub fn forName0(
 		throw_and_return_null!(thread, NullPointerException);
 	}
 
-	let binary_name = classes::java::lang::String::extract(name.extract_class().get());
+	let binary_name = classes::java::lang::String::extract(name.extract_class());
 	let internal_name = binary_name.replace('.', "/");
 	let internal_name_sym = Symbol::intern(internal_name);
 
 	let loader = ClassLoaderSet::find_or_add(loader, false);
-	let class: &'static Class =
+	let class: ClassPtr =
 		handle_exception!(Reference::null(), thread, loader.load(internal_name_sym));
 
 	if initialize {
@@ -106,10 +100,10 @@ pub fn isInterface(_env: JniEnv, this: Reference /* java.lang.Class */) -> jbool
 	this.extract_target_class().is_interface()
 }
 pub fn isArray(_env: JniEnv, this: Reference /* java.lang.Class */) -> jboolean {
-	this.extract_mirror().get().is_array()
+	this.extract_mirror().is_array()
 }
 pub fn isPrimitive(_env: JniEnv, this: Reference /* java.lang.Class */) -> jboolean {
-	this.extract_mirror().get().is_primitive()
+	this.extract_mirror().is_primitive()
 }
 
 pub fn initClassName(
@@ -117,15 +111,12 @@ pub fn initClassName(
 	this: Reference, // java.lang.Class
 ) -> Reference {
 	let this_mirror = this.extract_mirror();
-	let this_mirror_target = this_mirror.get().target_class();
+	let this_mirror_target = this_mirror.target_class();
 	let this_name = this_mirror_target.name();
 	let this_binary_name = this_name.as_str().replace('/', ".");
 	let name_string = StringInterner::intern(&*this_binary_name);
 
-	this_mirror.get_mut().put_field_value0(
-		classes::java::lang::Class::name_field_offset(),
-		Operand::Reference(Reference::class(Arc::clone(&name_string))),
-	);
+	classes::java::lang::Class::set_name(this_mirror, Reference::class(name_string));
 
 	Reference::class(name_string)
 }
@@ -154,8 +145,7 @@ pub fn getInterfaces0(
 	unimplemented!("Class#getInterfaces0");
 }
 pub fn getModifiers(_env: JniEnv, this: Reference /* java.lang.Class */) -> jint {
-	let mirror_instance = this.extract_mirror();
-	let mirror = mirror_instance.get();
+	let mirror = this.extract_mirror();
 	if mirror.is_primitive() {
 		return (ClassAccessFlags::ACC_ABSTRACT
 			| ClassAccessFlags::ACC_FINAL
@@ -199,7 +189,7 @@ pub fn getEnclosingMethod0(
 	let array_instance: ObjectArrayInstanceRef =
 		handle_exception!(Reference::null(), thread, array);
 
-	let target_class = mirror.get().target_class();
+	let target_class = mirror.target_class();
 
 	let Some(enclosing_method) = target_class.unwrap_class_instance().enclosing_method else {
 		// Class has no immediate enclosing method/class information
@@ -210,9 +200,7 @@ pub fn getEnclosingMethod0(
 
 	// SAFETY: We know that the array has a length of 3
 	unsafe {
-		array_instance
-			.get_mut()
-			.store_unchecked(0, Reference::mirror(enclosing_class.mirror()));
+		array_instance.store_unchecked(0, Reference::mirror(enclosing_class.mirror()));
 	}
 
 	let Some(enclosing_method) = enclosing_method.method else {
@@ -221,12 +209,12 @@ pub fn getEnclosingMethod0(
 	};
 
 	unsafe {
-		array_instance.get_mut().store_unchecked(
+		array_instance.store_unchecked(
 			1,
 			Reference::class(StringInterner::intern(enclosing_method.name)),
 		);
 
-		array_instance.get_mut().store_unchecked(
+		array_instance.store_unchecked(
 			2,
 			Reference::class(StringInterner::intern(enclosing_method.descriptor_sym())),
 		);
@@ -246,7 +234,7 @@ pub fn getDeclaringClass0(
 		return Reference::null();
 	};
 
-	let target_class = mirror.get().target_class();
+	let target_class = mirror.target_class();
 	let target_class_descriptor = target_class.unwrap_class_instance();
 	let Some(inner_classes) = target_class_descriptor.inner_classes() else {
 		// No InnerClasses attribute
@@ -261,7 +249,7 @@ pub fn getDeclaringClass0(
 
 		match inner_class.outer_class {
 			Some(outer) => {
-				let outer: &'static Class =
+				let outer: ClassPtr =
 					handle_exception!(Reference::null(), thread, target_class.loader().load(outer));
 
 				if outer.is_array() {
@@ -299,7 +287,7 @@ pub fn getSimpleBinaryName0(
 		return Reference::null();
 	};
 
-	let target_class = mirror.get().target_class();
+	let target_class = mirror.target_class();
 	let target_class_descriptor = target_class.unwrap_class_instance();
 	let Some(inner_classes) = target_class_descriptor.inner_classes() else {
 		// No InnerClasses attribute
@@ -329,12 +317,12 @@ pub fn getProtectionDomain0(
 }
 pub fn getPrimitiveClass(
 	env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	name: Reference, // String
 ) -> Reference /* Class */
 {
 	let string_class = name.extract_class();
-	let name_string = classes::java::lang::String::extract(string_class.get());
+	let name_string = classes::java::lang::String::extract(string_class);
 
 	for (name, ty) in crate::globals::PRIMITIVE_TYPE_NAMES_TO_FIELD_TYPES {
 		if &name_string == name {
@@ -375,13 +363,12 @@ pub fn getConstantPool(
 	let this = this.extract_mirror();
 
 	// not applicable for primitives or arrays
-	if this.get().is_primitive() || this.get().is_array() {
+	if this.is_primitive() || this.is_array() {
 		return Reference::null();
 	}
 
 	let constant_pool =
-		match classes::jdk::internal::reflect::ConstantPool::new(this.get().target_class(), thread)
-		{
+		match classes::jdk::internal::reflect::ConstantPool::new(this.target_class(), thread) {
 			Throws::Ok(cp) => cp,
 			Throws::Exception(e) => {
 				e.throw(thread);
@@ -408,7 +395,7 @@ pub fn getDeclaredMethods0(
 	let mirror = this.extract_mirror();
 
 	// Primitive and array mirrors are excluded
-	if mirror.get().is_array() || mirror.get().is_primitive() {
+	if mirror.is_array() || mirror.is_primitive() {
 		let empty_array =
 			match ObjectArrayInstance::new(0, globals::classes::java_lang_reflect_Method()) {
 				Throws::Ok(array) => array,
@@ -421,7 +408,7 @@ pub fn getDeclaredMethods0(
 		return Reference::object_array(empty_array);
 	}
 
-	let target = mirror.get().target_class();
+	let target = mirror.target_class();
 
 	let methods = target
 		.vtable()
@@ -458,8 +445,7 @@ pub fn getDeclaredMethods0(
 
 		// SAFETY: We can't go outside the bounds, `ret` was initialized to the right size
 		unsafe {
-			ret.get_mut()
-				.store_unchecked(index, Reference::class(reflect_method));
+			ret.store_unchecked(index, Reference::class(reflect_method));
 		}
 	}
 
@@ -472,8 +458,7 @@ pub fn getDeclaredConstructors0(
 ) -> Reference /* Constructor<T>[] */ {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 
-	let this_mirror_instance = this.extract_mirror();
-	let this_mirror = this_mirror_instance.get();
+	let this_mirror = this.extract_mirror();
 
 	// Not applicable for primitive and array mirrors
 	if this_mirror.is_primitive() || this_mirror.is_array() {
@@ -519,10 +504,7 @@ pub fn getDeclaredConstructors0(
 		);
 
 		// SAFETY: The array is known to have the correct length
-		unsafe {
-			ret.get_mut()
-				.store_unchecked(i, Reference::class(constructor))
-		};
+		unsafe { ret.store_unchecked(i, Reference::class(constructor)) };
 	}
 
 	Reference::object_array(ret)
@@ -550,11 +532,11 @@ pub fn isRecord0(_env: JniEnv, _this: Reference /* java.lang.Class */) -> jboole
 #[allow(clippy::unnecessary_wraps, clippy::no_effect_underscore_binding)]
 pub fn desiredAssertionStatus0(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	clazz: Reference, // java/lang/Class
 ) -> jboolean {
 	let mirror = clazz.extract_mirror();
-	let _name = &mirror.get().target_class().name();
+	let _name = &mirror.target_class().name();
 
 	false
 }
@@ -577,7 +559,7 @@ pub fn getNestMembers0(
 
 pub fn isHidden(_env: JniEnv, this: Reference /* java.lang.Class */) -> jboolean {
 	let mirror = this.extract_mirror();
-	mirror.get().target_class().is_hidden()
+	mirror.target_class().is_hidden()
 }
 
 pub fn getPermittedSubclasses0(

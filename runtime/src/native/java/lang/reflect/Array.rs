@@ -1,10 +1,11 @@
-use crate::objects::array::{ObjectArrayInstance, PrimitiveArrayInstance};
-use crate::objects::class::Class;
-use crate::objects::reference::{PrimitiveArrayInstanceRef, Reference};
+use crate::objects::class::ClassPtr;
+use crate::objects::instance::array::{
+	ObjectArrayInstance, PrimitiveArrayInstance, PrimitiveArrayInstanceRef,
+};
+use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{handle_exception, throw_and_return_null};
 
-use common::traits::PtrType;
 use jni::env::JniEnv;
 use jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 
@@ -16,7 +17,7 @@ pub const MAX_DIM: u8 = 255;
 // throws IllegalArgumentException
 pub fn getLength(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 ) -> jint {
 	unimplemented!("java.lang.reflect.Array#getLength");
@@ -25,7 +26,7 @@ pub fn getLength(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn get(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 ) -> Reference /* java.lang.Object */ {
@@ -35,7 +36,7 @@ pub fn get(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn getBoolean(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 ) -> jboolean {
@@ -45,7 +46,7 @@ pub fn getBoolean(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn getByte(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 ) -> jbyte {
@@ -55,7 +56,7 @@ pub fn getByte(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn getChar(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 ) -> jchar {
@@ -65,7 +66,7 @@ pub fn getChar(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn getShort(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 ) -> jshort {
@@ -75,7 +76,7 @@ pub fn getShort(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn getInt(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 ) -> jint {
@@ -85,7 +86,7 @@ pub fn getInt(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn getLong(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 ) -> jlong {
@@ -95,7 +96,7 @@ pub fn getLong(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn getFloat(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 ) -> jfloat {
@@ -105,7 +106,7 @@ pub fn getFloat(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn getDouble(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 ) -> jdouble {
@@ -115,7 +116,7 @@ pub fn getDouble(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn set(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 	_value: Reference, // java.lang.Object
@@ -126,7 +127,7 @@ pub fn set(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn setBoolean(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 	_value: jboolean,
@@ -137,7 +138,7 @@ pub fn setBoolean(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn setByte(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 	_value: jbyte,
@@ -148,7 +149,7 @@ pub fn setByte(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn setChar(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 	_value: jchar,
@@ -159,7 +160,7 @@ pub fn setChar(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn setShort(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 	_value: jshort,
@@ -170,7 +171,7 @@ pub fn setShort(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn setInt(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 	_value: jint,
@@ -181,7 +182,7 @@ pub fn setInt(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn setLong(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 	_value: jlong,
@@ -192,7 +193,7 @@ pub fn setLong(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn setFloat(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 	_value: jfloat,
@@ -203,7 +204,7 @@ pub fn setFloat(
 // throws IllegalArgumentException, ArrayIndexOutOfBoundsException
 pub fn setDouble(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_array: Reference, // java.lang.Object
 	_index: jint,
 	_value: jdouble,
@@ -214,7 +215,7 @@ pub fn setDouble(
 // throws NegativeArraySizeException
 pub fn newArray(
 	env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	component_type: Reference, // java.lang.Class<?>
 	length: jint,
 ) -> Reference /* java.lang.Object */ {
@@ -228,9 +229,7 @@ pub fn newArray(
 		throw_and_return_null!(thread, NegativeArraySizeException, "{length}");
 	}
 
-	let mirror_instance = component_type.extract_mirror();
-	let mirror = mirror_instance.get();
-
+	let mirror = component_type.extract_mirror();
 	if mirror.is_primitive() {
 		let type_code = mirror
 			.primitive_target()
@@ -256,7 +255,7 @@ pub fn newArray(
 // throws IllegalArgumentException, NegativeArraySizeException
 pub fn multiNewArray(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_component_type: Reference, // java.lang.Class<?>
 	_dimensions: Reference,     // int[]
 ) -> Reference /* java.lang.Object */ {

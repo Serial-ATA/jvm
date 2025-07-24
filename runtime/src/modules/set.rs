@@ -1,14 +1,11 @@
 use super::{Module, ModuleLockGuard};
+use crate::classes;
 use crate::classpath::loader::ClassLoader;
-use crate::objects::instance::Instance;
 use crate::symbols::Symbol;
 
 use std::cell::SyncUnsafeCell;
 use std::collections::LinkedList;
 
-use crate::classes;
-use common::traits::PtrType;
-use instructions::Operand;
 use jni::sys::jlong;
 
 /// A list of [`Module`]s, synchronized with the global [module lock]
@@ -49,9 +46,9 @@ impl ModuleSet {
 		let ret = list.back().unwrap();
 
 		// Store the pointer in the module, to make future lookups cheaper
-		obj.extract_class().get_mut().put_field_value0(
-			classes::java::lang::Module::module_ptr_field_offset(),
-			Operand::Long(ret as *const Module as jlong),
+		classes::java::lang::Module::set_injected_module_ptr_for(
+			obj,
+			ret as *const Module as jlong,
 		);
 
 		ret

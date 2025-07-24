@@ -1,4 +1,4 @@
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 
 use std::cell::SyncUnsafeCell;
 
@@ -7,7 +7,7 @@ macro_rules! define_classes {
         paste::paste! {
             $(
 			#[allow(non_upper_case_globals)]
-            static [<$name _>]: SyncUnsafeCell<Option<&'static Class>> = SyncUnsafeCell::new(None);
+            static [<$name _>]: SyncUnsafeCell<Option<ClassPtr>> = SyncUnsafeCell::new(None);
 
             #[doc = "Set the loaded " $name " class"]
             ///
@@ -15,7 +15,7 @@ macro_rules! define_classes {
             ///
             /// This must only be called once
 			#[allow(non_snake_case)]
-            pub unsafe fn [<set_ $name>](class: &'static Class) {
+            pub unsafe fn [<set_ $name>](class: ClassPtr) {
 				let ptr = [<$name _>].get();
                 unsafe { *ptr = Some(class); }
             }
@@ -26,13 +26,13 @@ macro_rules! define_classes {
             ///
             /// This will panic if the class is not actually loaded.
 			#[allow(non_snake_case)]
-            pub fn $name() -> &'static Class {
+            pub fn $name() -> ClassPtr {
                 [<$name _opt>]().expect(concat!(stringify!($name), " not loaded"))
             }
 
             #[doc = "Get the loaded " $name " class, if it's loaded"]
 			#[allow(non_snake_case)]
-            pub fn [<$name _opt>]() -> Option<&'static Class> {
+            pub fn [<$name _opt>]() -> Option<ClassPtr> {
                 unsafe {
                     (*[<$name _>].get())
                 }

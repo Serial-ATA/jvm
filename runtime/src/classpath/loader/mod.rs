@@ -3,8 +3,7 @@ pub use set::*;
 
 use crate::modules::{Module, ModuleLockGuard, ModuleSet, Package};
 use crate::native::java::lang::String::StringInterner;
-use crate::objects::class::Class;
-use crate::objects::instance::Instance;
+use crate::objects::class::{Class, ClassPtr};
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
@@ -21,7 +20,6 @@ use std::sync::{LazyLock, Mutex};
 use classfile::constant_pool::types::raw as raw_types;
 use classfile::{ClassFile, FieldType};
 use common::int_types::u1;
-use common::traits::PtrType;
 use instructions::Operand;
 
 const SUPPORTED_MAJOR_LOWER_BOUND: u1 = 45;
@@ -42,7 +40,7 @@ enum ClassLoaderType {
 	Normal {
 		unnamed_module: SyncUnsafeCell<Option<&'static Module>>,
 
-		classes: Mutex<HashMap<Symbol, &'static Class>>,
+		classes: Mutex<HashMap<Symbol, ClassPtr>>,
 
 		// TODO: Is there a better way to do this?
 		// Keep the java.base module separate from the other modules for bootstrapping. This field is only
@@ -89,9 +87,7 @@ impl ClassLoader {
 		assert!(!obj.is_null(), "cannot create ClassLoader from null obj");
 		assert!(obj.is_instance_of(crate::globals::classes::java_lang_ClassLoader()));
 
-		let unnamed_module_obj = obj
-			.get_field_value0(classes::java::lang::ClassLoader::unnamedModule_field_offset())
-			.expect_reference();
+		let unnamed_module_obj = classes::java::lang::ClassLoader::unnamedModule(obj);
 		assert!(
 			!unnamed_module_obj.is_null()
 				&& unnamed_module_obj.is_instance_of(crate::globals::classes::java_lang_Module())
@@ -134,27 +130,22 @@ impl ClassLoader {
 	fn extract_name_and_id(obj: Reference) -> (Option<Symbol>, Symbol) {
 		let mut name = None;
 
-		let name_obj = obj
-			.get_field_value0(classes::java::lang::ClassLoader::name_field_offset())
-			.expect_reference();
+		let name_obj = classes::java::lang::ClassLoader::name(obj);
 		if !name_obj.is_null() {
-			let name_str = classes::java::lang::String::extract(name_obj.extract_class().get());
+			let name_str = classes::java::lang::String::extract(name_obj.extract_class());
 
 			if !name_str.is_empty() {
 				name = Some(Symbol::intern(name_str));
 			}
 		}
 
-		let name_and_id_obj = obj
-			.get_field_value0(classes::java::lang::ClassLoader::nameAndId_field_offset())
-			.expect_reference();
+		let name_and_id_obj = classes::java::lang::ClassLoader::nameAndId(obj);
 
 		let name_and_id;
 		if name_and_id_obj.is_null() {
 			name_and_id = obj.extract_target_class().name().as_str().replace('/', ".");
 		} else {
-			name_and_id =
-				classes::java::lang::String::extract(name_and_id_obj.extract_class().get());
+			name_and_id = classes::java::lang::String::extract(name_and_id_obj.extract_class());
 		}
 
 		assert!(!name_and_id.is_empty(), "class loader has no name and id");
@@ -283,7 +274,7 @@ impl ClassLoader {
 }
 
 impl ClassLoader {
-	pub(crate) fn lookup_class(&self, name: Symbol) -> Option<&'static Class> {
+	pub(crate) fn lookup_class(&self, name: Symbol) -> Option<ClassPtr> {
 		let ClassLoaderType::Normal { classes, .. } = &self.inner else {
 			unreachable!("should never be called on hidden classloaders")
 		};
@@ -333,7 +324,7 @@ impl ClassLoader {
 		self.is_bootstrap() || classes::java::lang::ClassLoader::parallelCapable(&self.obj())
 	}
 
-	pub fn load(&'static self, name: Symbol) -> Throws<&'static Class> {
+	pub fn load(&'static self, name: Symbol) -> Throws<ClassPtr> {
 		if self.is_bootstrap() {
 			return self.load_bootstrap(name);
 		}
@@ -342,7 +333,7 @@ impl ClassLoader {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.3.1
-	fn load_bootstrap(&'static self, name: Symbol) -> Throws<&'static Class> {
+	fn load_bootstrap(&'static self, name: Symbol) -> Throws<ClassPtr> {
 		// First, the Java Virtual Machine determines whether the bootstrap class loader has
 		// already been recorded as an initiating loader of a class or interface denoted by N.
 		// If so, this class or interface is C, and no class loading or creation is necessary.
@@ -368,7 +359,7 @@ impl ClassLoader {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.3.2
-	fn load_user_defined(&'static self, name: Symbol) -> Throws<&'static Class> {
+	fn load_user_defined(&'static self, name: Symbol) -> Throws<ClassPtr> {
 		// First, the Java Virtual Machine determines whether the bootstrap class loader has
 		// already been recorded as an initiating loader of a class or interface denoted by N.
 		// If so, this class or interface is C, and no class loading or creation is necessary.
@@ -379,7 +370,9 @@ impl ClassLoader {
 		// Otherwise, the Java Virtual Machine invokes the loadClass method of class ClassLoader on L,
 		// passing the name N of a class or interface.
 
-		let name_string = StringInterner::intern(name);
+		let name_str = name.as_str();
+		let external_name = name_str.replace('/', ".");
+		let external_name_string = StringInterner::intern(external_name);
 
 		let load_class_method = self
 			.obj
@@ -390,7 +383,7 @@ impl ClassLoader {
 			JavaThread::current(),
 			load_class_method,
 			Operand::Reference(self.obj()),
-			Operand::Reference(Reference::class(name_string))
+			Operand::Reference(Reference::class(external_name_string))
 		);
 
 		if JavaThread::current().has_pending_exception() {
@@ -411,7 +404,7 @@ impl ClassLoader {
 		name: Symbol,
 		classfile_bytes: Option<&[u1]>,
 		is_hidden: bool,
-	) -> Throws<&'static Class> {
+	) -> Throws<ClassPtr> {
 		let name_str = name.as_str();
 		if name_str.starts_with('[') {
 			assert!(!is_hidden);
@@ -438,7 +431,7 @@ impl ClassLoader {
 		name_str: &str,
 		classfile_bytes: &[u1],
 		is_hidden: bool,
-	) -> Throws<&'static Class> {
+	) -> Throws<ClassPtr> {
 		// 1. First, the Java Virtual Machine determines whether L has already been recorded
 		//    as an initiating loader of a class or interface denoted by N. If so, this derivation
 		//    attempt is invalid and derivation throws a LinkageError.
@@ -506,7 +499,7 @@ impl ClassLoader {
 		Throws::Ok(class)
 	}
 
-	fn resolve_super_class(&'static self, super_class_name: Symbol) -> Throws<&'static Class> {
+	fn resolve_super_class(&'static self, super_class_name: Symbol) -> Throws<ClassPtr> {
 		// Any exception that can be thrown as a result of failure of class or interface resolution
 		// can be thrown as a result of derivation. In addition, derivation must detect the following problems:
 
@@ -538,7 +531,7 @@ impl ClassLoader {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.3.1
-	fn resolve_interface(&'static self, name: Symbol) -> Throws<&'static Class> {
+	fn resolve_interface(&'static self, name: Symbol) -> Throws<ClassPtr> {
 		// To resolve an unresolved symbolic reference from D to a class or interface C denoted by N, the following steps are performed:
 
 		// 1. The defining loader of D is used to load and thereby create a class or interface denoted by N.
@@ -565,7 +558,7 @@ impl ClassLoader {
 
 	// Creating array classes
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.3.3
-	fn create_array_class(&'static self, descriptor: Symbol) -> Throws<&'static Class> {
+	fn create_array_class(&'static self, descriptor: Symbol) -> Throws<ClassPtr> {
 		// The following steps are used to create the array class C denoted by the name N in association with the class loader L.
 		// L may be either the bootstrap class loader or a user-defined class loader.
 
@@ -623,7 +616,7 @@ impl ClassLoader {
 		Throws::Ok(array_class)
 	}
 
-	fn add_class(&self, class: &'static Class) -> Throws<()> {
+	fn add_class(&self, class: ClassPtr) -> Throws<()> {
 		let ClassLoaderType::Normal { classes, .. } = &self.inner else {
 			unreachable!("should never be called on hidden classloaders")
 		};
@@ -689,12 +682,12 @@ impl ClassLoader {
 		};
 
 		for class in classes.lock().unwrap().values() {
-			class.mirror().get().set_module(obj.clone());
+			class.mirror().set_module(obj.clone());
 		}
 	}
 }
 
-fn init_mirror(class: &'static Class) {
+fn init_mirror(class: ClassPtr) {
 	// Set the mirror if `java.lang.Class` is loaded
 	let class_loaded = crate::globals::classes::java_lang_Class_opt().is_some();
 	if !class_loaded {

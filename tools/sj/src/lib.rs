@@ -4,7 +4,6 @@ mod native;
 
 use crate::cli::{HelpFlag, VersionFlag};
 use crate::error::{Error, Result};
-use std::path::PathBuf;
 
 use jni::error::JniError;
 

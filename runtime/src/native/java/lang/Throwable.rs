@@ -1,5 +1,4 @@
-use crate::objects::array::PrimitiveArrayInstance;
-use crate::objects::instance::Instance;
+use crate::objects::instance::array::PrimitiveArrayInstance;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
@@ -13,8 +12,6 @@ use std::sync::Once;
 use ::jni::env::JniEnv;
 use ::jni::sys::{jint, jlong};
 use common::int_types::s4;
-use common::traits::PtrType;
-use instructions::Operand;
 
 include_generated!("native/java/lang/def/Throwable.definitions.rs");
 
@@ -81,7 +78,7 @@ impl BackTrace {
 	fn into_obj(self) -> Reference {
 		let content = self.inner.into_boxed_slice();
 
-		let array = unsafe { PrimitiveArrayInstance::new::<jlong>(content) };
+		let array = PrimitiveArrayInstance::new::<jlong>(content);
 		Reference::array(array)
 	}
 }
@@ -119,20 +116,15 @@ unsafe fn initialize() {
 
 pub fn fillInStackTrace(
 	env: JniEnv,
-	mut this: Reference, // java.lang.Throwable
+	this: Reference, // java.lang.Throwable
 	_dummy: s4,
 ) -> Reference /* java.lang.Throwable */
 {
 	unsafe { initialize() };
 
 	// Reset the current fields
-	classes::java::lang::Throwable::set_backtrace(
-		this.extract_class().get_mut(),
-		Reference::null(),
-	);
-
-	let stack_trace_offset = classes::java::lang::Throwable::stackTrace_field_offset();
-	this.put_field_value0(stack_trace_offset, Operand::Reference(Reference::null()));
+	classes::java::lang::Throwable::set_backtrace(this, Reference::null());
+	classes::java::lang::Throwable::set_stackTrace(this, Reference::null());
 
 	let current_thread = unsafe { &*JavaThread::for_env(env.raw() as _) };
 
@@ -171,13 +163,8 @@ pub fn fillInStackTrace(
 		backtrace.push(frame);
 	}
 
-	classes::java::lang::Throwable::set_backtrace(
-		this.extract_class().get_mut(),
-		backtrace.into_obj(),
-	);
-
-	let depth_field_offset = classes::java::lang::Throwable::depth_field_offset();
-	this.put_field_value0(depth_field_offset, Operand::Int(backtrace_depth as jint));
+	classes::java::lang::Throwable::set_backtrace(this, backtrace.into_obj());
+	classes::java::lang::Throwable::set_depth(this, backtrace_depth as jint);
 
 	this
 }

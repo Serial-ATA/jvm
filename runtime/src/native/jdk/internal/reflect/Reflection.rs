@@ -1,4 +1,4 @@
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw_and_return_null};
@@ -6,12 +6,11 @@ use crate::thread::exceptions::{Throws, throw_and_return_null};
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint};
 use classfile::accessflags::ClassAccessFlags;
-use common::traits::PtrType;
 
 include_generated!("native/jdk/internal/reflect/def/Reflection.definitions.rs");
 
 #[expect(clippy::match_same_arms)]
-pub fn getCallerClass(env: JniEnv, _class: &'static Class) -> Reference {
+pub fn getCallerClass(env: JniEnv, _class: ClassPtr) -> Reference {
 	let current_thread = unsafe { &*JavaThread::for_env(env.raw() as _) };
 
 	// The call stack at this point looks something like this:
@@ -53,9 +52,8 @@ pub fn getCallerClass(env: JniEnv, _class: &'static Class) -> Reference {
 	Reference::null()
 }
 
-pub fn getClassAccessFlags(_env: JniEnv, _this_class: &'static Class, class: Reference) -> jint {
-	let mirror_instance = class.extract_mirror();
-	let mirror = mirror_instance.get();
+pub fn getClassAccessFlags(_env: JniEnv, _this_class: ClassPtr, class: Reference) -> jint {
+	let mirror = class.extract_mirror();
 	if mirror.is_primitive() {
 		return (ClassAccessFlags::ACC_ABSTRACT
 			| ClassAccessFlags::ACC_FINAL
@@ -69,7 +67,7 @@ pub fn getClassAccessFlags(_env: JniEnv, _this_class: &'static Class, class: Ref
 
 pub fn areNestMates(
 	env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	current_class: Reference,
 	member_class: Reference,
 ) -> jboolean {

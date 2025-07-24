@@ -1,9 +1,11 @@
+#![allow(warnings)]
 mod accessors;
 mod error;
+mod frame;
 mod method;
 mod type_system;
 
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::symbols::sym;
 use crate::verifier::accessors::ClassAccessorExt;
 use crate::verifier::method::MethodTypeCheckExt;
@@ -20,7 +22,7 @@ use error::{Error, Result};
 //     classIsNotFinal(Superclass),
 //     classMethods(Class, Methods),
 //     checklist(methodIsTypeSafe(Class), Methods).
-pub fn class_is_type_safe(class: &Class) -> Result<()> {
+pub fn class_is_type_safe(class: ClassPtr) -> Result<()> {
 	let name = class.class_name();
 
 	tracing::debug!("Verifying class `{}`", name.as_str());
@@ -50,7 +52,7 @@ pub fn class_is_type_safe(class: &Class) -> Result<()> {
 //     isBootstrapLoader(L),
 //     classMethods(Class, Methods),
 //     checklist(methodIsTypeSafe(Class), Methods).
-fn object_class_is_type_safe(class: &Class) -> Result<()> {
+fn object_class_is_type_safe(class: ClassPtr) -> Result<()> {
 	if !class.is_bootstrap_loader() {
 		return Err(Error::NotBootstrapLoader);
 	}

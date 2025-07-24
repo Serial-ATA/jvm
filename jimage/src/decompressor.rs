@@ -5,7 +5,6 @@ use std::io::Write;
 
 use common::endian::Endian;
 use common::int_types::{u1, u4, u8};
-use common::traits::JavaEndianAwareRead;
 
 pub struct ResourceHeader {
 	pub(crate) __magic: u4,

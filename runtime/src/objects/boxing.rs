@@ -1,5 +1,5 @@
 use crate::java_call;
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
@@ -15,7 +15,7 @@ where
 {
 	const VALUE_OF_SIGNATURE: Symbol;
 
-	fn class() -> &'static Class;
+	fn class() -> ClassPtr;
 
 	fn into_box(self, thread: &'static JavaThread) -> Throws<Reference> {
 		let value_of_method =
@@ -28,7 +28,7 @@ where
 impl Boxable for Operand<Reference> {
 	const VALUE_OF_SIGNATURE: Symbol = sym!(EMPTY);
 
-	fn class() -> &'static Class {
+	fn class() -> ClassPtr {
 		unimplemented!()
 	}
 
@@ -47,7 +47,7 @@ impl Boxable for Operand<Reference> {
 impl Boxable for jint {
 	const VALUE_OF_SIGNATURE: Symbol = sym!(Integer_valueOf_signature);
 
-	fn class() -> &'static Class {
+	fn class() -> ClassPtr {
 		crate::globals::classes::java_lang_Integer()
 	}
 }
@@ -55,7 +55,7 @@ impl Boxable for jint {
 impl Boxable for jboolean {
 	const VALUE_OF_SIGNATURE: Symbol = sym!(Boolean_valueOf_signature);
 
-	fn class() -> &'static Class {
+	fn class() -> ClassPtr {
 		crate::globals::classes::java_lang_Boolean()
 	}
 }
@@ -63,7 +63,7 @@ impl Boxable for jboolean {
 impl Boxable for jlong {
 	const VALUE_OF_SIGNATURE: Symbol = sym!(Long_valueOf_signature);
 
-	fn class() -> &'static Class {
+	fn class() -> ClassPtr {
 		crate::globals::classes::java_lang_Long()
 	}
 }
@@ -71,7 +71,7 @@ impl Boxable for jlong {
 impl Boxable for jdouble {
 	const VALUE_OF_SIGNATURE: Symbol = sym!(Double_valueOf_signature);
 
-	fn class() -> &'static Class {
+	fn class() -> ClassPtr {
 		crate::globals::classes::java_lang_Double()
 	}
 }
@@ -79,7 +79,7 @@ impl Boxable for jdouble {
 impl Boxable for jfloat {
 	const VALUE_OF_SIGNATURE: Symbol = sym!(Float_valueOf_signature);
 
-	fn class() -> &'static Class {
+	fn class() -> ClassPtr {
 		crate::globals::classes::java_lang_Float()
 	}
 }

@@ -2,16 +2,17 @@ macro_rules! primitive_boxes {
 	($($mod_name:ident, $class_name:ident, $ty:ident, $field_ty:pat, $unwrapper:ident, $field:ident, $converter:expr);+ $(;)?) => {
 		$(
 		pub mod $mod_name {
-			use crate::objects::class_instance::ClassInstance;
+			use crate::objects::instance::class::ClassInstanceRef;
 			use crate::objects::instance::Instance;
+			use crate::objects::instance::object::Object;
 
 			use jni::sys::$ty;
 			use classfile::FieldType;
 
-			pub fn value(instance: &ClassInstance) -> $ty {
+			pub fn value(instance: ClassInstanceRef) -> $ty {
 				assert_eq!(instance.class(), crate::globals::classes::$class_name());
 				let $field = instance
-					.get_field_value0(value_field_offset())
+					.get_field_value0(value_field_index())
 					.$unwrapper();
 				$converter
 			}

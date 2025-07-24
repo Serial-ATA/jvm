@@ -3,26 +3,36 @@ pub use object::*;
 mod primitive;
 pub use primitive::*;
 
-use super::instance::Header;
+use crate::objects::instance::object::Object;
 use crate::thread::exceptions::{Throws, throw};
 
 use common::int_types::s4;
 
-pub trait Array {
+pub trait Array: Object {
 	type Component;
 
 	const BASE_OFFSET: usize;
 
-	fn header(&self) -> &Header;
-
+	/// The length of the array in elements
 	fn len(&self) -> usize;
+
+	/// The alignment of the component type
+	fn align(&self) -> usize;
+
+	/// The size of the component type
+	fn scale(&self) -> usize;
 
 	#[inline]
 	fn is_empty(&self) -> bool {
 		self.len() == 0
 	}
 
-	fn get(&self, index: s4) -> Throws<Self::Component> {
+	/// Read the element `value` at `index`
+	///
+	/// # Exceptions
+	///
+	/// This will throw `ArrayIndexOutOfBoundsException` if `index` is negative or out of bounds.
+	fn array_get(&self, index: s4) -> Throws<Self::Component> {
 		if index.is_negative() || index as usize >= self.len() {
 			throw!(@DEFER ArrayIndexOutOfBoundsException);
 		}
@@ -31,9 +41,19 @@ pub trait Array {
 		Throws::Ok(unsafe { self.get_unchecked(index as usize) })
 	}
 
+	/// Read the element at `index`
+	///
+	/// # Safety
+	///
+	/// This will **not** do a bounds check. The caller must verify that `index` is not out of bounds.
 	unsafe fn get_unchecked(&self, index: usize) -> Self::Component;
 
-	fn store(&mut self, index: s4, value: Self::Component) -> Throws<()> {
+	/// Write the element `value` at `index`
+	///
+	/// # Exceptions
+	///
+	/// This will throw `ArrayIndexOutOfBoundsException` if `index` is negative or out of bounds.
+	fn store(&self, index: s4, value: Self::Component) -> Throws<()> {
 		if index.is_negative() || index as usize >= self.len() {
 			throw!(@DEFER ArrayIndexOutOfBoundsException);
 		}
@@ -46,12 +66,12 @@ pub trait Array {
 		Throws::Ok(())
 	}
 
-	/// Same as [`self.store`], without the bounds checking
+	/// Write the element `value` at `index`
 	///
 	/// # Safety
 	///
-	/// It is up to the caller to ensure that `index` is unsigned and within the bounds of the current array.
-	unsafe fn store_unchecked(&mut self, index: usize, value: Self::Component);
+	/// This will **not** do a bounds check. The caller must verify that `index` is not out of bounds.
+	unsafe fn store_unchecked(&self, index: usize, value: Self::Component);
 
 	/// Copy the contents of `self[src_pos..length]` into `dest[dest_pos..length]`
 	///
@@ -62,7 +82,7 @@ pub trait Array {
 	/// * `src_pos` + `length` <= `self.len()`
 	/// * `dest_pos` + `length` <= `dest.len()`
 	/// * `self` and `dest` have the same component type
-	unsafe fn copy_into(&self, src_pos: usize, dest: &mut Self, dest_pos: usize, length: usize);
+	unsafe fn copy_into(&self, src_pos: usize, dest: &Self, dest_pos: usize, length: usize);
 
 	/// Copy the contents of `self[src_pos..length]` into `self[dest_pos..length]`
 	///
@@ -71,5 +91,5 @@ pub trait Array {
 	/// The caller must verify that:
 	///
 	/// * `src_pos` + `length` <= `self.len()`
-	unsafe fn copy_within(&mut self, src_pos: usize, dest_pos: usize, length: usize);
+	unsafe fn copy_within(&self, src_pos: usize, dest_pos: usize, length: usize);
 }

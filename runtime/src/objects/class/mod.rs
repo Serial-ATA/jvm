@@ -1,18 +1,20 @@
+mod ptr;
+pub use ptr::ClassPtr;
+
 mod spec;
 pub use spec::ClassInitializationState;
 use spec::InitializationLock;
 
-use super::constant_pool::{ConstantPool, ResolvedEntry};
+use super::constant_pool::ConstantPool;
 use super::field::Field;
 use super::method::Method;
-use super::mirror::MirrorInstance;
 use super::vtable::VTable;
 use crate::classpath::loader::ClassLoader;
 use crate::error::RuntimeError;
-use crate::globals::classes;
 use crate::modules::{Module, Package};
 use crate::objects::constant_pool::cp_types;
-use crate::objects::reference::{MirrorInstanceRef, Reference};
+use crate::objects::instance::mirror::MirrorInstanceRef;
+use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::Throws;
@@ -22,15 +24,13 @@ use std::fmt::{Debug, Formatter};
 use std::mem::MaybeUninit;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicPtr, Ordering};
-use std::{mem, ptr};
 
 use classfile::accessflags::ClassAccessFlags;
 use classfile::attribute::resolved::ResolvedBootstrapMethod;
-use classfile::constant_pool::types::{ClassNameEntry, raw as raw_types};
+use classfile::constant_pool::types::raw as raw_types;
 use classfile::{ClassFile, FieldType, MethodInfo};
 use common::box_slice;
 use common::int_types::{u1, u2, u4};
-use common::traits::PtrType;
 use instructions::Operand;
 
 /// A cache for miscellaneous fields
@@ -38,7 +38,7 @@ use instructions::Operand;
 struct MiscCache {
 	/// The index of the name of this class in the constant pool
 	class_name_index: u2,
-	nest_host: Option<&'static Class>,
+	nest_host: Option<ClassPtr>,
 	nest_host_index: Option<u2>,
 	array_class_name: Option<Symbol>,
 	array_component_name: Option<Symbol>,
@@ -89,7 +89,7 @@ impl FieldContainer {
 	// This is only ever used in class loading
 	fn set_fields(&self, new: Vec<&'static Field>) {
 		let fields = self.fields.get();
-		let old = mem::replace(
+		let old = std::mem::replace(
 			unsafe { &mut *fields },
 			MaybeUninit::new(new.into_boxed_slice()),
 		);
@@ -101,7 +101,7 @@ impl FieldContainer {
 	/// See [`Class::set_static_field`]
 	unsafe fn set_static_field(&self, index: usize, value: Operand<Reference>) {
 		let field = &self.static_field_slots[index];
-		let old = mem::replace(unsafe { &mut *field.get() }, value);
+		let old = std::mem::replace(unsafe { &mut *field.get() }, value);
 		drop(old);
 	}
 
@@ -129,13 +129,14 @@ impl FieldContainer {
 }
 
 // TODO: Make more fields private
+#[repr(C, align(256))]
 pub struct Class {
 	// UnsafeCell, since we need to mangle the names of hidden classes *after* they are constructed.
 	name: UnsafeCell<Symbol>,
 	pub access_flags: ClassAccessFlags,
 	loader: &'static ClassLoader,
-	pub super_class: Option<&'static Class>,
-	pub interfaces: Vec<&'static Class>,
+	pub super_class: Option<ClassPtr>,
+	pub interfaces: Vec<ClassPtr>,
 	misc_cache: UnsafeCell<MiscCache>,
 	mirror: UnsafeCell<MaybeUninit<MirrorInstanceRef>>,
 	field_container: FieldContainer,
@@ -184,7 +185,7 @@ pub enum ClassType {
 #[derive(Copy, Clone, Debug)]
 pub struct EnclosingMethodInfo {
 	/// The class of the enclosing method
-	pub class: &'static Class,
+	pub class: ClassPtr,
 	/// The enclosing method, if available
 	pub method: Option<&'static Method>,
 }
@@ -283,7 +284,7 @@ impl Class {
 	///
 	/// This is the only way to access the class methods externally.
 	#[inline]
-	pub fn vtable(&self) -> &VTable<'static> {
+	pub fn vtable(&self) -> &'static VTable<'static> {
 		// SAFETY: The only way to construct a `Class` is via `Class::new()`, which ensures that the
 		//         vtable is initialized.
 		unsafe { (&*self.vtable.get()).assume_init_ref() }
@@ -328,6 +329,15 @@ impl Class {
 		self.field_container.instance_field_count() as usize
 	}
 
+	/// The total in-memory size of the non-static fields
+	pub fn size_of_instance_fields(&self) -> usize {
+		// Every field tracks its offset, so we can just grab the last one
+		self.instance_fields()
+			.last()
+			.map(|field| field.offset() + field.descriptor.size())
+			.unwrap_or(0)
+	}
+
 	/// Get the mirror for this class
 	///
 	/// See [`MirrorInstance`] for information on mirrors.
@@ -335,8 +345,7 @@ impl Class {
 		// SAFETY: The mirror is only uninitialized for a few classes few early in VM initialization
 		//         due to them loading *before* `java.lang.Class`. Afterwards, all classes are
 		//         guaranteed to have mirrors.
-		let mirror = unsafe { (*self.mirror.get()).assume_init_ref() };
-		Arc::clone(mirror)
+		unsafe { (*self.mirror.get()).assume_init() }
 	}
 
 	/// TODO: Document
@@ -566,68 +575,10 @@ impl Class {
 		}
 	}
 
-	pub fn nest_host(&'static self, thread: &'static JavaThread) -> Throws<&'static Class> {
-		if let Some(nest_host) = unsafe { (*self.misc_cache.get()).nest_host } {
-			return Throws::Ok(nest_host);
-		}
-
-		let index;
-		unsafe {
-			// In the case that the class has no nest host, we can just set it to itself
-			let Some(nest_host_index) = (*self.misc_cache.get()).nest_host_index else {
-				(*self.misc_cache.get()).nest_host = Some(self);
-				return Throws::Ok(self);
-			};
-
-			index = nest_host_index;
-		}
-
-		let nest_host_class = self
-			.constant_pool()
-			.expect("not called on array classes")
-			.get::<cp_types::Class>(index);
-
-		match nest_host_class {
-			Throws::Ok(class) => {
-				let mut error = None;
-				if !self.shares_package_with(class) {
-					error = Some("types are in different packages");
-					todo!();
-				}
-
-				if !class.has_nest_member(self) {
-					error = Some("current type is not listed as nest member");
-					todo!();
-				}
-
-				// Nest host resolved
-				if error.is_none() {
-					unsafe {
-						(*self.misc_cache.get()).nest_host = Some(class);
-					}
-					return Throws::Ok(class);
-				}
-			},
-			Throws::Exception(e) => {
-				if e.kind().class() == classes::java_lang_VirtualMachineError() {
-					return Throws::PENDING_EXCEPTION;
-				}
-
-				todo!("print nest host error")
-			},
-		}
-
-		// If all else fails, set to self
-		unsafe {
-			(*self.misc_cache.get()).nest_host = Some(self);
-		}
-		Throws::Ok(self)
-	}
-
 	/// A standard help string for errors including the class, loader, and module
 	///
 	/// Format:
-	/// ```
+	/// ```text
 	///   <fully-qualified-external-class-name> is in module <module-name>[@<version>]
 	///                                         of loader <loader-name_and_id>[, parent loader <parent-loader-name_and_id>]
 	/// ```
@@ -662,7 +613,11 @@ impl Class {
 				// TODO: There shouldn't be a case where the component isn't already loaded, but just incase
 				//       this should bubble up an exception, not unwrap.
 				let class_name = Symbol::intern(class_name);
-				target_class = target_class.loader().load(class_name).unwrap();
+				target_class = target_class
+					.loader()
+					.load(class_name)
+					.unwrap()
+					.as_static_ref();
 			}
 
 			match target_class.module().name() {
@@ -745,7 +700,7 @@ impl Class {
 
 		let old_fields_ptr = self.field_container.fields.get();
 		let old_fields = unsafe {
-			let old_fields = ptr::replace(old_fields_ptr, MaybeUninit::uninit());
+			let old_fields = std::ptr::replace(old_fields_ptr, MaybeUninit::uninit());
 			old_fields.assume_init()
 		};
 
@@ -769,7 +724,7 @@ impl Class {
 
 		let new_fields = MaybeUninit::new(new_fields.into_boxed_slice());
 		unsafe {
-			ptr::write(old_fields_ptr, new_fields);
+			std::ptr::write(old_fields_ptr, new_fields);
 		}
 
 		// + 1 as `max_instance_index` is the index of the *last* instance field, not of the first
@@ -782,7 +737,7 @@ impl Class {
 	///
 	/// This should only be used in `java.lang.ClassLoader#defineClass0`. Setting an incorrect
 	/// nest host can result in permission issues.
-	pub unsafe fn set_nest_host(&self, nest_host: &'static Self) {
+	pub unsafe fn set_nest_host(&self, nest_host: ClassPtr) {
 		unsafe {
 			(*self.misc_cache.get()).nest_host = Some(nest_host);
 		}
@@ -799,7 +754,7 @@ impl Class {
 	/// * This is always true for arrays of any type
 	/// * This is only true for classes that implement the `java.lang.Cloneable`
 	pub fn is_cloneable(&self) -> bool {
-		self.is_array() || self.implements(&crate::globals::classes::java_lang_Cloneable())
+		self.is_array() || self.implements(crate::globals::classes::java_lang_Cloneable())
 	}
 
 	/// Get the [access flags] for this class
@@ -868,7 +823,7 @@ impl Class {
 	}
 
 	/// Whether this class is a subclass of `class`
-	pub fn is_subclass_of(&self, class: &Class) -> bool {
+	pub fn is_subclass_of(&self, class: ClassPtr) -> bool {
 		if self == class {
 			return true;
 		}
@@ -884,27 +839,6 @@ impl Class {
 
 		false
 	}
-
-	pub fn has_nest_member(&self, other: &Class) -> bool {
-		let Some(nest_members) = &self.nest_members else {
-			return false;
-		};
-
-		nest_members.iter().any(|name| *name == other.name())
-	}
-
-	/// Whether `self` is a nestmate of `other`, meaning they are under the same nest host
-	///
-	/// Resolving the nest host of either class may throw.
-	pub fn is_nestmate_of(
-		&'static self,
-		other: &'static Class,
-		thread: &'static JavaThread,
-	) -> Throws<bool> {
-		let self_host = self.nest_host(thread)?;
-		let other_host = other.nest_host(thread)?;
-		Throws::Ok(self_host == other_host)
-	}
 }
 
 impl Class {
@@ -916,11 +850,11 @@ impl Class {
 	/// be handled properly, as some fields remain uninitialized.
 	pub unsafe fn new(
 		parsed_file: ClassFile,
-		super_class: Option<&'static Class>,
-		super_interfaces: Vec<&'static Class>,
+		super_class: Option<ClassPtr>,
+		super_interfaces: Vec<ClassPtr>,
 		loader: &'static ClassLoader,
 		is_hidden: bool,
-	) -> Throws<&'static Class> {
+	) -> Throws<ClassPtr> {
 		let access_flags = parsed_file.access_flags;
 		let class_name_index = parsed_file.this_class;
 
@@ -1043,7 +977,7 @@ impl Class {
 			is_initialized: Cell::new(false),
 		};
 
-		let class: &'static mut Class = Box::leak(Box::new(class));
+		let class_ptr = ClassPtr::new(class);
 
 		// TODO: Improve?
 		// CIRCULAR DEPENDENCY!
@@ -1051,30 +985,30 @@ impl Class {
 		// The `ClassDescriptor` holds a `ConstantPool`, which holds a reference to the `Class`.
 		let class_instance = ClassDescriptor {
 			source_file_index,
-			constant_pool: ConstantPool::new(class, constant_pool),
+			constant_pool: ConstantPool::new(class_ptr, constant_pool),
 			inner_classes,
 			enclosing_method,
 			is_record,
 		};
 		unsafe {
-			*class.class_ty.get() = MaybeUninit::new(ClassType::Instance(class_instance));
+			*class_ptr.class_ty.get() = MaybeUninit::new(ClassType::Instance(class_instance));
 		}
 
 		// Hidden class names can collide, need to mangle. Relies on the `ClassDescriptor`
-		if class.is_hidden() {
-			class.mangle_name();
+		if class_ptr.is_hidden() {
+			class_ptr.mangle_name();
 		}
 
 		// Create our vtable...
-		let vtable = new_vtable(Some(parsed_file.methods), class);
+		let vtable = new_vtable(Some(parsed_file.methods), class_ptr);
 		unsafe {
-			*class.vtable.get() = MaybeUninit::new(vtable);
+			*class_ptr.vtable.get() = MaybeUninit::new(vtable);
 		}
 
 		// Then the fields...
 		let mut fields =
 			Vec::with_capacity(super_instance_field_count as usize + parsed_file.fields.len());
-		if let Some(ref super_class) = class.super_class {
+		if let Some(super_class) = class_ptr.super_class {
 			// First we have to inherit the super classes' fields
 			for field in super_class.instance_fields() {
 				fields.push(field);
@@ -1085,9 +1019,14 @@ impl Class {
 		let mut static_idx = 0;
 		// Continue the index from our existing instance fields
 		let mut instance_field_idx = core::cmp::max(0, super_instance_field_count) as usize;
-		let constant_pool = class
+		let constant_pool = class_ptr
 			.constant_pool()
 			.expect("we just set the constant pool");
+
+		let mut next_offset = fields
+			.last()
+			.map(|f| f.offset() + f.descriptor.size())
+			.unwrap_or(0);
 		for field in parsed_file.fields {
 			let field_idx = if field.access_flags.is_static() {
 				&mut static_idx
@@ -1095,41 +1034,24 @@ impl Class {
 				&mut instance_field_idx
 			};
 
-			fields.push(Field::new(*field_idx, class, &field, constant_pool));
+			let field = Field::new(*field_idx, next_offset, class_ptr, &field, constant_pool);
+			next_offset = field.offset() + field.descriptor.size();
+
+			fields.push(field);
 
 			*field_idx += 1;
 		}
 
-		class.field_container.set_fields(fields);
+		class_ptr.field_container.set_fields(fields);
 
 		// Update the instance field count if we encountered any new ones
 		if instance_field_idx > 0 {
-			class
+			class_ptr
 				.field_container
 				.set_instance_field_count(instance_field_idx as u4);
 		}
 
-		Throws::Ok(class)
-	}
-
-	fn mangle_name(&'static self) {
-		let ptr = self as *const Class as usize;
-		let new_name_str = format!("{}+{ptr}", self.name());
-		let new_name = Symbol::intern(&new_name_str);
-		unsafe {
-			*self.name.get() = new_name;
-		}
-
-		let cp = self
-			.constant_pool()
-			.expect("only used for non-array classes");
-
-		// SAFETY: The `class_name_index` is known to be correct, since the original name was derived
-		//         from it in `Class::new()`.
-		unsafe {
-			let class_name_index = (*self.misc_cache.get()).class_name_index;
-			cp.overwrite::<cp_types::Class>(class_name_index, ResolvedEntry { class: self });
-		}
+		Throws::Ok(class_ptr)
 	}
 
 	/// Create a new array class of type `component`
@@ -1142,7 +1064,7 @@ impl Class {
 		name: Symbol,
 		component: FieldType,
 		loader: &'static ClassLoader,
-	) -> &'static Class {
+	) -> ClassPtr {
 		let dimensions = name
 			.as_str()
 			.chars()
@@ -1175,15 +1097,15 @@ impl Class {
 			is_initialized: Cell::new(false),
 		};
 
-		let class: &'static mut Class = Box::leak(Box::new(class));
+		let class_ptr = ClassPtr::new(class);
 
 		// Create a vtable, inheriting from `java.lang.Object`
-		let vtable = new_vtable(None, class);
+		let vtable = new_vtable(None, class_ptr);
 		unsafe {
-			*class.vtable.get() = MaybeUninit::new(vtable);
+			*class_ptr.vtable.get() = MaybeUninit::new(vtable);
 		}
 
-		class
+		class_ptr
 	}
 
 	pub fn parent_iter(&self) -> ClassParentIterator {
@@ -1211,38 +1133,7 @@ impl Class {
 		Throws::Ok(())
 	}
 
-	/// Set the mirror for this class
-	///
-	/// This optionally takes an existing mirror, otherwise it will create a new one.
-	///
-	/// # Safety
-	///
-	/// This is only safe to call *before* the class is in use. It should never be used outside of
-	/// class loading.
-	pub unsafe fn set_mirror(&'static self, mirror: Option<MirrorInstanceRef>) {
-		let final_mirror = match mirror {
-			Some(mirror) => mirror,
-			None => match self.class_ty() {
-				ClassType::Instance(_) => {
-					let mirror = MirrorInstance::new(self);
-					mirror.get().set_module(self.module().obj());
-					mirror
-				},
-				ClassType::Array(_) => {
-					let mirror = MirrorInstance::new_array(self);
-					let bootstrap_loader = ClassLoader::bootstrap();
-					mirror.get().set_module(bootstrap_loader.java_base().obj());
-					mirror
-				},
-			},
-		};
-
-		unsafe {
-			*self.mirror.get() = MaybeUninit::new(final_mirror);
-		}
-	}
-
-	pub fn shares_package_with(&self, other: &Self) -> bool {
+	pub fn shares_package_with(&self, other: ClassPtr) -> bool {
 		if self.loader != other.loader {
 			return false;
 		}
@@ -1268,7 +1159,7 @@ impl Class {
 		this_pkg.unwrap() == other_pkg.unwrap()
 	}
 
-	pub fn implements(&self, target_interface: &Class) -> bool {
+	pub fn implements(&self, target_interface: ClassPtr) -> bool {
 		if !target_interface.is_interface() {
 			// TODO: Assertion maybe?
 			return false;
@@ -1288,7 +1179,7 @@ impl Class {
 		for parent in self.parent_iter() {
 			for super_interface in &parent.interfaces {
 				if target_interface == *super_interface
-					|| super_interface.implements(&target_interface)
+					|| super_interface.implements(target_interface)
 				{
 					return true;
 				}
@@ -1314,11 +1205,11 @@ impl Class {
 }
 
 pub struct ClassParentIterator {
-	current_class: Option<&'static Class>,
+	current_class: Option<ClassPtr>,
 }
 
 impl Iterator for ClassParentIterator {
-	type Item = &'static Class;
+	type Item = ClassPtr;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		match &self.current_class {
@@ -1332,7 +1223,7 @@ impl Iterator for ClassParentIterator {
 	}
 }
 
-fn new_vtable(class_methods: Option<Vec<MethodInfo>>, class: &'static Class) -> VTable<'static> {
+fn new_vtable(class_methods: Option<Vec<MethodInfo>>, class: ClassPtr) -> VTable<'static> {
 	let mut vtable;
 	match class_methods {
 		// Initialize the vtable with the new `ClassFile`'s parsed methods

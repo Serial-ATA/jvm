@@ -10,14 +10,12 @@ def args() -> Namespace:
     )
     parser.add_argument(
         "--profile",
-        nargs=1,
         type=str,
         help="the Cargo build profile",
         default="release",
     )
     parser.add_argument(
         "--variant",
-        nargs=1,
         choices=[x for x in VmVariant.__members__.keys()],
         help="the variant of the VM",
         default=str(VmVariant.SERVER),

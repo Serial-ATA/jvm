@@ -2,7 +2,6 @@ use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 
 use classfile::FieldType;
-use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::jint;
 
@@ -41,23 +40,22 @@ crate::classes::field_module! {
 }
 
 pub fn fd(this: Reference) -> jint {
-	this.get_field_value0(fd_field_offset()).expect_int()
+	this.get_field_value0(fd_field_index()).expect_int()
 }
 
 pub fn set_fd(this: Reference, fd: jint) {
 	this.extract_class()
-		.get_mut()
-		.put_field_value0(fd_field_offset(), Operand::from(fd));
+		.put_field_value0(fd_field_index(), Operand::from(fd));
 }
 
 #[cfg(windows)]
 pub fn handle(this: Reference) -> jlong {
-	this.get_field_value0(handle_field_offset()).expect_long()
+	this.get_field_value0(handle_field_index()).expect_long()
 }
 
 #[cfg(windows)]
 pub fn set_handle(this: Reference, handle: jlong) {
 	this.extract_class()
 		.get_mut()
-		.put_field_value0(handle_field_offset(), Operand::from(handle));
+		.put_field_value0(handle_field_index(), Operand::from(handle));
 }

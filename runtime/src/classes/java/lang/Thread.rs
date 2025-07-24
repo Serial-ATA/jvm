@@ -1,8 +1,9 @@
 //! Utilities for interacting with `java.lang.Thread` instances
 
-use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
-use crate::objects::reference::{ClassInstanceRef, Reference};
+use crate::objects::instance::class::ClassInstanceRef;
+use crate::objects::reference::Reference;
+
 use classfile::FieldType;
 use instructions::Operand;
 use jni::sys::jlong;
@@ -26,34 +27,32 @@ impl ThreadStatus {
 	const MAX: ThreadStatus = ThreadStatus::Terminated;
 }
 
-pub fn eetop(instance: &ClassInstance) -> jlong {
-	instance
-		.get_field_value0(eetop_field_offset())
-		.expect_long()
+pub fn eetop(instance: ClassInstanceRef) -> jlong {
+	instance.get_field_value0(eetop_field_index()).expect_long()
 }
 
-pub fn set_eetop(instance: &mut ClassInstance, value: jlong) {
-	instance.put_field_value0(eetop_field_offset(), Operand::Long(value))
+pub fn set_eetop(instance: ClassInstanceRef, value: jlong) {
+	instance.put_field_value0(eetop_field_index(), Operand::Long(value))
 }
 
 /// `java.lang.Thread#name` field
-pub fn name(instance: &ClassInstance) -> Reference {
+pub fn name(instance: ClassInstanceRef) -> Reference {
 	instance
-		.get_field_value0(name_field_offset())
+		.get_field_value0(name_field_index())
 		.expect_reference()
 }
 
-pub fn set_name(instance: &mut ClassInstance, value: ClassInstanceRef) {
+pub fn set_name(instance: ClassInstanceRef, value: ClassInstanceRef) {
 	instance.put_field_value0(
-		name_field_offset(),
+		name_field_index(),
 		Operand::Reference(Reference::class(value)),
 	)
 }
 
 /// `java.lang.Thread#holder` field
-pub fn holder(instance: &ClassInstance) -> Reference {
+pub fn holder(instance: ClassInstanceRef) -> Reference {
 	instance
-		.get_field_value0(holder_field_offset())
+		.get_field_value0(holder_field_index())
 		.expect_reference()
 }
 
@@ -82,40 +81,37 @@ pub mod holder {
 	use instructions::Operand;
 	use jni::sys::{jint, jlong};
 
-	pub fn stackSize(instance: &ClassInstance) -> jlong {
+	pub fn stackSize(instance: ClassInstanceRef) -> jlong {
 		instance
-			.get_field_value0(stackSize_field_offset())
+			.get_field_value0(stackSize_field_index())
 			.expect_long()
 	}
 
-	pub fn set_stackSize(instance: &mut ClassInstance, stack_size: jlong) {
-		instance.put_field_value0(stackSize_field_offset(), Operand::Long(stack_size));
+	pub fn set_stackSize(instance: ClassInstanceRef, stack_size: jlong) {
+		instance.put_field_value0(stackSize_field_index(), Operand::Long(stack_size));
 	}
 
-	pub fn priority(instance: &ClassInstance) -> jint {
+	pub fn priority(instance: ClassInstanceRef) -> jint {
 		instance
-			.get_field_value0(priority_field_offset())
+			.get_field_value0(priority_field_index())
 			.expect_int()
 	}
 
-	pub fn set_priority(instance: &mut ClassInstance, priority: jint) {
-		instance.put_field_value0(priority_field_offset(), Operand::Int(priority));
+	pub fn set_priority(instance: ClassInstanceRef, priority: jint) {
+		instance.put_field_value0(priority_field_index(), Operand::Int(priority));
 	}
 
-	pub fn daemon(instance: &ClassInstance) -> bool {
-		instance
-			.get_field_value0(daemon_field_offset())
-			.expect_int()
-			!= 0
+	pub fn daemon(instance: ClassInstanceRef) -> bool {
+		instance.get_field_value0(daemon_field_index()).expect_int() != 0
 	}
 
-	pub fn set_daemon(instance: &mut ClassInstance, daemon: bool) {
-		instance.put_field_value0(daemon_field_offset(), Operand::Int(daemon as s4));
+	pub fn set_daemon(instance: ClassInstanceRef, daemon: bool) {
+		instance.put_field_value0(daemon_field_index(), Operand::Int(daemon as s4));
 	}
 
-	pub fn threadStatus(instance: &ClassInstance) -> ThreadStatus {
+	pub fn threadStatus(instance: ClassInstanceRef) -> ThreadStatus {
 		let value = instance
-			.get_field_value0(threadStatus_field_offset())
+			.get_field_value0(threadStatus_field_index())
 			.expect_int();
 
 		// TODO: Would be nice to not panic here
@@ -123,9 +119,9 @@ pub mod holder {
 		unsafe { std::mem::transmute(value) }
 	}
 
-	pub fn set_threadStatus(instance: &mut ClassInstance, thread_status: ThreadStatus) {
+	pub fn set_threadStatus(instance: ClassInstanceRef, thread_status: ThreadStatus) {
 		instance.put_field_value0(
-			threadStatus_field_offset(),
+			threadStatus_field_index(),
 			Operand::Int(thread_status as s4),
 		);
 	}

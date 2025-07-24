@@ -4,7 +4,7 @@
 
 #![allow(unused_variables, non_snake_case)]
 
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::objects::field::Field;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
@@ -82,7 +82,7 @@ impl IntoJni for Operand<Reference> {
 	}
 }
 
-impl IntoJni for &'static Class {
+impl IntoJni for ClassPtr {
 	type RawJniTy = jclass;
 	type SafeJniTy = JClass;
 

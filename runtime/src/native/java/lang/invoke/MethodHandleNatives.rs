@@ -1,10 +1,12 @@
 use crate::native::java::lang::String::StringInterner;
 use crate::native::java::lang::invoke::MethodHandleNatives;
-use crate::objects::class::Class;
-use crate::objects::class_instance::ClassInstance;
+use crate::objects::class::ClassPtr;
 use crate::objects::field::Field;
+use crate::objects::instance::class::{ClassInstance, ClassInstanceRef};
+use crate::objects::instance::mirror::MirrorInstanceRef;
+use crate::objects::instance::object::Object;
 use crate::objects::method::Method;
-use crate::objects::reference::{ClassInstanceRef, MirrorInstanceRef, Reference};
+use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, handle_exception, throw, throw_and_return_null};
@@ -16,7 +18,6 @@ use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
 use classfile::accessflags::FieldAccessFlags;
 use classfile::constant_pool::types::ReferenceKind;
-use common::traits::PtrType;
 
 include_generated!("native/java/lang/invoke/def/MethodHandleNatives.registerNatives.rs");
 include_generated!("native/java/lang/invoke/def/MethodHandleNatives.definitions.rs");
@@ -25,11 +26,9 @@ include_generated!("native/java/lang/invoke/def/MethodHandleNatives$Constants.co
 pub fn new_member_name(
 	name: Symbol,
 	descriptor: Symbol,
-	callee_class: &'static Class,
+	callee_class: ClassPtr,
 ) -> Throws<ClassInstanceRef> {
-	let member_name_instance = ClassInstance::new(globals::classes::java_lang_invoke_MemberName());
-
-	let member_name = member_name_instance.get_mut();
+	let member_name = ClassInstance::new(globals::classes::java_lang_invoke_MemberName());
 
 	classes::java::lang::invoke::MemberName::set_clazz(
 		member_name,
@@ -45,7 +44,7 @@ pub fn new_member_name(
 		Reference::class(StringInterner::intern(descriptor)),
 	);
 
-	Throws::Ok(member_name_instance)
+	Throws::Ok(member_name)
 }
 
 pub fn method_type_signature(method_type: Reference) -> Throws<Symbol> {
@@ -58,33 +57,32 @@ pub fn method_type_signature(method_type: Reference) -> Throws<Symbol> {
 	let mut signature = String::new();
 	signature.push('(');
 
-	let parameters = classes::java::lang::invoke::MethodType::ptypes(&method_type.get());
-	for param in parameters.get().as_slice() {
+	let parameters = classes::java::lang::invoke::MethodType::ptypes(method_type);
+	for param in parameters.as_slice() {
 		if param.is_null() {
 			signature.push_str("null");
 			continue;
 		}
 
 		let mirror = param.extract_mirror();
-		if mirror.get().is_primitive() {
-			signature.push_str(&mirror.get().primitive_target().as_signature());
+		if mirror.is_primitive() {
+			signature.push_str(&mirror.primitive_target().as_signature());
 			continue;
 		}
 
-		if write!(signature, "{}", mirror.get().target_class().as_signature()).is_err() {
+		if write!(signature, "{}", mirror.target_class().as_signature()).is_err() {
 			throw!(@DEFER InternalError, "writing signature");
 		}
 	}
 
 	signature.push(')');
 
-	let return_type = classes::java::lang::invoke::MethodType::rtype(&method_type.get());
+	let return_type = classes::java::lang::invoke::MethodType::rtype(method_type);
 
 	if return_type.is_null() {
 		signature.push_str("null");
 	} else {
-		let mirror_instance = return_type.extract_mirror();
-		let mirror = mirror_instance.get();
+		let mirror = return_type.extract_mirror();
 
 		let result;
 		if mirror.is_primitive() {
@@ -102,9 +100,9 @@ pub fn method_type_signature(method_type: Reference) -> Throws<Symbol> {
 }
 
 pub fn resolve_member_name(
-	member_name: &mut ClassInstance,
+	member_name: ClassInstanceRef,
 	ref_kind: ReferenceKind,
-	calling_class: Option<&'static Class>,
+	calling_class: Option<ClassPtr>,
 	lookup_mode: jint,
 ) -> Throws<()> {
 	if calling_class.is_none() {
@@ -118,21 +116,21 @@ pub fn resolve_member_name(
 	let mut flags;
 
 	let defining_class_field = classes::java::lang::invoke::MemberName::clazz(member_name)?;
-	if defining_class_field.get().is_primitive() {
+	if defining_class_field.is_primitive() {
 		throw!(@DEFER InternalError, "primitive class");
 	}
 
-	let defining_class = defining_class_field.get().target_class();
+	let defining_class = defining_class_field.target_class();
 
 	let name_field = classes::java::lang::invoke::MemberName::name(member_name);
-	let name_str = classes::java::lang::String::extract(name_field.extract_class().get());
+	let name_str = classes::java::lang::String::extract(name_field.extract_class());
 	let name = Symbol::intern(name_str);
 
 	let type_field = classes::java::lang::invoke::MemberName::type_(member_name);
 
 	let descriptor: Symbol;
 	if type_field.is_instance_of(globals::classes::java_lang_String()) {
-		let descriptor_str = classes::java::lang::String::extract(type_field.extract_class().get());
+		let descriptor_str = classes::java::lang::String::extract(type_field.extract_class());
 		descriptor = Symbol::intern(descriptor_str);
 	} else if type_field.is_instance_of(globals::classes::java_lang_Class()) {
 		descriptor = type_field.extract_target_class().as_signature();
@@ -334,20 +332,17 @@ fn init_member_name(member_name: ClassInstanceRef, member: FieldOrMethod) {
 		},
 	}
 
-	classes::java::lang::invoke::MemberName::set_flags(member_name.get_mut(), flags);
-	classes::java::lang::invoke::MemberName::set_method(member_name.get_mut(), resolved_method);
-	classes::java::lang::invoke::MemberName::set_vmindex(member_name.get_mut(), vmindex as jlong);
-	classes::java::lang::invoke::MemberName::set_clazz(
-		member_name.get_mut(),
-		Reference::mirror(class),
-	);
+	classes::java::lang::invoke::MemberName::set_flags(member_name, flags);
+	classes::java::lang::invoke::MemberName::set_method(member_name, resolved_method);
+	classes::java::lang::invoke::MemberName::set_vmindex(member_name, vmindex as jlong);
+	classes::java::lang::invoke::MemberName::set_clazz(member_name, Reference::mirror(class));
 }
 
 // -- MemberName support --
 
 pub fn init(
 	env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	self_: Reference, // java.lang.invoke.MemberName
 	ref_: Reference,  // java.lang.Object
 ) {
@@ -361,31 +356,31 @@ pub fn init(
 	}
 
 	let target = ref_.extract_class();
-	let target_class = target.get().class();
+	let target_class = target.class();
 	if target_class == globals::classes::java_lang_reflect_Field() {
 		todo!();
 	}
 
 	if target_class == globals::classes::java_lang_reflect_Method() {
-		let class = classes::java::lang::reflect::Method::clazz(target.get());
-		let slot = classes::java::lang::reflect::Method::slot(target.get());
+		let class = classes::java::lang::reflect::Method::clazz(target);
+		let slot = classes::java::lang::reflect::Method::slot(target);
 
-		let method = &class.get().target_class().vtable()[slot as usize];
+		let method = &class.target_class().vtable()[slot as usize];
 		init_member_name(self_.extract_class(), FieldOrMethod::Method(method))
 	}
 
 	if target_class == globals::classes::java_lang_reflect_Constructor() {
-		let class = classes::java::lang::reflect::Constructor::clazz(target.get());
-		let slot = classes::java::lang::reflect::Constructor::slot(target.get());
+		let class = classes::java::lang::reflect::Constructor::clazz(target);
+		let slot = classes::java::lang::reflect::Constructor::slot(target);
 
-		let method = &class.get().target_class().vtable()[slot as usize];
+		let method = &class.target_class().vtable()[slot as usize];
 		init_member_name(self_.extract_class(), FieldOrMethod::Method(method))
 	}
 }
 
 pub fn expand(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_self_: Reference, // java.lang.invoke.MemberName
 ) {
 	unimplemented!("java.lang.invoke.MethodHandleNatives#expand");
@@ -394,7 +389,7 @@ pub fn expand(
 // throws LinkageError, ClassNotFoundException
 pub fn resolve(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	self_: Reference,  // java.lang.invoke.MemberName
 	caller: Reference, // java.lang.Class<?>
 	lookup_mode: jint,
@@ -406,7 +401,7 @@ pub fn resolve(
 
 	let class_instance = self_.extract_class();
 
-	let flags = classes::java::lang::invoke::MemberName::flags(class_instance.get());
+	let flags = classes::java::lang::invoke::MemberName::flags(class_instance);
 	let Some(reference_kind) = ReferenceKind::from_u8((flags >> MN_REFERENCE_KIND_SHIFT) as u8)
 	else {
 		throw_and_return_null!(
@@ -424,12 +419,9 @@ pub fn resolve(
 		calling_class = Some(caller.extract_target_class());
 	}
 
-	if let Throws::Exception(_e) = resolve_member_name(
-		class_instance.get_mut(),
-		reference_kind,
-		calling_class,
-		lookup_mode,
-	) {
+	if let Throws::Exception(_e) =
+		resolve_member_name(class_instance, reference_kind, calling_class, lookup_mode)
+	{
 		if speculative_resolve {
 			// Speculative resolution is allowed to fail
 			return Reference::null();
@@ -460,15 +452,15 @@ fn find_member_offset(self_: Reference, is_static: bool) -> Throws<(jlong, Mirro
 		throw!(@DEFER InternalError, "mname not resolved")
 	}
 
-	let clazz = classes::java::lang::invoke::MemberName::clazz(self_.extract_class().get())?;
-	let flags = classes::java::lang::invoke::MemberName::flags(self_.extract_class().get());
+	let clazz = classes::java::lang::invoke::MemberName::clazz(self_.extract_class())?;
+	let flags = classes::java::lang::invoke::MemberName::flags(self_.extract_class());
 
 	let acc_static = FieldAccessFlags::ACC_STATIC.as_u2() as jint;
 	if flags & (MN_IS_FIELD as jint) != 0
 		&& ((is_static && flags & acc_static != 0) || (!is_static && flags & acc_static == 0))
 	{
 		return Throws::Ok((
-			classes::java::lang::invoke::MemberName::vmindex(self_.extract_class().get()) as jlong,
+			classes::java::lang::invoke::MemberName::vmindex(self_.extract_class()) as jlong,
 			clazz,
 		));
 	}
@@ -482,7 +474,7 @@ fn find_member_offset(self_: Reference, is_static: bool) -> Throws<(jlong, Mirro
 
 pub fn objectFieldOffset(
 	env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	self_: Reference, // java.lang.invoke.MemberName
 ) -> jlong {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
@@ -492,7 +484,7 @@ pub fn objectFieldOffset(
 
 pub fn staticFieldOffset(
 	env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	self_: Reference, // java.lang.invoke.MemberName
 ) -> jlong {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
@@ -502,7 +494,7 @@ pub fn staticFieldOffset(
 
 pub fn staticFieldBase(
 	env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	self_: Reference, // java.lang.invoke.MemberName
 ) -> Reference /* java.lang.Object */ {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
@@ -512,7 +504,7 @@ pub fn staticFieldBase(
 
 pub fn getMemberVMInfo(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_self_: Reference, // java.lang.invoke.MemberName
 ) -> Reference /* java.lang.Object */ {
 	unimplemented!("java.lang.invoke.MethodHandleNatives#getMemberVMInfo");
@@ -522,7 +514,7 @@ pub fn getMemberVMInfo(
 
 pub fn setCallSiteTargetNormal(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_site: Reference,   // java.lang.invoke.CallSite
 	_target: Reference, // java.lang.invoke.MethodHandle
 ) {
@@ -531,7 +523,7 @@ pub fn setCallSiteTargetNormal(
 
 pub fn setCallSiteTargetVolatile(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_site: Reference,   // java.lang.invoke.CallSite
 	_target: Reference, // java.lang.invoke.MethodHandle
 ) {
@@ -540,7 +532,7 @@ pub fn setCallSiteTargetVolatile(
 
 pub fn copyOutBootstrapArguments(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_caller: Reference,     // java.lang.Class<?>
 	_index_info: Reference, // int[]
 	_start: jint,
@@ -555,7 +547,7 @@ pub fn copyOutBootstrapArguments(
 
 pub fn clearCallSiteContext(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_context: Reference, // java.lang.invoke.CallSiteContext
 ) {
 	unimplemented!("java.lang.invoke.MethodHandleNatives#clearCallSiteContext");
@@ -563,7 +555,7 @@ pub fn clearCallSiteContext(
 
 pub fn getNamedCon(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_which: jint,
 	_name: Reference, // java.lang.Object[]
 ) -> jint {

@@ -49,6 +49,10 @@ pub trait Atomic {
 	fn store(&self, val: Self::Output, order: Ordering);
 }
 
+pub trait AtomicCounterpart {
+	type Counterpart: Atomic<Output = Self>;
+}
+
 macro_rules! impl_atomic {
 	($(($ty:ty, $output:ty)),+ $(,)?) => {
 		$(
@@ -66,6 +70,10 @@ macro_rules! impl_atomic {
 			fn store(&self, val: Self::Output, order: Ordering) {
 				self.store(val, order);
 			}
+		}
+
+		impl AtomicCounterpart for $output {
+			type Counterpart = $ty;
 		}
 		)+
 	}

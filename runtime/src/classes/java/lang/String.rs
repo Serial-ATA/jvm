@@ -1,8 +1,9 @@
 use crate::native::java::lang::String::LATIN1;
-use crate::objects::array::PrimitiveArrayInstance;
-use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
-use crate::objects::reference::{ClassInstanceRef, PrimitiveArrayInstanceRef, Reference};
+use crate::objects::instance::array::{PrimitiveArrayInstance, PrimitiveArrayInstanceRef};
+use crate::objects::instance::class::{ClassInstance, ClassInstanceRef};
+use crate::objects::instance::object::Object;
+use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
 use crate::{globals, native};
 
@@ -12,7 +13,6 @@ use std::ptr::slice_from_raw_parts;
 use byte_slice_cast::AsSliceOf;
 use classfile::FieldType;
 use common::int_types::u2;
-use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::{jboolean, jbyte, jint};
 
@@ -113,19 +113,19 @@ where
 
 		// Set `private byte[] value`
 		set_value(
-			new_java_string_instance.get_mut(),
+			new_java_string_instance,
 			Reference::array(unsafe { PrimitiveArrayInstance::new::<jbyte>(encoded_str) }),
 		);
 
 		// Set `private final byte coder`
 		if is_latin1 {
 			set_coder(
-				new_java_string_instance.get_mut(),
+				new_java_string_instance,
 				native::java::lang::String::LATIN1.into(),
 			);
 		} else {
 			set_coder(
-				new_java_string_instance.get_mut(),
+				new_java_string_instance,
 				native::java::lang::String::UTF16.into(),
 			);
 		};
@@ -145,7 +145,7 @@ where
 	T: IntoJavaStringInternable,
 {
 	let java_string = new(content);
-	set_hash(java_string.get_mut(), hash);
+	set_hash(java_string, hash);
 	java_string
 }
 
@@ -163,9 +163,9 @@ fn str_is_latin1(string: &[u8]) -> bool {
 }
 
 /// Extract a [`String`] from the contents of a `java.lang.String` instance
-pub fn extract(instance: &ClassInstance) -> String {
+pub fn extract(instance: ClassInstanceRef) -> String {
 	let value = value(instance);
-	let value = value.get().as_slice::<jbyte>();
+	let value = value.as_slice::<jbyte>();
 
 	let coder = coder(instance);
 
@@ -184,11 +184,11 @@ pub fn extract(instance: &ClassInstance) -> String {
 /// Get the length of a `java.lang.String` **in characters**
 ///
 /// To get the length of the string in *bytes*, just get the length of the [`value()`].
-pub fn length(this: &ClassInstance) -> usize {
+pub fn length(this: ClassInstanceRef) -> usize {
 	assert_eq!(this.class(), globals::classes::java_lang_String());
 
 	let value_instance = value(this);
-	let value = value_instance.get().as_slice::<jbyte>();
+	let value = value_instance.as_slice::<jbyte>();
 	if coder(this) == LATIN1 {
 		return value.len();
 	}
@@ -202,45 +202,45 @@ pub fn length(this: &ClassInstance) -> usize {
 }
 
 /// `java.lang.String#value` field
-pub fn value(instance: &ClassInstance) -> PrimitiveArrayInstanceRef {
+pub fn value(instance: ClassInstanceRef) -> PrimitiveArrayInstanceRef {
 	instance
-		.get_field_value0(value_field_offset())
+		.get_field_value0(value_field_index())
 		.expect_reference()
 		.extract_primitive_array()
 }
 
-pub fn set_value(instance: &mut ClassInstance, value: Reference) {
-	instance.put_field_value0(value_field_offset(), Operand::Reference(value))
+pub fn set_value(instance: ClassInstanceRef, value: Reference) {
+	instance.put_field_value0(value_field_index(), Operand::Reference(value))
 }
 
 /// `java.lang.String#coder` field
-pub fn coder(instance: &ClassInstance) -> jbyte {
-	instance.get_field_value0(coder_field_offset()).expect_int() as jbyte
+pub fn coder(instance: ClassInstanceRef) -> jbyte {
+	instance.get_field_value0(coder_field_index()).expect_int() as jbyte
 }
 
-pub fn set_coder(instance: &mut ClassInstance, value: jbyte) {
-	instance.put_field_value0(coder_field_offset(), Operand::Int(value as jint))
+pub fn set_coder(instance: ClassInstanceRef, value: jbyte) {
+	instance.put_field_value0(coder_field_index(), Operand::Int(value as jint))
 }
 
 /// `java.lang.String#hash` field
-pub fn hash(instance: &ClassInstance) -> jint {
-	instance.get_field_value0(hash_field_offset()).expect_int()
+pub fn hash(instance: ClassInstanceRef) -> jint {
+	instance.get_field_value0(hash_field_index()).expect_int()
 }
 
-pub fn set_hash(instance: &mut ClassInstance, value: jint) {
-	instance.put_field_value0(hash_field_offset(), Operand::Int(value))
+pub fn set_hash(instance: ClassInstanceRef, value: jint) {
+	instance.put_field_value0(hash_field_index(), Operand::Int(value))
 }
 
 /// `java.lang.String#hashIsZero` field
-pub fn hashIsZero(instance: &ClassInstance) -> jboolean {
+pub fn hashIsZero(instance: ClassInstanceRef) -> jboolean {
 	instance
-		.get_field_value0(hashIsZero_field_offset())
+		.get_field_value0(hashIsZero_field_index())
 		.expect_int()
 		!= 0
 }
 
-pub fn set_hashIsZero(instance: &mut ClassInstance, value: jboolean) {
-	instance.put_field_value0(hashIsZero_field_offset(), Operand::Int(value as jint))
+pub fn set_hashIsZero(instance: ClassInstanceRef, value: jboolean) {
+	instance.put_field_value0(hashIsZero_field_index(), Operand::Int(value as jint))
 }
 
 crate::classes::field_module! {

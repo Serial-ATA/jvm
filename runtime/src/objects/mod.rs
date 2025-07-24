@@ -1,12 +1,9 @@
-pub mod array;
 pub mod boxing;
 pub mod class;
-pub mod class_instance;
 pub mod constant_pool;
 pub mod field;
 pub mod instance;
 pub mod method;
-pub mod mirror;
 pub mod monitor;
 pub mod reference;
 pub mod vtable;

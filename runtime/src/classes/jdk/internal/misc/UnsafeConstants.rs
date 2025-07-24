@@ -41,18 +41,18 @@ pub unsafe fn init() {
 	// NOTE: The fields are already default initialized to 0
 	unsafe {
 		class.set_static_field(
-			ADDRESS_SIZE0_field_offset(),
+			ADDRESS_SIZE0_field_index(),
 			Operand::from(size_of::<usize>() as jint),
 		);
 		class.set_static_field(
-			PAGE_SIZE_field_offset(),
+			PAGE_SIZE_field_index(),
 			Operand::from(platform::mem::get_page_size() as jint),
 		);
 		class.set_static_field(
-			BIG_ENDIAN_field_offset(),
+			BIG_ENDIAN_field_index(),
 			Operand::from(cfg!(target_endian = "big") as jint),
 		);
 	}
-	// TODO: class.set_static_field(unaligned_access_field_offset(), /* ... */);
-	// TODO: class.set_static_field(data_cache_line_flush_size_field_offset(), /* ... */);
+	// TODO: class.set_static_field(unaligned_access_field_index(), /* ... */);
+	// TODO: class.set_static_field(data_cache_line_flush_size_field_index(), /* ... */);
 }

@@ -58,8 +58,8 @@ macro_rules! non_static_signature {
 
 macro_rules! static_signature {
 	() => {
-		"\t#[allow(unused_mut)]\n\tpub fn _{}(env: ::jni::env::JniEnv, class: &'static \
-		 crate::objects::class::Class, locals: crate::stack::local_stack::LocalStack) -> \
+		"\t#[allow(unused_mut)]\n\tpub fn _{}(env: ::jni::env::JniEnv, class: \
+		 crate::objects::class::ClassPtr, locals: crate::stack::local_stack::LocalStack) -> \
 		 crate::native::method::NativeReturn {{"
 	};
 }

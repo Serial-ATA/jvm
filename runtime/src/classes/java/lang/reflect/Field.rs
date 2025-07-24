@@ -1,10 +1,10 @@
 use crate::globals;
-use crate::objects::class_instance::ClassInstance;
 use crate::objects::field::Field;
 use crate::objects::instance::Instance;
-use crate::objects::reference::{
-	ClassInstanceRef, MirrorInstanceRef, PrimitiveArrayInstanceRef, Reference,
-};
+use crate::objects::instance::array::PrimitiveArrayInstanceRef;
+use crate::objects::instance::class::{ClassInstance, ClassInstanceRef};
+use crate::objects::instance::mirror::MirrorInstanceRef;
+use crate::objects::reference::Reference;
 use crate::thread::exceptions::Throws;
 
 use classfile::FieldType;
@@ -17,76 +17,76 @@ pub fn new(_field: &Field) -> Throws<ClassInstanceRef> {
 	todo!()
 }
 
-pub fn clazz(instance: &ClassInstance) -> MirrorInstanceRef {
+pub fn clazz(instance: ClassInstanceRef) -> MirrorInstanceRef {
 	instance
-		.get_field_value0(clazz_field_offset())
+		.get_field_value0(clazz_field_index())
 		.expect_reference()
 		.extract_mirror()
 }
 
-pub fn set_clazz(instance: &mut ClassInstance, value: MirrorInstanceRef) {
+pub fn set_clazz(instance: ClassInstanceRef, value: MirrorInstanceRef) {
 	instance.put_field_value0(
-		clazz_field_offset(),
+		clazz_field_index(),
 		Operand::Reference(Reference::mirror(value)),
 	)
 }
 
-pub fn slot(instance: &ClassInstance) -> jint {
-	instance.get_field_value0(slot_field_offset()).expect_int()
+pub fn slot(instance: ClassInstanceRef) -> jint {
+	instance.get_field_value0(slot_field_index()).expect_int()
 }
 
-pub fn set_slot(instance: &mut ClassInstance, value: jint) {
-	instance.put_field_value0(slot_field_offset(), Operand::Int(value))
+pub fn set_slot(instance: ClassInstanceRef, value: jint) {
+	instance.put_field_value0(slot_field_index(), Operand::Int(value))
 }
 
-pub fn name(instance: &ClassInstance) -> ClassInstanceRef {
+pub fn name(instance: ClassInstanceRef) -> ClassInstanceRef {
 	instance
-		.get_field_value0(name_field_offset())
+		.get_field_value0(name_field_index())
 		.expect_reference()
 		.extract_class()
 }
 
-pub fn set_name(instance: &mut ClassInstance, value: ClassInstanceRef) {
+pub fn set_name(instance: ClassInstanceRef, value: ClassInstanceRef) {
 	instance.put_field_value0(
-		name_field_offset(),
+		name_field_index(),
 		Operand::Reference(Reference::class(value)),
 	)
 }
 
-pub fn modifiers(instance: &ClassInstance) -> jint {
+pub fn modifiers(instance: ClassInstanceRef) -> jint {
 	instance
-		.get_field_value0(modifiers_field_offset())
+		.get_field_value0(modifiers_field_index())
 		.expect_int()
 }
 
-pub fn set_modifiers(instance: &mut ClassInstance, value: jint) {
-	instance.put_field_value0(modifiers_field_offset(), Operand::Int(value))
+pub fn set_modifiers(instance: ClassInstanceRef, value: jint) {
+	instance.put_field_value0(modifiers_field_index(), Operand::Int(value))
 }
 
-pub fn signature(instance: &ClassInstance) -> ClassInstanceRef {
+pub fn signature(instance: ClassInstanceRef) -> ClassInstanceRef {
 	instance
-		.get_field_value0(signature_field_offset())
+		.get_field_value0(signature_field_index())
 		.expect_reference()
 		.extract_class()
 }
 
-pub fn set_signature(instance: &mut ClassInstance, value: ClassInstanceRef) {
+pub fn set_signature(instance: ClassInstanceRef, value: ClassInstanceRef) {
 	instance.put_field_value0(
-		signature_field_offset(),
+		signature_field_index(),
 		Operand::Reference(Reference::class(value)),
 	)
 }
 
-pub fn annotations(instance: &ClassInstance) -> PrimitiveArrayInstanceRef {
+pub fn annotations(instance: ClassInstanceRef) -> PrimitiveArrayInstanceRef {
 	instance
-		.get_field_value0(annotations_field_offset())
+		.get_field_value0(annotations_field_index())
 		.expect_reference()
 		.extract_primitive_array()
 }
 
-pub fn set_annotations(instance: &mut ClassInstance, value: PrimitiveArrayInstanceRef) {
+pub fn set_annotations(instance: ClassInstanceRef, value: PrimitiveArrayInstanceRef) {
 	instance.put_field_value0(
-		annotations_field_offset(),
+		annotations_field_index(),
 		Operand::Reference(Reference::array(value)),
 	)
 }

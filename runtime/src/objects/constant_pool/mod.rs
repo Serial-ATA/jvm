@@ -3,7 +3,7 @@ use cp_types::Entry;
 mod entry;
 pub use entry::ResolvedEntry;
 
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::thread::exceptions::Throws;
 
 use std::fmt::{Debug, Formatter};
@@ -28,13 +28,13 @@ use common::int_types::u2;
 /// This is important for types like `Class` which are loaded once and then shared between all
 /// instances of the class.
 pub struct ConstantPool {
-	class: &'static Class,
+	class: ClassPtr,
 	entries: Box<[entry::ConstantPoolEntry]>,
 	raw: classfile::constant_pool::ConstantPool,
 }
 
 impl ConstantPool {
-	pub fn new(class: &'static Class, cp: classfile::constant_pool::ConstantPool) -> Self {
+	pub fn new(class: ClassPtr, cp: classfile::constant_pool::ConstantPool) -> Self {
 		Self {
 			class,
 			entries: box_slice![entry::ConstantPoolEntry::new(); cp.len()],

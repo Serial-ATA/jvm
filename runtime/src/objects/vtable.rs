@@ -1,5 +1,6 @@
 use crate::objects::method::Method;
 use crate::symbols::Symbol;
+
 use std::ops::Index;
 
 use classfile::accessflags::MethodAccessFlags;

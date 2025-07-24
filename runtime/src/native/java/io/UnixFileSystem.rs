@@ -2,7 +2,7 @@
 
 use crate::classes;
 use crate::native::java::lang::String::StringInterner;
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
 use crate::thread::JavaThread;
@@ -13,7 +13,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
-use common::traits::PtrType;
 
 include_generated!("native/java/io/def/UnixFileSystem.definitions.rs");
 
@@ -26,7 +25,7 @@ pub fn canonicalize0(
 		throw_and_return_null!(JavaThread::current(), NullPointerException);
 	}
 
-	let path_str = classes::java::lang::String::extract(path.extract_class().get());
+	let path_str = classes::java::lang::String::extract(path.extract_class());
 	let Ok(path) = std::path::Path::new(&path_str).canonicalize() else {
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw_and_return_null!(thread, IOException);
@@ -196,7 +195,7 @@ pub fn getNameMax0(
 	unimplemented!("java.io.UnixFileSystem#getNameMax0");
 }
 
-pub fn initIDs(_: JniEnv, class: &'static Class) {
+pub fn initIDs(_: JniEnv, class: ClassPtr) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE
 		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)

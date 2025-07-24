@@ -1,5 +1,6 @@
 use crate::classes;
-use crate::objects::reference::{ClassInstanceRef, Reference};
+use crate::objects::instance::class::ClassInstanceRef;
+use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
 
 use std::collections::HashMap;
@@ -8,7 +9,6 @@ use std::sync::{LazyLock, RwLock};
 
 use byte_slice_cast::{AsByteSlice, AsSliceOf};
 use common::int_types::{u1, u2};
-use common::traits::PtrType;
 use jni::env::JniEnv;
 use jni::sys::{jbyte, jint};
 
@@ -23,8 +23,8 @@ pub fn intern(_env: JniEnv, this: Reference /* java.lang.String */) -> Reference
 
 	let string = this.extract_class();
 
-	let hash = classes::java::lang::String::hash(string.get());
-	let hash_is_zero = classes::java::lang::String::hashIsZero(string.get());
+	let hash = classes::java::lang::String::hash(string);
+	let hash_is_zero = classes::java::lang::String::hashIsZero(string);
 	if hash != 0 || hash_is_zero {
 		if let Some(interned_string) = lookup(StringHash(hash)) {
 			return Reference::class(interned_string);
@@ -33,17 +33,16 @@ pub fn intern(_env: JniEnv, this: Reference /* java.lang.String */) -> Reference
 		// Otherwise something's off, recompute the hash...
 	}
 
-	let coder = classes::java::lang::String::coder(string.get());
-	let value_field = classes::java::lang::String::value(string.get());
-	let value = value_field.get();
+	let coder = classes::java::lang::String::coder(string);
+	let value = classes::java::lang::String::value(string);
 
 	let value = value.as_slice::<jbyte>();
 	let value_unsigned = value.as_byte_slice();
 
 	let computed_hash;
 	if value_unsigned.is_empty() {
-		classes::java::lang::String::set_hash(string.get_mut(), 0);
-		classes::java::lang::String::set_hashIsZero(string.get_mut(), true);
+		classes::java::lang::String::set_hash(string, 0);
+		classes::java::lang::String::set_hashIsZero(string, true);
 		computed_hash = StringHash(0);
 	} else {
 		let hash = match coder {
@@ -54,8 +53,8 @@ pub fn intern(_env: JniEnv, this: Reference /* java.lang.String */) -> Reference
 			_ => panic!("Invalid string coder `{coder}`"),
 		};
 
-		classes::java::lang::String::set_hash(string.get_mut(), hash.0 as jint);
-		classes::java::lang::String::set_hashIsZero(string.get_mut(), false);
+		classes::java::lang::String::set_hash(string, hash.0 as jint);
+		classes::java::lang::String::set_hashIsZero(string, false);
 		computed_hash = hash;
 	}
 

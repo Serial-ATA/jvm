@@ -8,6 +8,42 @@ pub mod jdk;
 #[allow(dead_code)] // This is used in the `crate::classes::field_constructor!` macro
 const MAX_FIELD_COUNT: usize = 11;
 
+pub trait AsClassInstanceRef {
+	fn as_class_instance_ref(&self) -> ClassInstanceRef;
+}
+
+impl AsClassInstanceRef for ClassInstanceRef {
+	#[inline]
+	fn as_class_instance_ref(&self) -> ClassInstanceRef {
+		*self
+	}
+}
+
+impl AsClassInstanceRef for Reference {
+	#[inline]
+	fn as_class_instance_ref(&self) -> ClassInstanceRef {
+		self.extract_class()
+	}
+}
+
+pub trait AsMirrorInstanceRef {
+	fn as_mirror_instance_ref(&self) -> MirrorInstanceRef;
+}
+
+impl AsMirrorInstanceRef for MirrorInstanceRef {
+	#[inline]
+	fn as_mirror_instance_ref(&self) -> MirrorInstanceRef {
+		*self
+	}
+}
+
+impl AsMirrorInstanceRef for Reference {
+	#[inline]
+	fn as_mirror_instance_ref(&self) -> MirrorInstanceRef {
+		self.extract_mirror()
+	}
+}
+
 macro_rules! get_sym {
 	($specified_sym_name:ident $_fallback:ident) => {{
 		use crate::symbols::sym;
@@ -232,6 +268,7 @@ macro_rules! field_constructor {
 	) => {
 		paste::paste! {
 			static mut [<__ $field_name:snake:upper _FIELD_OFFSET>]: usize = 0;
+			static mut [<__ $field_name:snake:upper _FIELD_INDEX>]: usize = 0;
 
 			$(#[$meta])*
 			/// This will not change for the lifetime of the program.
@@ -241,6 +278,16 @@ macro_rules! field_constructor {
 
 			unsafe fn [<set_ $field_name _field_offset>](value: usize) {
 				unsafe { [<__ $field_name:snake:upper _FIELD_OFFSET>] = value; }
+			}
+
+			$(#[$meta])*
+			/// This will not change for the lifetime of the program.
+			pub fn [<$field_name _field_index>]() -> usize {
+				unsafe { [<__ $field_name:snake:upper _FIELD_INDEX>] }
+			}
+
+			unsafe fn [<set_ $field_name _field_index>](value: usize) {
+				unsafe { [<__ $field_name:snake:upper _FIELD_INDEX>] = value; }
 			}
 		}
 
@@ -261,7 +308,8 @@ macro_rules! field_constructor {
 		paste::paste! {
 			if $field_ident.name == crate::classes::get_sym!($($specified_sym_name)? $field_name) && matches!(&$field_ident.descriptor, $matcher $(if $guard)?) {
 				$field_set_ident |= 1 << $current_shift;
-				unsafe { [<set_ $field_name _field_offset>]($field_ident.index()); }
+				unsafe { [<set_ $field_name _field_offset>]($field_ident.offset()); }
+				unsafe { [<set_ $field_name _field_index>]($field_ident.index()); }
 				continue;
 			}
 		}
@@ -281,7 +329,8 @@ macro_rules! field_constructor {
 		// Injected fields are not checked, in the field set, we only need to set their ids
 		paste::paste! {
 			if $field_ident.name == crate::classes::get_sym!($($specified_sym_name)? $field_name) {
-				unsafe { [<set_ $field_name _field_offset>]($field_ident.index()); }
+				unsafe { [<set_ $field_name _field_offset>]($field_ident.offset()); }
+				unsafe { [<set_ $field_name _field_index>]($field_ident.index()); }
 				continue;
 			}
 		}
@@ -309,6 +358,9 @@ macro_rules! field_module {
 	};
 }
 
+use crate::objects::instance::class::ClassInstanceRef;
+use crate::objects::instance::mirror::MirrorInstanceRef;
+use crate::objects::reference::Reference;
 pub(self) use {
 	field_constructor, field_module, get_sym, injected_field_count, injected_field_definition,
 	instance_field_count,

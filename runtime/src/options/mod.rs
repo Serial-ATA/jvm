@@ -60,9 +60,10 @@ impl JvmOptions {
 		let mut system_props_guard = SYSTEM_PROPERTIES.lock().unwrap();
 		for pos in 0..init.nOptions as usize {
 			let option = unsafe { *init.options.add(pos) };
-			let option_string = unsafe { CStr::from_ptr(option.optionString) };
+			let option_string_c = unsafe { CStr::from_ptr(option.optionString) };
+			let option_string = option_string_c.to_str()?;
 
-			let mut opt_split = option_string.to_str().unwrap().splitn(2, "=");
+			let mut opt_split = option_string.splitn(2, "=");
 
 			let key = opt_split.next().unwrap();
 
@@ -97,7 +98,9 @@ impl JvmOptions {
 					system_props_guard.insert(String::from("java.class.path"), String::from(val));
 				},
 				_ if let Some(system_prop) = key.strip_prefix("-D") => {
-					system_props_guard.insert(String::from(system_prop), String::from(val));
+					let key = String::from(system_prop);
+					let val = String::from(val);
+					system_props_guard.insert(key, val);
 				},
 				_ => {
 					if !init.ignoreUnrecognized {

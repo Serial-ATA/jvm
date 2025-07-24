@@ -1,4 +1,4 @@
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::stack::local_stack::LocalStack;
@@ -32,7 +32,7 @@ impl Debug for NativeMethodDef {
 }
 
 pub type NativeReturn = Option<Operand<Reference>>;
-pub type NativeStaticMethodPtr = fn(JniEnv, &'static Class, LocalStack) -> NativeReturn;
+pub type NativeStaticMethodPtr = fn(JniEnv, ClassPtr, LocalStack) -> NativeReturn;
 pub type NativeNonStaticMethodPtr = fn(JniEnv, LocalStack) -> NativeReturn;
 
 #[derive(Copy, Clone)]

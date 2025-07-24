@@ -1,4 +1,5 @@
-use crate::objects::instance::{CloneableInstance, Instance};
+use crate::objects::instance::CloneableInstance;
+use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw_and_return_null};
@@ -7,7 +8,6 @@ use std::time::Duration;
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jint, jlong};
-use common::traits::PtrType;
 
 include_generated!("native/java/lang/def/Object.definitions.rs");
 
@@ -17,14 +17,9 @@ pub fn getClass(_: JniEnv, this: Reference /* java.lang.Object */) -> Reference 
 }
 
 pub fn hashCode(env: JniEnv, this: Reference /* java.lang.Object */) -> jint {
-	// Hash already generated, nothing to do
-	if let Some(hash) = this.hash() {
-		return hash;
-	}
-
-	// We need to generate a hash, this will update the object for future calls
+	// This will only calculate a hash if one isn't already cached in the header
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	this.generate_hash(thread)
+	this.hash(thread)
 }
 
 // throws CloneNotSupportedException
@@ -34,24 +29,23 @@ pub fn clone(_: JniEnv, this: Reference /* java.lang.Object */) -> Reference /* 
 	{
 		if this.is_primitive_array() {
 			let array = this.extract_primitive_array();
-			let cloned = unsafe { CloneableInstance::clone(array.get()) };
+			let cloned = unsafe { CloneableInstance::clone(&array) };
 			return Reference::array(cloned);
 		}
 
 		if this.is_object_array() {
 			let array = this.extract_object_array();
-			let cloned = unsafe { CloneableInstance::clone(array.get()) };
+			let cloned = unsafe { CloneableInstance::clone(&array) };
 			return Reference::object_array(cloned);
 		}
 	}
 
-	let instance_ref = this.extract_class();
-	let instance = instance_ref.get();
+	let instance = this.extract_class();
 	if !instance.class().is_cloneable() {
 		throw_and_return_null!(JavaThread::current(), CloneNotSupportedException);
 	}
 
-	let cloned = unsafe { CloneableInstance::clone(instance) };
+	let cloned = unsafe { CloneableInstance::clone(&instance) };
 	Reference::class(cloned)
 }
 

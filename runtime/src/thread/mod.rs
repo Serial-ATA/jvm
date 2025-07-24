@@ -10,9 +10,10 @@ use crate::classes::java::lang::Thread::ThreadStatus;
 use crate::interpreter::Interpreter;
 use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::invocation_api::new_env;
-use crate::objects::class_instance::ClassInstance;
+use crate::objects::instance::class::{ClassInstance, ClassInstanceRef};
+use crate::objects::instance::object::Object;
 use crate::objects::method::Method;
-use crate::objects::reference::{ClassInstanceRef, Reference};
+use crate::objects::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::symbols::sym;
 use crate::thread::exceptions::Throws;
@@ -25,7 +26,6 @@ use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 use std::thread::JoinHandle;
 
 use classfile::accessflags::MethodAccessFlags;
-use common::traits::PtrType;
 use instructions::{Operand, StackLike};
 use jni::env::JniEnv;
 use jni::sys::JNIEnv;
@@ -258,7 +258,7 @@ impl JavaThread {
 		let obj = self.obj().unwrap();
 
 		classes::java::lang::Thread::set_eetop(
-			obj.extract_class().get_mut(),
+			obj.extract_class(),
 			JavaThread::current_ptr() as jni::sys::jlong,
 		);
 
@@ -281,9 +281,9 @@ impl JavaThread {
 			Operand::Reference(Reference::class(thread_name)),
 		);
 
-		let holder = classes::java::lang::Thread::holder(obj.extract_class().get());
+		let holder = classes::java::lang::Thread::holder(obj.extract_class());
 		classes::java::lang::Thread::holder::set_threadStatus(
-			holder.extract_class().get_mut(),
+			holder.extract_class(),
 			ThreadStatus::Runnable,
 		);
 	}
@@ -313,12 +313,12 @@ impl JavaThread {
 			return String::from("Unknown thread");
 		};
 
-		let name = classes::java::lang::Thread::name(obj.extract_class().get());
+		let name = classes::java::lang::Thread::name(obj.extract_class());
 		if name.is_null() {
 			return String::from("<un-named>");
 		}
 
-		classes::java::lang::String::extract(name.extract_class().get())
+		classes::java::lang::String::extract(name.extract_class())
 	}
 }
 
@@ -604,8 +604,8 @@ impl JavaThread {
 
 		let throwable_class = globals::classes::java_lang_Throwable();
 		assert!(
-			class_instance.get().class() == throwable_class
-				|| class_instance.get().is_subclass_of(&throwable_class)
+			class_instance.class() == throwable_class
+				|| class_instance.is_subclass_of(throwable_class)
 		);
 
 		// Search each frame for an exception handler
@@ -616,7 +616,7 @@ impl JavaThread {
 			// If an exception handler that matches objectref is found, it contains the location of the code intended to handle this exception.
 			if let Some(handler_pc) = current_frame
 				.method()
-				.find_exception_handler(class_instance.get().class(), current_frame_pc)
+				.find_exception_handler(class_instance.class(), current_frame_pc)
 			{
 				// The pc register is reset to that location, the operand stack of the current frame is cleared, objectref
 				// is pushed back onto the operand stack, and execution continues.

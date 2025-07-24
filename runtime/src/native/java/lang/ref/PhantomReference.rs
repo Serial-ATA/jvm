@@ -1,5 +1,4 @@
 use crate::classes;
-use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 
 use ::jni::env::JniEnv;
@@ -14,10 +13,7 @@ pub fn refersTo0(
 	this: Reference, // java.lang.ref.PhantomReference
 	o: Reference,    // java.lang.Object
 ) -> jboolean {
-	let referent_field_offset = classes::java::lang::r#ref::Reference::referent_field_offset();
-	let referent = this.get_field_value0(referent_field_offset);
-
-	referent.expect_reference() == o
+	classes::java::lang::r#ref::Reference::referent(this) == o
 }
 
 pub fn clear0(_: JniEnv, this: Reference /* java.lang.ref.PhantomReference */) {

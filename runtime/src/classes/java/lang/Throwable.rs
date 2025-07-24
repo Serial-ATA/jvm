@@ -1,35 +1,68 @@
+use crate::classes::AsClassInstanceRef;
 use crate::java_call;
 use crate::native::java::lang::Throwable::BackTrace;
-use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
+use crate::objects::instance::class::ClassInstanceRef;
+use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
 use crate::thread::JavaThread;
 
 use classfile::FieldType;
 use classfile::accessflags::MethodAccessFlags;
-use common::traits::PtrType;
 use instructions::Operand;
-use jni::sys::jlong;
+use jni::sys::{jint, jlong};
+
+/// `java.lang.Throwable#stackTrace` field
+pub fn stackTrace<I: AsClassInstanceRef>(instance: I) -> Reference {
+	instance
+		.as_class_instance_ref()
+		.get_field_value0(stackTrace_field_index())
+		.expect_reference()
+}
+
+pub fn set_stackTrace<I: AsClassInstanceRef>(instance: I, value: Reference) {
+	instance
+		.as_class_instance_ref()
+		.put_field_value0(stackTrace_field_index(), Operand::Reference(value))
+}
 
 /// `java.lang.Throwable#backtrace` field
-pub fn backtrace(instance: &ClassInstance) -> Reference {
+pub fn backtrace<I: AsClassInstanceRef>(instance: I) -> Reference {
 	instance
-		.get_field_value0(backtrace_field_offset())
+		.as_class_instance_ref()
+		.get_field_value0(backtrace_field_index())
 		.expect_reference()
 }
 
-pub fn set_backtrace(instance: &mut ClassInstance, value: Reference) {
-	instance.put_field_value0(backtrace_field_offset(), Operand::Reference(value))
+pub fn set_backtrace<I: AsClassInstanceRef>(instance: I, value: Reference) {
+	instance
+		.as_class_instance_ref()
+		.put_field_value0(backtrace_field_index(), Operand::Reference(value))
 }
 
-pub fn detail_message(instance: &ClassInstance) -> Reference {
+/// `java.lang.Throwable#depth` field
+pub fn depth<I: AsClassInstanceRef>(instance: I) -> jint {
 	instance
-		.get_field_value0(detailMessage_field_offset())
+		.as_class_instance_ref()
+		.get_field_value0(depth_field_index())
+		.expect_int()
+}
+
+pub fn set_depth<I: AsClassInstanceRef>(instance: I, value: jint) {
+	instance
+		.as_class_instance_ref()
+		.put_field_value0(depth_field_index(), Operand::Int(value))
+}
+
+pub fn detail_message<I: AsClassInstanceRef>(instance: I) -> Reference {
+	instance
+		.as_class_instance_ref()
+		.get_field_value0(detailMessage_field_index())
 		.expect_reference()
 }
 
-pub fn print(this: &ClassInstance) {
+pub fn print(this: ClassInstanceRef) {
 	eprint!("{}", this.class().external_name());
 	let detail_message = detail_message(this);
 	if detail_message.is_null() {
@@ -37,7 +70,7 @@ pub fn print(this: &ClassInstance) {
 	}
 
 	let detail_message_string = detail_message.extract_class();
-	let detail_message = super::String::extract(detail_message_string.get());
+	let detail_message = super::String::extract(detail_message_string);
 
 	eprint!(": {detail_message}");
 }
@@ -66,17 +99,16 @@ pub fn print_stack_trace_without_java_system(this: Reference, thread: &'static J
 	assert!(this.is_instance_of(crate::globals::classes::java_lang_Throwable()));
 
 	let instance = this.extract_class();
-	print(instance.get());
+	print(instance);
 	println!();
 
-	let backtrace = backtrace(instance.get());
+	let backtrace = backtrace(instance);
 	if backtrace.is_null() {
 		eprintln!("\t<<no stack trace available>>");
 		return;
 	}
 
-	let backtrace_array_instance = backtrace.extract_primitive_array();
-	let backtrace_array = backtrace_array_instance.get();
+	let backtrace_array = backtrace.extract_primitive_array();
 
 	let backtrace_array = backtrace_array.as_slice::<jlong>();
 	for elem in BackTrace::from_encoded(backtrace_array) {
@@ -109,7 +141,6 @@ pub fn print_stack_trace_without_java_system(this: Reference, thread: &'static J
 	}
 
 	let get_cause = instance
-		.get()
 		.class()
 		.vtable()
 		.find(
@@ -130,9 +161,8 @@ pub fn print_stack_trace_without_java_system(this: Reference, thread: &'static J
 		return;
 	}
 
-	let cause = cause.extract_class();
 	eprint!("Caused by: ");
-	print(cause.get());
+	print(cause.extract_class());
 	eprintln!();
 }
 

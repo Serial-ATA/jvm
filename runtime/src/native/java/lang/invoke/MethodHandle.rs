@@ -1,4 +1,4 @@
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::objects::reference::Reference;
 
 use jni::env::JniEnv;
@@ -40,7 +40,7 @@ pub fn invokeBasic(
 
 pub fn linkToVirtual(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_args: Vec<Reference>, // Object...
 ) -> Reference /* java.lang.Object */ {
 	unreachable!(
@@ -51,7 +51,7 @@ pub fn linkToVirtual(
 
 pub fn linkToStatic(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_args: Vec<Reference>, // Object...
 ) -> Reference /* java.lang.Object */ {
 	unreachable!(
@@ -62,7 +62,7 @@ pub fn linkToStatic(
 
 pub fn linkToSpecial(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_args: Vec<Reference>, // Object...
 ) -> Reference /* java.lang.Object */ {
 	unreachable!(
@@ -73,7 +73,7 @@ pub fn linkToSpecial(
 
 pub fn linkToInterface(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_args: Vec<Reference>, // Object...
 ) -> Reference /* java.lang.Object */ {
 	unreachable!(
@@ -84,7 +84,7 @@ pub fn linkToInterface(
 
 pub fn linkToNative(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_args: Vec<Reference>, // Object...
 ) -> Reference /* java.lang.Object */ {
 	unreachable!(

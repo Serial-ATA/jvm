@@ -1,5 +1,5 @@
 use super::reference::Reference;
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::objects::constant_pool::{ConstantPool, cp_types};
 use crate::symbols::Symbol;
 
@@ -13,10 +13,12 @@ use instructions::Operand;
 
 // TODO: Make more fields private
 pub struct Field {
-	// Used to set the value on `ClassInstance`s
-	// This is an `UnsafeCell`, as the index will be mutated for injected fields.
+	/// Used to set the value on `ClassInstance`s
+	/// This is an `UnsafeCell`, as the index will be mutated for injected fields.
 	idx: SyncUnsafeCell<usize>,
-	pub class: &'static Class,
+	/// The byte offset from an object's field base where this field's value lives
+	offset: SyncUnsafeCell<usize>,
+	pub class: ClassPtr,
 	pub access_flags: FieldAccessFlags,
 	pub name: Symbol,
 	pub descriptor: FieldType,
@@ -66,19 +68,42 @@ impl Field {
 	pub(super) unsafe fn set_index(&self, index: usize) {
 		unsafe { *self.idx.get() = index };
 	}
+
+	pub fn offset(&self) -> usize {
+		unsafe { *self.offset.get() }
+	}
+
+	pub(super) fn set_offset(&self, offset: usize) {
+		unsafe { *self.offset.get() = offset };
+	}
 }
 
 impl Field {
 	/// Create a new `Field` instance
 	///
-	/// NOTE: This will leak the `Field` and return a reference. It is important that this only
-	///       be called once per field. It should never be used outside of class loading.
+	/// NOTES:
+	///
+	/// * `offset` is the direct, **possibly unaligned** end of the previous field. This constructor
+	///   automatically handles padding if necessary.
+	/// * This will leak the `Field` and return a reference. It is important that this only be called
+	///   once per field. It should never be used outside of class loading.
 	pub(super) fn new(
 		idx: usize,
-		class: &'static Class,
+		offset: usize,
+		class: ClassPtr,
 		field_info: &FieldInfo,
 		constant_pool: &ConstantPool,
 	) -> &'static Field {
+		fn padding(is_volatile: bool, offset: usize, align_of_field: usize) -> usize {
+			debug_assert!(align_of_field <= 8);
+
+			if !is_volatile {
+				return 0;
+			}
+
+			offset % align_of_field
+		}
+
 		let access_flags = field_info.access_flags;
 
 		let name_index = field_info.name_index;
@@ -96,8 +121,10 @@ impl Field {
 			.get_constant_value_attribute()
 			.map(|constant_value| constant_value.constantvalue_index);
 
+		let offset = offset + padding(access_flags.is_volatile(), offset, descriptor.align());
 		Box::leak(Box::new(Self {
 			idx: SyncUnsafeCell::new(idx),
+			offset: SyncUnsafeCell::new(offset),
 			class,
 			access_flags,
 			name,
@@ -107,15 +134,12 @@ impl Field {
 		}))
 	}
 
-	pub fn new_injected(
-		class: &'static Class,
-		name: Symbol,
-		descriptor: FieldType,
-	) -> &'static Field {
+	pub fn new_injected(class: ClassPtr, name: Symbol, descriptor: FieldType) -> &'static Field {
 		let descriptor_sym = Symbol::intern(descriptor.as_signature());
 
 		Box::leak(Box::new(Self {
 			idx: SyncUnsafeCell::new(0),
+			offset: SyncUnsafeCell::new(0),
 			class,
 			access_flags: FieldAccessFlags::NONE,
 			name,

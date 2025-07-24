@@ -1,22 +1,21 @@
 use crate::globals;
-use crate::objects::class::Class;
-use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
+use crate::objects::instance::class::ClassInstanceRef;
+use crate::objects::instance::object::Object;
 use crate::objects::method::MethodEntryPoint;
-use crate::objects::reference::ClassInstanceRef;
 use crate::symbols::sym;
 
 use classfile::FieldType;
 
 /// `java.lang.invoke.MethodHandle#form` field
-pub fn form(instance: &ClassInstance) -> ClassInstanceRef {
+pub fn form(instance: ClassInstanceRef) -> ClassInstanceRef {
 	assert!(
 		instance
 			.class()
 			.is_subclass_of(globals::classes::java_lang_invoke_MethodHandle())
 	);
 	instance
-		.get_field_value0(form_field_offset())
+		.get_field_value0(form_field_index())
 		.expect_reference()
 		.extract_class()
 }
@@ -33,7 +32,7 @@ crate::classes::field_module! {
 
 /// Initializes the entry points for `java.lang.invoke.MethodHandle` natives
 pub fn init_entry_points() {
-	let class: &'static Class = globals::classes::java_lang_invoke_MethodHandle();
+	let class = globals::classes::java_lang_invoke_MethodHandle();
 
 	// Don't need to verify this was only called once, `Method::set_entry_point` will panic
 	// if the entry point is already set.
@@ -91,19 +90,20 @@ mod _dynamic {
 	use crate::method_invoker::MethodInvoker;
 	use crate::objects::boxing::Boxable;
 	use crate::objects::constant_pool::cp_types::MethodEntry;
+	use crate::objects::instance::class::ClassInstanceRef;
 	use crate::objects::method::Method;
-	use crate::objects::reference::{ClassInstanceRef, Reference};
+	use crate::objects::reference::Reference;
 	use crate::stack::local_stack::LocalStack;
 	use crate::thread::exceptions::{Throws, throw};
 	use crate::thread::frame::Frame;
 	use crate::{classes, java_call};
-	use common::traits::PtrType;
+
 	use instructions::{Operand, StackLike};
 
 	fn get_target_method(frame: &Frame, handle: ClassInstanceRef) -> Option<&'static Method> {
-		let form = classes::java::lang::invoke::MethodHandle::form(handle.get());
-		let vmentry = classes::java::lang::invoke::LambdaForm::vmentry(form.get());
-		match classes::java::lang::invoke::MemberName::target_method(vmentry.get()) {
+		let form = classes::java::lang::invoke::MethodHandle::form(handle);
+		let vmentry = classes::java::lang::invoke::LambdaForm::vmentry(form);
+		match classes::java::lang::invoke::MemberName::target_method(vmentry) {
 			Throws::Ok(method) => Some(method),
 			Throws::Exception(e) => {
 				e.throw(frame.thread());
@@ -164,7 +164,7 @@ mod _dynamic {
 		frame: &mut Frame,
 	) -> Option<(ClassInstanceRef, &'static Method)> {
 		let appendix = frame.stack_mut().pop_reference().extract_class();
-		match classes::java::lang::invoke::MemberName::target_method(appendix.get()) {
+		match classes::java::lang::invoke::MemberName::target_method(appendix) {
 			Throws::Ok(method) => Some((appendix, method)),
 			Throws::Exception(e) => {
 				e.throw(frame.thread());
@@ -204,7 +204,7 @@ mod _dynamic {
 			throw!(frame.thread(), NullPointerException);
 		}
 
-		let vmindex = classes::java::lang::invoke::MemberName::vmindex(appendix.get());
+		let vmindex = classes::java::lang::invoke::MemberName::vmindex(appendix);
 		let target_method = &receiver.extract_target_class().vtable()[vmindex as usize];
 		MethodInvoker::invoke_virtual(frame, target_method);
 	}

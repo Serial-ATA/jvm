@@ -1,5 +1,5 @@
 use super::cp_types;
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::objects::constant_pool::cp_types::{InvokeDynamicEntry, MethodEntry};
 use crate::objects::field::Field;
 use crate::objects::reference::Reference;
@@ -19,7 +19,7 @@ pub union ResolvedEntry {
 	pub double: f64,
 	pub float: f32,
 	pub long: s8,
-	pub class: &'static Class,
+	pub class: ClassPtr,
 	pub class_name: Symbol,
 	pub name_and_type: (Symbol, Symbol),
 	pub constant_utf8: Symbol,
@@ -54,7 +54,7 @@ impl ConstantPoolEntry {
 
 	pub(super) fn resolve<T: cp_types::EntryType>(
 		&self,
-		class: &'static Class,
+		class: ClassPtr,
 		cp: &super::ConstantPool,
 		index: u2,
 	) -> Throws<T::Resolved> {
@@ -82,7 +82,7 @@ impl ConstantPoolEntry {
 
 	pub(super) unsafe fn resolve_with<T: cp_types::EntryType>(
 		&self,
-		class: &'static Class,
+		class: ClassPtr,
 		cp: &super::ConstantPool,
 		index: u2,
 		value: <T::RawEntryType as CpEntry>::Entry,

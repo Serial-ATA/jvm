@@ -2,7 +2,7 @@ use crate::globals::PRIMITIVES;
 use crate::java_call;
 use crate::method_invoker::MethodInvoker;
 use crate::native::java::lang::String::StringInterner;
-use crate::objects::class::Class;
+use crate::objects::class::{Class, ClassPtr};
 use crate::objects::constant_pool::cp_types;
 use crate::objects::field::Field;
 use crate::objects::method::Method;
@@ -113,7 +113,7 @@ impl InitializationGuard {
 impl Class {
 	/// Whether this class can be cast into `class`
 	#[allow(non_snake_case)]
-	pub fn can_cast_to(&self, other: &'static Class) -> bool {
+	pub fn can_cast_to(&self, other: ClassPtr) -> bool {
 		// The following rules are used to determine whether an objectref that is not null can be cast to the resolved type
 		//
 		// S is the type of the object referred to by objectref, and T is the resolved class, array, or interface type

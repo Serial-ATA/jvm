@@ -6,8 +6,6 @@ use std::cell::SyncUnsafeCell;
 use std::collections::LinkedList;
 use std::sync::{LazyLock, Mutex};
 
-use common::traits::PtrType;
-
 static VM_THREAD_POOL: LazyLock<ThreadPool> = LazyLock::new(|| ThreadPool {
 	list: SyncUnsafeCell::new(LinkedList::new()),
 	write_mutex: Mutex::new(()),
@@ -45,7 +43,7 @@ impl ThreadPool {
 	/// counterparts. However, if the associated [`JavaThread`] is *not* in this pool, this method will
 	/// not be able to find it.
 	pub fn find_from_obj(obj: Reference) -> Option<&'static JavaThread> {
-		let eetop = classes::java::lang::Thread::eetop(obj.extract_class().get());
+		let eetop = classes::java::lang::Thread::eetop(obj.extract_class());
 		if eetop == 0 {
 			// Thread is not alive
 			return None;

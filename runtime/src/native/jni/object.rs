@@ -1,5 +1,5 @@
 use crate::native::jni::{IntoJni, reference_from_jobject};
-use crate::objects::class_instance::ClassInstance;
+use crate::objects::instance::class::ClassInstance;
 use crate::objects::reference::Reference;
 use jni::sys::{JNIEnv, jboolean, jclass, jmethodID, jobject, jobjectRefType, jvalue, va_list};
 use std::ptr;

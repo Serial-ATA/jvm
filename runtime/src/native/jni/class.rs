@@ -9,7 +9,6 @@ use crate::thread::exceptions::{Throws, throw_with_ret};
 use core::ffi::{CStr, c_char};
 
 use ::jni::sys::{JNIEnv, jboolean, jbyte, jclass, jobject, jsize};
-use common::traits::PtrType;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn DefineClass(
@@ -69,7 +68,7 @@ pub unsafe extern "system" fn GetSuperclass(env: *mut JNIEnv, sub: jclass) -> jc
         // * an interface
         || sub.is_interface()
         // * a primitive type, or void
-        || sub.mirror().get().is_primitive()
+        || sub.mirror().is_primitive()
 	{
 		// then null is returned
 		return core::ptr::null::<&'static Class>() as jclass;
@@ -104,7 +103,7 @@ pub unsafe extern "system" fn IsAssignableFrom(
 	let sub = sub.extract_target_class();
 	let sup = sup.extract_target_class();
 
-	if sub.mirror().get().is_primitive() && sup.mirror().get().is_primitive() {
+	if sub.mirror().is_primitive() && sup.mirror().is_primitive() {
 		return sub == sup;
 	}
 

@@ -1,8 +1,8 @@
 pub mod Raw {
 	use crate::include_generated;
 	use crate::native::java::lang::String::StringInterner;
-	use crate::objects::array::{Array, ObjectArrayInstance};
-	use crate::objects::class::Class;
+	use crate::objects::class::ClassPtr;
+	use crate::objects::instance::array::{Array, ObjectArrayInstance};
 	use crate::objects::reference::Reference;
 	use crate::thread::JavaThread;
 	use crate::thread::exceptions::Throws;
@@ -11,7 +11,6 @@ pub mod Raw {
 	use std::sync::{LazyLock, Mutex};
 
 	use ::jni::env::JniEnv;
-	use common::traits::PtrType;
 
 	include_generated!("native/jdk/internal/util/def/SystemProps$Raw.constants.rs");
 	include_generated!("native/jdk/internal/util/def/SystemProps.definitions.rs");
@@ -41,8 +40,7 @@ pub mod Raw {
 		Mutex::new(m)
 	});
 
-	pub fn vmProperties(env: JniEnv, _class: &'static Class) -> Reference /* [Ljava/lang/String; */
-	{
+	pub fn vmProperties(env: JniEnv, _class: ClassPtr) -> Reference /* [Ljava/lang/String; */ {
 		// TODO: FIXED_LENGTH is not the correct size here
 		let string_array_class = crate::globals::classes::string_array();
 		let prop_array;
@@ -57,14 +55,12 @@ pub mod Raw {
 			},
 		}
 
-		let prop_array_mut = prop_array.get_mut();
-
 		let mut index = 0;
 		for (key, val) in SYSTEM_PROPERTIES.lock().unwrap().iter() {
 			let interned_key_string = StringInterner::intern(&**key);
 			let interned_value_string = StringInterner::intern(&**val);
 			if let Throws::Exception(e) =
-				prop_array_mut.store(index, Reference::class(interned_key_string))
+				prop_array.store(index, Reference::class(interned_key_string))
 			{
 				let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 				e.throw(thread);
@@ -73,7 +69,7 @@ pub mod Raw {
 
 			index += 1;
 			if let Throws::Exception(e) =
-				prop_array_mut.store(index, Reference::class(interned_value_string))
+				prop_array.store(index, Reference::class(interned_value_string))
 			{
 				let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 				e.throw(thread);
@@ -86,7 +82,7 @@ pub mod Raw {
 		Reference::object_array(prop_array)
 	}
 
-	pub fn platformProperties(env: JniEnv, _class: &'static Class) -> Reference /* [Ljava/lang/String; */
+	pub fn platformProperties(env: JniEnv, _class: ClassPtr) -> Reference /* [Ljava/lang/String; */
 	{
 		macro_rules! store_properties {
 			($prop_array:ident; $($index:expr => $value:expr),+ $(,)?) => {
@@ -116,12 +112,10 @@ pub mod Raw {
 			},
 		}
 
-		let prop_array_mut = prop_array.get_mut();
-
 		let mut platform_properties = platform::properties::PropertySet::default();
 		platform_properties.fill().unwrap();
 
-		store_properties!(prop_array_mut;
+		store_properties!(prop_array;
 			_display_country_NDX         => platform_properties.display_country,
 			_display_language_NDX        => platform_properties.display_language,
 			_display_script_NDX          => platform_properties.display_script,

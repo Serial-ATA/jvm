@@ -1,34 +1,37 @@
-use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
-use crate::objects::reference::{MirrorInstanceRef, ObjectArrayInstanceRef, Reference};
+use crate::objects::instance::array::ObjectArrayInstanceRef;
+use crate::objects::instance::class::ClassInstanceRef;
+use crate::objects::instance::mirror::MirrorInstanceRef;
+use crate::objects::reference::Reference;
+
 use classfile::FieldType;
 use instructions::Operand;
 
 /// `java.lang.invoke.MethodType#ptypes` field
-pub fn ptypes(instance: &ClassInstance) -> ObjectArrayInstanceRef {
+pub fn ptypes(instance: ClassInstanceRef) -> ObjectArrayInstanceRef {
 	instance
-		.get_field_value0(ptypes_field_offset())
+		.get_field_value0(ptypes_field_index())
 		.expect_reference()
 		.extract_object_array()
 }
 
-pub fn set_ptypes(instance: &mut ClassInstance, value: ObjectArrayInstanceRef) {
+pub fn set_ptypes(instance: ClassInstanceRef, value: ObjectArrayInstanceRef) {
 	instance.put_field_value0(
-		ptypes_field_offset(),
+		ptypes_field_index(),
 		Operand::Reference(Reference::object_array(value)),
 	)
 }
 
 /// `java.lang.invoke.MethodType#ptypes` field
-pub fn rtype(instance: &ClassInstance) -> Reference {
+pub fn rtype(instance: ClassInstanceRef) -> Reference {
 	instance
-		.get_field_value0(rtype_field_offset())
+		.get_field_value0(rtype_field_index())
 		.expect_reference()
 }
 
-pub fn set_rtype(instance: &mut ClassInstance, value: MirrorInstanceRef) {
+pub fn set_rtype(instance: ClassInstanceRef, value: MirrorInstanceRef) {
 	instance.put_field_value0(
-		rtype_field_offset(),
+		rtype_field_index(),
 		Operand::Reference(Reference::mirror(value)),
 	)
 }

@@ -1,12 +1,11 @@
-use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
-use crate::objects::reference::ClassInstanceRef;
+use crate::objects::instance::class::ClassInstanceRef;
 use classfile::FieldType;
 
 /// `java.lang.invoke.LambdaForm#vmentry` field
-pub fn vmentry(instance: &ClassInstance) -> ClassInstanceRef {
+pub fn vmentry(instance: ClassInstanceRef) -> ClassInstanceRef {
 	instance
-		.get_field_value0(vmentry_field_offset())
+		.get_field_value0(vmentry_field_index())
 		.expect_reference()
 		.extract_class()
 }

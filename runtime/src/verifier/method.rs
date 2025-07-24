@@ -1,22 +1,23 @@
-use super::accessors::MethodAccessorExt;
 use super::error::{Error, Result};
 use super::type_system::{IsAssignable, VerificationType, types};
-use crate::objects::class::Class;
+use crate::classpath::loader::ClassLoader;
+use crate::objects::class::{Class, ClassPtr};
 use crate::objects::constant_pool::cp_types;
 use crate::objects::method::Method;
-use crate::symbols::{Symbol, sym};
+use crate::symbols::sym;
+use crate::verifier::frame::{Frame, method_inital_stack_frame};
 
 use classfile::attribute::{Attribute, CodeException, StackMapTable};
 use common::int_types::{u1, u2};
 
 pub(super) trait MethodTypeCheckExt {
-	fn is_type_safe(&self) -> Result<()>;
+	fn is_type_safe(&'static self) -> Result<()>;
 	fn does_not_override_final_method(&self) -> bool;
 	fn does_not_override_final_method_of_superclass(&self) -> bool;
 }
 
 impl MethodTypeCheckExt for Method {
-	fn is_type_safe(&self) -> Result<()> {
+	fn is_type_safe(&'static self) -> Result<()> {
 		tracing::trace!("Verifying type safety of method {:?}", self);
 
 		// abstract methods and native methods are considered to be type safe if they do not override a final method.
@@ -52,7 +53,7 @@ impl MethodTypeCheckExt for Method {
 			return Err(Error::FinalMethodOverridden);
 		}
 
-		code_is_type_safe(&self.class(), self)
+		code_is_type_safe(self.class(), self)
 	}
 
 	fn does_not_override_final_method(&self) -> bool {
@@ -64,6 +65,7 @@ impl MethodTypeCheckExt for Method {
 	}
 }
 
+#[derive(Copy, Clone)]
 struct MergedCode<'a> {
 	code: &'a [u1],
 	stack_map: Option<&'a StackMapTable>,
@@ -73,9 +75,9 @@ struct MergedCode<'a> {
 // For this purpose, we define an environment, a six-tuple consisting of:
 struct Environment<'a> {
 	// a class
-	class: &'a Class,
+	class: ClassPtr,
 	// a method
-	method: &'a Method,
+	method: &'static Method,
 	// the declared return type of the method
 	return_type: Option<VerificationType>,
 	// the instructions in a method
@@ -87,9 +89,9 @@ struct Environment<'a> {
 }
 
 impl Environment<'_> {
-	// An exception handler is legal if its start (Start) is less than its end (End), there exists
-	// an instruction whose offset is equal to Start, there exists an instruction whose offset
-	// equals End, and the handler's exception class is assignable to the class Throwable.
+	// An exception handler is *legal* if its start (`Start`) is less than its end (`End`), there exists
+	// an instruction whose offset is equal to `Start`, there exists an instruction whose offset
+	// equals `End`, and the handler's exception class is assignable to the class Throwable.
 	// The exception class of a handler is Throwable if the handler's class entry is 0, otherwise
 	// it is the class named in the handler.
 	//
@@ -171,25 +173,122 @@ impl Environment<'_> {
 
 		Ok(())
 	}
+
+	// mergedCodeIsTypeSafe(Environment, [stackMap(Offset, MapFrame) | MoreCode],
+	//                      frame(Locals, OperandStack, Flags)) :-
+	//     frameIsAssignable(frame(Locals, OperandStack, Flags), MapFrame),
+	//     mergedCodeIsTypeSafe(Environment, MoreCode, MapFrame).
+	//
+	// mergedCodeIsTypeSafe(Environment, [instruction(Offset, Parse) | MoreCode],
+	//                      frame(Locals, OperandStack, Flags)) :-
+	//     instructionIsTypeSafe(Parse, Environment, Offset,
+	//                           frame(Locals, OperandStack, Flags),
+	//                           NextStackFrame, ExceptionStackFrame),
+	//     instructionSatisfiesHandlers(Environment, Offset, ExceptionStackFrame),
+	//     mergedCodeIsTypeSafe(Environment, MoreCode, NextStackFrame).
+	//
+	// mergedCodeIsTypeSafe(Environment, [stackMap(Offset, MapFrame) | MoreCode],
+	//                      afterGoto) :-
+	//     mergedCodeIsTypeSafe(Environment, MoreCode, MapFrame).
+	//
+	// mergedCodeIsTypeSafe(_Environment, [instruction(_, _) | _MoreCode],
+	//                      afterGoto) :-
+	//     write_ln('No stack frame after unconditional branch'),
+	//     fail.
+	//
+	// mergedCodeIsTypeSafe(_Environment, [endOfCode(Offset)],
+	//                      afterGoto).
+	fn merged_code_is_type_safe(
+		&self,
+		_merged_code: MergedCode,
+		_stack_frame: Frame,
+	) -> Result<()> {
+		todo!()
+	}
+
+	/// ```prolog
+	/// allInstructions(Environment, Instructions) :-
+	///     Environment = environment(_Class, _Method, _ReturnType,
+	///                               Instructions, _, _).
+	/// ```
+	fn all_instructions(&self) -> MergedCode<'_> {
+		self.instructions
+	}
+
+	/// ```prolog
+	/// exceptionHandlers(Environment, Handlers) :-
+	///     Environment = environment(_Class, _Method, _ReturnType,
+	///                               _Instructions, _, Handlers).
+	/// ```
+	fn exception_handlers(&self) -> &'_ [CodeException] {
+		self.handlers
+	}
+
+	/// ```prolog
+	/// maxOperandStackLength(Environment, MaxStack) :-
+	///     Environment = environment(_Class, _Method, _ReturnType,
+	///                               _Instructions, MaxStack, _Handlers).
+	/// ```
+	#[inline]
+	fn max_operand_stack_length(&self) -> u2 {
+		self.max_stack
+	}
+
+	/// ```prolog
+	/// thisClass(Environment, class(ClassName, L)) :-
+	///     Environment = environment(Class, _Method, _ReturnType,
+	///                               _Instructions, _, _),
+	///     classDefiningLoader(Class, L),
+	///     classClassName(Class, ClassName).
+	/// ```
+	#[inline]
+	fn this_class(&self) -> ClassPtr {
+		self.class
+	}
+
+	/// ```prolog
+	/// thisMethodReturnType(Environment, ReturnType) :-
+	///     Environment = environment(_Class, _Method, ReturnType,
+	///                               _Instructions, _, _).
+	/// ```
+	#[inline]
+	fn this_method_return_type(&self) -> Option<VerificationType> {
+		self.return_type
+	}
+
+	/// ```prolog
+	/// currentClassLoader(Environment, Loader) :-
+	///     thisClass(Environment, class(_, Loader)).
+	/// ```
+	#[inline]
+	fn current_class_loader(&self) -> &'static ClassLoader {
+		self.this_class().loader()
+	}
 }
 
-// methodWithCodeIsTypeSafe(Class, Method) :-
-//     parseCodeAttribute(Class, Method, FrameSize, MaxStack,
-//                        ParsedCode, Handlers, StackMap),
-//     mergeStackMapAndCode(StackMap, ParsedCode, MergedCode),
-//     methodInitialStackFrame(Class, Method, FrameSize, StackFrame, ReturnType),
-//     Environment = environment(Class, Method, ReturnType, MergedCode,
-//                               MaxStack, Handlers),
-//     handlersAreLegal(Environment),
-//     mergedCodeIsTypeSafe(Environment, MergedCode, StackFrame).
-fn code_is_type_safe(class: &Class, method: &Method) -> Result<()> {
+/// A method with code is type safe if it is possible to merge the code and the stack map frames into
+/// a single stream such that each stack map frame precedes the instruction it corresponds to, and the
+/// merged stream is type correct. The method's exception handlers, if any, must also be legal.
+///
+/// ```prolog
+/// methodWithCodeIsTypeSafe(Class, Method) :-
+///     parseCodeAttribute(Class, Method, FrameSize, MaxStack,
+///                        ParsedCode, Handlers, StackMap),
+///     mergeStackMapAndCode(StackMap, ParsedCode, MergedCode),
+///     methodInitialStackFrame(Class, Method, FrameSize, StackFrame, ReturnType),
+///     Environment = environment(Class, Method, ReturnType, MergedCode,
+///                               MaxStack, Handlers),
+///     handlersAreLegal(Environment),
+///     mergedCodeIsTypeSafe(Environment, MergedCode, StackFrame).
+/// ```
+fn code_is_type_safe(class: ClassPtr, method: &'static Method) -> Result<()> {
 	let code = &method.code;
+	let frame_size = code.max_locals;
 	let merged_code = MergedCode {
 		code: &code.code,
 		stack_map: code.attributes.iter().find_map(Attribute::stack_map_table),
 	};
-	todo!("mergeStackMapAndCode");
-	todo!("methodInitialStackFrame");
+	let stack_frame = method_inital_stack_frame(class, method, frame_size);
 	let environment = Environment {
 		class,
 		method,
@@ -199,6 +298,6 @@ fn code_is_type_safe(class: &Class, method: &Method) -> Result<()> {
 		handlers: &code.exception_table,
 	};
 	environment.handlers_are_legal()?;
-	todo!("mergedCodeIsTypeSafe");
+	environment.merged_code_is_type_safe(merged_code, stack_frame)?;
 	Ok(())
 }

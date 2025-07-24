@@ -72,14 +72,15 @@ impl VmInitArgs {
 				},
 			}
 
+			// SAFETY: Checked that the only null byte present in the string is at the end.
+			let s = unsafe { CString::from_vec_with_nul_unchecked(opt.into_bytes()) };
+
 			// TODO: These strings are supposed  to be in the default platform encoding
 			vm_options.push(jni_sys::JavaVMOption {
-				optionString: opt.as_ptr() as _,
+				optionString: s.as_ptr() as _,
 				extraInfo: core::ptr::null_mut::<c_void>(),
 			});
 
-			// SAFETY: Checked that the only null byte present in the string is at the end.
-			let s = unsafe { CString::from_vec_with_nul_unchecked(opt.into_bytes()) };
 			self.__strings.push(s);
 		}
 

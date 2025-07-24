@@ -2,8 +2,8 @@
 
 use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::IntoJni;
-use crate::objects::array::Array;
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
+use crate::objects::instance::array::Array;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{throw, throw_with_ret};
@@ -17,7 +17,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
-use common::traits::PtrType;
 use jni::objects::JString;
 
 include_generated!("native/java/io/def/FileInputStream.definitions.rs");
@@ -29,7 +28,7 @@ pub fn open0(env: JniEnv, this: Reference, name: Reference /* java.lang.String *
 		throw!(thread, NullPointerException);
 	}
 
-	let path = classes::java::lang::String::extract(name.extract_class().get());
+	let path = classes::java::lang::String::extract(name.extract_class());
 
 	let file;
 	match fs::OpenOptions::new().read(true).open(path) {
@@ -76,7 +75,7 @@ pub fn readBytes(
 	}
 
 	let b = b.extract_primitive_array();
-	if off < 0 || len < 0 || (off + len) as usize > b.get().len() {
+	if off < 0 || len < 0 || (off + len) as usize > b.len() {
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw_with_ret!(0, thread, IndexOutOfBoundsException);
 	}
@@ -86,7 +85,7 @@ pub fn readBytes(
 	}
 
 	// Need to convert the jbyte[] to a &[u8]
-	let window = &mut b.get_mut().as_bytes_mut()[off as usize..(off + len) as usize];
+	let window = &mut b.as_bytes_mut()[off as usize..(off + len) as usize];
 
 	let current_fd = classes::java::io::FileInputStream::fd(this);
 	if current_fd == -1 {
@@ -151,7 +150,7 @@ pub fn isRegularFile0(
 	unimplemented!("java.io.FileInputStream#isRegularFile0");
 }
 
-pub fn initIDs(_: JniEnv, class: &'static Class) {
+pub fn initIDs(_: JniEnv, class: ClassPtr) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE
 		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)

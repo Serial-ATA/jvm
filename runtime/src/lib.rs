@@ -5,7 +5,6 @@
 #![feature(macro_metavar_expr)]
 #![feature(specialization)]
 #![feature(sync_unsafe_cell)]
-#![feature(core_intrinsics)]
 #![feature(try_with_capacity)]
 #![feature(array_chunks)]
 #![feature(try_trait_v2)]

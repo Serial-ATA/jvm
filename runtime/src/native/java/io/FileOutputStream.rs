@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use crate::classes;
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::throw;
@@ -13,7 +13,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint};
-use common::traits::PtrType;
 
 include_generated!("native/java/io/def/FileOutputStream.definitions.rs");
 
@@ -43,7 +42,7 @@ pub fn writeBytes(
 	}
 
 	let array_instance = b.extract_primitive_array();
-	let array_content = array_instance.get().as_bytes();
+	let array_content = array_instance.as_bytes();
 	if off < 0 || len < 0 || (off + len) as usize > array_content.len() {
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(thread, IndexOutOfBoundsException);
@@ -79,7 +78,7 @@ pub fn writeBytes(
 	}
 }
 
-pub fn initIDs(_: JniEnv, class: &'static Class) {
+pub fn initIDs(_: JniEnv, class: ClassPtr) {
 	static ONCE: AtomicBool = AtomicBool::new(false);
 	if ONCE
 		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)

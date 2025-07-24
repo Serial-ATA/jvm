@@ -17,7 +17,7 @@ crate::classes::field_module! {
 
 fn fd_field(this: Reference) -> Reference {
 	// `fd` is a reference to a `java.io.FileDescriptor`
-	let fd_field_offset = fd_field_offset();
+	let fd_field_offset = fd_field_index();
 	this.get_field_value0(fd_field_offset).expect_reference()
 }
 

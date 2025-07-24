@@ -1,5 +1,3 @@
-#![feature(let_chains)]
-
 mod decompressor;
 pub mod error;
 mod header;

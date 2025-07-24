@@ -4,14 +4,15 @@ use crate::dynamic::var_handle;
 use crate::method_invoker::MethodInvoker;
 use crate::native::java::lang::String::StringInterner;
 use crate::native::java::lang::invoke::MethodHandle;
-use crate::objects::array::{Array, ObjectArrayInstance, PrimitiveArrayInstance};
 use crate::objects::class::{Class, ClassInitializationState};
-use crate::objects::class_instance::ClassInstance;
 use crate::objects::constant_pool::cp_types::{self, Entry, MethodEntry};
 use crate::objects::field::Field;
 use crate::objects::instance::Instance;
+use crate::objects::instance::array::{Array, ObjectArrayInstance, PrimitiveArrayInstance};
+use crate::objects::instance::class::{ClassInstance, ClassInstanceRef};
+use crate::objects::instance::object::Object;
 use crate::objects::method::{Method, MethodEntryPoint};
-use crate::objects::reference::{ClassInstanceRef, ObjectArrayInstanceRef, Reference};
+use crate::objects::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::symbols::{Symbol, sym};
 use crate::thread::exceptions::{
@@ -28,7 +29,6 @@ use std::sync::atomic::Ordering as MemOrdering;
 use classfile::FieldType;
 use classfile::constant_pool::ConstantPoolValueInfo;
 use common::int_types::{s2, s4, s8, u2};
-use common::traits::PtrType;
 use instructions::{OpCode, Operand, StackLike};
 
 macro_rules! trace_instruction {
@@ -120,7 +120,7 @@ macro_rules! load_from_array {
 		//       to be correct
 
 		let op;
-		match array_ref.get().get(index) {
+		match array_ref.array_get(index) {
 			Throws::Ok(value) => op = value,
 			Throws::Exception(e) => {
 				e.throw($frame.thread());
@@ -163,7 +163,7 @@ macro_rules! store_into_array {
 		let object_ref = stack.pop_reference();
 		let array_ref = object_ref.extract_primitive_array();
 
-		if let Throws::Exception(e) = array_ref.get_mut().store(index, value) {
+		if let Throws::Exception(e) = array_ref.store(index, value) {
 			e.throw($frame.thread());
 		}
 	}};
@@ -371,7 +371,7 @@ impl Interpreter {
                     let object_ref = stack.pop_reference();
                     let array_ref = object_ref.extract_object_array();
         
-                    let op = match array_ref.get().get(index) {
+                    let op = match array_ref.array_get(index) {
                         Throws::Ok(op) => op,
                         Throws::Exception(e) => {
                             e.throw(frame.thread());
@@ -435,7 +435,7 @@ impl Interpreter {
                     let object_ref = stack.pop_reference();
                     let array_ref = object_ref.extract_object_array();
             
-                    if let Throws::Exception(e) = array_ref.get_mut().store(index, value) {
+                    if let Throws::Exception(e) = array_ref.store(index, value) {
                         e.throw(frame.thread());
                     }
                 },
@@ -642,7 +642,7 @@ impl Interpreter {
                     let stack = frame.stack_mut();
 
                     let value = stack.pop();
-                    let mut object_ref = stack.pop_reference();
+                    let object_ref = stack.pop_reference();
 
                     object_ref.put_field_value(field, value);
                 },
@@ -1050,7 +1050,7 @@ impl Interpreter {
         // TODO: Sending this through the traditional method invoker is super inefficient, ends up
         //       causing duplicate work on the native method end. *Especially* since the args
         //       are all already on the stack.
-        let mut parameter_count = entry.method.parameter_count() as usize;
+        let parameter_count = entry.method.parameter_count() as usize;
 
         let mut call_args = Vec::with_capacity(parameter_count);
         if let Some(appendix) = entry.appendix {

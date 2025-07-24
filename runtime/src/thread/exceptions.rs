@@ -2,8 +2,8 @@ use super::JavaThread;
 use crate::classpath::loader::ClassLoader;
 use crate::java_call;
 use crate::native::java::lang::String::StringInterner;
-use crate::objects::class::Class;
-use crate::objects::class_instance::ClassInstance;
+use crate::objects::class::ClassPtr;
+use crate::objects::instance::class::ClassInstance;
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 
@@ -212,7 +212,7 @@ impl ExceptionKind {
 		}
 	}
 
-	pub fn class(&self) -> &'static Class {
+	pub fn class(&self) -> ClassPtr {
 		if *self == ExceptionKind::PendingException {
 			let Some(exception) = JavaThread::current().pending_exception() else {
 				panic!("Thread has no pending exception");
@@ -360,7 +360,7 @@ macro_rules! handle_exception {
 
 pub(crate) use {handle_exception, throw, throw_and_return_null, throw_with_ret};
 
-pub fn class_cast_exception_message(from: &'static Class, to: &'static Class) -> String {
+pub fn class_cast_exception_message(from: ClassPtr, to: ClassPtr) -> String {
 	let from_class_description;
 	let to_class_description;
 	let class_separator;

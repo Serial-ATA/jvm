@@ -1,39 +1,39 @@
 use crate::globals;
-use crate::objects::class_instance::ClassInstance;
 use crate::objects::instance::Instance;
+use crate::objects::instance::class::{ClassInstance, ClassInstanceRef};
+use crate::objects::instance::mirror::MirrorInstanceRef;
 use crate::objects::method::Method;
-use crate::objects::reference::{MirrorInstanceRef, Reference};
+use crate::objects::reference::Reference;
 
 use classfile::FieldType;
-use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::jlong;
 
 pub fn new(method: &'static Method) -> Reference {
 	let instance = ClassInstance::new(globals::classes::java_lang_invoke_ResolvedMethodName());
 
-	set_vmtarget(instance.get_mut(), method);
-	set_vmholder(instance.get_mut(), method.class().mirror());
+	set_vmtarget(instance, method);
+	set_vmholder(instance, method.class().mirror());
 
 	Reference::class(instance)
 }
 
-pub fn vmholder(instance: &ClassInstance) -> Reference {
+pub fn vmholder(instance: ClassInstanceRef) -> Reference {
 	instance
-		.get_field_value0(vmholder_field_offset())
+		.get_field_value0(vmholder_field_index())
 		.expect_reference()
 }
 
-pub fn set_vmholder(instance: &mut ClassInstance, value: MirrorInstanceRef) {
+pub fn set_vmholder(instance: ClassInstanceRef, value: MirrorInstanceRef) {
 	instance.put_field_value0(
-		vmholder_field_offset(),
+		vmholder_field_index(),
 		Operand::Reference(Reference::mirror(value)),
 	)
 }
 
-pub fn vmtarget(instance: &ClassInstance) -> Option<&'static Method> {
+pub fn vmtarget(instance: ClassInstanceRef) -> Option<&'static Method> {
 	let ptr = instance
-		.get_field_value0(vmtarget_field_offset())
+		.get_field_value0(vmtarget_field_index())
 		.expect_long();
 	if ptr == 0 {
 		return None;
@@ -43,9 +43,9 @@ pub fn vmtarget(instance: &ClassInstance) -> Option<&'static Method> {
 	Some(unsafe { &*ptr })
 }
 
-pub fn set_vmtarget(instance: &mut ClassInstance, value: &'static Method) {
+pub fn set_vmtarget(instance: ClassInstanceRef, value: &'static Method) {
 	instance.put_field_value0(
-		vmtarget_field_offset(),
+		vmtarget_field_index(),
 		Operand::Long(value as *const Method as jlong),
 	)
 }

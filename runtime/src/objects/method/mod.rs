@@ -2,11 +2,12 @@ pub mod spec;
 
 use crate::native::jni::reference_from_jobject;
 use crate::native::method::NativeMethodPtr;
-use crate::objects::array::{Array, ObjectArrayInstance};
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::objects::constant_pool::cp_types;
 use crate::objects::constant_pool::cp_types::MethodEntry;
-use crate::objects::reference::{MirrorInstanceRef, ObjectArrayInstanceRef, Reference};
+use crate::objects::instance::array::{Array, ObjectArrayInstance, ObjectArrayInstanceRef};
+use crate::objects::instance::mirror::MirrorInstanceRef;
+use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
 use crate::thread::exceptions::Throws;
@@ -22,7 +23,6 @@ use classfile::attribute::resolved::ResolvedAnnotation;
 use classfile::attribute::{Attribute, Code, LineNumber};
 use classfile::{FieldType, MethodDescriptor, MethodInfo};
 use common::int_types::{s4, u1};
-use common::traits::PtrType;
 use instructions::Operand;
 use jni::sys::{jdouble, jint, jlong, jobject, jvalue};
 
@@ -75,7 +75,7 @@ pub enum MethodEntryPoint {
 }
 
 pub struct Method {
-	class: &'static Class,
+	class: ClassPtr,
 
 	pub name: Symbol,
 	pub descriptor: MethodDescriptor,
@@ -118,7 +118,7 @@ impl Method {
 	///
 	/// NOTE: This will leak the `Method` and return a reference. It is important that this only
 	///       be called once per method. It should never be used outside of class loading.
-	pub(super) fn new(class: &'static Class, method_info: MethodInfo) -> &'static mut Self {
+	pub(super) fn new(class: ClassPtr, method_info: MethodInfo) -> &'static mut Self {
 		let constant_pool = class.constant_pool().unwrap();
 
 		let access_flags = method_info.access_flags;
@@ -206,7 +206,7 @@ impl Method {
 
 	// https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-2.html#jvms-2.10
 	/// Find the exception handler for the given class and pc
-	pub fn find_exception_handler(&self, class: &'static Class, pc: isize) -> Option<isize> {
+	pub fn find_exception_handler(&self, class: ClassPtr, pc: isize) -> Option<isize> {
 		for exception_handler in &self.code.exception_table {
 			let active_range =
 				(exception_handler.start_pc as isize)..=(exception_handler.end_pc as isize);
@@ -270,7 +270,7 @@ impl Method {
 // Getters
 impl Method {
 	#[inline]
-	pub fn class(&self) -> &'static Class {
+	pub fn class(&self) -> ClassPtr {
 		self.class
 	}
 
@@ -336,11 +336,7 @@ impl Method {
 			let class = constant_pool.get::<cp_types::Class>(*exception_class_index)?;
 
 			// SAFETY: The array is known to have the correct length
-			unsafe {
-				array
-					.get_mut()
-					.store_unchecked(index, Reference::mirror(class.mirror()))
-			}
+			unsafe { array.store_unchecked(index, Reference::mirror(class.mirror())) }
 		}
 
 		Throws::Ok(array)
@@ -418,7 +414,7 @@ impl Method {
 	///
 	/// This will parse the `descriptor` and call `java.lang.invoke.MethodHandleNatives#findMethodHandleType` on
 	/// the current thread.
-	pub fn method_type_for(class: &'static Class, descriptor: &str) -> Throws<Reference> {
+	pub fn method_type_for(class: ClassPtr, descriptor: &str) -> Throws<Reference> {
 		let descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes()).unwrap(); // TODO: Error handling
 		let parameters = Self::parameter_types_inner(class, &descriptor)?;
 
@@ -469,7 +465,7 @@ impl Method {
 
 	// allows specifying the class to initiate the loading of others
 	fn parameter_types_inner(
-		class: &'static Class,
+		class: ClassPtr,
 		descriptor: &MethodDescriptor,
 	) -> Throws<ObjectArrayInstanceRef> {
 		let parameters = ObjectArrayInstance::new(
@@ -479,16 +475,14 @@ impl Method {
 
 		for (index, parameter) in descriptor.parameters.iter().enumerate() {
 			let param = field_type_mirror(class, parameter)?;
-			parameters
-				.get_mut()
-				.store(index as s4, Reference::mirror(param))?;
+			parameters.store(index as s4, Reference::mirror(param))?;
 		}
 
 		Throws::Ok(parameters)
 	}
 }
 
-fn field_type_mirror(class: &'static Class, ty: &FieldType) -> Throws<MirrorInstanceRef> {
+fn field_type_mirror(class: ClassPtr, ty: &FieldType) -> Throws<MirrorInstanceRef> {
 	match ty {
 		FieldType::Byte
 		| FieldType::Character
@@ -508,13 +502,13 @@ fn field_type_mirror(class: &'static Class, ty: &FieldType) -> Throws<MirrorInst
 		},
 		FieldType::Array(ty) => {
 			let component_field_ty = field_type_mirror(class, ty)?;
-			if component_field_ty.get().is_primitive() {
+			if component_field_ty.is_primitive() {
 				return Throws::Ok(globals::mirrors::primitive_array_mirror_for(
-					component_field_ty.get().primitive_target(),
+					component_field_ty.primitive_target(),
 				));
 			}
 
-			let array_class_name = component_field_ty.get().target_class().array_class_name();
+			let array_class_name = component_field_ty.target_class().array_class_name();
 			let array_class = class.loader().load(array_class_name)?;
 
 			Throws::Ok(array_class.mirror())

@@ -37,7 +37,7 @@ impl ConstantPool {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.4-310
-	pub fn get_loadable_entry(&self, index: u2) -> LoadableConstantPoolValue {
+	pub fn get_loadable_entry(&self, index: u2) -> LoadableConstantPoolValue<'_> {
 		let constant = &self[index];
 
 		let value = match constant {

@@ -2480,15 +2480,15 @@ impl Clone for JNIEnv_ {
 /// optionString may be any option accepted by the JVM, or one of the
 /// following:
 ///
-/// -D<name>=<value>          Set a system property.
-/// -verbose[:class|gc|jni]   Enable verbose output, comma-separated. E.g.
-///                           "-verbose:class" or "-verbose:gc,class"
-///                           Standard names include: gc, class, and jni.
-///                           All nonstandard (VM-specific) names must begin
-///                           with "X".
-/// vfprintf                  extraInfo is a pointer to the vfprintf hook.
-/// exit                      extraInfo is a pointer to the exit hook.
-/// abort                     extraInfo is a pointer to the abort hook.
+/// * `-D<name>=<value>` Set a system property.
+/// * `-verbose[:class|gc|jni]` Enable verbose output, comma-separated. E.g.
+///   "-verbose:class" or "-verbose:gc,class"
+///   Standard names include: gc, class, and jni.
+///   All nonstandard (VM-specific) names must begin
+///   with "X".
+/// * `vfprintf` extraInfo is a pointer to the vfprintf hook.
+/// * `exit` extraInfo is a pointer to the exit hook.
+/// * `abort` extraInfo is a pointer to the abort hook.
 #[repr(C)]
 #[derive(Copy)]
 pub struct JavaVMOption {

@@ -1,6 +1,6 @@
 use crate::classes;
 use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
@@ -9,7 +9,6 @@ use crate::thread::exceptions::{Throws, handle_exception, throw_and_return_null}
 use ::jni::env::JniEnv;
 use ::jni::sys::jint;
 use common::int_types::s4;
-use common::traits::PtrType;
 use jni::sys::jbyte;
 
 include_generated!("native/java/lang/def/ClassLoader.registerNatives.rs");
@@ -22,7 +21,7 @@ const MN_ACCESS_VM_ANNOTATIONS: s4 = 0x00000008;
 
 pub fn defineClass1(
 	env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	loader: Reference, // java.lang.ClassLoader
 	name: Reference,   // java.lang.String
 	b: Reference,      // byte[],
@@ -38,7 +37,7 @@ pub fn defineClass1(
 	}
 
 	let bytes = b.extract_primitive_array();
-	let bytes_slice = bytes.get().as_slice::<jbyte>();
+	let bytes_slice = bytes.as_slice::<jbyte>();
 
 	let off = off as usize;
 	let len = len as usize;
@@ -59,7 +58,7 @@ pub fn defineClass1(
 		//       Will need to train the loader to be able to do that.
 		todo!()
 	} else {
-		let external_name = classes::java::lang::String::extract(name.extract_class().get());
+		let external_name = classes::java::lang::String::extract(name.extract_class());
 		let internal_name = external_name.replace('.', "/");
 		name_sym = Symbol::intern(internal_name);
 	}
@@ -68,9 +67,7 @@ pub fn defineClass1(
 	if source.is_null() {
 		source_str = None;
 	} else {
-		source_str = Some(classes::java::lang::String::extract(
-			source.extract_class().get(),
-		));
+		source_str = Some(classes::java::lang::String::extract(source.extract_class()));
 	}
 
 	// Not a thing in defineClass1
@@ -91,7 +88,7 @@ pub fn defineClass1(
 
 pub fn defineClass2(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_loader: Reference, // java.lang.ClassLoader
 	_name: Reference,   // java.lang.String
 	_b: Reference,      // java.nio.ByteBuffer,
@@ -106,7 +103,7 @@ pub fn defineClass2(
 
 pub fn defineClass0(
 	env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	loader: Reference, // java.lang.ClassLoader
 	lookup: Reference, // java.lang.Class
 	name: Reference,   // java.lang.String
@@ -177,12 +174,10 @@ pub fn defineClass0(
 		todo!()
 	}
 
-	let name = Symbol::intern(classes::java::lang::String::extract(
-		name.extract_class().get(),
-	));
+	let name = Symbol::intern(classes::java::lang::String::extract(name.extract_class()));
 
 	let bytes = b.extract_primitive_array();
-	let bytes_slice = bytes.get().as_slice::<jbyte>();
+	let bytes_slice = bytes.as_slice::<jbyte>();
 
 	let off = off as usize;
 	let len = len as usize;
@@ -213,7 +208,7 @@ pub fn defineClass0(
 	}
 
 	if is_hidden {
-		class.mirror().get().set_class_data(classData);
+		class.mirror().set_class_data(classData);
 	}
 
 	if initialize {
@@ -229,11 +224,11 @@ pub fn defineClass0(
 
 pub fn findBootstrapClass(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	name: Reference, // java.lang.String
 ) -> Reference // java.lang.Class
 {
-	let name = classes::java::lang::String::extract(name.extract_class().get());
+	let name = classes::java::lang::String::extract(name.extract_class());
 	if let Some(class) = ClassLoader::bootstrap().lookup_class(Symbol::intern(name)) {
 		return Reference::mirror(class.mirror());
 	}
@@ -251,7 +246,7 @@ pub fn findLoadedClass0(
 		return Reference::null();
 	}
 
-	let name_str = classes::java::lang::String::extract(name.extract_class().get());
+	let name_str = classes::java::lang::String::extract(name.extract_class());
 	let internal_name = name_str.replace('.', "/");
 
 	let internal_name_sym = Symbol::intern(internal_name);
@@ -267,7 +262,7 @@ pub fn findLoadedClass0(
 	}
 }
 
-pub fn retrieveDirectives(_env: JniEnv, _class: &'static Class) -> Reference // AssertionStatusDirectives
+pub fn retrieveDirectives(_env: JniEnv, _class: ClassPtr) -> Reference // AssertionStatusDirectives
 {
 	unimplemented!("java.lang.ClassLoader#retrieveDirectives")
 }

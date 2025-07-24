@@ -1,5 +1,5 @@
-use crate::objects::mirror::MirrorInstance;
-use crate::objects::reference::{MirrorInstanceRef, Reference};
+use crate::objects::instance::mirror::{MirrorInstance, MirrorInstanceRef};
+use crate::objects::reference::Reference;
 
 use std::cell::SyncUnsafeCell;
 

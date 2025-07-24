@@ -1,11 +1,11 @@
 use super::entry::ResolvedEntry;
 use crate::native::java::lang::String::StringInterner;
 use crate::native::java::lang::invoke::MethodHandleNatives;
-use crate::objects::array::{Array, ObjectArrayInstance};
 use crate::objects::boxing::Boxable;
-use crate::objects::class::Class as ClassObj;
+use crate::objects::class::ClassPtr;
 use crate::objects::constant_pool::ConstantPool;
 use crate::objects::field::Field;
+use crate::objects::instance::array::{Array, ObjectArrayInstance};
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
@@ -18,7 +18,6 @@ use classfile::constant_pool::types::{
 	CpEntry, LoadableConstantPoolValueInner, ReferenceEntry, ReferenceKind, raw as raw_types,
 };
 use common::int_types::{s4, s8, u1, u2};
-use common::traits::PtrType;
 use instructions::Operand;
 
 /// A constant pool entry of any type
@@ -55,16 +54,12 @@ pub trait EntryType: sealed::Sealed {
 	/// Certain entry resolutions, such as [`Class`]es and [`Field`]s can throw. Other entries, such
 	/// as [`Integer`] cannot, and will always return [`Throws::Ok`].
 	#[doc(hidden)]
-	fn resolve(
-		class: &'static ClassObj,
-		cp: &super::ConstantPool,
-		index: u2,
-	) -> Throws<ResolvedEntry>;
+	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry>;
 
 	/// The actual resolution logic
 	#[doc(hidden)]
 	fn resolve_with(
-		class: &'static ClassObj,
+		class: ClassPtr,
 		cp: &super::ConstantPool,
 		index: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
@@ -74,7 +69,7 @@ pub trait EntryType: sealed::Sealed {
 pub struct Class;
 
 impl EntryType for Class {
-	type Resolved = &'static ClassObj;
+	type Resolved = ClassPtr;
 	type RawEntryType = raw_types::RawClassName;
 
 	#[inline]
@@ -82,17 +77,13 @@ impl EntryType for Class {
 		unsafe { entry.class }
 	}
 
-	fn resolve(
-		class: &'static ClassObj,
-		cp: &super::ConstantPool,
-		index: u2,
-	) -> Throws<ResolvedEntry> {
+	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
 		let class_name = cp.raw().get::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, class_name)
 	}
 
 	fn resolve_with(
-		class: &'static ClassObj,
+		class: ClassPtr,
 		cp: &ConstantPool,
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
@@ -115,18 +106,14 @@ impl EntryType for Integer {
 		unsafe { entry.integer }
 	}
 
-	fn resolve(
-		class: &'static ClassObj,
-		cp: &super::ConstantPool,
-		index: u2,
-	) -> Throws<ResolvedEntry> {
+	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
 		let integer = cp.raw().get::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, integer)
 	}
 
 	#[inline]
 	fn resolve_with(
-		_: &'static ClassObj,
+		_: ClassPtr,
 		_: &ConstantPool,
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
@@ -146,18 +133,14 @@ impl EntryType for Double {
 		unsafe { entry.double }
 	}
 
-	fn resolve(
-		class: &'static ClassObj,
-		cp: &super::ConstantPool,
-		index: u2,
-	) -> Throws<ResolvedEntry> {
+	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
 		let double = cp.raw().get::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, double)
 	}
 
 	#[inline]
 	fn resolve_with(
-		_: &'static ClassObj,
+		_: ClassPtr,
 		_: &ConstantPool,
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
@@ -177,18 +160,14 @@ impl EntryType for Float {
 		unsafe { entry.float }
 	}
 
-	fn resolve(
-		class: &'static ClassObj,
-		cp: &super::ConstantPool,
-		index: u2,
-	) -> Throws<ResolvedEntry> {
+	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
 		let float = cp.raw().get::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, float)
 	}
 
 	#[inline]
 	fn resolve_with(
-		_: &'static ClassObj,
+		_: ClassPtr,
 		_: &ConstantPool,
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
@@ -208,18 +187,14 @@ impl EntryType for Long {
 		unsafe { entry.long }
 	}
 
-	fn resolve(
-		class: &'static ClassObj,
-		cp: &super::ConstantPool,
-		index: u2,
-	) -> Throws<ResolvedEntry> {
+	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
 		let long = cp.raw().get::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, long)
 	}
 
 	#[inline]
 	fn resolve_with(
-		_: &'static ClassObj,
+		_: ClassPtr,
 		_: &ConstantPool,
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
@@ -239,17 +214,13 @@ impl EntryType for ClassName {
 		unsafe { entry.class_name }
 	}
 
-	fn resolve(
-		class: &'static ClassObj,
-		cp: &super::ConstantPool,
-		index: u2,
-	) -> Throws<ResolvedEntry> {
+	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
 		let utf8 = cp.raw().get::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, utf8)
 	}
 
 	fn resolve_with(
-		_: &'static ClassObj,
+		_: ClassPtr,
 		_: &ConstantPool,
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
@@ -270,17 +241,13 @@ impl EntryType for ConstantUtf8 {
 		unsafe { entry.constant_utf8 }
 	}
 
-	fn resolve(
-		class: &'static ClassObj,
-		cp: &super::ConstantPool,
-		index: u2,
-	) -> Throws<ResolvedEntry> {
+	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
 		let utf8_raw = cp.raw().get::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, utf8_raw)
 	}
 
 	fn resolve_with(
-		_: &'static ClassObj,
+		_: ClassPtr,
 		_: &ConstantPool,
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
@@ -302,13 +269,13 @@ impl EntryType for NameAndType {
 		unsafe { entry.name_and_type }
 	}
 
-	fn resolve(class: &'static ClassObj, cp: &ConstantPool, index: u2) -> Throws<ResolvedEntry> {
+	fn resolve(class: ClassPtr, cp: &ConstantPool, index: u2) -> Throws<ResolvedEntry> {
 		let name_and_type_raw = cp.raw().get::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, name_and_type_raw)
 	}
 
 	fn resolve_with(
-		_: &'static ClassObj,
+		_: ClassPtr,
 		cp: &ConstantPool,
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
@@ -341,17 +308,13 @@ impl EntryType for InvokeDynamic {
 		unsafe { entry.invoke_dynamic }.clone()
 	}
 
-	fn resolve(
-		class: &'static ClassObj,
-		cp: &super::ConstantPool,
-		index: u2,
-	) -> Throws<ResolvedEntry> {
+	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
 		let raw_invoke_dynamic = cp.raw().get::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, raw_invoke_dynamic)
 	}
 
 	fn resolve_with(
-		class: &'static ClassObj,
+		class: ClassPtr,
 		cp: &ConstantPool,
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
@@ -408,7 +371,7 @@ impl EntryType for InvokeDynamic {
 			}
 
 			// SAFETY: We just created the array, we know that none of the indices will be out of bounds
-			unsafe { static_args_obj.get_mut().store_unchecked(index, r) };
+			unsafe { static_args_obj.store_unchecked(index, r) };
 		}
 
 		let link_call_site_method = crate::globals::classes::java_lang_invoke_MethodHandleNatives()
@@ -439,19 +402,19 @@ impl EntryType for InvokeDynamic {
 			}
 
 			let resolved_method_name =
-				classes::java::lang::invoke::MemberName::method(member_name.extract_class().get());
+				classes::java::lang::invoke::MemberName::method(member_name.extract_class());
 			if resolved_method_name.is_null() {
 				break 'invalid;
 			}
 
 			let vmtarget = classes::java::lang::invoke::ResolvedMethodName::vmtarget(
-				resolved_method_name.extract_class().get(),
+				resolved_method_name.extract_class(),
 			);
 			let Some(target) = vmtarget else {
 				break 'invalid;
 			};
 
-			let appendix = appendix.get().get(0)?;
+			let appendix = appendix.array_get(0)?;
 			let appendix_opt = if appendix.is_null() {
 				None
 			} else {
@@ -483,18 +446,14 @@ impl EntryType for MethodHandle {
 		unsafe { entry.method_handle }.clone()
 	}
 
-	fn resolve(
-		class: &'static ClassObj,
-		cp: &super::ConstantPool,
-		index: u2,
-	) -> Throws<ResolvedEntry> {
+	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
 		let raw_method_handle = cp.raw().get::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, raw_method_handle)
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.3.5
 	fn resolve_with(
-		invoking_class: &'static ClassObj,
+		invoking_class: ClassPtr,
 		cp: &ConstantPool,
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
@@ -536,7 +495,7 @@ impl EntryType for MethodHandle {
 		let member_name = MethodHandleNatives::new_member_name(name, descriptor, callee_class)?;
 
 		MethodHandleNatives::resolve_member_name(
-			member_name.get_mut(),
+			member_name,
 			value.reference_kind,
 			Some(invoking_class),
 			0,
@@ -586,17 +545,13 @@ impl EntryType for FieldRef {
 		unsafe { entry.field_ref }
 	}
 
-	fn resolve(
-		class: &'static ClassObj,
-		cp: &super::ConstantPool,
-		index: u2,
-	) -> Throws<ResolvedEntry> {
+	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
 		let raw_field_ref = cp.raw().get::<raw_types::RawFieldRef>(index);
 		Self::resolve_with(class, cp, index, raw_field_ref)
 	}
 
 	fn resolve_with(
-		_: &'static ClassObj,
+		_: ClassPtr,
 		cp: &ConstantPool,
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
@@ -644,17 +599,13 @@ impl EntryType for MethodRef {
 		unsafe { entry.method_ref }
 	}
 
-	fn resolve(
-		class: &'static ClassObj,
-		cp: &super::ConstantPool,
-		index: u2,
-	) -> Throws<ResolvedEntry> {
+	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
 		let raw_method_ref = cp.raw().get::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, raw_method_ref)
 	}
 
 	fn resolve_with(
-		_: &'static ClassObj,
+		_: ClassPtr,
 		cp: &ConstantPool,
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,
@@ -713,17 +664,13 @@ impl EntryType for String {
 		unsafe { entry.string }
 	}
 
-	fn resolve(
-		class: &'static ClassObj,
-		cp: &super::ConstantPool,
-		index: u2,
-	) -> Throws<ResolvedEntry> {
+	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
 		let string_raw = cp.raw().get::<raw_types::RawString>(index);
 		Self::resolve_with(class, cp, index, string_raw)
 	}
 
 	fn resolve_with(
-		_: &'static ClassObj,
+		_: ClassPtr,
 		_: &ConstantPool,
 		_: u2,
 		value: <Self::RawEntryType as CpEntry>::Entry,

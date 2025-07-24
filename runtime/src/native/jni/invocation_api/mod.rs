@@ -88,11 +88,15 @@ pub extern "system" fn JNI_CreateJavaVM(
 						exception,
 						JavaThread::current(),
 					);
+
+					// If a VM was created and initialized to the point that an exception was thrown,
+					// the entire process just gets aborted like Hotspot.
+					std::process::abort();
 				}
 			}
 
-			// All errors result in an abort
-			std::process::abort();
+			// Otherwise, the error can just be returned to the caller
+			return e.as_jint();
 		},
 	}
 
@@ -153,7 +157,7 @@ fn attach_current_thread_impl(
 #[allow(trivial_casts)]
 pub unsafe fn main_java_vm() -> JavaVm {
 	let raw = &RAW_INVOKE_INTERFACE.0 as *const _;
-	JavaVm::from_raw(raw as *mut _)
+	unsafe { JavaVm::from_raw(raw as *mut _) }
 }
 
 struct InvokeInterface(jni::sys::JNIInvokeInterface_);

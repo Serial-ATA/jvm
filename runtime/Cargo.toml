@@ -36,3 +36,7 @@ build-deps.workspace = true
 [lib]
 name = "jvm_runtime"
 crate-type = ["rlib", "dylib"]
+
+[profile.dev]
+debuginfo = "full"
+opt-level = 0

@@ -1,7 +1,8 @@
 use crate::classes;
 use crate::native::java::lang::String::StringInterner;
-use crate::objects::array::Array;
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
+use crate::objects::instance::array::Array;
+use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
 use crate::thread::JavaThread;
@@ -11,7 +12,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jint, jlong};
-use common::traits::PtrType;
 use instructions::Operand;
 use platform::{JNI_LIB_PREFIX, JNI_LIB_SUFFIX};
 
@@ -20,7 +20,7 @@ include_generated!("native/java/lang/def/System.definitions.rs");
 
 pub fn setIn0(
 	_: JniEnv,
-	class: &'static Class,
+	class: ClassPtr,
 	in_: Reference, // java.io.InputStream
 ) {
 	let field = class
@@ -31,7 +31,7 @@ pub fn setIn0(
 }
 pub fn setOut0(
 	_env: JniEnv,
-	class: &'static Class,
+	class: ClassPtr,
 	out: Reference, // java.io.PrintStream
 ) {
 	let field = class
@@ -42,7 +42,7 @@ pub fn setOut0(
 }
 pub fn setErr0(
 	_env: JniEnv,
-	class: &'static Class,
+	class: ClassPtr,
 	err: Reference, // java.io.PrintStream
 ) {
 	let field = class
@@ -52,11 +52,11 @@ pub fn setErr0(
 	field.set_static_value(Operand::Reference(err));
 }
 
-pub fn currentTimeMillis(_env: JniEnv, _class: &'static Class) -> jlong {
+pub fn currentTimeMillis(_env: JniEnv, _class: ClassPtr) -> jlong {
 	unimplemented!("System#currentTimeMillis")
 }
 
-pub fn nanoTime(_env: JniEnv, _class: &'static Class) -> jlong {
+pub fn nanoTime(_env: JniEnv, _class: ClassPtr) -> jlong {
 	let time_nanos = SystemTime::now()
 		.duration_since(UNIX_EPOCH)
 		.expect("current system time should not be before the UNIX epoch")
@@ -67,31 +67,20 @@ pub fn nanoTime(_env: JniEnv, _class: &'static Class) -> jlong {
 
 pub fn arraycopy(
 	env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	src: Reference, // java.lang.Object
 	src_pos: jint,
 	dest: Reference, // java.lang.Object
 	dest_pos: jint,
 	length: jint,
 ) {
-	unsafe fn do_copy<T: Array>(
-		src: &T,
-		src_pos: usize,
-		dest: &mut T,
-		dest_pos: usize,
-		length: usize,
-	) {
+	unsafe fn do_copy<T: Array>(src: T, src_pos: usize, dest: T, dest_pos: usize, length: usize) {
 		unsafe {
-			src.copy_into(src_pos, dest, dest_pos, length);
+			src.copy_into(src_pos, &dest, dest_pos, length);
 		}
 	}
 
-	unsafe fn do_copy_within<T: Array>(
-		src: &mut T,
-		src_pos: usize,
-		dest_pos: usize,
-		length: usize,
-	) {
+	unsafe fn do_copy_within<T: Array>(src: T, src_pos: usize, dest_pos: usize, length: usize) {
 		unsafe {
 			src.copy_within(src_pos, dest_pos, length);
 		}
@@ -139,7 +128,7 @@ pub fn arraycopy(
 		if src.is_object_array() {
 			unsafe {
 				do_copy_within(
-					src.extract_object_array().get_mut(),
+					src.extract_object_array(),
 					src_pos as usize,
 					dest_pos as usize,
 					length as usize,
@@ -148,7 +137,7 @@ pub fn arraycopy(
 		} else {
 			unsafe {
 				do_copy_within(
-					src.extract_primitive_array().get_mut(),
+					src.extract_primitive_array(),
 					src_pos as usize,
 					dest_pos as usize,
 					length as usize,
@@ -162,9 +151,9 @@ pub fn arraycopy(
 	if src.is_object_array() {
 		unsafe {
 			do_copy(
-				src.extract_object_array().get(),
+				src.extract_object_array(),
 				src_pos as usize,
-				dest.extract_object_array().get_mut(),
+				dest.extract_object_array(),
 				dest_pos as usize,
 				length as usize,
 			)
@@ -172,9 +161,9 @@ pub fn arraycopy(
 	} else {
 		unsafe {
 			do_copy(
-				src.extract_primitive_array().get(),
+				src.extract_primitive_array(),
 				src_pos as usize,
-				dest.extract_primitive_array().get_mut(),
+				dest.extract_primitive_array(),
 				dest_pos as usize,
 				length as usize,
 			)
@@ -184,19 +173,19 @@ pub fn arraycopy(
 
 pub fn identityHashCode(
 	env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	x: Reference, // java.lang.Object
 ) -> jint {
 	crate::native::java::lang::Object::hashCode(env, x)
 }
 
-pub fn mapLibraryName(env: JniEnv, _class: &'static Class, libname: Reference) -> Reference {
+pub fn mapLibraryName(env: JniEnv, _class: ClassPtr, libname: Reference) -> Reference {
 	if libname.is_null() {
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw_and_return_null!(thread, NullPointerException);
 	}
 
-	let libname = classes::java::lang::String::extract(libname.extract_class().get());
+	let libname = classes::java::lang::String::extract(libname.extract_class());
 	Reference::class(StringInterner::intern(format!(
 		"{JNI_LIB_PREFIX}{libname}{JNI_LIB_SUFFIX}"
 	)))

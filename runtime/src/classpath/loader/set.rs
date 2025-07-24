@@ -1,14 +1,11 @@
 use super::ClassLoader;
 use crate::classes;
-use crate::objects::instance::Instance;
 use crate::objects::reference::Reference;
 
 use std::cell::SyncUnsafeCell;
 use std::collections::LinkedList;
 use std::sync::{LazyLock, Mutex};
 
-use common::traits::PtrType;
-use instructions::Operand;
 use jni::sys::jlong;
 
 pub struct ClassLoaderSet {
@@ -45,9 +42,9 @@ impl ClassLoaderSet {
 		let ret = list.back().unwrap();
 
 		// Store the pointer in the classloader, to make future lookups cheaper
-		loader.extract_class().get_mut().put_field_value0(
-			classes::java::lang::ClassLoader::loader_ptr_field_offset(),
-			Operand::Long(ret as *const ClassLoader as jlong),
+		classes::java::lang::ClassLoader::set_injected_loader_ptr_for(
+			loader,
+			ret as *const ClassLoader as jlong,
 		);
 
 		ret

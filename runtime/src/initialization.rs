@@ -3,7 +3,7 @@ use crate::classpath::loader::ClassLoader;
 use crate::modules::Module;
 use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::invocation_api::main_java_vm;
-use crate::objects::class_instance::ClassInstance;
+use crate::objects::instance::class::ClassInstance;
 use crate::objects::reference::Reference;
 use crate::options::JvmOptions;
 use crate::symbols::sym;

@@ -1,20 +1,19 @@
 use crate::classes;
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::objects::reference::Reference;
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jint, jlong};
-use common::traits::PtrType;
 
 include_generated!("native/jdk/internal/misc/def/Signal.definitions.rs");
 
 pub fn findSignal0(
 	_: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	sig_name: Reference, // java.lang.String
 ) -> jint {
 	let sig_name_string = sig_name.extract_class();
-	let sig_name = classes::java::lang::String::extract(sig_name_string.get());
+	let sig_name = classes::java::lang::String::extract(sig_name_string);
 
 	match platform::Signal::from_name(sig_name) {
 		Some(signal) => signal.value(),
@@ -22,7 +21,7 @@ pub fn findSignal0(
 	}
 }
 
-pub fn handle0(_: JniEnv, _class: &'static Class, sig: jint, native_h: jlong) -> jlong {
+pub fn handle0(_: JniEnv, _class: ClassPtr, sig: jint, native_h: jlong) -> jlong {
 	let signal = platform::Signal::from(sig);
 
 	if !signal.registration_allowed() {
@@ -47,6 +46,6 @@ pub fn handle0(_: JniEnv, _class: &'static Class, sig: jint, native_h: jlong) ->
 	old.as_usize() as jlong
 }
 
-pub fn raise0(_: JniEnv, _class: &'static Class, _sig: jint) {
+pub fn raise0(_: JniEnv, _class: ClassPtr, _sig: jint) {
 	unimplemented!("jdk.internal.misc.Signal#raise0");
 }

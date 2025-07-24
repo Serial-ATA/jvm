@@ -1,6 +1,6 @@
 use crate::classes;
 use crate::native::java::lang::String::StringInterner;
-use crate::objects::class::Class;
+use crate::objects::class::ClassPtr;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::throw_and_return_null;
@@ -10,14 +10,13 @@ use std::ffi::CStr;
 use ::jni::env::JniEnv;
 use ::jni::java_vm::JniOnLoadFn;
 use ::jni::sys::{jboolean, jlong};
-use common::traits::PtrType;
 use platform::{JNI_LIB_PREFIX, JNI_LIB_SUFFIX};
 
 include_generated!("native/jdk/internal/loader/def/NativeLibraries.definitions.rs");
 
 pub fn load(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_impl_: Reference, // jdk.internal.loader.NativeLibraries$NativeLibraryImpl
 	_name: Reference,  // java.lang.String
 	_is_builtin: jboolean,
@@ -28,7 +27,7 @@ pub fn load(
 
 pub fn unload(
 	_env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	_name: Reference, // java.lang.String
 	_is_builtin: jboolean,
 	_handle: jlong,
@@ -38,7 +37,7 @@ pub fn unload(
 
 pub fn findBuiltinLib(
 	env: JniEnv,
-	_class: &'static Class,
+	_class: ClassPtr,
 	name: Reference, // java.lang.String
 ) -> Reference /* java.lang.String */
 {
@@ -47,7 +46,7 @@ pub fn findBuiltinLib(
 		throw_and_return_null!(thread, NullPointerException);
 	}
 
-	let lib_name = classes::java::lang::String::extract(name.extract_class().get());
+	let lib_name = classes::java::lang::String::extract(name.extract_class());
 	if lib_name.len() <= JNI_LIB_PREFIX.len() + JNI_LIB_SUFFIX.len() {
 		return Reference::null();
 	}

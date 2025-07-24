@@ -1,5 +1,5 @@
 use super::{IntoJni, reference_from_jobject};
-use crate::objects::array::{Array, ObjectArrayInstance};
+use crate::objects::instance::array::{Array, ObjectArrayInstance};
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::Throws;
@@ -8,7 +8,6 @@ use core::ffi::c_void;
 use std::ptr;
 
 use common::int_types::s4;
-use common::traits::PtrType;
 use jni::sys::{
 	JNIEnv, jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jclass, jdouble,
 	jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, jobject, jobjectArray,
@@ -77,8 +76,7 @@ pub extern "system" fn SetObjectArrayElement(
 		return; // TODO: ArrayStoreException?
 	};
 
-	let instance = array.get_mut();
-	match instance.store(index as s4, val) {
+	match array.store(index as s4, val) {
 		Throws::Ok(_) => {},
 		Throws::Exception(e) => {
 			let thread = JavaThread::current();

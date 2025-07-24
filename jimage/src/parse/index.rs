@@ -6,7 +6,6 @@ use std::io::Read;
 
 use common::box_slice;
 use common::endian::Endian;
-use common::traits::JavaEndianAwareRead;
 
 // The following is the format of the index;
 //
