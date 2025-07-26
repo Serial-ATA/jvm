@@ -163,9 +163,8 @@ impl Debug for Class {
 			.field("name", &self.name().as_str())
 			.field("access_flags", &self.access_flags)
 			.field("loader", &self.loader)
-			.field("super_class", &self.super_class)
+			.field("super_class", &self.super_class.map(|c| c.name().as_str()))
 			.field("interfaces", &self.interfaces)
-			.field("instance", &self.class_ty)
 			.finish()
 	}
 }
@@ -1035,7 +1034,9 @@ impl Class {
 			};
 
 			let field = Field::new(*field_idx, next_offset, class_ptr, &field, constant_pool);
-			next_offset = field.offset() + field.descriptor.size();
+			if !field.access_flags.is_static() {
+				next_offset = field.offset() + field.descriptor.size();
+			}
 
 			fields.push(field);
 
