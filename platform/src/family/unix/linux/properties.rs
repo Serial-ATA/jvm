@@ -59,17 +59,17 @@ pub fn fill_properties_impl(props: &mut PropertySet) -> Result<(), Error> {
 		init_locale(
 			libc::LC_CTYPE,
 			Some(&mut props.format_language),
-			Some(&mut props.format_script),
-			Some(&mut props.format_country),
-			Some(&mut props.format_variant),
+			props.format_script.as_mut(),
+			props.format_country.as_mut(),
+			props.format_variant.as_mut(),
 			Some(&mut props.native_encoding),
 		);
 		init_locale(
 			libc::LC_MESSAGES,
 			Some(&mut props.display_language),
-			Some(&mut props.display_script),
-			Some(&mut props.display_country),
-			Some(&mut props.display_variant),
+			props.display_script.as_mut(),
+			props.display_country.as_mut(),
+			props.display_variant.as_mut(),
 			None,
 		);
 
