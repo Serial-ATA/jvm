@@ -332,7 +332,7 @@ fn create_thread_object(thread: &'static JavaThread) -> bool {
 	java_call!(
 		thread,
 		init_method,
-		Operand::Reference(Reference::clone(&system_thread_group_instance))
+		Operand::Reference(system_thread_group_instance)
 	);
 
 	if thread.has_pending_exception() {
@@ -340,9 +340,7 @@ fn create_thread_object(thread: &'static JavaThread) -> bool {
 	}
 
 	unsafe {
-		crate::globals::threads::set_main_thread_group(Reference::clone(
-			&system_thread_group_instance,
-		));
+		crate::globals::threads::set_main_thread_group(system_thread_group_instance);
 	}
 
 	thread.init_obj(system_thread_group_instance);

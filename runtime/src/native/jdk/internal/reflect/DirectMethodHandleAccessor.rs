@@ -116,7 +116,7 @@ pub(super) fn do_invoke(
 			throw_and_return_null!(thread, IllegalArgumentException, "argument type mismatch")
 		}
 
-		call_args[index + 1] = Operand::Reference(Reference::clone(arg));
+		call_args[index + 1] = Operand::Reference(*arg);
 	}
 
 	let ret = java_call!(@WITH_ARGS_LIST thread, target_method, call_args);

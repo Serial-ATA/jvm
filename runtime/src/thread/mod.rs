@@ -305,7 +305,7 @@ impl JavaThread {
 
 		// SAFETY: The object is an `Option`, so it's always initialized with *something*
 		let obj_opt = unsafe { &*obj_ptr };
-		obj_opt.as_ref().map(Reference::clone)
+		*obj_opt
 	}
 
 	pub fn name(&self) -> String {
@@ -466,8 +466,6 @@ impl JavaThread {
 		}
 
 		self.restore_pc();
-
-		return;
 	}
 
 	fn stash_and_reset_pc(&self) {
@@ -533,7 +531,7 @@ impl JavaThread {
 			java_call!(
 				self,
 				dispatch_uncaught_exception_method,
-				Operand::Reference(obj.clone()),
+				Operand::Reference(obj),
 				Operand::Reference(exception)
 			);
 
@@ -566,7 +564,7 @@ impl JavaThread {
 	}
 
 	pub fn pending_exception(&self) -> Option<Reference> {
-		unsafe { (*self.pending_exception.get()).clone() }
+		unsafe { *self.pending_exception.get() }
 	}
 
 	pub fn take_pending_exception(&self) -> Option<Reference> {

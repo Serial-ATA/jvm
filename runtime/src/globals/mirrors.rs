@@ -27,8 +27,6 @@ macro_rules! define_primitive_mirrors {
             pub fn [<primitive_ $name:lower _mirror>]() -> Reference {
 				let val_opt = unsafe { &*([<$name _>].get()) };
 				val_opt
-					.as_ref()
-					.map(Reference::clone)
 					.expect(concat!("primitive mirror ", stringify!($name), " not initialized"))
             }
             )+

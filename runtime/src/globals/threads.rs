@@ -13,10 +13,7 @@ static THREAD_GROUP: SyncUnsafeCell<MaybeUninit<Reference>> =
 /// This assumes that `set_thread_group` has been called prior. Otherwise, the reference will
 /// point to uninitialized memory.
 pub unsafe fn main_thread_group() -> Reference {
-	unsafe {
-		let r = (*THREAD_GROUP.get()).assume_init_ref();
-		Reference::clone(r)
-	}
+	unsafe { (*THREAD_GROUP.get()).assume_init() }
 }
 
 /// Set the main thread group

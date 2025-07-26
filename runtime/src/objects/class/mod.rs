@@ -59,7 +59,7 @@ struct FieldContainer {
 	static_field_slots: Box<[UnsafeCell<Operand<Reference>>]>,
 	/// The number of dynamic fields in a class instance
 	///
-	/// This is essentially `fields.len() - static_field_slots.len()`, provided here for convenience.
+	/// This is `fields.len() - static_field_slots.len()`, provided here for convenience.
 	instance_field_count: UnsafeCell<u4>,
 }
 
