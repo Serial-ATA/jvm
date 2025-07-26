@@ -131,6 +131,20 @@ impl Reference {
 	fn addr(self) -> *mut () {
 		(self.0 as usize & Self::ADDRESS_MASK) as *mut ()
 	}
+
+	/// The pointer backing this reference *including* the type tag
+	pub fn raw_tagged(self) -> *const () {
+		self.0.cast_const()
+	}
+
+	/// Construct a `Reference` from a raw **tagged** pointer
+	///
+	/// # Safety
+	///
+	/// The caller **must** ensure that the pointer is both tagged and pointing to a valid object.
+	pub unsafe fn from_raw(ptr: *mut ()) -> Self {
+		Self(ptr)
+	}
 }
 
 impl Object for Reference {

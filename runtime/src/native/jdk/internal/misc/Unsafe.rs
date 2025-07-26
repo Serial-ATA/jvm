@@ -4,16 +4,15 @@ use crate::objects::instance::array::{Array, ObjectArrayInstanceRef, PrimitiveTy
 use crate::objects::instance::class::ClassInstance;
 use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
+use crate::thread::exceptions::{throw, throw_with_ret, Throws};
 use crate::thread::JavaThread;
-use crate::thread::exceptions::{Throws, throw, throw_with_ret};
 
 use std::marker::PhantomData;
 use std::sync::atomic::Ordering;
 
+use common::atomic::{Atomic, AtomicCounterpart};
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
-use common::atomic::{Atomic, AtomicCounterpart};
-use instructions::Operand;
 
 include_generated!("native/jdk/internal/misc/def/Unsafe.definitions.rs");
 include_generated!("native/jdk/internal/misc/def/Unsafe.registerNatives.rs");
@@ -245,16 +244,17 @@ pub fn compareAndExchangeInt(
 	expected: jint,
 	value: jint,
 ) -> jint {
-	let op = UnsafeMemoryOp::<jint>::new(object, offset);
-	unsafe {
-		let current_field_value = op.get();
-		if current_field_value == expected {
-			op.put(value);
-			return expected;
-		}
-
-		current_field_value
+	if object.is_null() {
+		let atomic = unsafe {
+			let raw = offset as *const <jint as AtomicCounterpart>::Counterpart;
+			&*raw
+		};
+		return atomic
+			.compare_exchange(expected, value, Ordering::Acquire, Ordering::Relaxed)
+			.unwrap_or_else(|v| v);
 	}
+
+	unsafe { object.compare_exchange::<jint>(offset as usize, expected, value) }
 }
 
 pub fn compareAndSetLong(
@@ -276,17 +276,17 @@ pub fn compareAndExchangeLong(
 	expected: jlong,
 	value: jlong,
 ) -> jlong {
-	let op = UnsafeMemoryOp::<jlong>::new(object, offset);
-
-	unsafe {
-		let current_field_value = op.get();
-		if current_field_value == expected {
-			op.put(value);
-			return expected;
-		}
-
-		current_field_value
+	if object.is_null() {
+		let atomic = unsafe {
+			let raw = offset as *const <jlong as AtomicCounterpart>::Counterpart;
+			&*raw
+		};
+		return atomic
+			.compare_exchange(expected, value, Ordering::Acquire, Ordering::Relaxed)
+			.unwrap_or_else(|v| v);
 	}
+
+	unsafe { object.compare_exchange::<jlong>(offset as usize, expected, value) }
 }
 
 pub fn compareAndSetReference(
@@ -297,14 +297,7 @@ pub fn compareAndSetReference(
 	expected: Reference, // Object
 	value: Reference,    // Object
 ) -> jboolean {
-	compareAndExchangeReference(
-		env,
-		this,
-		object,
-		offset,
-		Reference::clone(&expected),
-		value,
-	) == expected
+	compareAndExchangeReference(env, this, object, offset, expected, value) == expected
 }
 
 pub fn compareAndExchangeReference(
@@ -315,15 +308,14 @@ pub fn compareAndExchangeReference(
 	expected: Reference, // Object
 	value: Reference,    // Object
 ) -> Reference {
-	unsafe {
-		let current_value = object.get_raw::<Reference>(offset as usize);
-		if &*current_value == &expected {
-			*current_value = value;
-			return expected;
-		}
+	let expected_usize = expected.raw_tagged() as usize;
+	let value_usize = value.raw_tagged() as usize;
 
-		*current_value
-	}
+	let ret =
+		unsafe { object.compare_exchange::<usize>(offset as usize, expected_usize, value_usize) };
+
+	// SAFETY: Both the `current` and `new` values are valid references
+	unsafe { Reference::from_raw(ret as *mut ()) }
 }
 
 pub fn getReference(
@@ -342,15 +334,6 @@ pub fn putReference(
 	offset: jlong,
 	value: Reference, // Object
 ) {
-	// TODO: In hotspot, a mirror holds the static fields of a class. I guess we should do the same?
-	if object.is_mirror() {
-		let target_class = object.extract_target_class();
-		unsafe {
-			target_class.set_static_field(offset as usize, Operand::Reference(value));
-		}
-		return;
-	}
-
 	unsafe { object.put::<Reference>(value, offset as usize) }
 }
 
@@ -360,8 +343,11 @@ pub fn getReferenceVolatile(
 	object: Reference, // Object
 	offset: jlong,
 ) -> Reference /* Object */ {
-	tracing::warn!("(!!!) Unsafe#getReferenceVolatile not actually volatile");
-	getReference(_env, _this, object, offset)
+	// SAFETY: Assuming that the caller provided the offset to a real, tagged reference
+	unsafe {
+		let raw_tagged_ref = object.atomic_get::<usize>(offset as usize);
+		Reference::from_raw(raw_tagged_ref as *mut ())
+	}
 }
 
 pub fn putReferenceVolatile(
@@ -371,8 +357,7 @@ pub fn putReferenceVolatile(
 	offset: jlong,
 	value: Reference, // java.lang.Object
 ) {
-	tracing::warn!("(!!!) Unsafe#putReferenceVolatile not actually volatile");
-	putReference(_env, _this, object, offset, value)
+	unsafe { object.atomic_store::<usize>(offset as usize, value.raw_tagged() as usize) }
 }
 
 /// Creates the many `{get, put}Ty` and `{get, put}TyVolatile` methods

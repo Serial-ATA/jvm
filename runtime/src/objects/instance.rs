@@ -20,20 +20,72 @@ pub trait Instance: object::Object {
 
 		unsafe {
 			match field.descriptor {
-				FieldType::Byte => Operand::Int(self.get::<jbyte>(field.offset()) as jint),
-				FieldType::Character => Operand::Int(self.get::<jchar>(field.offset()) as jint),
-				FieldType::Integer => Operand::Int(self.get::<jint>(field.offset())),
-				FieldType::Short => Operand::Int(self.get::<jshort>(field.offset()) as jint),
-				FieldType::Boolean => Operand::Int(self.get::<jboolean>(field.offset()) as jint),
+				FieldType::Byte => Operand::Int({
+					if field.is_volatile() {
+						self.atomic_get::<jbyte>(field.offset()) as jint
+					} else {
+						self.get::<jbyte>(field.offset()) as jint
+					}
+				}),
+				FieldType::Character => Operand::Int({
+					if field.is_volatile() {
+						self.atomic_get::<jchar>(field.offset()) as jint
+					} else {
+						self.get::<jchar>(field.offset()) as jint
+					}
+				}),
+				FieldType::Integer => Operand::Int({
+					if field.is_volatile() {
+						self.atomic_get::<jint>(field.offset())
+					} else {
+						self.get::<jint>(field.offset())
+					}
+				}),
+				FieldType::Short => Operand::Int({
+					if field.is_volatile() {
+						self.atomic_get::<jshort>(field.offset()) as jint
+					} else {
+						self.get::<jshort>(field.offset()) as jint
+					}
+				}),
+				FieldType::Boolean => Operand::Int({
+					if field.is_volatile() {
+						self.atomic_get::<jboolean>(field.offset()) as jint
+					} else {
+						self.get::<jboolean>(field.offset()) as jint
+					}
+				}),
 
-				FieldType::Double => Operand::Double(self.get::<jdouble>(field.offset())),
-				FieldType::Float => Operand::Float(self.get::<jfloat>(field.offset())),
+				FieldType::Double => Operand::Double({
+					if field.is_volatile() {
+						self.atomic_get::<jdouble>(field.offset())
+					} else {
+						self.get::<jdouble>(field.offset())
+					}
+				}),
+				FieldType::Float => Operand::Float({
+					if field.is_volatile() {
+						self.atomic_get::<jfloat>(field.offset())
+					} else {
+						self.get::<jfloat>(field.offset())
+					}
+				}),
 
-				FieldType::Long => Operand::Long(self.get::<jlong>(field.offset())),
+				FieldType::Long => Operand::Long({
+					if field.is_volatile() {
+						self.atomic_get::<jlong>(field.offset())
+					} else {
+						self.get::<jlong>(field.offset())
+					}
+				}),
 
-				FieldType::Object(_) | FieldType::Array(_) => {
-					Operand::Reference(self.get::<Reference>(field.offset()))
-				},
+				FieldType::Object(_) | FieldType::Array(_) => Operand::Reference({
+					if field.is_volatile() {
+						Reference::from_raw(self.atomic_get::<usize>(field.offset()) as *mut ())
+					} else {
+						Reference::from_raw(self.get::<usize>(field.offset()) as *mut ())
+					}
+				}),
 
 				FieldType::Void => unreachable!(),
 			}
@@ -69,24 +121,72 @@ pub trait Instance: object::Object {
 		unsafe {
 			match value {
 				Operand::Int(int) => match field.descriptor {
-					FieldType::Byte => self.put::<jbyte>(int as jbyte, field.offset()),
-					FieldType::Character => self.put::<jchar>(int as jchar, field.offset()),
-					FieldType::Integer => self.put::<jint>(int, field.offset()),
-					FieldType::Short => self.put::<jshort>(int as jshort, field.offset()),
-					FieldType::Boolean => self.put::<jboolean>(int != 0, field.offset()),
+					FieldType::Byte => {
+						if field.is_volatile() {
+							self.atomic_store::<jbyte>(int as jbyte, field.offset())
+						} else {
+							self.put::<jbyte>(int as jbyte, field.offset())
+						}
+					},
+					FieldType::Character => {
+						if field.is_volatile() {
+							self.atomic_store::<jchar>(int as jchar, field.offset())
+						} else {
+							self.put::<jchar>(int as jchar, field.offset())
+						}
+					},
+					FieldType::Integer => {
+						if field.is_volatile() {
+							self.atomic_store::<jint>(int, field.offset())
+						} else {
+							self.put::<jint>(int, field.offset())
+						}
+					},
+					FieldType::Short => {
+						if field.is_volatile() {
+							self.atomic_store::<jshort>(int as jshort, field.offset())
+						} else {
+							self.put::<jshort>(int as jshort, field.offset())
+						}
+					},
+					FieldType::Boolean => {
+						if field.is_volatile() {
+							self.atomic_store::<jboolean>(int != 0, field.offset())
+						} else {
+							self.put::<jboolean>(int != 0, field.offset())
+						}
+					},
 					_ => incompatible(field, value),
 				},
 				Operand::Float(float) if field.descriptor == FieldType::Float => {
-					self.put::<jfloat>(float, field.offset())
+					if field.is_volatile() {
+						self.atomic_store::<jfloat>(float, field.offset())
+					} else {
+						self.put::<jfloat>(float, field.offset())
+					}
 				},
 				Operand::Double(double) if field.descriptor == FieldType::Double => {
-					self.put::<jdouble>(double, field.offset())
+					if field.is_volatile() {
+						self.atomic_store::<jdouble>(double, field.offset())
+					} else {
+						self.put::<jdouble>(double, field.offset())
+					}
 				},
 				Operand::Long(long) if field.descriptor == FieldType::Long => {
-					self.put::<jlong>(long, field.offset())
+					if field.is_volatile() {
+						self.atomic_store::<jlong>(long, field.offset())
+					} else {
+						self.put::<jlong>(long, field.offset())
+					}
 				},
 				// TODO: Verify the reference type?
-				Operand::Reference(reference) => self.put::<Reference>(reference, field.offset()),
+				Operand::Reference(reference) => {
+					if field.is_volatile() {
+						self.atomic_store::<usize>(reference.raw_tagged() as usize, field.offset())
+					} else {
+						self.put::<usize>(reference.raw_tagged() as usize, field.offset())
+					}
+				},
 				_ => incompatible(field, value),
 			}
 		}

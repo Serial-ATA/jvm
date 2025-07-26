@@ -114,7 +114,7 @@ where
 		// Set `private byte[] value`
 		set_value(
 			new_java_string_instance,
-			Reference::array(unsafe { PrimitiveArrayInstance::new::<jbyte>(encoded_str) }),
+			Reference::array(PrimitiveArrayInstance::new::<jbyte>(encoded_str)),
 		);
 
 		// Set `private final byte coder`

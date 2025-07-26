@@ -3,10 +3,13 @@ use crate::objects::monitor::{Monitor, MonitorMap};
 use crate::thread::JavaThread;
 use crate::thread::exceptions::Throws;
 
-use jni::sys::jint;
 use std::alloc;
 use std::alloc::Layout;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
+
+use common::atomic::{Atomic, AtomicCounterpart};
+use jni::sys::jint;
 
 /// A heap allocated object instance
 pub trait Object: Sized {
@@ -14,7 +17,9 @@ pub trait Object: Sized {
 
 	unsafe fn allocate(descriptor: Self::Descriptor, fields_size: usize) -> *mut Self::Descriptor {
 		let instance_size = size_of::<Self::Descriptor>() + fields_size;
-		let layout = Layout::array::<u8>(instance_size).expect("valid layout");
+		let layout = Layout::array::<u8>(instance_size)
+			.and_then(|layout| layout.align_to(align_of::<Self::Descriptor>()))
+			.expect("valid layout");
 
 		let instance_ptr;
 		unsafe {
@@ -85,6 +90,11 @@ pub trait Object: Sized {
 	}
 
 	#[inline]
+	fn is_array(&self) -> bool {
+		self.is_primitive_array() || self.is_object_array()
+	}
+
+	#[inline]
 	fn is_class(&self) -> bool {
 		false
 	}
@@ -106,6 +116,8 @@ pub trait Object: Sized {
 	///
 	/// # Safety
 	///
+	/// **THIS IS NOT FOR ATOMIC WRITES, USE [`Self::atomic_store()`]**
+	///
 	/// The caller must verify that the field at `offset` is of type `T`, at the risk of overwriting
 	/// other fields or violating a field's volatility.
 	unsafe fn put<T: Copy>(&self, value: T, offset: usize) {
@@ -119,6 +131,8 @@ pub trait Object: Sized {
 	/// NOTE: `offset` is the **byte offset** from the base of the object's fields, **NOT** the start of the object.
 	///
 	/// # Safety
+	///
+	/// **THIS IS NOT FOR ATOMIC READS, USE [`Self::atomic_get()`]**
 	///
 	/// The caller must verify that the field at `offset` is of type `T`, at the risk of reading the
 	/// data of other fields or violating a field's volatility.
@@ -135,9 +149,69 @@ pub trait Object: Sized {
 	/// The caller must verify that the field at `offset` is of type `T`, and that it is valid for
 	/// reads/writes in the current context.
 	unsafe fn get_raw<T: Copy>(&self, offset: usize) -> *mut T {
+		#[cfg(debug_assertions)]
+		{
+			if !self.is_array() {
+				let field_allocation_size = self.class().size_of_instance_fields();
+				let element_size = size_of::<T>();
+				debug_assert!(
+					offset <= field_allocation_size
+						&& (offset + element_size) <= field_allocation_size,
+					"offset out of bounds (offset: {offset}, size_of(T): {element_size}, \
+					 allocation_size: {field_allocation_size})",
+				);
+			}
+		}
+
 		unsafe {
-			let value_base = self.field_base().add(offset);
+			let value_base = self.field_base().byte_add(offset);
 			value_base.cast::<T>()
+		}
+	}
+
+	unsafe fn compare_exchange<T: AtomicCounterpart + Copy>(
+		&self,
+		offset: usize,
+		current: T,
+		new: T,
+	) -> T {
+		unsafe {
+			let raw = self.get_raw::<T>(offset);
+			debug_assert!(
+				raw.is_aligned_to(align_of::<T>()),
+				"atomic operations can only be performed on aligned offsets"
+			);
+
+			(&*raw.cast::<T::Counterpart>()).compare_exchange(
+				current,
+				new,
+				Ordering::Acquire,
+				Ordering::Relaxed,
+			)
+		}
+	}
+
+	unsafe fn atomic_get<T: AtomicCounterpart + Copy>(&self, offset: usize) -> T {
+		unsafe {
+			let raw = self.get_raw::<T>(offset);
+			debug_assert!(
+				raw.is_aligned_to(align_of::<T>()),
+				"atomic reads can only be performed on aligned offsets"
+			);
+
+			(&*raw.cast::<T::Counterpart>()).load(Ordering::SeqCst)
+		}
+	}
+
+	unsafe fn atomic_store<T: AtomicCounterpart + Copy>(&self, new: T, offset: usize) {
+		unsafe {
+			let raw = self.get_raw::<T>(offset);
+			debug_assert!(
+				raw.is_aligned_to(align_of::<T>()),
+				"atomic writes can only be performed on aligned offsets"
+			);
+
+			(&*raw.cast::<T::Counterpart>()).store(new, Ordering::SeqCst)
 		}
 	}
 }

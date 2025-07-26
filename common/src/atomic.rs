@@ -17,8 +17,23 @@ impl AtomicF32 {
 		self.inner.store(value.to_bits(), ordering)
 	}
 	pub fn load(&self, ordering: Ordering) -> f32 {
-		let as_u64 = self.inner.load(ordering);
-		f32::from_bits(as_u64)
+		let as_u32 = self.inner.load(ordering);
+		f32::from_bits(as_u32)
+	}
+	pub fn compare_exchange(
+		&self,
+		current: f32,
+		new: f32,
+		success: Ordering,
+		failure: Ordering,
+	) -> Result<f32, f32> {
+		match self
+			.inner
+			.compare_exchange(current as u32, new as u32, success, failure)
+		{
+			Ok(v) => Ok(f32::from_bits(v)),
+			Err(v) => Err(f32::from_bits(v)),
+		}
 	}
 }
 
@@ -39,6 +54,21 @@ impl AtomicF64 {
 		let as_u64 = self.inner.load(ordering);
 		f64::from_bits(as_u64)
 	}
+	pub fn compare_exchange(
+		&self,
+		current: f64,
+		new: f64,
+		success: Ordering,
+		failure: Ordering,
+	) -> Result<f64, f64> {
+		match self
+			.inner
+			.compare_exchange(current as u64, new as u64, success, failure)
+		{
+			Ok(v) => Ok(f64::from_bits(v)),
+			Err(v) => Err(f64::from_bits(v)),
+		}
+	}
 }
 
 pub trait Atomic {
@@ -47,6 +77,13 @@ pub trait Atomic {
 	fn new(v: Self::Output) -> Self;
 	fn load(&self, order: Ordering) -> Self::Output;
 	fn store(&self, val: Self::Output, order: Ordering);
+	fn compare_exchange(
+		&self,
+		current: Self::Output,
+		new: Self::Output,
+		success: Ordering,
+		failure: Ordering,
+	) -> Self::Output;
 }
 
 pub trait AtomicCounterpart {
@@ -69,6 +106,12 @@ macro_rules! impl_atomic {
 
 			fn store(&self, val: Self::Output, order: Ordering) {
 				self.store(val, order);
+			}
+
+			fn compare_exchange(&self, current: Self::Output, new: Self::Output, success: Ordering, failure: Ordering) -> Self::Output {
+				self.compare_exchange(current, new, success, failure).unwrap_or_else(|v| {
+					v
+				})
 			}
 		}
 

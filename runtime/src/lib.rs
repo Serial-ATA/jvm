@@ -14,6 +14,7 @@
 #![feature(if_let_guard)]
 #![feature(reentrant_lock)]
 #![feature(std_internals)]
+#![feature(pointer_is_aligned_to)]
 
 pub mod calls;
 pub mod classes;

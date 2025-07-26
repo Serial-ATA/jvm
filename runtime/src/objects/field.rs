@@ -30,10 +30,11 @@ impl Debug for Field {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		write!(
 			f,
-			"{}#{} (index: {})",
+			"{}#{} (index: {}, offset: {})",
 			self.class.name(),
 			self.name.as_str(),
-			self.index()
+			self.index(),
+			self.offset()
 		)
 	}
 }
@@ -73,8 +74,22 @@ impl Field {
 		unsafe { *self.offset.get() }
 	}
 
-	pub(super) fn set_offset(&self, offset: usize) {
+	pub(super) unsafe fn set_offset(&self, offset: usize) {
+		let offset = offset + Self::padding(self.is_volatile(), offset, self.descriptor.align());
 		unsafe { *self.offset.get() = offset };
+	}
+
+	/// Pads volatile fields to align them for atomic operations
+	fn padding(is_volatile: bool, offset: usize, align_of_field: usize) -> usize {
+		debug_assert!(align_of_field.is_power_of_two());
+		debug_assert!(align_of_field <= 8);
+
+		if !is_volatile {
+			return 0;
+		}
+
+		let misalignment = offset % align_of_field;
+		align_of_field - misalignment
 	}
 }
 
@@ -94,16 +109,6 @@ impl Field {
 		field_info: &FieldInfo,
 		constant_pool: &ConstantPool,
 	) -> &'static Field {
-		fn padding(is_volatile: bool, offset: usize, align_of_field: usize) -> usize {
-			debug_assert!(align_of_field <= 8);
-
-			if !is_volatile {
-				return 0;
-			}
-
-			offset % align_of_field
-		}
-
 		let access_flags = field_info.access_flags;
 
 		let name_index = field_info.name_index;
@@ -121,7 +126,7 @@ impl Field {
 			.get_constant_value_attribute()
 			.map(|constant_value| constant_value.constantvalue_index);
 
-		let offset = offset + padding(access_flags.is_volatile(), offset, descriptor.align());
+		let offset = offset + Self::padding(access_flags.is_volatile(), offset, descriptor.align());
 		Box::leak(Box::new(Self {
 			idx: SyncUnsafeCell::new(idx),
 			offset: SyncUnsafeCell::new(offset),

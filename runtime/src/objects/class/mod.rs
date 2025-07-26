@@ -707,6 +707,11 @@ impl Class {
 			.iter()
 			.fold(0, |a, b| if b.is_static() { a } else { a.max(b.index()) });
 
+		let mut offset = old_fields
+			.last()
+			.map(|f| f.offset() + f.descriptor.size())
+			.unwrap_or(0);
+
 		let expected_len = old_fields.len() + field_count;
 		let mut new_fields = Vec::with_capacity(expected_len);
 		new_fields.extend(old_fields);
@@ -715,7 +720,10 @@ impl Class {
 			assert!(!field.is_static());
 			unsafe {
 				field.set_index(max_instance_index + idx + 1);
+				field.set_offset(offset);
 			}
+			offset = field.offset() + field.descriptor.size();
+
 			new_fields.push(field);
 		}
 
