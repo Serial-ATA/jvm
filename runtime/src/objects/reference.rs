@@ -10,6 +10,8 @@ use crate::objects::instance::object::Object;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 
+use std::fmt::Debug;
+
 use ::jni::sys::jint;
 use instructions::Operand;
 
@@ -24,13 +26,37 @@ use instructions::Operand;
 /// To clone objects, see the [`CloneableInstance::clone`] impl on each respective reference type.
 ///
 /// [`CloneableInstance::clone`]: super::instance::CloneableInstance::clone
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Copy, Clone)]
 #[repr(transparent)]
 pub struct Reference(*mut ());
 
 // SAFETY: Synchronization handled manually
 unsafe impl Send for Reference {}
 unsafe impl Sync for Reference {}
+
+impl Debug for Reference {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		unsafe {
+			match self.tag() {
+				Self::CLASS_TAG => self.as_class_unchecked().fmt(f),
+				Self::MIRROR_TAG => self.as_mirror_unchecked().fmt(f),
+				Self::PRIMITIVE_ARRAY_TAG => self.as_primitive_array_unchecked().fmt(f),
+				Self::OBJECT_ARRAY_TAG => self.as_object_array_unchecked().fmt(f),
+				_ => f.write_str("Null"),
+			}
+		}
+	}
+}
+
+impl PartialEq for Reference {
+	fn eq(&self, other: &Self) -> bool {
+		if self.is_null() && other.is_null() {
+			return true;
+		}
+
+		self.0 == other.0
+	}
+}
 
 impl Reference {
 	const CLASS_TAG: usize = 0x00;
