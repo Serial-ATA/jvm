@@ -130,7 +130,6 @@ fn extract(dir: String, path: PathBuf) -> Result<()> {
 					"Cannot create file '{}'",
 					local_resource_path.to_string_lossy()
 				));
-				return Ok(());
 			};
 
 			match jimage.get_resource_from_location(location) {

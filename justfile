@@ -29,5 +29,5 @@ dist *ARGS:
 
 # Build and run the java binary with the provided arguments
 java +ARGS: debug
-    just dist
-    JAVA_HOME={{ DIST_DIR }} {{ DIST_DIR / "bin" / "java" }} {{ ARGS }}
+    just dist --profile debug
+    {{ DIST_DIR / "bin" / "java" }} -Djava.home={{ DIST_DIR }} {{ ARGS }}

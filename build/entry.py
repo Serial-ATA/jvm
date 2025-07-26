@@ -102,6 +102,16 @@ def main():
             dest = os.path.join(lib_dir, packaged_lib_name)
         shutil.copy(src, dest)
 
+    boot_jdk_modules = Path(args.boot_jdk).joinpath("lib").joinpath("modules")
+    if not boot_jdk_modules.exists():
+        print(
+            f"Boot JDK modules not found (searched {str(boot_jdk_modules)})",
+            file=sys.stderr,
+        )
+        exit(1)
+
+    shutil.copy(boot_jdk_modules, lib_dir)
+
 
 if __name__ == "__main__":
     main()

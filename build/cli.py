@@ -1,3 +1,5 @@
+import os
+import sys
 import argparse
 from argparse import Namespace
 
@@ -7,6 +9,11 @@ from entry import VmVariant
 def args() -> Namespace:
     parser = argparse.ArgumentParser(
         prog="sj-build", description="Build packager for Serial's JVM"
+    )
+    parser.add_argument(
+        "--boot-jdk",
+        type=str,
+        help="path to the boot JDK",
     )
     parser.add_argument(
         "--profile",
@@ -25,4 +32,16 @@ def args() -> Namespace:
         action="store_true",
         help="force re-package, even if nothing has changed",
     )
-    return parser.parse_args()
+
+    ret = parser.parse_args()
+    if not ret.boot_jdk:
+        boot_jdk_home = os.environ.get("BOOT_JDK")
+        if boot_jdk_home is None:
+            print(
+                f"Boot JDK not specified (set `BOOT_JDK` environment variable or --boot-jdk)",
+                file=sys.stderr,
+            )
+            exit(1)
+        ret.boot_jdk = boot_jdk_home
+
+    return ret
