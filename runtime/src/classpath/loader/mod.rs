@@ -76,6 +76,10 @@ impl PartialEq for ClassLoader {
 
 impl Debug for ClassLoader {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		if self.is_bootstrap() {
+			return write!(f, "Bootstrap ClassLoader");
+		}
+
 		f.debug_struct("ClassLoader")
 			.field("obj", &self.obj)
 			.finish()
