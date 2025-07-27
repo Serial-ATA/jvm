@@ -212,6 +212,11 @@ impl Frame {
 		mem::replace(&mut self.depth, 0)
 	}
 
+	/// Commit the [pc] to the current [`JavaThread`]
+	///
+	/// See [`PcUpdateStrategy`].
+	///
+	/// [pc]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.5.1
 	pub fn commit_pc(&mut self, strategy: PcUpdateStrategy) {
 		match strategy {
 			PcUpdateStrategy::Offset(off) => {
@@ -227,6 +232,8 @@ impl Frame {
 }
 
 pub enum PcUpdateStrategy {
+	/// Update the pc by `offset` bytes
 	Offset(isize),
+	/// Update the pc to point to the beginning of the current instruction
 	FromInstruction,
 }

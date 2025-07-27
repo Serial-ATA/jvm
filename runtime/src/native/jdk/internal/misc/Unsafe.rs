@@ -4,15 +4,15 @@ use crate::objects::instance::array::{Array, ObjectArrayInstanceRef, PrimitiveTy
 use crate::objects::instance::class::ClassInstance;
 use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
-use crate::thread::exceptions::{throw, throw_with_ret, Throws};
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, throw, throw_with_ret};
 
 use std::marker::PhantomData;
 use std::sync::atomic::Ordering;
 
-use common::atomic::{Atomic, AtomicCounterpart};
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
+use common::atomic::{Atomic, AtomicCounterpart};
 
 include_generated!("native/jdk/internal/misc/def/Unsafe.definitions.rs");
 include_generated!("native/jdk/internal/misc/def/Unsafe.registerNatives.rs");
@@ -357,6 +357,7 @@ pub fn putReferenceVolatile(
 	offset: jlong,
 	value: Reference, // java.lang.Object
 ) {
+	dbg!(JavaThread::current().frame_stack());
 	unsafe { object.atomic_store::<usize>(offset as usize, value.raw_tagged() as usize) }
 }
 

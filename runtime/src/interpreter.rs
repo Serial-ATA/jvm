@@ -520,7 +520,7 @@ impl Interpreter {
                 OpCode::iinc => {
                     let index = frame.read_byte();
                     let const_ = frame.read_byte_signed();
-                    
+
                     frame.local_stack_mut()[index as usize].add(Operand::Int(s4::from(const_)));
                 };
                 
