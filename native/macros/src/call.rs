@@ -41,8 +41,9 @@ macro_rules! parameter_types {
 			fn from_str(s: &str) -> Option<Self> {
 				match s {
 					$(stringify!($sys_ty) | stringify!(jni::sys::$sys_ty) | stringify!(::jni::sys::$sys_ty) => Some(SafeJniWrapperType::Primitive(Primitive::$sys_ty)),)+
-					$(stringify!($obj_ty) | stringify!(jni::objects::$obj_ty) | stringify!(::jni::objects::$obj_ty) => Some(SafeJniWrapperType::$obj_ty),)+
-					_ => None
+					$(stringify!($obj_sys_ty) | stringify!(jni::objects::$obj_sys_ty) | stringify!(::jni::objects::$obj_sys_ty)
+					| stringify!($obj_ty) | stringify!(jni::objects::$obj_ty) | stringify!(::jni::objects::$obj_ty) => Some(SafeJniWrapperType::$obj_ty),)+
+					_ => None,
 				}
 			}
 

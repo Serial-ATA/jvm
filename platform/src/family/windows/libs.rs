@@ -1,4 +1,6 @@
-use std::ffi::c_void;
+use crate::libs::{Error, Result};
+
+use std::ffi::{CStr, c_void};
 use std::marker::PhantomData;
 
 pub struct LibraryImpl {}

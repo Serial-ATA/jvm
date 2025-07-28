@@ -13,4 +13,4 @@ cfg-if.workspace = true
 libc.workspace = true
 
 [target.'cfg(target_family = "windows")'.dependencies]
-windows = "0.58.0"
+windows.workspace = true

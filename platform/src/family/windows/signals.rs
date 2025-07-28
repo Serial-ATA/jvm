@@ -11,7 +11,7 @@ impl SignalHandlerT {
 	#[inline]
 	#[allow(trivial_casts)]
 	pub fn user_handler() -> Self {
-		Self(default_handler as *const extern "C" fn(libc::c_int) as usize);
+		Self(default_handler as *const extern "C" fn(libc::c_int) as usize)
 	}
 
 	#[inline]
@@ -32,7 +32,8 @@ impl crate::SignalOsExt for crate::Signal {
 			"SEGV" => Some(Self(libc::SIGSEGV)),
 			"INT" => Some(Self(libc::SIGINT)),
 			"TERM" => Some(Self(libc::SIGTERM)),
-			"BREAK" => Some(Self(libc::SIGBREAK)),
+			// TODO: SIGBREAK
+			// "BREAK" => Some(Self(libc::SIGBREAK)),
 			"ILL" => Some(Self(libc::SIGILL)),
 			_ => None,
 		}

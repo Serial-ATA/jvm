@@ -16,7 +16,7 @@ pub const FILE_SEPARATOR: &str = "\\";
 pub const LINE_SEPARATOR: &str = "\r\n";
 // https://github.com/openjdk/jdk/blob/19373b2ff0cd795afa262c17dcb3388fd6a5be59/src/java.base/windows/native/libjava/java_props_md.c#L580-L588
 cfg_if::cfg_if! {
-	if #[(target_arch = "x86_64")] {
+	if #[cfg(target_arch = "x86_64")] {
 		pub const OS_ARCH: &str = "amd64";
 	} else if #[cfg(target_arch = "x86")] {
 		pub const OS_ARCH: &str = "x86";

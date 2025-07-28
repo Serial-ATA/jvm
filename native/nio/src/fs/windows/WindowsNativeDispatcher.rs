@@ -1,8 +1,8 @@
 #![native_macros::jni_fn_module]
 
 use jni::env::JniEnv;
-use jni::objects::{JClass, JString};
-use jni::sys::jlong;
+use jni::objects::{JClass, JObject, JString};
+use jni::sys::{jboolean, jint, jlong};
 use native_macros::jni_call;
 
 #[jni_call]
@@ -28,7 +28,7 @@ pub extern "system" fn Java_sun_nio_fs_WindowsNativeDispatcher_FormatMessage(
 	_env: JniEnv,
 	_this: JClass,
 	_error_code: jint,
-) -> jstring {
+) -> JString {
 	unimplemented!("sun.nio.fs.WindowsNativeDispatcher#FormatMessage");
 }
 
@@ -147,7 +147,7 @@ pub extern "system" fn Java_sun_nio_fs_WindowsNativeDispatcher_FindNextFile0(
 	_this: JClass,
 	_handle: jlong,
 	_data_address: jlong,
-) -> jstring {
+) -> JString {
 	unimplemented!("sun.nio.fs.WindowsNativeDispatcher#FindNextFile0");
 }
 
@@ -166,7 +166,7 @@ pub extern "system" fn Java_sun_nio_fs_WindowsNativeDispatcher_FindNextStream0(
 	_env: JniEnv,
 	_this: JClass,
 	_handle: jlong,
-) -> jstring {
+) -> JString {
 	unimplemented!("sun.nio.fs.WindowsNativeDispatcher#FindNextStream0");
 }
 
@@ -314,7 +314,7 @@ pub extern "system" fn Java_sun_nio_fs_WindowsNativeDispatcher_GetVolumePathName
 	_env: JniEnv,
 	_this: JClass,
 	_address: jlong,
-) -> jstring {
+) -> JString {
 	unimplemented!("sun.nio.fs.WindowsNativeDispatcher#GetVolumePathName0");
 }
 
@@ -477,7 +477,7 @@ pub extern "system" fn Java_sun_nio_fs_WindowsNativeDispatcher_ConvertSidToStrin
 	_env: JniEnv,
 	_this: JClass,
 	_address: jlong,
-) -> jstring {
+) -> JString {
 	unimplemented!("sun.nio.fs.WindowsNativeDispatcher#ConvertSidToStringSid");
 }
 
@@ -620,7 +620,7 @@ pub extern "system" fn Java_sun_nio_fs_WindowsNativeDispatcher_GetFullPathName0(
 	_env: JniEnv,
 	_clz: JClass,
 	_path_address: jlong,
-) -> jstring {
+) -> JString {
 	unimplemented!("sun.nio.fs.WindowsNativeDispatcher#GetFullPathName0");
 }
 
@@ -629,7 +629,7 @@ pub extern "system" fn Java_sun_nio_fs_WindowsNativeDispatcher_GetFinalPathNameB
 	_env: JniEnv,
 	_this: JClass,
 	_handle: jlong,
-) -> jstring {
+) -> JString {
 	unimplemented!("sun.nio.fs.WindowsNativeDispatcher#GetFinalPathNameByHandle");
 }
 
