@@ -93,15 +93,18 @@ impl ObjectArrayInstance {
 		let array_class_name = component_class.array_class_name();
 		let array_class = component_class.loader().load(array_class_name)?;
 
+		Self::new_inner(count as usize, array_class)
+	}
+
+	fn new_inner(count: usize, array_class: ClassPtr) -> Throws<ObjectArrayInstanceRef> {
 		let header = ObjectArrayInstance {
 			header: Header::new(),
 			class: array_class,
 			length: count as u32,
 		};
-		let element_size =
-			count as usize * size_of::<<ObjectArrayInstanceRef as Array>::Component>();
+		let elements_size = count * size_of::<<ObjectArrayInstanceRef as Array>::Component>();
 
-		let new_array = unsafe { ObjectArrayInstanceRef::allocate(header, element_size) };
+		let new_array = unsafe { ObjectArrayInstanceRef::allocate(header, elements_size) };
 
 		Throws::Ok(ObjectArrayInstanceRef(new_array))
 	}
@@ -167,7 +170,8 @@ impl CloneableInstance for ObjectArrayInstanceRef {
 	type ReferenceTy = ObjectArrayInstanceRef;
 
 	unsafe fn clone(&self) -> Self::ReferenceTy {
-		let cloned_instance = ObjectArrayInstance::new(self.length as s4, self.class).expect("oom");
+		let cloned_instance =
+			ObjectArrayInstance::new_inner(self.length as usize, self.class).expect("oom");
 
 		// SAFETY: References are `Copy`
 		unsafe {

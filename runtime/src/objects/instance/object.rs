@@ -16,6 +16,11 @@ pub trait Object: Sized {
 	type Descriptor: Sized;
 
 	unsafe fn allocate(descriptor: Self::Descriptor, fields_size: usize) -> *mut Self::Descriptor {
+		debug_assert!(
+			align_of::<Self::Descriptor>() == 8,
+			"Bad descriptor alignment"
+		);
+
 		let instance_size = size_of::<Self::Descriptor>() + fields_size;
 		let layout = Layout::array::<u8>(instance_size)
 			.and_then(|layout| layout.align_to(align_of::<Self::Descriptor>()))
@@ -207,7 +212,7 @@ pub trait Object: Sized {
 		unsafe {
 			let raw = self.get_raw::<T>(offset);
 			debug_assert!(
-				raw.is_aligned_to(align_of::<T>()),
+				raw.is_aligned_to(align_of::<T::Counterpart>()),
 				"atomic writes can only be performed on aligned offsets"
 			);
 
