@@ -53,7 +53,7 @@ pub fn create_java_vm(
 		JavaThread::set_current_thread(thread);
 	}
 
-	if let Err((e, thread_available)) = initialize_thread(JavaThread::current()) {
+	if let Err((e, thread_available)) = initialize_thread(JavaThread::current(), true) {
 		if !thread_available {
 			return Err((e, None));
 		}
@@ -83,8 +83,13 @@ pub fn create_java_vm(
 /// 3. *Initialize* some of the classes that were loaded.
 /// 4. Create the initial `java.lang.Thread` for the current thread.
 ///
+/// This is only public as it is used in tests. It should not be used anywhere outside of this file.
+///
 /// [`create_java_base()`]: crate::modules::ModuleLockGuard::create_java_base()
-fn initialize_thread(thread: &'static JavaThread) -> Result<(), (JniError, bool)> {
+pub(crate) fn initialize_thread(
+	thread: &'static JavaThread,
+	do_java_lang_system_init: bool,
+) -> Result<(), (JniError, bool)> {
 	crate::modules::with_module_lock(|guard| Module::create_java_base(guard));
 
 	// Load some important classes
@@ -113,9 +118,11 @@ fn initialize_thread(thread: &'static JavaThread) -> Result<(), (JniError, bool)
 	// Create native entrypoints for `java.lang.invoke.MethodHandle#link*` methods
 	classes::java::lang::invoke::MethodHandle::init_entry_points();
 
-	init_phase_1(thread).map_err(|e| (e, true))?;
-	init_phase_2(thread).map_err(|e| (e, true))?;
-	init_phase_3(thread).map_err(|e| (e, true))?;
+	if do_java_lang_system_init {
+		init_phase_1(thread).map_err(|e| (e, true))?;
+		init_phase_2(thread).map_err(|e| (e, true))?;
+		init_phase_3(thread).map_err(|e| (e, true))?;
+	}
 
 	Ok(())
 }

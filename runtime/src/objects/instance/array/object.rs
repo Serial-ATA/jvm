@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crate::objects::class::ClassPtr;
 use crate::objects::instance::array::Array;
 use crate::objects::instance::object::Object;

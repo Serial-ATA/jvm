@@ -27,16 +27,16 @@ include_generated!("native/java/lang/def/Throwable.definitions.rs");
 ///
 /// The format is the following struct:
 ///
-/// ```
+/// ```text
 /// struct BackTrace {
-/// 	method: &Method as jlong,
-/// 	pc: jlong,
+///     method: &Method as jlong,
+///     pc: jlong,
 /// }
 /// ```
 ///
 /// Flattened into an `long[]`:
 ///
-/// ```
+/// ```text
 /// ["java/lang/Foo#foo", 2, "java/lang/Foo#bar", 5]
 /// ```
 pub struct BackTrace {

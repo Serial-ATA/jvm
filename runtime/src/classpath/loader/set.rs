@@ -24,6 +24,11 @@ static CLASS_LOADER_SET: LazyLock<ClassLoaderSet> = LazyLock::new(|| ClassLoader
 
 impl ClassLoaderSet {
 	pub fn add(loader: Reference, is_hidden: bool) -> &'static ClassLoader {
+		#[cfg(test)]
+		{
+			ClassLoader::bootstrap().assert_not_sealed()
+		}
+
 		let _guard = CLASS_LOADER_SET.write_mutex.lock().unwrap();
 
 		// TODO: These hidden classloaders will forever be in the set, need to sweep.

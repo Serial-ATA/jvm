@@ -2,7 +2,7 @@
 //!
 //! The type checker enforces a type system based upon a hierarchy of verification types, illustrated below.
 //!
-//! ```
+//! ```text
 //! Verification type hierarchy:
 //!
 //!                              top

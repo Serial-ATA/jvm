@@ -15,6 +15,8 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
+#[cfg(test)]
+use std::sync::atomic::AtomicBool;
 use std::sync::{LazyLock, Mutex};
 
 use classfile::constant_pool::types::raw as raw_types;
@@ -66,6 +68,10 @@ pub struct ClassLoader {
 	name_and_id: Symbol,
 
 	inner: ClassLoaderType,
+
+	/// Used in tests to prevent this loader from loading additional classes
+	#[cfg(test)]
+	pub sealed: AtomicBool,
 }
 
 impl PartialEq for ClassLoader {
@@ -118,6 +124,9 @@ impl ClassLoader {
 				modules: ModuleSet::new(),
 				packages: SyncUnsafeCell::new(HashMap::new()),
 			},
+
+			#[cfg(test)]
+			sealed: AtomicBool::new(false),
 		}
 	}
 
@@ -128,6 +137,9 @@ impl ClassLoader {
 			name,
 			name_and_id,
 			inner: ClassLoaderType::Hidden,
+
+			#[cfg(test)]
+			sealed: AtomicBool::new(false),
 		}
 	}
 
@@ -220,6 +232,9 @@ impl ClassLoader {
 					modules: ModuleSet::new(),
 					packages: SyncUnsafeCell::new(HashMap::new()),
 				},
+
+				#[cfg(test)]
+				sealed: AtomicBool::new(false),
 			};
 
 			SyncUnsafeCell::new(loader)
@@ -345,6 +360,11 @@ impl ClassLoader {
 			return Throws::Ok(ret);
 		}
 
+		#[cfg(test)]
+		{
+			self.assert_not_sealed();
+		}
+
 		// Otherwise, the Java Virtual Machine passes the argument N to an invocation of a method on
 		// the bootstrap class loader [...] and then [...] create C, via the algorithm of §5.3.5.
 
@@ -369,6 +389,11 @@ impl ClassLoader {
 		// If so, this class or interface is C, and no class loading or creation is necessary.
 		if let Some(ret) = self.lookup_class(name) {
 			return Throws::Ok(ret);
+		}
+
+		#[cfg(test)]
+		{
+			self.assert_not_sealed();
 		}
 
 		// Otherwise, the Java Virtual Machine invokes the loadClass method of class ClassLoader on L,

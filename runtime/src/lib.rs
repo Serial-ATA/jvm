@@ -34,4 +34,5 @@ mod symbols;
 pub mod thread;
 pub mod verifier;
 
-pub use interpreter::Interpreter;
+#[cfg(test)]
+pub(crate) mod test_utils;

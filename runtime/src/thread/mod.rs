@@ -59,6 +59,10 @@ pub struct JavaThread {
 
 	pending_exception: UnsafeCell<Option<Reference>>,
 	exiting: AtomicBool,
+
+	/// Used in tests to prevent this thread from actually running any Java code
+	#[cfg(test)]
+	pub sealed: AtomicBool,
 }
 
 unsafe impl Sync for JavaThread {}
@@ -90,6 +94,9 @@ impl JavaThread {
 
 			pending_exception: UnsafeCell::new(None),
 			exiting: AtomicBool::new(false),
+
+			#[cfg(test)]
+			sealed: AtomicBool::new(false),
 		}
 	}
 
@@ -124,6 +131,7 @@ impl JavaThread {
 	///
 	/// This will panic if there is no `JavaThread` available, which is only possible on an
 	/// uninitialized thread.
+	#[cfg(not(test))] // Tests have a custom impl, see src/test_utils/thread.rs
 	pub fn current() -> &'static JavaThread {
 		Self::current_opt().expect("current JavaThread should be available")
 	}
@@ -363,6 +371,11 @@ impl JavaThread {
 		method: &'static Method,
 		locals: LocalStack,
 	) -> Option<Operand<Reference>> {
+		#[cfg(test)]
+		{
+			self.assert_not_sealed();
+		}
+
 		if method.is_native() {
 			unimplemented!("Manual invocation of native methods");
 		}
@@ -409,6 +422,11 @@ impl JavaThread {
 		method: &'static Method,
 		locals: LocalStack,
 	) {
+		#[cfg(test)]
+		{
+			self.assert_not_sealed();
+		}
+
 		if method.is_native() {
 			self.invoke_native(method, locals);
 			tracing::debug!(target: "JavaThread", "Native method `{method:?}` finished");
