@@ -22,16 +22,16 @@ pub trait Instance: object::Object {
 			match field.descriptor {
 				FieldType::Byte => Operand::Int({
 					if field.is_volatile() {
-						self.atomic_get::<jbyte>(field.offset()) as jint
+						jint::from(self.atomic_get::<jbyte>(field.offset()))
 					} else {
-						self.get::<jbyte>(field.offset()) as jint
+						jint::from(self.get::<jbyte>(field.offset()))
 					}
 				}),
 				FieldType::Character => Operand::Int({
 					if field.is_volatile() {
-						self.atomic_get::<jchar>(field.offset()) as jint
+						jint::from(self.atomic_get::<jchar>(field.offset()))
 					} else {
-						self.get::<jchar>(field.offset()) as jint
+						jint::from(self.get::<jchar>(field.offset()))
 					}
 				}),
 				FieldType::Integer => Operand::Int({
@@ -43,16 +43,16 @@ pub trait Instance: object::Object {
 				}),
 				FieldType::Short => Operand::Int({
 					if field.is_volatile() {
-						self.atomic_get::<jshort>(field.offset()) as jint
+						jint::from(self.atomic_get::<jshort>(field.offset()))
 					} else {
-						self.get::<jshort>(field.offset()) as jint
+						jint::from(self.get::<jshort>(field.offset()))
 					}
 				}),
 				FieldType::Boolean => Operand::Int({
 					if field.is_volatile() {
-						self.atomic_get::<jboolean>(field.offset()) as jint
+						jint::from(self.atomic_get::<jboolean>(field.offset()))
 					} else {
-						self.get::<jboolean>(field.offset()) as jint
+						jint::from(self.get::<jboolean>(field.offset()))
 					}
 				}),
 
@@ -227,7 +227,7 @@ struct HeaderFlags {
 
 impl HeaderFlags {
 	pub fn encode(self) -> u8 {
-		0u8 | self.locked as u8
+		u8::from(self.locked)
 	}
 }
 

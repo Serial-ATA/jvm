@@ -18,6 +18,10 @@ pub fn java_library_path() -> String {
 	format!("{ld_library_path}{SYS_EXTENSIONS_DIR}/lib:{DEFAULT_LIBPATH}")
 }
 
+#[expect(
+	clippy::missing_panics_doc,
+	reason = "unable to locate = panic currently"
+)]
 pub fn java_home() -> String {
 	if let Ok(path) = std::env::var("JAVA_HOME") {
 		return path;
@@ -30,9 +34,8 @@ pub fn java_home() -> String {
 		dladdr_ret = dladdr(java_home as *const _, &raw mut dlinfo)
 	}
 
-	if dladdr_ret == 0 {
-		panic!("Cannot locate libjvm_runtime.so");
-	}
+	// TODO: Error, not panic
+	assert_ne!(dladdr_ret, 0, "Cannot locate libjvm_runtime.so");
 
 	let lib_path_raw = unsafe { CStr::from_ptr(dlinfo.dli_fname) };
 	let lib_path_osstr = OsStr::from_bytes(lib_path_raw.to_bytes());

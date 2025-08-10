@@ -18,13 +18,13 @@ use common::int_types::u2;
 ///   variable being top (§4.10.1.7).
 ///
 /// * `operand_stack` is a list of verification types, such that the first element of the list represents
-///    the type of the top of the operand stack, and the types of stack entries below the top follow
-///    in the list in the appropriate order. Types of size 2 (long and double) are represented by two
-///    stack entries, with the first entry being top and the second entry being the type itself.
+///   the type of the top of the operand stack, and the types of stack entries below the top follow
+///   in the list in the appropriate order. Types of size 2 (long and double) are represented by two
+///   stack entries, with the first entry being top and the second entry being the type itself.
 ///
 /// * `flags` is a list which may either be empty or have the single element flagThisUninit. If any local variable
-///    in Locals has the type uninitializedThis, then Flags has the single element flagThisUninit,
-///    otherwise Flags is an empty list.
+///   in Locals has the type uninitializedThis, then Flags has the single element flagThisUninit,
+///   otherwise Flags is an empty list.
 ///
 /// _flagThisUninit is used in constructors to mark type states where initialization of this has not yet been completed. In such type states, it is illegal to return from the method._
 pub(super) struct Frame {

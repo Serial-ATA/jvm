@@ -20,9 +20,27 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+pub(crate) const LINTS: &str = r"#![allow(dead_code, unreachable_code, unused_variables, unused_braces, unused_qualifications)]
+#![allow(
+    clippy::style,
+    clippy::complexity,
+    clippy::pedantic,
+    clippy::restriction,
+    clippy::perf,
+    clippy::deprecated,
+    clippy::nursery,
+    clippy::cargo,
+    clippy::suspicious_else_formatting,
+    clippy::almost_swapped,
+    clippy::redundant_locals,
+)]
+";
 static CRATE_ROOT: &str = env!("CARGO_MANIFEST_DIR");
-static INIT_FN_FILE_HEADER: &str = r#"#[allow(trivial_casts)]
-fn init_native_method_table() -> HashMap<NativeMethodDef, NativeMethodPtr> {
+static INIT_FN_FILE_HEADER: &str = r#"use crate::native::method::{NativeMethodDef, NativeMethodPtr};
+use std::collections::HashMap;
+
+#[allow(trivial_casts)]
+pub(super) fn init_native_method_table() -> HashMap<NativeMethodDef, NativeMethodPtr> {
 	use crate::symbols::sym;
 	
 	fn insert(map: &mut HashMap<NativeMethodDef, NativeMethodPtr>, key: NativeMethodDef, value: NativeMethodPtr) {
@@ -45,22 +63,21 @@ struct SymbolCollector {
 // TODO: If a duplicate symbol value is found under another name, the generated files should use the defined name
 impl SymbolCollector {
 	pub fn add_class_name(&mut self, value: String) {
-		let symbol_name = value.replace('/', "_").replace('$', "_");
+		let symbol_name = value.replace(['/', '$'], "_");
 		self.class_name_symbols_to_add.insert(symbol_name, value);
 	}
 
 	pub fn add_method(&mut self, method: &Method) {
 		self.method_name_symbols_to_add
 			.insert(method.name_symbol(), method.generated_name().to_string());
-		self.method_signature_symbols_to_add.insert(
-			method.signature_symbol_name(),
-			method.descriptor.to_string(),
-		);
+		self.method_signature_symbols_to_add
+			.insert(method.signature_symbol_name(), method.descriptor.clone());
 	}
 
 	/// Generates additional symbols, injecting them into the `vm_symbols::define_symbols!` call
 	/// in `runtime/src/symbols/mod.rs`
-	fn generate_symbols<'a>(&self, generated_directory: &Path) {
+	#[allow(clippy::items_after_statements)]
+	fn generate_symbols(&self, generated_directory: &Path) {
 		// ../../symbols/src/lib.rs
 		let symbols_project_dir = generated_directory
 			.parent()
@@ -119,10 +136,10 @@ impl SymbolCollector {
 
 	/// Gets the position of a marker comment (eg. "// Classes")
 	fn get_position_of_marker_comment(contents: &str, section_marker_comment: &str) -> usize {
-		contents.rfind(section_marker_comment).expect(&format!(
-			"Failed to find marker comment: {}",
-			section_marker_comment
-		)) + section_marker_comment.len()
+		let section_marker_start = contents
+			.rfind(section_marker_comment)
+			.unwrap_or_else(|| panic!("Failed to find marker comment: {}", section_marker_comment));
+		section_marker_start + section_marker_comment.len()
 	}
 
 	fn check_in_section(
@@ -136,7 +153,7 @@ impl SymbolCollector {
 			.any(|line| line.starts_with(&format!("\t{check_for}:")))
 	}
 
-	fn generate_symbols_inner<'a>(
+	fn generate_symbols_inner(
 		symbol_iter: &HashMap<String, String>,
 		section_header: &str,
 		marker_comment: &str,
@@ -220,7 +237,11 @@ fn create_native_method_table(
 		.create(true)
 		.open(init_fn_file_path)?;
 
-	write!(init_fn_file, "{}", INIT_FN_FILE_HEADER)?;
+	write!(
+		init_fn_file,
+		r"mod __native_init {{
+{LINTS}{INIT_FN_FILE_HEADER}"
+	)?;
 
 	for module in modules {
 		module.for_each_class(|class| {
@@ -228,7 +249,13 @@ fn create_native_method_table(
 		});
 	}
 
-	write!(init_fn_file, "\tmap\n}}")?;
+	write!(init_fn_file, "\tmap\n}}\n")?;
+
+	write!(
+		init_fn_file,
+		r"}}
+pub use __native_init::*;"
+	)?;
 
 	Ok(())
 }
@@ -257,7 +284,7 @@ fn build_map_inserts(
 		writeln!(
 			file,
 			"\tinsert(&mut map, {});",
-			util::method_table_entry(&module.name, &class, method)
+			util::method_table_entry(&module.name, class, method)
 		)?;
 	}
 
@@ -323,9 +350,9 @@ fn create_modules_string(modules: &[Module]) -> Result<String> {
 		if is_new_root {
 			current_root = Some(root);
 			for depth in (0..current_depth).rev() {
-				writeln!(modules_str, "{}}}", "\t".repeat(depth)).unwrap();
+				writeln!(modules_str, "{}}}", "\t".repeat(depth))?;
 			}
-			writeln!(modules_str).unwrap();
+			writeln!(modules_str)?;
 			current_depth = 0;
 		}
 
@@ -361,11 +388,11 @@ fn create_modules_string(modules: &[Module]) -> Result<String> {
 
 		previous_module = module;
 		current_depth = current_depth.saturating_sub(1);
-		writeln!(modules_str, "{}}}", "\t".repeat(current_depth)).unwrap();
+		writeln!(modules_str, "{}}}", "\t".repeat(current_depth))?;
 	}
 
 	for depth in (0..current_depth).rev() {
-		writeln!(modules_str, "{}}}", "\t".repeat(depth)).unwrap();
+		writeln!(modules_str, "{}}}", "\t".repeat(depth))?;
 	}
 
 	Ok(modules_str)

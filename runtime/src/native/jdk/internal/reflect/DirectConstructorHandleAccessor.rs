@@ -40,7 +40,7 @@ pub mod NativeAccessor {
 			method,
 			parameter_types,
 			args,
-			new_instance.clone(),
+			new_instance,
 		);
 
 		new_instance

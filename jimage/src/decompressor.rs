@@ -61,7 +61,9 @@ pub fn decompress_resource(
 		}
 
 		// Retrieve the decompressor name
-		let decompressor_name = strings.get(header.decompressor_name_offset);
+		let Some(decompressor_name) = strings.get(header.decompressor_name_offset) else {
+			return Err(Error::DecompressorNotFound(String::new()));
+		};
 
 		// Retrieve the decompressor instance
 		// Ask the decompressor to decompress the compressed content
@@ -83,7 +85,7 @@ pub fn decompress_resource(
 
 		// Drop the previous iteration's decompressed contents
 		unsafe {
-			let _ = Box::from_raw(resource as *mut u1);
+			let _ = Box::from_raw(resource.cast_mut());
 		}
 
 		// Preserve this iteration's decompressed contents for the next round

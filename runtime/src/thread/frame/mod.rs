@@ -40,7 +40,7 @@ impl Debug for Frame {
 			.field("stack", &self.stack)
 			.field("method", &self.method)
 			.field("cached_pc", &self.cached_pc.load(Ordering::Acquire))
-			.finish()
+			.finish_non_exhaustive()
 	}
 }
 
@@ -231,6 +231,7 @@ impl Frame {
 	}
 }
 
+#[derive(Copy, Clone, Debug)]
 pub enum PcUpdateStrategy {
 	/// Update the pc by `offset` bytes
 	Offset(isize),

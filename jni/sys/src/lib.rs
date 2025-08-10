@@ -52,7 +52,7 @@ pub type jobjectArray = jarray;
 pub type jweak = jobject;
 
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub union jvalue {
 	pub z: jboolean,
 	pub b: jbyte,
@@ -63,12 +63,6 @@ pub union jvalue {
 	pub f: jfloat,
 	pub d: jdouble,
 	pub l: jobject,
-}
-
-impl Clone for jvalue {
-	fn clone(&self) -> Self {
-		*self
-	}
 }
 
 unsafe extern "C" { pub type _jfieldID; }
@@ -120,17 +114,11 @@ pub const JNI_COMMIT: jint = 1;
 pub const JNI_ABORT : jint = 2;
 
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct JNINativeMethod {
 	pub name: *mut c_char,
 	pub signature: *mut c_char,
 	pub fnPtr: *mut c_void,
-}
-
-impl Clone for JNINativeMethod {
-	fn clone(&self) -> Self {
-		*self
-	}
 }
 
 pub type JNIEnv = *const JNINativeInterface_;
@@ -166,7 +154,7 @@ macro_rules! jni_c_fn {
 ///
 /// Note that the function table can be shared among all JNI interface pointers.
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct JNINativeInterface_ {
 	pub reserved0: *mut c_void,
 	pub reserved1: *mut c_void,
@@ -2459,22 +2447,10 @@ pub struct JNINativeInterface_ {
 	pub GetObjectRefType: jni_system_fn!((env: *mut JNIEnv, obj: jobject) -> jobjectRefType),
 }
 
-impl Clone for JNINativeInterface_ {
-	fn clone(&self) -> Self {
-		*self
-	}
-}
-
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct JNIEnv_ {
 	pub functions: *const JNINativeInterface_,
-}
-
-impl Clone for JNIEnv_ {
-	fn clone(&self) -> Self {
-		*self
-	}
 }
 
 /// optionString may be any option accepted by the JVM, or one of the
@@ -2490,20 +2466,14 @@ impl Clone for JNIEnv_ {
 /// * `exit` extraInfo is a pointer to the exit hook.
 /// * `abort` extraInfo is a pointer to the abort hook.
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct JavaVMOption {
 	pub optionString: *mut c_char,
 	pub extraInfo: *mut c_void,
 }
 
-impl Clone for JavaVMOption {
-	fn clone(&self) -> Self {
-		*self
-	}
-}
-
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct JavaVMInitArgs {
 	pub version: jint,
 	pub nOptions: jint,
@@ -2511,28 +2481,16 @@ pub struct JavaVMInitArgs {
 	pub ignoreUnrecognized: jboolean,
 }
 
-impl Clone for JavaVMInitArgs {
-	fn clone(&self) -> Self {
-		*self
-	}
-}
-
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct JavaVMAttachArgs {
 	pub version: jint,
 	pub name: *mut c_char,
 	pub group: jobject,
 }
 
-impl Clone for JavaVMAttachArgs {
-	fn clone(&self) -> Self {
-		*self
-	}
-}
-
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct JNIInvokeInterface_ {
 	pub reserved0: *mut c_void,
 	pub reserved1: *mut c_void,
@@ -2675,12 +2633,6 @@ pub struct JNIInvokeInterface_ {
 			penv: *mut *mut c_void,
 			args: *mut c_void,
 		) -> jint),
-}
-
-impl Clone for JNIInvokeInterface_ {
-	fn clone(&self) -> Self {
-		*self
-	}
 }
 
 unsafe extern "system" {
@@ -2830,14 +2782,14 @@ unsafe extern "system" {
 	pub fn JNI_OnUnload(vm: *mut JavaVM, reserved: *mut c_void);
 }
 
-pub const JNI_VERSION_1_1: jint = 0x00010001;
-pub const JNI_VERSION_1_2: jint = 0x00010002;
-pub const JNI_VERSION_1_4: jint = 0x00010004;
-pub const JNI_VERSION_1_6: jint = 0x00010006;
-pub const JNI_VERSION_1_8: jint = 0x00010008;
-pub const JNI_VERSION_9  : jint = 0x00090000;
-pub const JNI_VERSION_10 : jint = 0x000A0000;
-pub const JNI_VERSION_19 : jint = 0x00130000;
-pub const JNI_VERSION_20 : jint = 0x00140000;
-pub const JNI_VERSION_21 : jint = 0x00150000;
-pub const JNI_VERSION_24 : jint = 0x00180000;
+pub const JNI_VERSION_1_1: jint = 0x0001_0001;
+pub const JNI_VERSION_1_2: jint = 0x0001_0002;
+pub const JNI_VERSION_1_4: jint = 0x0001_0004;
+pub const JNI_VERSION_1_6: jint = 0x0001_0006;
+pub const JNI_VERSION_1_8: jint = 0x0001_0008;
+pub const JNI_VERSION_9  : jint = 0x0009_0000;
+pub const JNI_VERSION_10 : jint = 0x000A_0000;
+pub const JNI_VERSION_19 : jint = 0x0013_0000;
+pub const JNI_VERSION_20 : jint = 0x0014_0000;
+pub const JNI_VERSION_21 : jint = 0x0015_0000;
+pub const JNI_VERSION_24 : jint = 0x0018_0000;

@@ -66,14 +66,14 @@ pub fn encode(input: &str) -> Cow<'_, [u8]> {
 				assert!((0xD800..=0xDFFF).contains(&surrogate));
 				// 1110xxxx 10xxxxxx 10xxxxxx
 				[
-					0b11100000 | ((surrogate >> 12) & 0b1111) as u8,
+					0b1110_0000 | ((surrogate >> 12) & 0b1111) as u8,
 					0b1000_0000 | ((surrogate >> 6) & 0b11_1111) as u8,
-					0b1000_0000 | (surrogate & 0b111111) as u8,
+					0b1000_0000 | (surrogate & 0b11_1111) as u8,
 				]
 			}
 
 			match self {
-				ReplacementNeeded::Null => buf.extend([0b11000000, 0b10000000]),
+				ReplacementNeeded::Null => buf.extend([0b1100_0000, 0b1000_0000]),
 				ReplacementNeeded::SixByte(high, low) => {
 					buf.extend(utf8_surrogate_to_mutf8(high));
 					buf.extend(utf8_surrogate_to_mutf8(low));
@@ -189,6 +189,12 @@ pub fn encode(input: &str) -> Cow<'_, [u8]> {
 }
 
 /// Decode a Java modified UTF-8 string into a UTF-8 string
+///
+/// # Errors
+///
+/// Returns an error if the `input` is not a valid modified UTF-8 string, with a description as to why
+/// it is invalid.
+#[allow(clippy::missing_panics_doc)]
 pub fn decode(input: &[u8]) -> Result<Cow<'_, str>, Error> {
 	#[inline]
 	fn verify_contination(b: u8, index: usize) -> Result<(), Error> {
@@ -203,12 +209,12 @@ pub fn decode(input: &[u8]) -> Result<Cow<'_, str>, Error> {
 		return Ok(Cow::Borrowed(s));
 	}
 
-	let mut s = String::with_capacity(input.len());
+	let mut decoded = String::with_capacity(input.len());
 
 	let mut i = 0;
 	loop {
 		let Some(b) = input.get(i).copied() else {
-			return Ok(Cow::Owned(s));
+			return Ok(Cow::Owned(decoded));
 		};
 
 		i += 1;
@@ -217,7 +223,7 @@ pub fn decode(input: &[u8]) -> Result<Cow<'_, str>, Error> {
 			0x00 => return Err(Error::ContainsNull(i)),
 
 			// ASCII, excluding null
-			0x01..=0x7F => s.push(b as char),
+			0x01..=0x7F => decoded.push(b as char),
 
 			// Handle nulls
 			0xC0 => {
@@ -236,7 +242,7 @@ pub fn decode(input: &[u8]) -> Result<Cow<'_, str>, Error> {
 					});
 				}
 
-				s.push('\0');
+				decoded.push('\0');
 			},
 
 			b => {
@@ -250,7 +256,7 @@ pub fn decode(input: &[u8]) -> Result<Cow<'_, str>, Error> {
 
 				match width {
 					2 => {
-						s.extend([b as char, next as char]);
+						decoded.extend([b as char, next as char]);
 					},
 					3 => {
 						let Some(next2) = input.get(i).copied() else {
@@ -263,9 +269,8 @@ pub fn decode(input: &[u8]) -> Result<Cow<'_, str>, Error> {
 						match (b, next) {
 							// Valid UTF-8, nothing extra to do
 							(0xE0, 0xA0..=0xBF)
-							| (0xE1..=0xEC, 0x80..=0xBF)
-							| (0xED, 0x80..=0x9F)
-							| (0xEE..=0xEF, 0x80..=0xBF) => s.extend([b as char, next as char, next2 as char]),
+							| (0xE1..=0xEC | 0xEE..=0xEF, 0x80..=0xBF)
+							| (0xED, 0x80..=0x9F) => decoded.extend([b as char, next as char, next2 as char]),
 							(0xED, 0xA0..=0xAF) => {
 								let Some(next3) = input.get(i).copied() else {
 									return Err(Error::UnexpectedEnd);
@@ -303,16 +308,18 @@ pub fn decode(input: &[u8]) -> Result<Cow<'_, str>, Error> {
 								verify_contination(next5, i)?;
 								i += 1;
 
-								let high =
-									mutf8_surrogate_to_utf8(((next as u16) << 8) | next2 as u16);
-								let low =
-									mutf8_surrogate_to_utf8(((next4 as u16) << 8) | next5 as u16);
+								let high = mutf8_surrogate_to_utf8(
+									(u16::from(next) << 8) | u16::from(next2),
+								);
+								let low = mutf8_surrogate_to_utf8(
+									(u16::from(next4) << 8) | u16::from(next5),
+								);
 
 								let c = 0x10000 + (high - 0xD800) * 0x400 + (low - 0xDC00);
-								assert!((0x10000..=0x10FFFF).contains(&c));
+								assert!((0x10000..=0x0010_FFFF).contains(&c));
 
 								// SAFETY: We just verified that this is a valid UTF-8 surrogate pair
-								let v = unsafe { s.as_mut_vec() };
+								let v = unsafe { decoded.as_mut_vec() };
 								v.extend([
 									0b1111_0000u8 | ((c >> 18) & 0b111) as u8,
 									0b1000_0000 | ((c >> 12) & 0b11_1111) as u8,
@@ -346,8 +353,8 @@ pub fn decode(input: &[u8]) -> Result<Cow<'_, str>, Error> {
 #[inline]
 fn mutf8_surrogate_to_utf8(surrogate: u16) -> u32 {
 	0xD000u32
-		| (((surrogate >> 8) & CONT_MASK as u16) as u32) << 6
-		| (surrogate & CONT_MASK as u16) as u32
+		| u32::from((surrogate >> 8) & u16::from(CONT_MASK)) << 6
+		| u32::from(surrogate & u16::from(CONT_MASK))
 }
 
 // https://github.com/rust-lang/rust/blob/master/library/core/src/str/validations.rs#L254

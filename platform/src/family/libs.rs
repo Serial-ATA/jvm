@@ -48,10 +48,26 @@ impl Library {
 		Ok(Self(imp))
 	}
 
-	pub unsafe fn close(self) -> Result<()> {
+	/// Consume and close the library
+	///
+	/// # Errors
+	///
+	/// If the library fails to lose, a description of the error will be returned. The format of that
+	/// error will, of course, be platform-specific.
+	pub fn close(self) -> Result<()> {
 		unsafe { super::imp::libs::LibraryImpl::close(self.0) }
 	}
 
+	/// Attempt to lookup a symbol by `name`
+	///
+	/// # Errors
+	///
+	/// If the lookup fails, a description of the error will be returned. The format of that error
+	/// will, of course, be platform-specific.
+	///
+	/// # Safety
+	///
+	/// * The caller *must* ensure that the specified `T` is the correct type of the symbol
 	pub unsafe fn symbol<'library, T: 'library>(
 		&'library self,
 		name: &CStr,
@@ -64,7 +80,12 @@ impl Library {
 	}
 }
 
-pub struct Sym<'lib, T: 'lib> {
+/// A symbol from a loaded [`Library`]
+///
+/// The lifetime of this symbol is tied to the [`Library`] from which it was loaded.
+///
+/// See [`Library::symbol()`] for safety notes.
+pub struct Sym<'lib, T> {
 	inner: super::imp::libs::Sym<T>,
 	phantom: PhantomData<&'lib T>,
 }
@@ -73,6 +94,6 @@ impl<'a, T: 'a> Deref for Sym<'a, T> {
 	type Target = T;
 
 	fn deref(&self) -> &Self::Target {
-		unsafe { &*(&self.inner.raw() as *const *mut _ as *const T) }
+		unsafe { &*(std::ptr::from_ref(&self.inner.raw()).cast::<T>()) }
 	}
 }

@@ -9,7 +9,7 @@ impl super::JniEnv {
 	pub fn exception_describe(&self) {
 		unsafe {
 			let invoke_interface = self.as_native_interface();
-			((*invoke_interface).ExceptionDescribe)(self.0 as _);
+			((*invoke_interface).ExceptionDescribe)(self.0.cast::<jni_sys::JNIEnv>());
 		}
 	}
 	// TODO: ExceptionClear
@@ -20,7 +20,7 @@ impl super::JniEnv {
 		let ret;
 		unsafe {
 			let invoke_interface = self.as_native_interface();
-			ret = ((*invoke_interface).ExceptionCheck)(self.0 as _);
+			ret = ((*invoke_interface).ExceptionCheck)(self.0.cast::<jni_sys::JNIEnv>());
 		}
 
 		ret

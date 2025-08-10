@@ -50,13 +50,7 @@ pub fn defineModule0(
 
 	handle_exception!(
 		thread,
-		Module::named(
-			module.clone(),
-			is_open,
-			version_sym,
-			location_sym,
-			package_names,
-		)
+		Module::named(module, is_open, version_sym, location_sym, package_names,)
 	);
 }
 

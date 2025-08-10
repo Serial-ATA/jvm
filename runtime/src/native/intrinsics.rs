@@ -97,18 +97,12 @@ pub enum IntrinsicFlags {
 impl IntrinsicFlags {
 	/// Whether the intrinsic flags contain the static access flag
 	pub fn is_static(self) -> bool {
-		match self {
-			Self::Static | Self::StaticNative => true,
-			_ => false,
-		}
+		matches!(self, Self::Static | Self::StaticNative)
 	}
 
 	/// Whether the intrinsic flags contain the native access flag
 	pub fn is_native(self) -> bool {
-		match self {
-			Self::Native | Self::StaticNative => true,
-			_ => false,
-		}
+		matches!(self, Self::Native | Self::StaticNative)
 	}
 }
 

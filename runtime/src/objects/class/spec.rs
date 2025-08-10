@@ -98,15 +98,14 @@ impl InitializationGuard {
 		// SAFETY: We hold the lock, no one can write to this, reads are safe.
 		let init_thread = unsafe { *self.init_thread.get() };
 		match init_thread {
-			Some(init_thread) => init_thread == (thread as _),
+			Some(init_thread) => std::ptr::eq(init_thread, thread),
 			None => false,
 		}
 	}
 
 	/// Get the initialization state of this class
 	pub fn initialization_state(&self) -> ClassInitializationState {
-		let init_state = unsafe { *self.init_state.get() };
-		init_state
+		unsafe { *self.init_state.get() }
 	}
 }
 
@@ -221,10 +220,10 @@ impl Class {
 			//    specified class or interface C.
 
 			// 3. Otherwise, if C has a superclass S, field lookup is applied recursively to S.
-			if let Some(super_class) = &class.super_class {
-				if let Some(field) = inner(super_class, name, descriptor) {
-					return Some(field);
-				}
+			if let Some(super_class) = &class.super_class
+				&& let Some(field) = inner(super_class, name, descriptor)
+			{
+				return Some(field);
 			}
 
 			None
@@ -310,12 +309,11 @@ impl Class {
 		}
 
 		// 	  2.3. Otherwise, if C has a superclass, step 2 of method resolution is recursively invoked on the direct superclass of C.
-		if let Some(super_class) = self.super_class {
-			if let Some(resolved_method) =
+		if let Some(super_class) = self.super_class
+			&& let Some(resolved_method) =
 				super_class.resolve_method_step_two(method_name, descriptor)
-			{
-				return Some(&resolved_method);
-			}
+		{
+			return Some(resolved_method);
 		}
 
 		None

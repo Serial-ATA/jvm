@@ -34,7 +34,7 @@ impl Debug for Package {
 			.field("name", &self.name.as_str())
 			.field("module", &self.module)
 			.field("export_type", &self.export_type)
-			.finish()
+			.finish_non_exhaustive()
 	}
 }
 

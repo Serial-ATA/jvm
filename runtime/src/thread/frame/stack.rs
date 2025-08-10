@@ -39,7 +39,7 @@ pub enum VisibleStackFrame<'a> {
 	Native(&'a NativeFrame),
 }
 
-impl<'a> VisibleStackFrame<'a> {
+impl VisibleStackFrame<'_> {
 	pub fn method(&self) -> &'static Method {
 		match self {
 			VisibleStackFrame::Regular(frame) => frame.method(),

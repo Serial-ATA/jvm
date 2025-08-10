@@ -36,7 +36,7 @@ impl super::JniEnv {
 		unsafe {
 			let invoke_interface = self.as_native_interface();
 			ret = ((*invoke_interface).NewObjectA)(
-				self.0 as _,
+				self.0.cast::<jni_sys::JNIEnv>(),
 				class.raw(),
 				method.raw(),
 				new_args.as_ptr(),

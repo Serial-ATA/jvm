@@ -65,6 +65,11 @@ impl Endian {
 }
 
 impl Endian {
+	/// Read a 1-byte unsigned integer from `reader`
+	///
+	/// # Errors
+	///
+	/// See [`JavaLittleEndianRead::read_u1()`] and [`JavaReadExt::read_u1()`]
 	pub fn read_u1<R>(self, reader: &mut R) -> Result<u1>
 	where
 		R: Read,
@@ -72,6 +77,11 @@ impl Endian {
 		JavaReadExt::read_u1(reader)
 	}
 
+	/// Read a 4-byte, big-endian unsigned integer from `reader`
+	///
+	/// # Errors
+	///
+	/// See [`JavaLittleEndianRead::read_u4()`] and [`JavaReadExt::read_u4()`]
 	pub fn read_u4<R>(self, reader: &mut R) -> Result<u4>
 	where
 		R: Read,
@@ -82,6 +92,11 @@ impl Endian {
 		}
 	}
 
+	/// Read an 8-byte, big-endian unsigned integer from `reader`
+	///
+	/// # Errors
+	///
+	/// See [`JavaLittleEndianRead::read_u8()`] and [`JavaReadExt::read_u8()`]
 	pub fn read_u8<R>(self, reader: &mut R) -> Result<u8>
 	where
 		R: Read,
@@ -92,6 +107,11 @@ impl Endian {
 		}
 	}
 
+	/// Read a 4-byte signed integer from `reader`
+	///
+	/// # Errors
+	///
+	/// See [`JavaLittleEndianRead::read_s4()`] and [`JavaReadExt::read_s4()`]
 	pub fn read_s4<R>(self, reader: &mut R) -> Result<s4>
 	where
 		R: Read,
@@ -102,6 +122,11 @@ impl Endian {
 		}
 	}
 
+	/// Read a 4-byte signed integer from `reader`, into `dst`
+	///
+	/// # Errors
+	///
+	/// See [`JavaLittleEndianRead::read_s4_into()`] and [`JavaReadExt::read_s4_into()`]
 	pub fn read_s4_into<R>(self, reader: &mut R, dst: &mut [s4]) -> Result<()>
 	where
 		R: Read,
@@ -112,6 +137,11 @@ impl Endian {
 		}
 	}
 
+	/// Read a 4-byte unsigned integer from `reader`, into `dst`
+	///
+	/// # Errors
+	///
+	/// See [`JavaLittleEndianRead::read_u4_into()`] and [`JavaReadExt::read_u4_into()`]
 	pub fn read_u4_into<R>(self, reader: &mut R, dst: &mut [u4]) -> Result<()>
 	where
 		R: Read,

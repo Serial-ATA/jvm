@@ -24,6 +24,11 @@ impl JniEnv {
 		self.0
 	}
 
+	/// Create a [`JniEnv`] from a raw pointer
+	///
+	/// # Safety
+	///
+	/// The caller *must* ensure that the pointer provided was obtained from the VM.
 	pub unsafe fn from_raw(env: *mut jni_sys::JNIEnv) -> Self {
 		Self(env)
 	}
@@ -32,6 +37,6 @@ impl JniEnv {
 		assert!(!self.0.is_null());
 
 		// Assuming this was created using the safe APIs, the pointer will always be valid
-		unsafe { (*self.0) as _ }
+		unsafe { (*self.0).cast::<jni_sys::JNINativeInterface_>() }
 	}
 }

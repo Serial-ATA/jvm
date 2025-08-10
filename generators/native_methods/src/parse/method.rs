@@ -81,10 +81,12 @@ impl Method {
 	pub fn signature_symbol_name(&self) -> String {
 		let mut signature_symbol = String::new();
 		for param in &self.params {
-			signature_symbol.push_str(&format!(
+			write!(
+				signature_symbol,
 				"{}_",
 				param.0.human_readable_name().replace('.', "_")
-			));
+			)
+			.unwrap();
 		}
 
 		signature_symbol.push_str(&self.return_ty.human_readable_name().replace('.', "_"));
@@ -167,7 +169,7 @@ where
 				modifiers,
 				is_intrinsic_candidate: is_intrinsic,
 				name: None,
-				descriptor: create_signature(&params, return_ty.clone()),
+				descriptor: create_signature(&params, &return_ty),
 				params,
 				return_ty,
 			}
@@ -189,7 +191,7 @@ where
 			modifiers,
 			is_intrinsic_candidate: is_intrinsic,
 			name: Some(name),
-			descriptor: create_signature(&params, return_ty.clone()),
+			descriptor: create_signature(&params, &return_ty),
 			params,
 			return_ty,
 		})
@@ -236,7 +238,7 @@ where
 		.map(|_| ())
 }
 
-fn create_signature(params: &[(Type, String)], return_ty: Type) -> String {
+fn create_signature(params: &[(Type, String)], return_ty: &Type) -> String {
 	let mut signature = String::from('(');
 
 	for (param, _) in params {

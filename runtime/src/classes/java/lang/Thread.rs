@@ -77,7 +77,6 @@ crate::classes::field_module! {
 
 pub mod holder {
 	use super::*;
-	use common::int_types::s4;
 	use instructions::Operand;
 	use jni::sys::{jint, jlong};
 
@@ -106,7 +105,7 @@ pub mod holder {
 	}
 
 	pub fn set_daemon(instance: ClassInstanceRef, daemon: bool) {
-		instance.put_field_value0(daemon_field_index(), Operand::Int(daemon as s4));
+		instance.put_field_value0(daemon_field_index(), Operand::Int(jint::from(daemon)));
 	}
 
 	pub fn threadStatus(instance: ClassInstanceRef) -> ThreadStatus {
@@ -115,14 +114,14 @@ pub mod holder {
 			.expect_int();
 
 		// TODO: Would be nice to not panic here
-		assert!(value <= ThreadStatus::MAX as s4);
+		assert!(value <= ThreadStatus::MAX as jint);
 		unsafe { std::mem::transmute(value) }
 	}
 
 	pub fn set_threadStatus(instance: ClassInstanceRef, thread_status: ThreadStatus) {
 		instance.put_field_value0(
 			threadStatus_field_index(),
-			Operand::Int(thread_status as s4),
+			Operand::Int(thread_status as jint),
 		);
 	}
 

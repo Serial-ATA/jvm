@@ -108,7 +108,7 @@ impl JavaVmBuilder {
 				.symbol::<CreateJavaVmFn>(c"JNI_CreateJavaVM")
 				.map_err(|_| Error::SymbolNotFound(b"JNI_CreateJavaVM\0"))?;
 
-			ret = create_java_vm(&mut javavm_raw, &mut jni_env_raw, args.raw() as _);
+			ret = create_java_vm(&raw mut javavm_raw, &raw mut jni_env_raw, args.raw() as _);
 		}
 
 		if let Some(err) = JniError::from_jint(ret) {
@@ -123,7 +123,7 @@ impl JavaVmBuilder {
 			inner: javavm_raw,
 			_libjvm: Some(libjvm),
 		};
-		let jni_env = unsafe { JniEnv::from_raw(jni_env_raw as *mut JNIEnv) };
+		let jni_env = unsafe { JniEnv::from_raw(jni_env_raw.cast::<JNIEnv>()) };
 
 		Ok((java_vm, jni_env))
 	}
@@ -185,10 +185,10 @@ impl JavaVm {
 			let invoke_interface = self.as_invoke_interface();
 			let mut args_ptr = core::ptr::null_mut();
 			if let Some(args) = args {
-				args_ptr = args.raw() as _;
+				args_ptr = args.raw().cast_mut();
 			}
 
-			ret = ((*invoke_interface).AttachCurrentThread)(self.inner, &mut env, args_ptr);
+			ret = ((*invoke_interface).AttachCurrentThread)(self.inner, &raw mut env, args_ptr);
 		}
 
 		if let Some(err) = JniError::from_jint(ret) {
@@ -208,14 +208,14 @@ impl JavaVm {
 		let ret;
 		unsafe {
 			let invoke_interface = self.as_invoke_interface();
-			ret = ((*invoke_interface).GetEnv)(self.inner, &mut env, version.into());
+			ret = ((*invoke_interface).GetEnv)(self.inner, &raw mut env, version.into());
 		}
 
 		if let Some(err) = JniError::from_jint(ret) {
 			return Err(err);
 		}
 
-		Ok(unsafe { JniEnv::from_raw(env as _) })
+		Ok(unsafe { JniEnv::from_raw(env.cast::<JNIEnv>()) })
 	}
 
 	pub fn attach_current_thread_as_daemon(&self) -> Result<()> {
@@ -229,9 +229,14 @@ impl JavaVm {
 
 impl JavaVm {
 	pub const fn raw(&self) -> *const jni_sys::JavaVM {
-		self.inner as _
+		self.inner.cast_const()
 	}
 
+	/// Create a [`JavaVm`] from a raw pointer
+	///
+	/// # Safety
+	///
+	/// The caller *must* ensure that the pointer provided was obtained from the VM.
 	pub const unsafe fn from_raw(ptr: *mut jni_sys::JavaVM) -> Self {
 		Self {
 			inner: ptr,
@@ -243,7 +248,7 @@ impl JavaVm {
 impl Drop for JavaVm {
 	fn drop(&mut self) {
 		if let Some(libjvm) = self._libjvm.take() {
-			let _ = unsafe { libjvm.close() };
+			let _ = libjvm.close();
 		}
 	}
 }

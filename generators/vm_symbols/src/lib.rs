@@ -97,10 +97,7 @@ fn get_generated_dir() -> syn::Result<PathBuf> {
 		));
 	};
 
-	Ok(workspace_root
-		.join("generated")
-		.join("native")
-		.to_path_buf())
+	Ok(workspace_root.join("generated").join("native"))
 }
 
 fn collect_symbols_from_files() -> syn::Result<TokenStream> {
@@ -169,12 +166,12 @@ fn collect_merged_symbols(predefined_symbols: TokenStream) -> syn::Result<Symbol
 	//
 	// const collides: Symbol = Symbol(0);
 	// const otherCollides: Symbol = collides;
-	for generated_symbol in generated_symbols.0.into_iter() {
+	for generated_symbol in generated_symbols.0 {
 		assert!(
 			symbols.0.insert(generated_symbol.clone()),
 			"Unable to insert generated symbol (name: `{}`, value: `{:?}`), collides with a \
 			 predefined symbol",
-			generated_symbol.variant_name.to_string(),
+			generated_symbol.variant_name,
 			generated_symbol.value.map(|v| v.value())
 		);
 	}

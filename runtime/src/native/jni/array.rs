@@ -7,7 +7,6 @@ use crate::thread::exceptions::Throws;
 use core::ffi::c_void;
 use std::ptr;
 
-use common::int_types::s4;
 use jni::sys::{
 	JNIEnv, jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jclass, jdouble,
 	jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, jobject, jobjectArray,
@@ -15,12 +14,12 @@ use jni::sys::{
 };
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetArrayLength(env: *mut JNIEnv, array: jarray) -> jsize {
+pub unsafe extern "system" fn GetArrayLength(env: *mut JNIEnv, array: jarray) -> jsize {
 	unimplemented!("jni::GetArrayLength");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn NewObjectArray(
+pub unsafe extern "system" fn NewObjectArray(
 	env: *mut JNIEnv,
 	len: jsize,
 	clazz: jclass,
@@ -36,7 +35,7 @@ pub extern "system" fn NewObjectArray(
 
 	let class = obj.extract_target_class();
 	if init.is_null() {
-		return match ObjectArrayInstance::new(len as s4, class) {
+		return match ObjectArrayInstance::new(len, class) {
 			Throws::Ok(array) => Reference::object_array(array).into_jni(),
 			Throws::Exception(e) => {
 				e.throw(thread);
@@ -49,7 +48,7 @@ pub extern "system" fn NewObjectArray(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetObjectArrayElement(
+pub unsafe extern "system" fn GetObjectArrayElement(
 	env: *mut JNIEnv,
 	array: jobjectArray,
 	index: jsize,
@@ -58,7 +57,7 @@ pub extern "system" fn GetObjectArrayElement(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn SetObjectArrayElement(
+pub unsafe extern "system" fn SetObjectArrayElement(
 	env: *mut JNIEnv,
 	array: jobjectArray,
 	index: jsize,
@@ -76,7 +75,7 @@ pub extern "system" fn SetObjectArrayElement(
 		return; // TODO: ArrayStoreException?
 	};
 
-	match array.store(index as s4, val) {
+	match array.store(index, val) {
 		Throws::Ok(_) => {},
 		Throws::Exception(e) => {
 			let thread = JavaThread::current();
@@ -87,47 +86,47 @@ pub extern "system" fn SetObjectArrayElement(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn NewBooleanArray(env: *mut JNIEnv, len: jsize) -> jbooleanArray {
+pub unsafe extern "system" fn NewBooleanArray(env: *mut JNIEnv, len: jsize) -> jbooleanArray {
 	unimplemented!("jni::NewBooleanArray");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn NewByteArray(env: *mut JNIEnv, len: jsize) -> jbyteArray {
+pub unsafe extern "system" fn NewByteArray(env: *mut JNIEnv, len: jsize) -> jbyteArray {
 	unimplemented!("jni::NewByteArray");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn NewCharArray(env: *mut JNIEnv, len: jsize) -> jcharArray {
+pub unsafe extern "system" fn NewCharArray(env: *mut JNIEnv, len: jsize) -> jcharArray {
 	unimplemented!("jni::NewCharArray");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn NewShortArray(env: *mut JNIEnv, len: jsize) -> jshortArray {
+pub unsafe extern "system" fn NewShortArray(env: *mut JNIEnv, len: jsize) -> jshortArray {
 	unimplemented!("jni::NewShortArray");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn NewIntArray(env: *mut JNIEnv, len: jsize) -> jintArray {
+pub unsafe extern "system" fn NewIntArray(env: *mut JNIEnv, len: jsize) -> jintArray {
 	unimplemented!("jni::NewIntArray");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn NewLongArray(env: *mut JNIEnv, len: jsize) -> jlongArray {
+pub unsafe extern "system" fn NewLongArray(env: *mut JNIEnv, len: jsize) -> jlongArray {
 	unimplemented!("jni::NewLongArray");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn NewFloatArray(env: *mut JNIEnv, len: jsize) -> jfloatArray {
+pub unsafe extern "system" fn NewFloatArray(env: *mut JNIEnv, len: jsize) -> jfloatArray {
 	unimplemented!("jni::NewFloatArray");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn NewDoubleArray(env: *mut JNIEnv, len: jsize) -> jdoubleArray {
+pub unsafe extern "system" fn NewDoubleArray(env: *mut JNIEnv, len: jsize) -> jdoubleArray {
 	unimplemented!("jni::NewDoubleArray");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetBooleanArrayElements(
+pub unsafe extern "system" fn GetBooleanArrayElements(
 	env: *mut JNIEnv,
 	array: jbooleanArray,
 	isCopy: *mut jboolean,
@@ -136,7 +135,7 @@ pub extern "system" fn GetBooleanArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetByteArrayElements(
+pub unsafe extern "system" fn GetByteArrayElements(
 	env: *mut JNIEnv,
 	array: jbyteArray,
 	isCopy: *mut jboolean,
@@ -145,7 +144,7 @@ pub extern "system" fn GetByteArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetCharArrayElements(
+pub unsafe extern "system" fn GetCharArrayElements(
 	env: *mut JNIEnv,
 	array: jcharArray,
 	isCopy: *mut jboolean,
@@ -154,7 +153,7 @@ pub extern "system" fn GetCharArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetShortArrayElements(
+pub unsafe extern "system" fn GetShortArrayElements(
 	env: *mut JNIEnv,
 	array: jshortArray,
 	isCopy: *mut jboolean,
@@ -163,7 +162,7 @@ pub extern "system" fn GetShortArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetIntArrayElements(
+pub unsafe extern "system" fn GetIntArrayElements(
 	env: *mut JNIEnv,
 	array: jintArray,
 	isCopy: *mut jboolean,
@@ -172,7 +171,7 @@ pub extern "system" fn GetIntArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetLongArrayElements(
+pub unsafe extern "system" fn GetLongArrayElements(
 	env: *mut JNIEnv,
 	array: jlongArray,
 	isCopy: *mut jboolean,
@@ -181,7 +180,7 @@ pub extern "system" fn GetLongArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetFloatArrayElements(
+pub unsafe extern "system" fn GetFloatArrayElements(
 	env: *mut JNIEnv,
 	array: jfloatArray,
 	isCopy: *mut jboolean,
@@ -190,7 +189,7 @@ pub extern "system" fn GetFloatArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetDoubleArrayElements(
+pub unsafe extern "system" fn GetDoubleArrayElements(
 	env: *mut JNIEnv,
 	array: jdoubleArray,
 	isCopy: *mut jboolean,
@@ -199,7 +198,7 @@ pub extern "system" fn GetDoubleArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn ReleaseBooleanArrayElements(
+pub unsafe extern "system" fn ReleaseBooleanArrayElements(
 	env: *mut JNIEnv,
 	array: jbooleanArray,
 	elems: *mut jboolean,
@@ -209,7 +208,7 @@ pub extern "system" fn ReleaseBooleanArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn ReleaseByteArrayElements(
+pub unsafe extern "system" fn ReleaseByteArrayElements(
 	env: *mut JNIEnv,
 	array: jbyteArray,
 	elems: *mut jbyte,
@@ -219,7 +218,7 @@ pub extern "system" fn ReleaseByteArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn ReleaseCharArrayElements(
+pub unsafe extern "system" fn ReleaseCharArrayElements(
 	env: *mut JNIEnv,
 	array: jcharArray,
 	elems: *mut jchar,
@@ -229,7 +228,7 @@ pub extern "system" fn ReleaseCharArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn ReleaseShortArrayElements(
+pub unsafe extern "system" fn ReleaseShortArrayElements(
 	env: *mut JNIEnv,
 	array: jshortArray,
 	elems: *mut jshort,
@@ -239,7 +238,7 @@ pub extern "system" fn ReleaseShortArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn ReleaseIntArrayElements(
+pub unsafe extern "system" fn ReleaseIntArrayElements(
 	env: *mut JNIEnv,
 	array: jintArray,
 	elems: *mut jint,
@@ -249,7 +248,7 @@ pub extern "system" fn ReleaseIntArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn ReleaseLongArrayElements(
+pub unsafe extern "system" fn ReleaseLongArrayElements(
 	env: *mut JNIEnv,
 	array: jlongArray,
 	elems: *mut jlong,
@@ -259,7 +258,7 @@ pub extern "system" fn ReleaseLongArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn ReleaseFloatArrayElements(
+pub unsafe extern "system" fn ReleaseFloatArrayElements(
 	env: *mut JNIEnv,
 	array: jfloatArray,
 	elems: *mut jfloat,
@@ -269,7 +268,7 @@ pub extern "system" fn ReleaseFloatArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn ReleaseDoubleArrayElements(
+pub unsafe extern "system" fn ReleaseDoubleArrayElements(
 	env: *mut JNIEnv,
 	array: jdoubleArray,
 	elems: *mut jdouble,
@@ -279,7 +278,7 @@ pub extern "system" fn ReleaseDoubleArrayElements(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetBooleanArrayRegion(
+pub unsafe extern "system" fn GetBooleanArrayRegion(
 	env: *mut JNIEnv,
 	array: jbooleanArray,
 	start: jsize,
@@ -290,7 +289,7 @@ pub extern "system" fn GetBooleanArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetByteArrayRegion(
+pub unsafe extern "system" fn GetByteArrayRegion(
 	env: *mut JNIEnv,
 	array: jbyteArray,
 	start: jsize,
@@ -301,7 +300,7 @@ pub extern "system" fn GetByteArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetCharArrayRegion(
+pub unsafe extern "system" fn GetCharArrayRegion(
 	env: *mut JNIEnv,
 	array: jcharArray,
 	start: jsize,
@@ -312,7 +311,7 @@ pub extern "system" fn GetCharArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetShortArrayRegion(
+pub unsafe extern "system" fn GetShortArrayRegion(
 	env: *mut JNIEnv,
 	array: jshortArray,
 	start: jsize,
@@ -323,7 +322,7 @@ pub extern "system" fn GetShortArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetIntArrayRegion(
+pub unsafe extern "system" fn GetIntArrayRegion(
 	env: *mut JNIEnv,
 	array: jintArray,
 	start: jsize,
@@ -334,7 +333,7 @@ pub extern "system" fn GetIntArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetLongArrayRegion(
+pub unsafe extern "system" fn GetLongArrayRegion(
 	env: *mut JNIEnv,
 	array: jlongArray,
 	start: jsize,
@@ -345,7 +344,7 @@ pub extern "system" fn GetLongArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetFloatArrayRegion(
+pub unsafe extern "system" fn GetFloatArrayRegion(
 	env: *mut JNIEnv,
 	array: jfloatArray,
 	start: jsize,
@@ -356,7 +355,7 @@ pub extern "system" fn GetFloatArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetDoubleArrayRegion(
+pub unsafe extern "system" fn GetDoubleArrayRegion(
 	env: *mut JNIEnv,
 	array: jdoubleArray,
 	start: jsize,
@@ -367,7 +366,7 @@ pub extern "system" fn GetDoubleArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn SetBooleanArrayRegion(
+pub unsafe extern "system" fn SetBooleanArrayRegion(
 	env: *mut JNIEnv,
 	array: jbooleanArray,
 	start: jsize,
@@ -378,7 +377,7 @@ pub extern "system" fn SetBooleanArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn SetByteArrayRegion(
+pub unsafe extern "system" fn SetByteArrayRegion(
 	env: *mut JNIEnv,
 	array: jbyteArray,
 	start: jsize,
@@ -389,7 +388,7 @@ pub extern "system" fn SetByteArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn SetCharArrayRegion(
+pub unsafe extern "system" fn SetCharArrayRegion(
 	env: *mut JNIEnv,
 	array: jcharArray,
 	start: jsize,
@@ -400,7 +399,7 @@ pub extern "system" fn SetCharArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn SetShortArrayRegion(
+pub unsafe extern "system" fn SetShortArrayRegion(
 	env: *mut JNIEnv,
 	array: jshortArray,
 	start: jsize,
@@ -411,7 +410,7 @@ pub extern "system" fn SetShortArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn SetIntArrayRegion(
+pub unsafe extern "system" fn SetIntArrayRegion(
 	env: *mut JNIEnv,
 	array: jintArray,
 	start: jsize,
@@ -422,7 +421,7 @@ pub extern "system" fn SetIntArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn SetLongArrayRegion(
+pub unsafe extern "system" fn SetLongArrayRegion(
 	env: *mut JNIEnv,
 	array: jlongArray,
 	start: jsize,
@@ -433,7 +432,7 @@ pub extern "system" fn SetLongArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn SetFloatArrayRegion(
+pub unsafe extern "system" fn SetFloatArrayRegion(
 	env: *mut JNIEnv,
 	array: jfloatArray,
 	start: jsize,
@@ -444,7 +443,7 @@ pub extern "system" fn SetFloatArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn SetDoubleArrayRegion(
+pub unsafe extern "system" fn SetDoubleArrayRegion(
 	env: *mut JNIEnv,
 	array: jdoubleArray,
 	start: jsize,
@@ -455,7 +454,7 @@ pub extern "system" fn SetDoubleArrayRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetPrimitiveArrayCritical(
+pub unsafe extern "system" fn GetPrimitiveArrayCritical(
 	env: *mut JNIEnv,
 	array: jarray,
 	isCopy: *mut jboolean,
@@ -464,7 +463,7 @@ pub extern "system" fn GetPrimitiveArrayCritical(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn ReleasePrimitiveArrayCritical(
+pub unsafe extern "system" fn ReleasePrimitiveArrayCritical(
 	env: *mut JNIEnv,
 	array: jarray,
 	carray: *mut c_void,

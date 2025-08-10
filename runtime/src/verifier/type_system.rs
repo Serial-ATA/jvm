@@ -103,7 +103,7 @@ pub mod types {
 					impl Erasable for $child {
 						const IDENTIFIER: u8 = [<$child _OFFSET>];
 						fn erase(self) -> VerificationType {
-							VerificationType((Self::IDENTIFIER as u64) << (64 - BITS_FOR_OFFSET))
+							VerificationType(u64::from(Self::IDENTIFIER) << (64 - BITS_FOR_OFFSET))
 						}
 					}
 				}
@@ -122,8 +122,8 @@ pub mod types {
 		const IDENTIFIER: u8 = Class_OFFSET;
 		fn erase(self) -> VerificationType {
 			VerificationType(
-				((Self::IDENTIFIER as u64) << (64 - BITS_FOR_OFFSET))
-					| ((self.0.as_u32() as u64) << 24),
+				(u64::from(Self::IDENTIFIER) << (64 - BITS_FOR_OFFSET))
+					| (u64::from(self.0.as_u32()) << 24),
 			)
 		}
 	}
@@ -133,7 +133,7 @@ pub mod types {
 		fn erase(self) -> VerificationType {
 			let erased_array = self.0.erase();
 			VerificationType(
-				((Self::IDENTIFIER as u64) << (64 - BITS_FOR_OFFSET)) | erased_array.0 << 24,
+				(u64::from(Self::IDENTIFIER) << (64 - BITS_FOR_OFFSET)) | erased_array.0 << 24,
 			)
 		}
 	}

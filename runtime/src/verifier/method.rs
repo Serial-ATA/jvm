@@ -127,7 +127,7 @@ impl Environment<'_> {
 		fn handler_is_legal(environment: &Environment<'_>, handler: &CodeException) -> Result<()> {
 			let start = handler.start_pc as usize;
 			let end = handler.end_pc as usize;
-			if !(start < end) {
+			if start >= end {
 				return Err(Error::BadExceptionHandlerRange(
 					handler.start_pc,
 					handler.end_pc,
@@ -200,7 +200,7 @@ impl Environment<'_> {
 	//                      afterGoto).
 	fn merged_code_is_type_safe(
 		&self,
-		_merged_code: MergedCode,
+		_merged_code: MergedCode<'_>,
 		_stack_frame: Frame,
 	) -> Result<()> {
 		todo!()

@@ -9,3 +9,6 @@ license.workspace = true
 [dependencies]
 native-macros.workspace = true
 native-nio = { path = "../nio" }
+
+[lints]
+workspace = true

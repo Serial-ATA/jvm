@@ -10,7 +10,7 @@ use std::sync::{LazyLock, RwLock};
 use byte_slice_cast::{AsByteSlice, AsSliceOf};
 use common::int_types::{u1, u2};
 use jni::env::JniEnv;
-use jni::sys::{jbyte, jint};
+use jni::sys::jbyte;
 
 include_generated!("native/java/lang/def/String.definitions.rs");
 include_generated!("native/java/lang/def/String.constants.rs");
@@ -53,7 +53,7 @@ pub fn intern(_env: JniEnv, this: Reference /* java.lang.String */) -> Reference
 			_ => panic!("Invalid string coder `{coder}`"),
 		};
 
-		classes::java::lang::String::set_hash(string, hash.0 as jint);
+		classes::java::lang::String::set_hash(string, hash.0);
 		classes::java::lang::String::set_hashIsZero(string, false);
 		computed_hash = hash;
 	}
@@ -71,7 +71,7 @@ static STRING_POOL: LazyLock<RwLock<HashMap<StringHash, ClassInstanceRef>>> =
 
 fn lookup(hash: StringHash) -> Option<ClassInstanceRef> {
 	if let Some(entry) = STRING_POOL.read().unwrap().get(&hash) {
-		return Some(entry.clone());
+		return Some(*entry);
 	}
 
 	None
@@ -97,8 +97,8 @@ impl<'a> StringHashDerivable<&'a str> for &'a str {
 impl<'a> StringHashDerivable<&'a [u1]> for &'a [u1] {
 	fn string_hash(value: &Self) -> StringHash {
 		let mut h = 0;
-		for b in value.iter() {
-			h = (31_u32.wrapping_mul(h)) + (*b as u32);
+		for b in *value {
+			h = (31_u32.wrapping_mul(h)) + u32::from(*b);
 		}
 		StringHash(h as i32)
 	}
@@ -106,8 +106,8 @@ impl<'a> StringHashDerivable<&'a [u1]> for &'a [u1] {
 impl<'a> StringHashDerivable<&'a [u2]> for &'a [u2] {
 	fn string_hash(value: &Self) -> StringHash {
 		let mut h = 0;
-		for b in value.iter() {
-			h = (31_u32.wrapping_mul(h)) + (*b as u32);
+		for b in *value {
+			h = (31_u32.wrapping_mul(h)) + u32::from(*b);
 		}
 		StringHash(h as i32)
 	}
@@ -142,10 +142,5 @@ where
 fn do_intern(hash: StringHash, string: ClassInstanceRef) -> ClassInstanceRef {
 	// There's a chance that a string with `hash` already exists in the pool, so now that we computed
 	// the hash on string, we can return either the existing string or the new one.
-	STRING_POOL
-		.write()
-		.unwrap()
-		.entry(hash)
-		.or_insert(string)
-		.clone()
+	*STRING_POOL.write().unwrap().entry(hash).or_insert(string)
 }

@@ -45,7 +45,7 @@ pub(super) fn locale_aliases() -> impl Iterator<Item = &'static (&'static CStr, 
 		(c"turkish", c"tr_TR"),
 	];
 
-	crate::locale::base_locale_aliases().chain(LINUX_LOCALE_ALIASES.into_iter())
+	crate::locale::base_locale_aliases().chain(LINUX_LOCALE_ALIASES)
 }
 
 pub(super) fn language_names() -> impl Iterator<Item = &'static (&'static CStr, &'static CStr)> {
@@ -83,7 +83,7 @@ pub(super) fn language_names() -> impl Iterator<Item = &'static (&'static CStr, 
 		(c"turkish", c"tr"),
 	];
 
-	crate::locale::base_language_names().chain(LINUX_LANGUAGE_NAMES.into_iter())
+	crate::locale::base_language_names().chain(LINUX_LANGUAGE_NAMES)
 }
 
 pub(super) fn script_names() -> impl Iterator<Item = &'static (&'static CStr, &'static CStr)> {
@@ -94,7 +94,7 @@ pub(super) fn script_names() -> impl Iterator<Item = &'static (&'static CStr, &'
 		(c"latin", c"Latn"),
 	];
 
-	crate::locale::base_script_names().chain(LINUX_SCRIPT_NAMES.into_iter())
+	crate::locale::base_script_names().chain(LINUX_SCRIPT_NAMES)
 }
 
 pub(super) fn country_names() -> impl Iterator<Item = &'static (&'static CStr, &'static CStr)> {
@@ -102,5 +102,5 @@ pub(super) fn country_names() -> impl Iterator<Item = &'static (&'static CStr, &
 		(c"RN", c"US"), // used on Linux, not clear what it stands for
 	];
 
-	crate::locale::base_country_names().chain(LINUX_COUNTRY_NAMES.into_iter())
+	crate::locale::base_country_names().chain(LINUX_COUNTRY_NAMES)
 }

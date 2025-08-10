@@ -12,3 +12,6 @@ repository.workspace = true
 jni_sys.workspace = true
 platform.workspace = true
 common.workspace = true
+
+[lints]
+workspace = true

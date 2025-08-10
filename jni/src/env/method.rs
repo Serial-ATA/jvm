@@ -44,7 +44,7 @@ impl super::JniEnv {
 		unsafe {
 			let invoke_interface = self.as_native_interface();
 			ret = ((*invoke_interface).GetMethodID)(
-				self.0 as _,
+				self.0.cast::<jni_sys::JNIEnv>(),
 				class.raw(),
 				name.as_cstr().as_ptr(),
 				sig.as_cstr().as_ptr(),
@@ -161,7 +161,7 @@ impl super::JniEnv {
 		unsafe {
 			let invoke_interface = self.as_native_interface();
 			ret = ((*invoke_interface).GetStaticMethodID)(
-				self.0 as _,
+				self.0.cast::<jni_sys::JNIEnv>(),
 				class.raw(),
 				name.as_cstr().as_ptr(),
 				sig.as_cstr().as_ptr(),
@@ -193,7 +193,7 @@ impl super::JniEnv {
 		unsafe {
 			let invoke_interface = self.as_native_interface();
 			ret = ((*invoke_interface).CallStaticObjectMethodA)(
-				self.0 as _,
+				self.0.cast::<jni_sys::JNIEnv>(),
 				class.raw(),
 				method_id.raw(),
 				new_args.as_ptr(),
@@ -249,7 +249,7 @@ impl super::JniEnv {
 		unsafe {
 			let invoke_interface = self.as_native_interface();
 			((*invoke_interface).CallStaticVoidMethodA)(
-				self.0 as _,
+				self.0.cast::<jni_sys::JNIEnv>(),
 				class.raw(),
 				method_id.raw(),
 				new_args.as_ptr(),

@@ -11,3 +11,6 @@ repository.workspace = true
 [dependencies]
 common.workspace = true
 paste.workspace = true
+
+[lints]
+workspace = true

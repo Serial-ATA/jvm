@@ -9,9 +9,8 @@ use classfile::accessflags::ClassAccessFlags;
 
 include_generated!("native/jdk/internal/reflect/def/Reflection.definitions.rs");
 
-#[expect(clippy::match_same_arms)]
 pub fn getCallerClass(env: JniEnv, _class: ClassPtr) -> Reference {
-	let current_thread = unsafe { &*JavaThread::for_env(env.raw() as _) };
+	let current_thread = unsafe { &*JavaThread::for_env(env.raw().cast_const()) };
 
 	// The call stack at this point looks something like this:
 	//
@@ -55,14 +54,16 @@ pub fn getCallerClass(env: JniEnv, _class: ClassPtr) -> Reference {
 pub fn getClassAccessFlags(_env: JniEnv, _this_class: ClassPtr, class: Reference) -> jint {
 	let mirror = class.extract_mirror();
 	if mirror.is_primitive() {
-		return (ClassAccessFlags::ACC_ABSTRACT
-			| ClassAccessFlags::ACC_FINAL
-			| ClassAccessFlags::ACC_PUBLIC)
-			.as_u2() as jint;
+		return jint::from(
+			(ClassAccessFlags::ACC_ABSTRACT
+				| ClassAccessFlags::ACC_FINAL
+				| ClassAccessFlags::ACC_PUBLIC)
+				.as_u2(),
+		);
 	}
 
 	let class = mirror.target_class();
-	class.access_flags().as_u2() as jint
+	jint::from(class.access_flags().as_u2())
 }
 
 pub fn areNestMates(
@@ -71,7 +72,7 @@ pub fn areNestMates(
 	current_class: Reference,
 	member_class: Reference,
 ) -> jboolean {
-	let thread = unsafe { &*JavaThread::for_env(env.raw() as _) };
+	let thread = unsafe { &*JavaThread::for_env(env.raw().cast_const()) };
 
 	let current_class = current_class.extract_target_class();
 	let member_class = member_class.extract_target_class();

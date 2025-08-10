@@ -37,17 +37,21 @@ impl Class {
 			_ => None,
 		})
 	}
+
+	pub fn sanitized_class_name(&self) -> String {
+		self.class_name.replace('$', "_")
+	}
 }
 
 impl Class {
-	pub fn parse(text: String, name: &str, module: &str) -> Self {
+	pub fn parse(text: &str, name: &str, module: &str) -> Self {
 		IMPORTS
 			.lock()
 			.unwrap()
 			.insert(name.to_string(), format!("{}{}", module, name));
 
 		let mut class;
-		match class_file(module.to_string()).easy_parse(PositionStream::new(&*text)) {
+		match class_file(module.to_string()).easy_parse(PositionStream::new(text)) {
 			Ok((c, _)) => class = c,
 			Err(e) => {
 				eprintln!("Failed to parse class definition `{}`:\n{}", name, e);

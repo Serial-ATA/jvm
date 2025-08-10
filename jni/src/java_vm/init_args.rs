@@ -77,7 +77,7 @@ impl VmInitArgs {
 
 			// TODO: These strings are supposed  to be in the default platform encoding
 			vm_options.push(jni_sys::JavaVMOption {
-				optionString: s.as_ptr() as _,
+				optionString: s.as_ptr().cast_mut(),
 				extraInfo: core::ptr::null_mut::<c_void>(),
 			});
 
@@ -88,39 +88,39 @@ impl VmInitArgs {
 		self
 	}
 
-	pub unsafe fn vfprintf(mut self, hook: VFPrintFHookFn) -> Self {
+	pub fn vfprintf(mut self, hook: VFPrintFHookFn) -> Self {
 		let option_string = unsafe { CString::from_vec_with_nul_unchecked(b"vfprintf\0".to_vec()) };
-		let extra_info: *const c_void = unsafe { core::mem::transmute(hook) };
+		let extra_info = hook as *const c_void;
 
 		self.options.push(jni_sys::JavaVMOption {
-			optionString: option_string.as_ptr() as _,
-			extraInfo: extra_info as _,
+			optionString: option_string.as_ptr().cast_mut(),
+			extraInfo: extra_info.cast_mut(),
 		});
 		self.__strings.push(option_string);
 
 		self
 	}
 
-	pub unsafe fn exit(mut self, hook: ExitHookFn) -> Self {
+	pub fn exit(mut self, hook: ExitHookFn) -> Self {
 		let option_string = unsafe { CString::from_vec_with_nul_unchecked(b"exit\0".to_vec()) };
-		let extra_info: *const c_void = unsafe { core::mem::transmute(hook) };
+		let extra_info = hook as *const c_void;
 
 		self.options.push(jni_sys::JavaVMOption {
-			optionString: option_string.as_ptr() as _,
-			extraInfo: extra_info as _,
+			optionString: option_string.as_ptr().cast_mut(),
+			extraInfo: extra_info.cast_mut(),
 		});
 		self.__strings.push(option_string);
 
 		self
 	}
 
-	pub unsafe fn abort(mut self, hook: AbortHookFn) -> Self {
+	pub fn abort(mut self, hook: AbortHookFn) -> Self {
 		let option_string = unsafe { CString::from_vec_with_nul_unchecked(b"abort\0".to_vec()) };
-		let extra_info: *const c_void = unsafe { core::mem::transmute(hook) };
+		let extra_info = hook as *const c_void;
 
 		self.options.push(jni_sys::JavaVMOption {
-			optionString: option_string.as_ptr() as _,
-			extraInfo: extra_info as _,
+			optionString: option_string.as_ptr().cast_mut(),
+			extraInfo: extra_info.cast_mut(),
 		});
 		self.__strings.push(option_string);
 
@@ -167,6 +167,6 @@ pub(super) struct FinalizedVmInitArgs {
 
 impl FinalizedVmInitArgs {
 	pub(super) fn raw(&self) -> *const jni_sys::JavaVMInitArgs {
-		&self.java_vm_init_args
+		&raw const self.java_vm_init_args
 	}
 }

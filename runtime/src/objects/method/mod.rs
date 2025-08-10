@@ -197,7 +197,7 @@ impl Method {
 
 		for line_number in self.extra_fields.line_number_table.iter().copied() {
 			if (line_number.start_pc as isize) == pc {
-				return line_number.line_number as s4;
+				return s4::from(line_number.line_number);
 			}
 		}
 
@@ -259,9 +259,10 @@ impl Method {
 			assert!(self.is_native(), "Method is not native");
 		}
 
-		if self.entry_point().is_some() {
-			panic!("Method entry point already set");
-		}
+		assert!(
+			self.entry_point().is_none(),
+			"Method entry point already set"
+		);
 
 		unsafe { *self.entry_point.get() = Some(entry_point) }
 	}
@@ -310,7 +311,7 @@ impl Method {
 	pub fn generic_signature(&self) -> Option<Symbol> {
 		self.attributes
 			.iter()
-			.find_map(|attr| attr.signature())
+			.find_map(Attribute::signature)
 			.map(|signature_attr| {
 				self.class
 					.constant_pool()
@@ -567,11 +568,7 @@ impl Method {
 
 				FieldType::Object(_) | FieldType::Array(_) => {
 					let val = unsafe { val.l };
-					let obj = unsafe { reference_from_jobject(val) };
-					let Some(obj) = obj else {
-						return None;
-					};
-
+					let obj = unsafe { reference_from_jobject(val)? };
 					parameters.push(Operand::Reference(obj))
 				},
 
@@ -586,7 +583,10 @@ impl Method {
 		Some(parameters)
 	}
 
-	pub unsafe fn args_for_va_list(&self, mut args: VaList) -> Option<Vec<Operand<Reference>>> {
+	pub unsafe fn args_for_va_list(
+		&self,
+		mut args: VaList<'_, '_>,
+	) -> Option<Vec<Operand<Reference>>> {
 		let mut parameters = Vec::with_capacity(self.parameter_count() as usize);
 		for parameter in &self.descriptor.parameters {
 			match parameter {
@@ -610,12 +610,8 @@ impl Method {
 
 					unsafe {
 						let obj_raw = args.arg::<*mut ()>();
-						obj = reference_from_jobject(obj_raw as jobject);
+						obj = reference_from_jobject(obj_raw as jobject)?;
 					}
-
-					let Some(obj) = obj else {
-						return None;
-					};
 
 					parameters.push(Operand::Reference(obj))
 				},

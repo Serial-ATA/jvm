@@ -104,7 +104,7 @@ pub fn initStackTraceElements(
 	let backtrace_array = backtrace.extract_primitive_array();
 	let backtrace_array_contents = backtrace_array.as_slice::<jlong>();
 
-	if backtrace_array_contents.len() % 2 != 0 {
+	if !backtrace_array_contents.len().is_multiple_of(2) {
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(
 			thread,
@@ -114,7 +114,9 @@ pub fn initStackTraceElements(
 	}
 
 	for ([method, pc], stacktrace_element) in backtrace_array_contents
-		.array_chunks::<2>()
+		.as_chunks::<2>()
+		.0
+		.iter()
 		.copied()
 		.zip(stacktrace_elements.iter())
 	{

@@ -12,6 +12,9 @@ repository.workspace = true
 clap = { workspace = true, features = ["derive"] }
 jmod = { path = "../../jmod" }
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "jmod"
 path = "src/main.rs"

@@ -1,5 +1,5 @@
 use crate::parse::{AccessFlags, Class, Member};
-use crate::{SymbolCollector, util};
+use crate::{LINTS, SymbolCollector, util};
 
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -7,7 +7,7 @@ use std::path::Path;
 
 macro_rules! native_method_table_file_header {
 	() => {
-		r#"use crate::native::method::{{NativeMethodDef, NativeMethodPtr}};
+		r"use crate::native::method::{{NativeMethodDef, NativeMethodPtr}};
 
 static NATIVES_REGISTERED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
@@ -20,7 +20,7 @@ pub fn registerNatives(_: ::jni::env::JniEnv, _: crate::objects::class::ClassPtr
 	}}
 	
 	let natives: [(NativeMethodDef, NativeMethodPtr); {}] = [
-"#
+"
 	};
 }
 
@@ -47,7 +47,8 @@ pub(crate) fn generate_register_natives_table(
 
 	write!(
 		native_method_table_file,
-		"{}",
+		r"mod __register_natives {{
+		{LINTS}{}",
 		format_args!(
 			native_method_table_file_header!(),
 			class
@@ -69,7 +70,7 @@ pub(crate) fn generate_register_natives_table(
                 writeln!(
                     native_method_table_file,
                     "\t\t({}),",
-                    util::method_table_entry(module, &class, method)
+                    util::method_table_entry(module, class, method)
                 )
                     .unwrap();
             }
@@ -77,10 +78,17 @@ pub(crate) fn generate_register_natives_table(
         }
     }
 
-	write!(
+	writeln!(
 		native_method_table_file,
 		"\t];\n\n\tfor method in natives \
 		 {{\n\t\tcrate::native::method::insert_method(method);\n\t}}\n}}"
+	)
+	.unwrap();
+
+	writeln!(
+		native_method_table_file,
+		r"}}
+pub use __register_natives::*;"
 	)
 	.unwrap();
 }

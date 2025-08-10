@@ -6,8 +6,8 @@ use common::int_types::u1;
 ///
 /// ```rust,ignore
 /// define_opcodes!(
-/// 	pub enum OpCode {
-/// 	    some_opcode [= byte_value] [; size = $size],
+///     pub enum OpCode {
+///         some_opcode [= byte_value] [; size = $size],
 ///         // ...
 ///     }
 /// )

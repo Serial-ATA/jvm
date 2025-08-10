@@ -150,7 +150,7 @@ pub fn resolve_member_name(
 
 			let field = defining_class.resolve_field(name, descriptor)?;
 
-			flags = field.access_flags.as_u2() as jint;
+			flags = jint::from(field.access_flags.as_u2());
 			flags |= MethodHandleNatives::MN_IS_FIELD;
 			flags |= (ref_kind as jint) << MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
 
@@ -203,7 +203,7 @@ pub fn resolve_member_name(
 				defining_class.resolve_method(name, descriptor)?
 			};
 
-			flags = method.access_flags.as_u2() as jint;
+			flags = jint::from(method.access_flags.as_u2());
 			flags |= MethodHandleNatives::MN_IS_METHOD;
 			flags |= (ref_kind as jint) << MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
 
@@ -215,10 +215,7 @@ pub fn resolve_member_name(
 								|| calling_class
 									.parent_iter()
 									.any(|super_class| super_class == calling_class)
-								|| calling_class
-									.interfaces
-									.iter()
-									.any(|interface| *interface == defining_class)
+								|| calling_class.interfaces.contains(&defining_class)
 								|| method.class() == globals::classes::java_lang_Object());
 					},
 					ReferenceKind::NewInvokeSpecial => {
@@ -433,13 +430,13 @@ pub fn resolve(
 				NoSuchFieldError,
 				"field resolution failed"
 			);
-		} else {
-			throw_and_return_null!(
-				JavaThread::current(),
-				NoSuchMethodError,
-				"method resolution failed"
-			);
 		}
+
+		throw_and_return_null!(
+			JavaThread::current(),
+			NoSuchMethodError,
+			"method resolution failed"
+		);
 	}
 
 	self_
@@ -455,21 +452,21 @@ fn find_member_offset(self_: Reference, is_static: bool) -> Throws<(jlong, Mirro
 	let clazz = classes::java::lang::invoke::MemberName::clazz(self_.extract_class())?;
 	let flags = classes::java::lang::invoke::MemberName::flags(self_.extract_class());
 
-	let acc_static = FieldAccessFlags::ACC_STATIC.as_u2() as jint;
-	if flags & (MN_IS_FIELD as jint) != 0
+	let acc_static = jint::from(FieldAccessFlags::ACC_STATIC.as_u2());
+	if flags & MN_IS_FIELD != 0
 		&& ((is_static && flags & acc_static != 0) || (!is_static && flags & acc_static == 0))
 	{
 		return Throws::Ok((
-			classes::java::lang::invoke::MemberName::vmindex(self_.extract_class()) as jlong,
+			classes::java::lang::invoke::MemberName::vmindex(self_.extract_class()),
 			clazz,
 		));
 	}
 
 	if is_static {
 		throw!(@DEFER InternalError, "static field required");
-	} else {
-		throw!(@DEFER InternalError, "non-static field required");
 	}
+
+	throw!(@DEFER InternalError, "non-static field required");
 }
 
 pub fn objectFieldOffset(

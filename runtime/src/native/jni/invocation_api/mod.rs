@@ -18,7 +18,7 @@ use jni::version::JniVersion;
 pub mod library;
 
 #[unsafe(no_mangle)]
-pub extern "system" fn DestroyJavaVM(vm: *mut JavaVM) -> jint {
+pub unsafe extern "system" fn DestroyJavaVM(vm: *mut JavaVM) -> jint {
 	{
 		JavaThread::current().exit(false)
 	}
@@ -30,7 +30,7 @@ pub extern "system" fn DestroyJavaVM(vm: *mut JavaVM) -> jint {
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn AttachCurrentThread(
+pub unsafe extern "system" fn AttachCurrentThread(
 	vm: *mut JavaVM,
 	penv: *mut *mut c_void,
 	args: *mut c_void,
@@ -39,17 +39,21 @@ pub extern "system" fn AttachCurrentThread(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn DetachCurrentThread(vm: *mut JavaVM) -> jint {
+pub unsafe extern "system" fn DetachCurrentThread(vm: *mut JavaVM) -> jint {
 	unimplemented!("jni::DetachCurrentThread")
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetEnv(vm: *mut JavaVM, penv: *mut *mut c_void, version: jint) -> jint {
+pub unsafe extern "system" fn GetEnv(
+	vm: *mut JavaVM,
+	penv: *mut *mut c_void,
+	version: jint,
+) -> jint {
 	unimplemented!("jni::GetEnv")
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn AttachCurrentThreadAsDaemon(
+pub unsafe extern "system" fn AttachCurrentThreadAsDaemon(
 	vm: *mut JavaVM,
 	penv: *mut *mut c_void,
 	args: *mut c_void,
@@ -58,12 +62,12 @@ pub extern "system" fn AttachCurrentThreadAsDaemon(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn JNI_GetDefaultJavaVMInitArgs(args: *mut c_void) -> jint {
+pub unsafe extern "system" fn JNI_GetDefaultJavaVMInitArgs(args: *mut c_void) -> jint {
 	unimplemented!("jni::JNI_GetDefaultJavaVMInitArgs")
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn JNI_CreateJavaVM(
+pub unsafe extern "system" fn JNI_CreateJavaVM(
 	pvm: *mut *mut JavaVM,
 	penv: *mut *mut c_void,
 	args: *mut c_void,
@@ -103,15 +107,15 @@ pub extern "system" fn JNI_CreateJavaVM(
 	let current_thread = JavaThread::current();
 	let env = current_thread.env();
 	unsafe {
-		*pvm = vm.raw() as _;
-		*penv = env.raw() as _;
+		*pvm = vm.raw().cast_mut();
+		*penv = env.raw().cast();
 	}
 
 	JNI_OK
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn JNI_GetCreatedJavaVMs(
+pub unsafe extern "system" fn JNI_GetCreatedJavaVMs(
 	vmBuf: *mut *mut JavaVM,
 	bufLen: jsize,
 	nVMs: *mut jsize,
@@ -129,7 +133,7 @@ fn attach_current_thread_impl(
 	if let Some(thread) = JavaThread::current_opt() {
 		let env = thread.env();
 		unsafe {
-			*penv = env.raw() as _;
+			*penv = env.raw().cast();
 		}
 		return JNI_OK;
 	}
@@ -156,7 +160,7 @@ fn attach_current_thread_impl(
 
 #[allow(trivial_casts)]
 pub unsafe fn main_java_vm() -> JavaVm {
-	let raw = &RAW_INVOKE_INTERFACE.0 as *const _;
+	let raw = &raw const RAW_INVOKE_INTERFACE.0;
 	unsafe { JavaVm::from_raw(raw as *mut _) }
 }
 
@@ -415,5 +419,5 @@ pub unsafe fn new_env() -> jni::sys::JNIEnv {
 		GetObjectRefType: super::object::GetObjectRefType,
 	};
 
-	Box::into_raw(Box::new(native_interface)) as jni::sys::JNIEnv
+	Box::into_raw(Box::new(native_interface)).cast_const()
 }

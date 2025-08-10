@@ -28,7 +28,10 @@ impl super::JniEnv {
 		let ret;
 		unsafe {
 			let invoke_interface = self.as_native_interface();
-			ret = ((*invoke_interface).FindClass)(self.0 as _, name.as_cstr().as_ptr());
+			ret = ((*invoke_interface).FindClass)(
+				self.0.cast::<jni_sys::JNIEnv>(),
+				name.as_cstr().as_ptr(),
+			);
 		}
 
 		if self.exception_check() {
@@ -55,7 +58,7 @@ impl super::JniEnv {
 		let ret;
 		unsafe {
 			let invoke_interface = self.as_native_interface();
-			ret = ((*invoke_interface).GetSuperclass)(self.0 as _, sub.raw());
+			ret = ((*invoke_interface).GetSuperclass)(self.0.cast::<jni_sys::JNIEnv>(), sub.raw());
 		}
 
 		if ret.is_null() {
@@ -84,7 +87,11 @@ impl super::JniEnv {
 		let ret;
 		unsafe {
 			let invoke_interface = self.as_native_interface();
-			ret = ((*invoke_interface).IsAssignableFrom)(self.0 as _, sub.raw(), sup.raw());
+			ret = ((*invoke_interface).IsAssignableFrom)(
+				self.0.cast::<jni_sys::JNIEnv>(),
+				sub.raw(),
+				sup.raw(),
+			);
 		}
 
 		ret == JNI_TRUE

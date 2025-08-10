@@ -92,7 +92,7 @@ impl JImage {
 			let location = JImageLocation::new_opt_(self, data);
 
 			// Make sure result is not a false positive.
-			if self.verify_location(&location, path) {
+			if Self::verify_location(&location, path) {
 				return Some(location);
 			}
 		}
@@ -142,7 +142,7 @@ impl JImage {
 			// Read bytes from offset beyond the image index.
 			let mut data = &self.resources[offset..offset + uncompressed_size as usize];
 			assert!(
-				(&mut data).read_exact(&mut *uncompressed_data).is_ok(),
+				(&mut data).read_exact(&mut uncompressed_data).is_ok(),
 				"error reading from image or short read"
 			);
 			return Ok(uncompressed_data);
@@ -155,7 +155,7 @@ impl JImage {
 		// Decompress resource.
 		super::decompressor::decompress_resource(
 			&mut compressed_data,
-			&mut *uncompressed_data,
+			&mut uncompressed_data,
 			uncompressed_size,
 			strings,
 			self.endian,
@@ -242,7 +242,7 @@ impl JImage {
 			let location = JImageLocation::new_opt_(self, data);
 
 			// Make sure result is not a false positive.
-			if self.verify_location(&location, path) {
+			if Self::verify_location(&location, path) {
 				let size = location.uncompressed_size();
 				return Some((offset, size));
 			}
@@ -255,7 +255,7 @@ impl JImage {
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L484
 	/// Verify that a found location matches the supplied path.
     #[rustfmt::skip]
-	fn verify_location(&self, location: &JImageLocation<'_>, path: &str) -> bool {
+	fn verify_location(location: &JImageLocation<'_>, path: &str) -> bool {
 		let mut path_iter = path.bytes();
 
 		// If module string is not empty.

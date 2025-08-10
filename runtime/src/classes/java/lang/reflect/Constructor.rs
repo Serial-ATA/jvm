@@ -35,7 +35,7 @@ pub fn new(method: &Method) -> Throws<ClassInstanceRef> {
 	set_slot(constructor, slot as jint);
 	set_parameterTypes(constructor, Reference::object_array(parameter_types));
 	set_exceptionTypes(constructor, Reference::object_array(exception_types));
-	set_modifiers(constructor, method.access_flags.as_u2() as jint);
+	set_modifiers(constructor, jint::from(method.access_flags.as_u2()));
 	if let Some(generic_signature) = method.generic_signature() {
 		let signature = StringInterner::intern(generic_signature);
 		set_signature(constructor, Reference::class(signature));

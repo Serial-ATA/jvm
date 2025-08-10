@@ -39,7 +39,7 @@ impl ClassLoaderSet {
 			return list.back().unwrap();
 		}
 
-		let class_loader = ClassLoader::from_obj(loader.clone());
+		let class_loader = ClassLoader::from_obj(loader);
 
 		let list = unsafe { &mut *CLASS_LOADER_SET.list.get() };
 		list.push_back(class_loader);
@@ -49,7 +49,7 @@ impl ClassLoaderSet {
 		// Store the pointer in the classloader, to make future lookups cheaper
 		classes::java::lang::ClassLoader::set_injected_loader_ptr_for(
 			loader,
-			ret as *const ClassLoader as jlong,
+			std::ptr::from_ref(ret) as jlong,
 		);
 
 		ret
@@ -71,12 +71,12 @@ impl ClassLoaderSet {
 		}
 
 		if let Some(class_loader_ptr) =
-			classes::java::lang::ClassLoader::injected_loader_ptr_for(loader.clone())
+			classes::java::lang::ClassLoader::injected_loader_ptr_for(loader)
 		{
 			return unsafe { &*class_loader_ptr };
 		}
 
-		match Self::find(loader.clone(), is_hidden) {
+		match Self::find(loader, is_hidden) {
 			Some(cl) => cl,
 			None => Self::add(loader, is_hidden),
 		}

@@ -20,9 +20,7 @@ pub struct FieldInfo {
 
 impl FieldInfo {
 	pub fn get_constant_value_attribute(&self) -> Option<ConstantValue> {
-		self.attributes
-			.iter()
-			.find_map(|attr| attr.constant_value())
+		self.attributes.iter().find_map(Attribute::constant_value)
 	}
 }
 
@@ -95,10 +93,7 @@ impl FieldType {
 	}
 
 	pub fn is_primitive(&self) -> bool {
-		match self {
-			Self::Object(_) | Self::Array(_) => false,
-			_ => true,
-		}
+		!matches!(self, Self::Object(_) | Self::Array(_))
 	}
 
 	pub fn is_byte(&self) -> bool {
@@ -184,9 +179,7 @@ impl FieldType {
 			Self::Short => "short".into(),
 			Self::Boolean => "boolean".into(),
 			Self::Void => "void".into(),
-			Self::Object(name) => {
-				format!("{}", String::from_utf8_lossy(name).replace('/', ".")).into()
-			},
+			Self::Object(name) => String::from_utf8_lossy(name).replace('/', ".").into(),
 			Self::Array(component) => format!("[{}", component.as_java_type()).into(),
 		}
 	}
@@ -224,12 +217,11 @@ impl FieldType {
 	pub fn size(&self) -> usize {
 		match self {
 			FieldType::Byte => size_of::<s1>(),
-			FieldType::Character => size_of::<u2>(),
+			FieldType::Character | FieldType::Short => size_of::<u2>(),
 			FieldType::Double => size_of::<f64>(),
 			FieldType::Float => size_of::<f32>(),
 			FieldType::Integer => size_of::<s4>(),
 			FieldType::Long => size_of::<s8>(),
-			FieldType::Short => size_of::<u2>(),
 			FieldType::Boolean => size_of::<bool>(),
 			FieldType::Void => 0,
 			FieldType::Object(_) | FieldType::Array(_) => size_of::<*const ()>(),
@@ -239,12 +231,11 @@ impl FieldType {
 	pub fn align(&self) -> usize {
 		match self {
 			FieldType::Byte => align_of::<s1>(),
-			FieldType::Character => align_of::<u2>(),
+			FieldType::Character | FieldType::Short => align_of::<u2>(),
 			FieldType::Double => align_of::<f64>(),
 			FieldType::Float => align_of::<f32>(),
 			FieldType::Integer => align_of::<s4>(),
 			FieldType::Long => align_of::<s8>(),
-			FieldType::Short => align_of::<u2>(),
 			FieldType::Boolean => align_of::<bool>(),
 			FieldType::Void => 0,
 			FieldType::Object(_) | FieldType::Array(_) => align_of::<*const ()>(),

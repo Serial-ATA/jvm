@@ -147,14 +147,16 @@ pub fn getInterfaces0(
 pub fn getModifiers(_env: JniEnv, this: Reference /* java.lang.Class */) -> jint {
 	let mirror = this.extract_mirror();
 	if mirror.is_primitive() {
-		return (ClassAccessFlags::ACC_ABSTRACT
-			| ClassAccessFlags::ACC_FINAL
-			| ClassAccessFlags::ACC_PUBLIC)
-			.as_u2() as jint;
+		return jint::from(
+			(ClassAccessFlags::ACC_ABSTRACT
+				| ClassAccessFlags::ACC_FINAL
+				| ClassAccessFlags::ACC_PUBLIC)
+				.as_u2(),
+		);
 	}
 
 	let class = mirror.target_class();
-	class.modifier_flags() as jint
+	jint::from(class.modifier_flags())
 }
 pub fn getSigners(_env: JniEnv, _this: Reference /* java.lang.Class */) -> Reference /* Object[] */
 {
@@ -179,8 +181,7 @@ pub fn getEnclosingMethod0(
 ) -> Reference /* Object[] */
 {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	let Some(mirror) =
-		handle_exception!(Reference::null(), thread, ensure_class_mirror(this.clone()))
+	let Some(mirror) = handle_exception!(Reference::null(), thread, ensure_class_mirror(this))
 	else {
 		return Reference::null();
 	};
@@ -228,8 +229,7 @@ pub fn getDeclaringClass0(
 ) -> Reference /* Class<?> */
 {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	let Some(mirror) =
-		handle_exception!(Reference::null(), thread, ensure_class_mirror(this.clone()))
+	let Some(mirror) = handle_exception!(Reference::null(), thread, ensure_class_mirror(this))
 	else {
 		return Reference::null();
 	};
@@ -281,8 +281,7 @@ pub fn getSimpleBinaryName0(
 ) -> Reference /* String */
 {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	let Some(mirror) =
-		handle_exception!(Reference::null(), thread, ensure_class_mirror(this.clone()))
+	let Some(mirror) = handle_exception!(Reference::null(), thread, ensure_class_mirror(this))
 	else {
 		return Reference::null();
 	};

@@ -34,7 +34,7 @@ impl AttributeKind {
 struct Attribute(u1);
 
 impl Attribute {
-	pub fn kind(&self) -> AttributeKind {
+	pub fn kind(self) -> AttributeKind {
 		match self.0 >> 3 {
 			0 => AttributeKind::End,
 			1 => AttributeKind::Module,
@@ -48,14 +48,14 @@ impl Attribute {
 		}
 	}
 
-	pub fn len(&self) -> u1 {
+	pub fn len(self) -> u1 {
 		(self.0 & 0x7) + 1
 	}
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.hpp#L264
 	/// Return the attribute length.
 	#[inline(always)]
-	fn value_from(&self, data: &[u1]) -> u8 {
+	fn value_from(self, data: &[u1]) -> u8 {
 		let mut value = 0;
 		for i in 0..self.len() {
 			value <<= 8;
@@ -72,7 +72,7 @@ pub struct JImageLocation<'a> {
 	image: &'a JImage,
 }
 
-impl<'a> Debug for JImageLocation<'a> {
+impl Debug for JImageLocation<'_> {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("JImageLocation")
 			.field("attributes", &self.attribute_values)
@@ -116,7 +116,7 @@ impl<'a> JImageLocation<'a> {
 			return None;
 		}
 
-		Some(strings.get(string_offset))
+		strings.get(string_offset)
 	}
 
 	/// Retrieve the full name of the location

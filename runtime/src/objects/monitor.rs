@@ -84,7 +84,7 @@ impl Debug for Monitor {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("Monitor")
 			.field("count", &self.count)
-			.finish()
+			.finish_non_exhaustive()
 	}
 }
 
@@ -202,7 +202,10 @@ impl Monitor {
 		// SAFETY: The lifetime extension is fine, since the guard is never
 		//         used outside of the `Monitor` itself
 		unsafe {
-			*self._owner_guard.get() = Some(core::mem::transmute(guard));
+			*self._owner_guard.get() = Some(core::mem::transmute::<
+				OwnerGuard<'_>,
+				OwnerGuard<'static>,
+			>(guard));
 		}
 	}
 
@@ -212,6 +215,6 @@ impl Monitor {
 	///
 	/// The caller **must** ensure that the thread has given the guard up
 	unsafe fn drop_guard(&self) {
-		let _ = core::mem::replace(unsafe { &mut *self._owner_guard.get() }, None);
+		let _ = unsafe { &mut *self._owner_guard.get() }.take();
 	}
 }

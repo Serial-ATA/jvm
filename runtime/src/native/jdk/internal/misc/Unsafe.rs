@@ -357,7 +357,6 @@ pub fn putReferenceVolatile(
 	offset: jlong,
 	value: Reference, // java.lang.Object
 ) {
-	dbg!(JavaThread::current().frame_stack());
 	unsafe { object.atomic_store::<usize>(offset as usize, value.raw_tagged() as usize) }
 }
 

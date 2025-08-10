@@ -73,7 +73,7 @@ impl super::JniEnv {
 		unsafe {
 			let invoke_interface = self.as_native_interface();
 			((*invoke_interface).SetObjectArrayElement)(
-				self.0 as _,
+				self.0.cast::<jni_sys::JNIEnv>(),
 				array.raw(),
 				index,
 				val.map_or(core::ptr::null_mut(), |init| init.into().raw()),

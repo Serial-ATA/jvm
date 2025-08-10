@@ -71,7 +71,7 @@ impl BackTrace {
 			_ => -1,
 		};
 
-		self.inner.push(method as *const Method as jlong);
+		self.inner.push(std::ptr::from_ref(method) as jlong);
 		self.inner.push(pc as jlong);
 	}
 
@@ -92,7 +92,7 @@ pub struct BackTraceIter<'a> {
 	inner: slice::Iter<'a, jlong>,
 }
 
-impl<'a> Iterator for BackTraceIter<'a> {
+impl Iterator for BackTraceIter<'_> {
 	type Item = BackTraceElement;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -126,7 +126,7 @@ pub fn fillInStackTrace(
 	classes::java::lang::Throwable::set_backtrace(this, Reference::null());
 	classes::java::lang::Throwable::set_stackTrace(this, Reference::null());
 
-	let current_thread = unsafe { &*JavaThread::for_env(env.raw() as _) };
+	let current_thread = unsafe { &*JavaThread::for_env(env.raw().cast_const()) };
 
 	let stack_depth = current_thread.frame_stack().visible_depth();
 

@@ -27,7 +27,10 @@ impl super::JniEnv {
 		let ret;
 		unsafe {
 			let invoke_interface = self.as_native_interface();
-			ret = ((*invoke_interface).NewStringUTF)(self.0 as _, utf.as_cstr().as_ptr());
+			ret = ((*invoke_interface).NewStringUTF)(
+				self.0.cast::<jni_sys::JNIEnv>(),
+				utf.as_cstr().as_ptr(),
+			);
 		}
 
 		if self.exception_check() {

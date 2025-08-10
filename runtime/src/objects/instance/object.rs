@@ -216,7 +216,8 @@ pub trait Object: Sized {
 				"atomic writes can only be performed on aligned offsets"
 			);
 
-			(&*raw.cast::<T::Counterpart>()).store(new, Ordering::SeqCst)
+			let atomic = &*raw.cast::<T::Counterpart>();
+			atomic.store(new, Ordering::SeqCst)
 		}
 	}
 }

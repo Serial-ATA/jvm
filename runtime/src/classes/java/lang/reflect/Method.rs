@@ -30,7 +30,7 @@ pub fn new(method: &Method) -> Throws<ClassInstanceRef> {
 	set_returnType(reflect_method, method.return_type()?);
 	set_parameterTypes(reflect_method, method.parameter_types_array()?);
 	set_exceptionTypes(reflect_method, method.exception_types()?);
-	set_modifiers(reflect_method, method.access_flags.as_u2() as jint);
+	set_modifiers(reflect_method, jint::from(method.access_flags.as_u2()));
 	if let Some(generic_signature) = method.generic_signature() {
 		set_signature(reflect_method, StringInterner::intern(generic_signature));
 	}

@@ -51,7 +51,7 @@ pub fn findBuiltinLib(
 		return Reference::null();
 	}
 
-	let Ok(lib) = platform::libs::Library::load(&*lib_name) else {
+	let Ok(lib) = platform::libs::Library::load(&lib_name) else {
 		return Reference::null();
 	};
 

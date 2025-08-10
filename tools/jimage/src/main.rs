@@ -65,10 +65,10 @@ fn main() {
 	let args = Command::parse();
 
 	let result = match args.command {
-		SubCommand::Extract { dir, jimage } => extract(dir, jimage),
-		SubCommand::Info { jimage } => info(jimage),
-		SubCommand::List { verbose, jimage } => list(jimage, verbose),
-		SubCommand::Verify { jimage } => verify(jimage),
+		SubCommand::Extract { dir, jimage } => extract(&dir, &jimage),
+		SubCommand::Info { jimage } => info(&jimage),
+		SubCommand::List { verbose, jimage } => list(&jimage, verbose),
+		SubCommand::Verify { jimage } => verify(&jimage),
 	};
 
 	if let Err(err) = result {
@@ -79,7 +79,7 @@ fn main() {
 	// TODO: regex includes
 }
 
-fn extract(dir: String, path: PathBuf) -> Result<()> {
+fn extract(dir: &str, path: &Path) -> Result<()> {
 	let dump_to = Path::new(&dir);
 	if !dump_to.exists() && fs::create_dir_all(dump_to).is_err() {
 		exit(format!(
@@ -111,13 +111,13 @@ fn extract(dir: String, path: PathBuf) -> Result<()> {
 				local_resource_path = dump_to.join(name);
 			}
 
-			if let Some(parent) = local_resource_path.parent() {
-				if fs::create_dir_all(parent).is_err() {
-					exit(format!(
-						"Cannot create directory '{}'",
-						parent.to_string_lossy()
-					))
-				}
+			if let Some(parent) = local_resource_path.parent()
+				&& fs::create_dir_all(parent).is_err()
+			{
+				exit(format!(
+					"Cannot create directory '{}'",
+					parent.to_string_lossy()
+				))
 			}
 
 			let Ok(mut resource) = fs::OpenOptions::new()
@@ -156,8 +156,8 @@ fn extract(dir: String, path: PathBuf) -> Result<()> {
 	)
 }
 
-fn info(path: PathBuf) -> Result<()> {
-	let mut file = fs::File::open(&path)?;
+fn info(path: &Path) -> Result<()> {
+	let mut file = fs::File::open(path)?;
 	let jimage = JImage::read_from(&mut file)?;
 
 	let header = jimage.header();
@@ -175,11 +175,11 @@ fn info(path: PathBuf) -> Result<()> {
 	Ok(())
 }
 
-fn list(path: PathBuf, verbose: bool) -> Result<()> {
+fn list(path: &Path, verbose: bool) -> Result<()> {
 	for_each_entry(
 		path,
 		|path| {
-			println!("jimage: {:?}", fs::canonicalize(path)?);
+			println!("jimage: {}", fs::canonicalize(path)?.display());
 			Ok(())
 		},
 		|module| list_module(module, verbose),
@@ -190,16 +190,25 @@ fn list(path: PathBuf, verbose: bool) -> Result<()> {
 	)
 }
 
-fn verify(path: PathBuf) -> Result<()> {
+fn verify(path: &Path) -> Result<()> {
 	for_each_entry(
 		path,
 		|path| {
-			println!("jimage: {:?}", fs::canonicalize(path)?);
+			println!("jimage: {}", fs::canonicalize(path)?.display());
 			Ok(())
 		},
 		|_| {},
 		|name, location, jimage| {
-			if name.ends_with(".class") && !name.ends_with("module-info.class") {
+			let resource_path = Path::new(name);
+			let is_class_file = resource_path
+				.extension()
+				.is_some_and(|ext| ext.eq_ignore_ascii_case("class"));
+
+			let is_module_info = resource_path
+				.file_stem()
+				.is_some_and(|stem| stem.eq_ignore_ascii_case("module-info"));
+
+			if is_class_file && !is_module_info {
 				match jimage.get_resource_from_location(location) {
 					Ok(resource) => {
 						if let Err(err) = ClassFile::read_from(&mut &resource[..]) {
@@ -223,7 +232,7 @@ fn verify(path: PathBuf) -> Result<()> {
 }
 
 fn for_each_entry<P, M, L>(
-	path: PathBuf,
+	path: &Path,
 	on_jimage_parse: P,
 	on_new_module: M,
 	on_new_resource: L,
@@ -233,9 +242,9 @@ where
 	M: Fn(&str),
 	L: Fn(&str, &JImageLocation<'_>, &JImage) -> Result<()>,
 {
-	let mut file = fs::File::open(&path)?;
+	let mut file = fs::File::open(path)?;
 	let jimage = JImage::read_from(&mut file)?;
-	on_jimage_parse(&path)?;
+	on_jimage_parse(path)?;
 
 	let mut old_module = String::new();
 	for name in jimage.get_entry_names()? {
@@ -296,6 +305,7 @@ fn list_module(module: &str, verbose: bool) {
 	}
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn exit(message: String) -> ! {
 	eprintln!("Error: {}", message);
 	std::process::exit(1);

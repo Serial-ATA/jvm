@@ -33,7 +33,7 @@ impl ClassPtr {
 
 	pub(super) fn new(class: Class) -> Self {
 		let class: &'static mut Class = Box::leak(Box::new(class));
-		Self(class as *mut Class)
+		Self(class)
 	}
 
 	/// Raw access to the [`Class`], to be used sparingly
@@ -227,24 +227,24 @@ impl PartialEq for ClassPtr {
 
 impl PartialEq<Class> for ClassPtr {
 	fn eq(&self, other: &Class) -> bool {
-		self.deref() == other
+		&**self == other
 	}
 }
 
 impl PartialEq<&Class> for ClassPtr {
 	fn eq(&self, other: &&Class) -> bool {
-		self.deref() == *other
+		&**self == *other
 	}
 }
 
 impl PartialEq<ClassPtr> for Class {
 	fn eq(&self, other: &ClassPtr) -> bool {
-		self == other.deref()
+		self == &**other
 	}
 }
 
 impl PartialEq<ClassPtr> for &'_ Class {
 	fn eq(&self, other: &ClassPtr) -> bool {
-		*self == other.deref()
+		*self == &**other
 	}
 }

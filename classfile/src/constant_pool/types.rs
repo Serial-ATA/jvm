@@ -19,7 +19,7 @@ pub enum LoadableConstantPoolValueInner<'a> {
 	Dynamic(<raw::RawDynamic as CpEntry<'a>>::Entry),
 }
 
-impl<'a> LoadableConstantPoolValueInner<'a> {
+impl LoadableConstantPoolValueInner<'_> {
 	pub fn into_owned(self) -> LoadableConstantPoolValueInner<'static> {
 		match self {
 			LoadableConstantPoolValueInner::Integer(val) => {
@@ -57,7 +57,7 @@ pub struct LoadableConstantPoolValue<'a> {
 	pub value: LoadableConstantPoolValueInner<'a>,
 }
 
-impl<'a> LoadableConstantPoolValue<'a> {
+impl LoadableConstantPoolValue<'_> {
 	pub fn into_owned(self) -> LoadableConstantPoolValue<'static> {
 		LoadableConstantPoolValue {
 			index: self.index,
@@ -74,7 +74,7 @@ pub struct FieldRefEntry<'a> {
 	pub name_and_type: <raw::RawNameAndType as super::CpEntry<'a>>::Entry,
 }
 
-impl<'a> FieldRefEntry<'a> {
+impl FieldRefEntry<'_> {
 	pub fn into_owned(self) -> FieldRefEntry<'static> {
 		FieldRefEntry {
 			class_index: self.class_index,
@@ -155,7 +155,7 @@ pub enum ReferenceEntry<'a> {
 	MethodRef(<raw::RawMethodRef as CpEntry<'a>>::Entry),
 }
 
-impl<'a> ReferenceEntry<'a> {
+impl ReferenceEntry<'_> {
 	pub fn into_owned(self) -> ReferenceEntry<'static> {
 		match self {
 			ReferenceEntry::FieldRef(field) => ReferenceEntry::FieldRef(field.into_owned()),
@@ -178,7 +178,7 @@ impl Debug for ClassNameEntry<'_> {
 	}
 }
 
-impl<'a> ClassNameEntry<'a> {
+impl ClassNameEntry<'_> {
 	pub fn into_owned(self) -> ClassNameEntry<'static> {
 		ClassNameEntry {
 			name_index: self.name_index,
@@ -194,7 +194,7 @@ pub struct MethodHandleEntry<'a> {
 	pub reference: ReferenceEntry<'a>,
 }
 
-impl<'a> MethodHandleEntry<'a> {
+impl MethodHandleEntry<'_> {
 	pub fn into_owned(self) -> MethodHandleEntry<'static> {
 		MethodHandleEntry {
 			reference_kind: self.reference_kind,
@@ -213,7 +213,7 @@ pub struct MethodRefEntry<'a> {
 	pub name_and_type: <raw::RawNameAndType as CpEntry<'a>>::Entry,
 }
 
-impl<'a> MethodRefEntry<'a> {
+impl MethodRefEntry<'_> {
 	pub fn into_owned(self) -> MethodRefEntry<'static> {
 		MethodRefEntry {
 			is_interface: self.is_interface,
@@ -242,7 +242,7 @@ impl Debug for NameAndTypeEntry<'_> {
 	}
 }
 
-impl<'a> NameAndTypeEntry<'a> {
+impl NameAndTypeEntry<'_> {
 	pub fn into_owned(self) -> NameAndTypeEntry<'static> {
 		NameAndTypeEntry {
 			name_index: self.name_index,
@@ -260,7 +260,7 @@ pub struct InvokeDynamicEntry<'a> {
 	pub name_and_type: <raw::RawNameAndType as CpEntry<'a>>::Entry,
 }
 
-impl<'a> InvokeDynamicEntry<'a> {
+impl InvokeDynamicEntry<'_> {
 	pub fn into_owned(self) -> InvokeDynamicEntry<'static> {
 		InvokeDynamicEntry {
 			bootstrap_method_attr_index: self.bootstrap_method_attr_index,
@@ -277,7 +277,7 @@ pub struct DynamicEntry<'a> {
 	pub name_and_type: <raw::RawNameAndType as CpEntry<'a>>::Entry,
 }
 
-impl<'a> DynamicEntry<'a> {
+impl DynamicEntry<'_> {
 	pub fn into_owned(self) -> DynamicEntry<'static> {
 		DynamicEntry {
 			bootstrap_method_attr_index: self.bootstrap_method_attr_index,
@@ -386,9 +386,9 @@ pub mod raw {
 
 		#[inline]
 		fn handle(_: &ConstantPool, args: Self::HandleArgs) -> Self::Entry {
-			let high = (args.0 as u64) << 32;
+			let high = u64::from(args.0) << 32;
 			let low = args.1;
-			f64::from_bits(high | low as u64)
+			f64::from_bits(high | u64::from(low))
 		}
 	}
 

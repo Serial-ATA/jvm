@@ -11,7 +11,7 @@ impl super::JniEnv {
 		let ret;
 		unsafe {
 			let invoke_interface = self.as_native_interface();
-			ret = ((*invoke_interface).GetVersion)(self.0 as _);
+			ret = ((*invoke_interface).GetVersion)(self.0.cast::<jni_sys::JNIEnv>());
 		}
 
 		JniVersion::from_raw(ret).ok_or(JniError::Unknown)

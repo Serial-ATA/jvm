@@ -89,11 +89,10 @@ impl FieldContainer {
 	// This is only ever used in class loading
 	fn set_fields(&self, new: Vec<&'static Field>) {
 		let fields = self.fields.get();
-		let old = std::mem::replace(
+		let _ = std::mem::replace(
 			unsafe { &mut *fields },
 			MaybeUninit::new(new.into_boxed_slice()),
 		);
-		drop(old);
 	}
 
 	/// # SAFETY
@@ -101,8 +100,7 @@ impl FieldContainer {
 	/// See [`Class::set_static_field`]
 	unsafe fn set_static_field(&self, index: usize, value: Operand<Reference>) {
 		let field = &self.static_field_slots[index];
-		let old = std::mem::replace(unsafe { &mut *field.get() }, value);
-		drop(old);
+		let _ = std::mem::replace(unsafe { &mut *field.get() }, value);
 	}
 
 	fn get_static_field(&self, index: usize) -> Operand<Reference> {
@@ -165,7 +163,7 @@ impl Debug for Class {
 			.field("loader", &self.loader)
 			.field("super_class", &self.super_class.map(|c| c.name().as_str()))
 			.field("interfaces", &self.interfaces)
-			.finish()
+			.finish_non_exhaustive()
 	}
 }
 
@@ -228,7 +226,7 @@ impl Debug for ClassDescriptor {
 		debug_struct
 			.field("enclosing_method", &self.enclosing_method)
 			.field("is_record", &self.is_record)
-			.finish()
+			.finish_non_exhaustive()
 	}
 }
 
@@ -333,8 +331,7 @@ impl Class {
 		// Every field tracks its offset, so we can just grab the last one
 		self.instance_fields()
 			.last()
-			.map(|field| field.offset() + field.descriptor.size())
-			.unwrap_or(0)
+			.map_or(0, |field| field.offset() + field.descriptor.size())
 	}
 
 	/// Get the mirror for this class
@@ -351,7 +348,7 @@ impl Class {
 	pub fn package_name(&self) -> Result<Option<Symbol>, RuntimeError> {
 		if let Some(package_name) = unsafe { (*self.misc_cache.get()).package_name } {
 			return Ok(package_name);
-		};
+		}
 
 		let name_str = self.name().as_str();
 
@@ -396,11 +393,11 @@ impl Class {
 		}
 
 		assert!(
-			!(&name_str[start_index..end]).is_empty(),
+			!name_str[start_index..end].is_empty(),
 			"Package name is an empty string"
 		);
 
-		let ret = Symbol::intern(&name_str[start_index..end].as_bytes());
+		let ret = Symbol::intern(name_str[start_index..end].as_bytes());
 		unsafe {
 			(*self.misc_cache.get()).package_name = Some(Some(ret));
 		}
@@ -410,9 +407,7 @@ impl Class {
 
 	// TODO: This is expensive, requires locking. Should just be computed when the class is created.
 	pub fn package(&self) -> Option<&Package> {
-		let Some(package_name) = self.package_name().unwrap() else {
-			return None;
-		};
+		let package_name = self.package_name().unwrap()?;
 
 		let mut package = None;
 		crate::modules::with_module_lock(|guard| {
@@ -442,9 +437,7 @@ impl Class {
 			return None;
 		};
 
-		let Some(idx) = desc.source_file_index else {
-			return None;
-		};
+		let idx = desc.source_file_index?;
 
 		let file_name_sym = self
 			.constant_pool()
@@ -465,7 +458,7 @@ impl Class {
 	pub fn array_class_name(&self) -> Symbol {
 		if let Some(array_class_name) = unsafe { (*self.misc_cache.get()).array_class_name } {
 			return array_class_name;
-		};
+		}
 
 		let ret;
 		if self.is_array() {
@@ -533,10 +526,7 @@ impl Class {
 
 		let signature;
 		if self.is_array() {
-			signature = Symbol::intern(format!("{}", self.name().as_str()));
-			unsafe {
-				(*self.misc_cache.get()).signature = Some(signature);
-			}
+			signature = Symbol::intern(self.name().as_str());
 		} else {
 			signature = Symbol::intern(format!("L{};", self.name().as_str()));
 		}
@@ -709,8 +699,7 @@ impl Class {
 
 		let mut offset = old_fields
 			.last()
-			.map(|f| f.offset() + f.descriptor.size())
-			.unwrap_or(0);
+			.map_or(0, |f| f.offset() + f.descriptor.size());
 
 		let expected_len = old_fields.len() + field_count;
 		let mut new_fields = Vec::with_capacity(expected_len);
@@ -779,7 +768,7 @@ impl Class {
 	pub fn modifier_flags(&self) -> u2 {
 		if let Some(modifier_flags) = unsafe { (*self.misc_cache.get()).modifier_flags } {
 			return modifier_flags;
-		};
+		}
 
 		let mut access_flags = self.access_flags.as_u2();
 		if let Some(inner_classes) = self.unwrap_class_instance().inner_classes() {
@@ -788,7 +777,7 @@ impl Class {
 					access_flags = inner_class.inner_class_access_flags;
 				}
 			}
-		};
+		}
 
 		// Make sure `ACC_SUPER` isn't set
 		access_flags &= (!ClassAccessFlags::ACC_SUPER).as_u2();
@@ -868,24 +857,18 @@ impl Class {
 		let source_file_index = parsed_file.source_file_index();
 
 		// Check the NestMembers attribute
-		let nest_members = match parsed_file.nest_members() {
-			Some(nest_members) => Some(
-				nest_members
-					.map(|entry| Symbol::intern(entry.name))
-					.collect::<Box<[Symbol]>>(),
-			),
-			None => None,
-		};
+		let nest_members = parsed_file.nest_members().map(|nest_members| {
+			nest_members
+				.map(|entry| Symbol::intern(entry.name))
+				.collect::<Box<[Symbol]>>()
+		});
 
 		let nest_host_index = parsed_file.nest_host_index();
 
 		// Check the BootstrapMethods attribute
-		let bootstrap_methods = match parsed_file.bootstrap_methods() {
-			Some(bootstrap_methods) => {
-				Some(bootstrap_methods.collect::<Box<[ResolvedBootstrapMethod]>>())
-			},
-			None => None,
-		};
+		let bootstrap_methods = parsed_file
+			.bootstrap_methods()
+			.map(Iterator::collect::<Box<[ResolvedBootstrapMethod]>>);
 
 		let enclosing_method = match parsed_file.enclosing_method() {
 			Some(enclosing_method_info) => {
@@ -1032,8 +1015,7 @@ impl Class {
 
 		let mut next_offset = fields
 			.last()
-			.map(|f| f.offset() + f.descriptor.size())
-			.unwrap_or(0);
+			.map_or(0, |f| f.offset() + f.descriptor.size());
 		for field in parsed_file.fields {
 			let field_idx = if field.access_flags.is_static() {
 				&mut static_idx
@@ -1119,7 +1101,7 @@ impl Class {
 
 	pub fn parent_iter(&self) -> ClassParentIterator {
 		ClassParentIterator {
-			current_class: self.super_class.clone(),
+			current_class: self.super_class,
 		}
 	}
 
@@ -1224,7 +1206,7 @@ impl Iterator for ClassParentIterator {
 		match &self.current_class {
 			None => None,
 			Some(current) => {
-				let ret = self.current_class.clone();
+				let ret = self.current_class;
 				self.current_class = current.super_class;
 				ret
 			},

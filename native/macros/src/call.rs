@@ -89,7 +89,6 @@ macro_rules! parameter_types {
 					},
 					$(
 					SafeJniWrapperType::$obj_ty => {
-						let raw = self.to_safe();
 						quote_spanned! {param_name.span()=>
 							#param_name.raw() as _
 						}
@@ -100,7 +99,7 @@ macro_rules! parameter_types {
 
 			fn safe_conversion_fn(self, param_name: Ident) -> proc_macro2::TokenStream {
 				match self {
-					SafeJniWrapperType::Primitive(p) => param_name.to_token_stream(),
+					SafeJniWrapperType::Primitive(_) => param_name.to_token_stream(),
 					$(
 					SafeJniWrapperType::$obj_ty => {
 						let raw = self.to_safe();
@@ -179,16 +178,16 @@ pub struct JniFn {
 	pub errors: Vec<(Error, Span)>,
 }
 
-pub fn generate(input: ItemFn) -> JniFn {
+pub fn generate(input: &ItemFn) -> JniFn {
 	let mut errors = Vec::new();
-	validate_abi(&mut errors, &input);
-	let params = validate_params(&mut errors, &input);
-	let return_ty = validate_return(&mut errors, &input);
+	validate_abi(&mut errors, input);
+	let params = validate_params(&mut errors, input);
+	let return_ty = validate_return(&mut errors, input);
 
 	let fn_name = &input.sig.ident;
 	let raw_mod_name = Ident::new(&format!("raw_{}", fn_name), Span::call_site());
 
-	let extern_fn_def = generate_extern_fn(&input, params, return_ty);
+	let extern_fn_def = generate_extern_fn(input, &params, return_ty);
 	let extern_fn = quote! {
 		mod #raw_mod_name {
 			use super::*;
@@ -312,7 +311,7 @@ fn path_str(path: &Path) -> String {
 
 fn generate_extern_fn(
 	fun: &ItemFn,
-	params: Vec<(Ident, SafeJniWrapperType)>,
+	params: &[(Ident, SafeJniWrapperType)],
 	return_type: Option<SafeJniWrapperType>,
 ) -> proc_macro2::TokenStream {
 	let fn_name = &fun.sig.ident;
@@ -345,7 +344,7 @@ fn generate_extern_fn(
 	quote! {
 		#[unsafe(no_mangle)]
 		#[allow(non_snake_case)]
-		pub extern "system" fn #fn_name(env: *mut ::jni::sys::JNIEnv, #(#sys_params),*) #ret {
+		pub unsafe extern "system" fn #fn_name(env: *mut ::jni::sys::JNIEnv, #(#sys_params),*) #ret {
 			let env = unsafe { ::jni::env::JniEnv::from_raw(env) };
 			#(#arg_conversions)*
 

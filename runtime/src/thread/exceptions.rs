@@ -163,7 +163,7 @@ pub enum ExceptionKind {
 }
 
 impl ExceptionKind {
-	fn class_name(&self) -> Symbol {
+	fn class_name(self) -> Symbol {
 		match self {
 			ExceptionKind::ClassFormatError => sym!(java_lang_ClassFormatError),
 			ExceptionKind::UnsupportedClassVersionError => {
@@ -280,7 +280,7 @@ impl Exception {
 				java_call!(
 					thread,
 					init_method,
-					Operand::Reference(this.clone()),
+					Operand::Reference(this),
 					Operand::Reference(Reference::class(string_object))
 				);
 			},
@@ -294,7 +294,7 @@ impl Exception {
 					)
 					.expect("method should exist");
 
-				java_call!(thread, init_method, Operand::Reference(this.clone()));
+				java_call!(thread, init_method, Operand::Reference(this));
 			},
 		}
 

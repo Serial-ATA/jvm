@@ -12,11 +12,10 @@ use crate::thread::{JavaThread, JavaThreadBuilder};
 use crate::{classes, java_call};
 
 use classfile::accessflags::MethodAccessFlags;
-use common::int_types::s4;
 use instructions::Operand;
 use jni::error::JniError;
 use jni::java_vm::JavaVm;
-use jni::sys::{JNI_OK, JavaVMInitArgs};
+use jni::sys::{JNI_OK, JavaVMInitArgs, jint};
 
 /// Creates and initializes the Java VM
 ///
@@ -90,7 +89,7 @@ pub(crate) fn initialize_thread(
 	thread: &'static JavaThread,
 	do_java_lang_system_init: bool,
 ) -> Result<(), (JniError, bool)> {
-	crate::modules::with_module_lock(|guard| Module::create_java_base(guard));
+	crate::modules::with_module_lock(Module::create_java_base);
 
 	// Load some important classes
 	if let Throws::Exception(_) = load_global_classes() {
@@ -406,8 +405,8 @@ fn init_phase_2(thread: &'static JavaThread) -> Result<(), JniError> {
 	let result = java_call!(
 		thread,
 		init_phase_2,
-		display_vm_output_to_stderr as s4,
-		print_stacktrace_on_exception as s4
+		jint::from(display_vm_output_to_stderr),
+		jint::from(print_stacktrace_on_exception)
 	);
 
 	if thread.has_pending_exception() {

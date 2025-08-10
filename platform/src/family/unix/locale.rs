@@ -7,7 +7,7 @@ use core::ffi::CStr;
 
 pub(crate) fn base_locale_aliases() -> impl Iterator<Item = &'static (&'static CStr, &'static CStr)>
 {
-	const LOCALE_ALIASES: &'static [(&CStr, &CStr)] = &[
+	const LOCALE_ALIASES: &[(&CStr, &CStr)] = &[
 		(c"ar", c"ar_EG"),
 		(c"be", c"be_BY"),
 		(c"bg", c"bg_BG"),
@@ -62,12 +62,12 @@ pub(crate) fn base_locale_aliases() -> impl Iterator<Item = &'static (&'static C
 		(c"zh", c"zh_CN"),
 	];
 
-	LOCALE_ALIASES.into_iter()
+	LOCALE_ALIASES.iter()
 }
 
 pub(crate) fn base_language_names() -> impl Iterator<Item = &'static (&'static CStr, &'static CStr)>
 {
-	const LANGUAGE_NAMES: &[(&'static CStr, &'static CStr)] = &[
+	const LANGUAGE_NAMES: &[(&CStr, &CStr)] = &[
 		(c"C", c"en"),
 		(c"POSIX", c"en"),
 		(c"cz", c"cs"),
@@ -77,7 +77,7 @@ pub(crate) fn base_language_names() -> impl Iterator<Item = &'static (&'static C
 		(c"su", c"fi"),
 	];
 
-	LANGUAGE_NAMES.into_iter()
+	LANGUAGE_NAMES.iter()
 }
 
 pub(crate) fn base_script_names() -> impl Iterator<Item = &'static (&'static CStr, &'static CStr)> {
@@ -94,7 +94,7 @@ pub(crate) fn base_script_names() -> impl Iterator<Item = &'static (&'static CSt
 		(c"Tfng", c"Tfng"),
 	];
 
-	SCRIPT_NAMES.into_iter()
+	SCRIPT_NAMES.iter()
 }
 
 pub(crate) fn base_country_names() -> impl Iterator<Item = &'static (&'static CStr, &'static CStr)>
@@ -103,12 +103,12 @@ pub(crate) fn base_country_names() -> impl Iterator<Item = &'static (&'static CS
 		(c"YU", c"CS"), // YU has been removed from ISO 3166
 	];
 
-	COUNTRY_NAMES.into_iter()
+	COUNTRY_NAMES.iter()
 }
 
 pub(crate) fn base_variant_names() -> impl Iterator<Item = &'static (&'static CStr, &'static CStr)>
 {
 	const VARIANT_NAMES: &[(&CStr, &CStr)] = &[(c"nynorsk", c"NY")];
 
-	VARIANT_NAMES.into_iter()
+	VARIANT_NAMES.iter()
 }

@@ -65,7 +65,7 @@ impl VmAttachArgs {
 
 		FinalizedJavaVMAttachArgs {
 			version: version.into(),
-			name: name_ptr as _,
+			name: name_ptr.cast::<c_char>(),
 			group,
 			__name,
 		}
@@ -93,8 +93,7 @@ pub(super) struct FinalizedJavaVMAttachArgs {
 }
 
 impl FinalizedJavaVMAttachArgs {
-	#[allow(trivial_casts)]
 	pub(super) fn raw(&self) -> *const c_void {
-		self as *const Self as *const c_void
+		std::ptr::from_ref::<Self>(self).cast::<c_void>()
 	}
 }

@@ -41,9 +41,10 @@ pub(crate) fn read_index<R>(
 where
 	R: Read,
 {
-	if !endian.is_target() {
-		panic!("Non-target index table reading is not implemented");
-	}
+	assert!(
+		endian.is_target(),
+		"Non-target index table reading is not implemented"
+	);
 
 	let redirect_table_length = header.table_length();
 	let mut redirects_table = box_slice![0; redirect_table_length];
@@ -70,9 +71,9 @@ where
 		.map_err(|_| Error::InvalidTableSize)?;
 
 	Ok(JImageIndex::new(
-		redirects_table.into(),
-		offsets_table.into(),
-		location_bytes.into(),
-		string_bytes.into(),
+		redirects_table,
+		offsets_table,
+		location_bytes,
+		string_bytes,
 	))
 }

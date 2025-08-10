@@ -28,7 +28,7 @@ pub fn currentCarrierThread(_env: JniEnv, _class: ClassPtr) -> Reference /* java
 pub fn currentThread(env: JniEnv, _class: ClassPtr) -> Reference /* java.lang.Thread */
 {
 	unsafe {
-		let thread = JavaThread::for_env(env.raw() as _);
+		let thread = JavaThread::for_env(env.raw().cast_const());
 		(*thread).obj().expect("current thread should exist")
 	}
 }
@@ -73,7 +73,7 @@ pub fn sleepNanos0(_env: JniEnv, _class: ClassPtr, _nanos: jlong) {
 
 pub fn start0(_env: JniEnv, this: Reference /* java.lang.Thread */) {
 	{
-		if let Some(existing_thread) = ThreadPool::find_from_obj(this.clone()) {
+		if let Some(existing_thread) = ThreadPool::find_from_obj(this) {
 			throw!(existing_thread, IllegalThreadStateException);
 		}
 	}

@@ -6,7 +6,6 @@
 #![feature(specialization)]
 #![feature(sync_unsafe_cell)]
 #![feature(try_with_capacity)]
-#![feature(array_chunks)]
 #![feature(try_trait_v2)]
 #![feature(associated_type_defaults)]
 #![feature(ptr_as_ref_unchecked)]

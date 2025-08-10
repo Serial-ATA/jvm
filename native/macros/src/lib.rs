@@ -12,7 +12,7 @@ pub fn jni_call(_attr: TokenStream, input: TokenStream) -> TokenStream {
 		rust_fn,
 		extern_fn,
 		errors,
-	} = call::generate(input);
+	} = call::generate(&input);
 
 	let errors = errors
 		.into_iter()

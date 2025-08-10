@@ -58,9 +58,9 @@ pub fn getAppend(_: JniEnv, _class: ClassPtr, fd_: jint) -> jboolean {
 
 // throws IOException
 pub fn close0(_: JniEnv, this: Reference) {
-	let current_fd = classes::java::io::FileDescriptor::fd(this.clone());
+	let current_fd = classes::java::io::FileDescriptor::fd(this);
 
-	classes::java::io::FileDescriptor::set_fd(this.clone(), -1);
+	classes::java::io::FileDescriptor::set_fd(this, -1);
 
 	#[cfg(windows)]
 	classes::java::io::FileDescriptor::set_handle(this, -1);

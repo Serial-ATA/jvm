@@ -8,13 +8,9 @@ pub trait CliOption: Send + Sync + 'static {
 	/// All possible variants of this flag (long and short)
 	fn variants(&self) -> &'static [&'static str];
 
-	/// Returns the variable name describing the type of value this flag
-	/// accepts. This should always be set for non-switch flags and never set
-	/// for switch flags.
+	/// Returns the variable name describing the type of value this flag accepts.
 	///
-	/// For example, the `--max-count` flag has its variable name set to `NUM`.
-	///
-	/// The convention is to capitalize variable names.
+	/// For example, the `--class-path` options has its variable name set to "<class search path of directories and zip/jar files>".
 	///
 	/// By default this returns `None`.
 	fn doc_variable(&self) -> Option<&'static str> {

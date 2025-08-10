@@ -1,5 +1,6 @@
 use crate::objects::instance::CloneableInstance;
 use crate::objects::instance::array::{Array, PrimitiveArrayInstance};
+use crate::objects::instance::object::Object;
 use crate::test_utils::init_basic_shared_runtime;
 
 use common::box_slice;
@@ -53,4 +54,27 @@ fn slice_wrong_type() {
 
 	let array = PrimitiveArrayInstance::new(box_slice![1_i32, 2_i32, 3_i32, 4_i32, 5_i32]);
 	let _slice = array.as_slice::<jbyte>();
+}
+
+#[test]
+fn volatile() {
+	init_basic_shared_runtime();
+
+	let array = PrimitiveArrayInstance::new(box_slice![0_i32; 5]);
+
+	let values = box_slice![1_i32, 2_i32, 3_i32, 4_i32, 5_i32];
+
+	for (i, expected) in values.iter().enumerate() {
+		let offset = i * size_of::<jint>();
+		unsafe {
+			array.atomic_store(*expected, offset);
+		}
+	}
+
+	for (i, expected) in values.iter().enumerate() {
+		let offset = i * size_of::<jint>();
+		let value = unsafe { array.atomic_get::<jint>(offset) };
+
+		assert_eq!(*expected, value);
+	}
 }

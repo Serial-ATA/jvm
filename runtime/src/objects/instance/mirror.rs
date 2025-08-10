@@ -73,11 +73,11 @@ impl MirrorInstanceRef {
 		);
 		ret.put_field_value0(
 			classes::java::lang::Class::modifiers_field_index(),
-			Operand::Int(modifiers as jint),
+			Operand::Int(jint::from(modifiers)),
 		);
 		ret.put_field_value0(
 			classes::java::lang::Class::primitive_field_index(),
-			Operand::Int(is_primitive as jint),
+			Operand::Int(jint::from(is_primitive)),
 		);
 
 		ret
@@ -194,7 +194,7 @@ impl MirrorInstance {
 				.iter()
 				.find(|(ty, _)| *ty == component_str)
 				.expect("all primitives are covered");
-			component_type_mirror = crate::globals::mirrors::primitive_mirror_for(&field_type);
+			component_type_mirror = crate::globals::mirrors::primitive_mirror_for(field_type);
 		} else {
 			let component_class = target.loader().load(component_type).unwrap(); // TODO: handle throws
 			component_type_mirror = Reference::mirror(component_class.mirror());

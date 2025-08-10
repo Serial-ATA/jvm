@@ -14,10 +14,10 @@ use jni::sys::jbyte;
 include_generated!("native/java/lang/def/ClassLoader.registerNatives.rs");
 include_generated!("native/java/lang/def/ClassLoader.definitions.rs");
 
-const MN_NESTMATE_CLASS: s4 = 0x00000001;
-const MN_HIDDEN_CLASS: s4 = 0x00000002;
-const MN_STRONG_LOADER_LINK: s4 = 0x00000004;
-const MN_ACCESS_VM_ANNOTATIONS: s4 = 0x00000008;
+const MN_NESTMATE_CLASS: s4 = 0x0000_0001;
+const MN_HIDDEN_CLASS: s4 = 0x0000_0002;
+const MN_STRONG_LOADER_LINK: s4 = 0x0000_0004;
+const MN_ACCESS_VM_ANNOTATIONS: s4 = 0x0000_0008;
 
 pub fn defineClass1(
 	env: JniEnv,
@@ -47,7 +47,7 @@ pub fn defineClass1(
 	// SAFETY: `i8` and `u8` have the same size and alignment
 	let bytes_window: &[u8] = unsafe {
 		std::slice::from_raw_parts(
-			bytes_window_signed.as_ptr() as *const u8,
+			bytes_window_signed.as_ptr().cast::<u8>(),
 			bytes_window_signed.len(),
 		)
 	};
@@ -187,7 +187,7 @@ pub fn defineClass0(
 	// SAFETY: `i8` and `u8` have the same size and alignment
 	let bytes_window: &[u8] = unsafe {
 		std::slice::from_raw_parts(
-			bytes_window_signed.as_ptr() as *const u8,
+			bytes_window_signed.as_ptr().cast::<u8>(),
 			bytes_window_signed.len(),
 		)
 	};
@@ -211,11 +211,9 @@ pub fn defineClass0(
 		class.mirror().set_class_data(classData);
 	}
 
-	if initialize {
-		if let Throws::Exception(e) = class.initialize(thread) {
-			e.throw(thread);
-			return Reference::null();
-		}
+	if initialize && let Throws::Exception(e) = class.initialize(thread) {
+		e.throw(thread);
+		return Reference::null();
 	}
 
 	// TODO: Parallel class loaders

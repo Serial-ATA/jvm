@@ -15,6 +15,9 @@ runtime = { workspace = true }
 const_format.workspace = true
 tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "sj"
 path = "src/main.rs"

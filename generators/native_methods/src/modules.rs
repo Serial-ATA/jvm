@@ -94,13 +94,13 @@ impl Module {
 
 			let file_contents = std::fs::read_to_string(&path).unwrap();
 			let mut class = parse::Class::parse(
-				file_contents,
+				&file_contents,
 				path.file_stem().unwrap().to_str().unwrap(),
 				&name,
 			);
 
 			definitions::generate_definitions_for_class(Path::new(&generated_root), &class);
-			field::generate_native_constant_fields(&mut class, Path::new(&generated_root));
+			field::generate_native_constant_fields(&class, Path::new(&generated_root));
 			registernatives::generate_register_natives_table(
 				&name,
 				&mut class,

@@ -93,7 +93,7 @@ impl<'a> VTable<'a> {
 	}
 }
 
-impl<'a> Index<usize> for VTable<'a> {
+impl Index<usize> for VTable<'_> {
 	type Output = Method;
 
 	fn index(&self, index: usize) -> &Self::Output {

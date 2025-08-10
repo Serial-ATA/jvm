@@ -20,6 +20,7 @@ impl AtomicF32 {
 		let as_u32 = self.inner.load(ordering);
 		f32::from_bits(as_u32)
 	}
+	#[allow(clippy::missing_errors_doc)]
 	pub fn compare_exchange(
 		&self,
 		current: f32,
@@ -54,6 +55,7 @@ impl AtomicF64 {
 		let as_u64 = self.inner.load(ordering);
 		f64::from_bits(as_u64)
 	}
+	#[allow(clippy::missing_errors_doc)]
 	pub fn compare_exchange(
 		&self,
 		current: f64,

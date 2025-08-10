@@ -63,17 +63,26 @@ impl JvmOptions {
 			let option_string_c = unsafe { CStr::from_ptr(option.optionString) };
 			let option_string = option_string_c.to_str()?;
 
-			let mut opt_split = option_string.splitn(2, "=");
+			let mut opt_split = option_string.splitn(2, '=');
 
 			let key = opt_split.next().unwrap();
 
 			// Special cases, no value
 			match key {
-				"vfprintf" => options.hooks.vfprintf = unsafe { mem::transmute(option.extraInfo) },
-				"exit" => options.hooks.exit = unsafe { mem::transmute(option.extraInfo) },
-				"abort" => options.hooks.abort = unsafe { mem::transmute(option.extraInfo) },
+				"vfprintf" => {
+					options.hooks.vfprintf =
+						unsafe { mem::transmute::<*mut c_void, VFPrintFHookFn>(option.extraInfo) }
+				},
+				"exit" => {
+					options.hooks.exit =
+						unsafe { mem::transmute::<*mut c_void, ExitHookFn>(option.extraInfo) }
+				},
+				"abort" => {
+					options.hooks.abort =
+						unsafe { mem::transmute::<*mut c_void, AbortHookFn>(option.extraInfo) }
+				},
 				_ if let Some(verbosity) = key.strip_prefix("-verbose") => {
-					options.verbosity = Some(match verbosity.split_once(":") {
+					options.verbosity = Some(match verbosity.split_once(':') {
 						Some((_, target)) => match target {
 							"class" => Verbosity::Class,
 							"module" => Verbosity::Module,

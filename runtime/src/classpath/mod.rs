@@ -23,10 +23,10 @@ pub fn find_classpath_entry(name: Symbol) -> Option<Vec<u1>> {
 	let mut name = name.as_str().replace('.', "/");
 	name.push_str(".class");
 
-	if jimage::initialized() {
-		if let Some(resource) = jimage::lookup_vm_resource(&name) {
-			return Some(resource.into_vec());
-		}
+	if jimage::initialized()
+		&& let Some(resource) = jimage::lookup_vm_resource(&name)
+	{
+		return Some(resource.into_vec());
 	}
 
 	for entry in &CLASSPATH.read().unwrap().entries {
@@ -43,7 +43,7 @@ pub fn find_classpath_entry(name: Symbol) -> Option<Vec<u1>> {
 					let mut file_contents = Vec::with_capacity(file.size() as usize);
 					file.read_to_end(&mut file_contents).unwrap();
 					return Some(file_contents);
-				};
+				}
 			},
 		}
 	}

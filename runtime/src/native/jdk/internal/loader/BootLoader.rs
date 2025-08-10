@@ -43,7 +43,7 @@ pub fn setBootLoaderUnnamedModule0(
 ) {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 
-	let module_entry_result = Module::unnamed(module.clone());
+	let module_entry_result = Module::unnamed(module);
 	let module_entry = handle_exception!(thread, module_entry_result);
 
 	let loader = classes::java::lang::Module::loader(module);

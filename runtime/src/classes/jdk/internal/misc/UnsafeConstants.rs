@@ -50,7 +50,7 @@ pub unsafe fn init() {
 		);
 		class.set_static_field(
 			BIG_ENDIAN_field_index(),
-			Operand::from(cfg!(target_endian = "big") as jint),
+			Operand::from(jint::from(cfg!(target_endian = "big"))),
 		);
 	}
 	// TODO: class.set_static_field(unaligned_access_field_index(), /* ... */);

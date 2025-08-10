@@ -10,17 +10,21 @@ use jni::sys::{JNIEnv, jboolean, jchar, jsize, jstring};
 use libc::strlen;
 
 #[unsafe(no_mangle)]
-pub extern "system" fn NewString(env: *mut JNIEnv, unicode: *const jchar, len: jsize) -> jstring {
+pub unsafe extern "system" fn NewString(
+	env: *mut JNIEnv,
+	unicode: *const jchar,
+	len: jsize,
+) -> jstring {
 	unimplemented!("jni::NewString");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetStringLength(env: *mut JNIEnv, str: jstring) -> jsize {
+pub unsafe extern "system" fn GetStringLength(env: *mut JNIEnv, str: jstring) -> jsize {
 	unimplemented!("jni::GetStringLength");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetStringChars(
+pub unsafe extern "system" fn GetStringChars(
 	env: *mut JNIEnv,
 	str: jstring,
 	isCopy: *mut jboolean,
@@ -29,12 +33,16 @@ pub extern "system" fn GetStringChars(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn ReleaseStringChars(env: *mut JNIEnv, str: jstring, chars: *const jchar) {
+pub unsafe extern "system" fn ReleaseStringChars(
+	env: *mut JNIEnv,
+	str: jstring,
+	chars: *const jchar,
+) {
 	unimplemented!("jni::ReleaseStringChars");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn NewStringUTF(env: *mut JNIEnv, utf: *const c_char) -> jstring {
+pub unsafe extern "system" fn NewStringUTF(env: *mut JNIEnv, utf: *const c_char) -> jstring {
 	if utf.is_null() {
 		return ptr::null_mut();
 	}
@@ -43,7 +51,7 @@ pub extern "system" fn NewStringUTF(env: *mut JNIEnv, utf: *const c_char) -> jst
 	let len = unsafe { strlen(utf) };
 
 	// SAFETY: c_char is always 8 bits
-	let utf = unsafe { slice::from_raw_parts(utf as *const u8, len as usize) };
+	let utf = unsafe { slice::from_raw_parts(utf.cast::<u8>(), len) };
 
 	let Ok(utf_8) = unicode::decode(utf) else {
 		// I guess this is the best we can do?
@@ -55,12 +63,12 @@ pub extern "system" fn NewStringUTF(env: *mut JNIEnv, utf: *const c_char) -> jst
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetStringUTFLength(env: *mut JNIEnv, str: jstring) -> jsize {
+pub unsafe extern "system" fn GetStringUTFLength(env: *mut JNIEnv, str: jstring) -> jsize {
 	unimplemented!("jni::GetStringUTFLength");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetStringUTFChars(
+pub unsafe extern "system" fn GetStringUTFChars(
 	env: *mut JNIEnv,
 	str: jstring,
 	isCopy: *mut jboolean,
@@ -69,12 +77,16 @@ pub extern "system" fn GetStringUTFChars(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn ReleaseStringUTFChars(env: *mut JNIEnv, str: jstring, chars: *const c_char) {
+pub unsafe extern "system" fn ReleaseStringUTFChars(
+	env: *mut JNIEnv,
+	str: jstring,
+	chars: *const c_char,
+) {
 	unimplemented!("jni::ReleaseStringUTFChars");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetStringRegion(
+pub unsafe extern "system" fn GetStringRegion(
 	env: *mut JNIEnv,
 	str: jstring,
 	start: jsize,
@@ -85,7 +97,7 @@ pub extern "system" fn GetStringRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetStringUTFRegion(
+pub unsafe extern "system" fn GetStringUTFRegion(
 	env: *mut JNIEnv,
 	str: jstring,
 	start: jsize,
@@ -96,7 +108,7 @@ pub extern "system" fn GetStringUTFRegion(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetStringCritical(
+pub unsafe extern "system" fn GetStringCritical(
 	env: *mut JNIEnv,
 	string: jstring,
 	isCopy: *mut jboolean,
@@ -105,7 +117,7 @@ pub extern "system" fn GetStringCritical(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn ReleaseStringCritical(
+pub unsafe extern "system" fn ReleaseStringCritical(
 	env: *mut JNIEnv,
 	string: jstring,
 	cstring: *const jchar,

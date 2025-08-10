@@ -37,7 +37,6 @@ pub enum Entry {
 }
 
 /// A trait for types that can be stored in the constant pool.
-
 pub trait EntryType: sealed::Sealed {
 	/// The final type an entry will resolve to.
 	type Resolved;
@@ -62,7 +61,7 @@ pub trait EntryType: sealed::Sealed {
 		class: ClassPtr,
 		cp: &super::ConstantPool,
 		index: u2,
-		value: <Self::RawEntryType as CpEntry>::Entry,
+		value: <Self::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<ResolvedEntry>;
 }
 
@@ -86,7 +85,7 @@ impl EntryType for Class {
 		class: ClassPtr,
 		cp: &ConstantPool,
 		_: u2,
-		value: <Self::RawEntryType as CpEntry>::Entry,
+		value: <Self::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<ResolvedEntry> {
 		let name = unsafe { cp.resolve_entry_with::<ConstantUtf8>(value.name_index, value.name)? };
 
@@ -116,7 +115,7 @@ impl EntryType for Integer {
 		_: ClassPtr,
 		_: &ConstantPool,
 		_: u2,
-		value: <Self::RawEntryType as CpEntry>::Entry,
+		value: <Self::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<ResolvedEntry> {
 		Throws::Ok(ResolvedEntry { integer: value })
 	}
@@ -143,7 +142,7 @@ impl EntryType for Double {
 		_: ClassPtr,
 		_: &ConstantPool,
 		_: u2,
-		value: <Self::RawEntryType as CpEntry>::Entry,
+		value: <Self::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<ResolvedEntry> {
 		Throws::Ok(ResolvedEntry { double: value })
 	}
@@ -170,7 +169,7 @@ impl EntryType for Float {
 		_: ClassPtr,
 		_: &ConstantPool,
 		_: u2,
-		value: <Self::RawEntryType as CpEntry>::Entry,
+		value: <Self::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<ResolvedEntry> {
 		Throws::Ok(ResolvedEntry { float: value })
 	}
@@ -197,7 +196,7 @@ impl EntryType for Long {
 		_: ClassPtr,
 		_: &ConstantPool,
 		_: u2,
-		value: <Self::RawEntryType as CpEntry>::Entry,
+		value: <Self::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<ResolvedEntry> {
 		Throws::Ok(ResolvedEntry { long: value })
 	}
@@ -223,7 +222,7 @@ impl EntryType for ClassName {
 		_: ClassPtr,
 		_: &ConstantPool,
 		_: u2,
-		value: <Self::RawEntryType as CpEntry>::Entry,
+		value: <Self::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<ResolvedEntry> {
 		let class_name = Symbol::intern(&*value.name);
 		Throws::Ok(ResolvedEntry { class_name })
@@ -250,7 +249,7 @@ impl EntryType for ConstantUtf8 {
 		_: ClassPtr,
 		_: &ConstantPool,
 		_: u2,
-		value: <Self::RawEntryType as CpEntry>::Entry,
+		value: <Self::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<ResolvedEntry> {
 		let utf8 = Symbol::intern(&*value);
 		Throws::Ok(ResolvedEntry {
@@ -278,7 +277,7 @@ impl EntryType for NameAndType {
 		_: ClassPtr,
 		cp: &ConstantPool,
 		_: u2,
-		value: <Self::RawEntryType as CpEntry>::Entry,
+		value: <Self::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<ResolvedEntry> {
 		let name_sym =
 			unsafe { cp.resolve_entry_with::<ConstantUtf8>(value.name_index, value.name)? };
@@ -296,7 +295,7 @@ pub struct InvokeDynamic;
 #[derive(Copy, Clone, Debug)]
 pub struct InvokeDynamicEntry {
 	pub method: &'static Method,
-	pub appendix: Option<&'static Reference>,
+	pub appendix: Option<Reference>,
 }
 
 impl EntryType for InvokeDynamic {
@@ -305,7 +304,7 @@ impl EntryType for InvokeDynamic {
 
 	#[inline]
 	fn resolved_entry(entry: ResolvedEntry) -> Self::Resolved {
-		unsafe { entry.invoke_dynamic }.clone()
+		unsafe { entry.invoke_dynamic }
 	}
 
 	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
@@ -317,7 +316,7 @@ impl EntryType for InvokeDynamic {
 		class: ClassPtr,
 		cp: &ConstantPool,
 		_: u2,
-		value: <Self::RawEntryType as CpEntry>::Entry,
+		value: <Self::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<ResolvedEntry> {
 		let (name, descriptor) = unsafe {
 			cp.resolve_entry_with::<NameAndType>(value.name_and_type_index, value.name_and_type)?
@@ -385,7 +384,7 @@ impl EntryType for InvokeDynamic {
 			Operand::Reference(Reference::class(name_arg)),
 			Operand::Reference(type_arg),
 			Operand::Reference(Reference::object_array(static_args_obj)),
-			Operand::Reference(Reference::object_array(appendix.clone())),
+			Operand::Reference(Reference::object_array(appendix)),
 		);
 
 		if thread.has_pending_exception() {
@@ -418,8 +417,7 @@ impl EntryType for InvokeDynamic {
 			let appendix_opt = if appendix.is_null() {
 				None
 			} else {
-				let leaked: &'static Reference = Box::leak(Box::new(appendix));
-				Some(leaked)
+				Some(appendix)
 			};
 
 			return Throws::Ok(ResolvedEntry {
@@ -443,7 +441,7 @@ impl EntryType for MethodHandle {
 
 	#[inline]
 	fn resolved_entry(entry: ResolvedEntry) -> Self::Resolved {
-		unsafe { entry.method_handle }.clone()
+		unsafe { entry.method_handle }
 	}
 
 	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
@@ -456,7 +454,7 @@ impl EntryType for MethodHandle {
 		invoking_class: ClassPtr,
 		cp: &ConstantPool,
 		_: u2,
-		value: <Self::RawEntryType as CpEntry>::Entry,
+		value: <Self::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<ResolvedEntry> {
 		let callee_class;
 		let name;
@@ -528,9 +526,7 @@ impl EntryType for MethodHandle {
 			.expect("method should return something")
 			.expect_reference();
 
-		Throws::Ok(ResolvedEntry {
-			method_handle: Box::leak(Box::new(method_handle)),
-		})
+		Throws::Ok(ResolvedEntry { method_handle })
 	}
 }
 
@@ -554,7 +550,7 @@ impl EntryType for FieldRef {
 		_: ClassPtr,
 		cp: &ConstantPool,
 		_: u2,
-		value: <Self::RawEntryType as CpEntry>::Entry,
+		value: <Self::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<ResolvedEntry> {
 		let class = cp.get::<Class>(value.class_index)?;
 		let (name, descriptor) = unsafe {
@@ -608,7 +604,7 @@ impl EntryType for MethodRef {
 		_: ClassPtr,
 		cp: &ConstantPool,
 		_: u2,
-		value: <Self::RawEntryType as CpEntry>::Entry,
+		value: <Self::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<ResolvedEntry> {
 		let class = unsafe { cp.resolve_entry_with::<Class>(value.class_index, value.class)? };
 		let (name, descriptor) = unsafe {
@@ -629,7 +625,7 @@ impl EntryType for MethodRef {
 			let stack_size = descriptor
 				.parameters
 				.iter()
-				.map(|ty| ty.stack_size() as u2)
+				.map(|ty| u2::from(ty.stack_size()))
 				.sum();
 			(descriptor.parameters.len() as u1, stack_size)
 		} else {
@@ -637,7 +633,7 @@ impl EntryType for MethodRef {
 				.descriptor
 				.parameters
 				.iter()
-				.map(|ty| ty.stack_size() as u2)
+				.map(|ty| u2::from(ty.stack_size()))
 				.sum();
 			(method_ref.parameter_count(), stack_size)
 		};
@@ -673,7 +669,7 @@ impl EntryType for String {
 		_: ClassPtr,
 		_: &ConstantPool,
 		_: u2,
-		value: <Self::RawEntryType as CpEntry>::Entry,
+		value: <Self::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<ResolvedEntry> {
 		let string = Symbol::intern(&*value);
 		Throws::Ok(ResolvedEntry { string })

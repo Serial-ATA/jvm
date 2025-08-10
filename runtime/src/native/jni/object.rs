@@ -5,12 +5,16 @@ use jni::sys::{JNIEnv, jboolean, jclass, jmethodID, jobject, jobjectRefType, jva
 use std::ptr;
 
 #[unsafe(no_mangle)]
-pub extern "system" fn AllocObject(env: *mut JNIEnv, clazz: jclass) -> jobject {
+pub unsafe extern "system" fn AllocObject(env: *mut JNIEnv, clazz: jclass) -> jobject {
 	unimplemented!("jni::AllocObject");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn IsSameObject(env: *mut JNIEnv, obj1: jobject, obj2: jobject) -> jboolean {
+pub unsafe extern "system" fn IsSameObject(
+	env: *mut JNIEnv,
+	obj1: jobject,
+	obj2: jobject,
+) -> jboolean {
 	unimplemented!("jni::IsSameObject");
 }
 
@@ -35,7 +39,7 @@ pub unsafe extern "system" fn NewObjectV(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn NewObjectA(
+pub unsafe extern "system" fn NewObjectA(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
@@ -49,9 +53,7 @@ pub extern "system" fn NewObjectA(
 	let class = class_obj.extract_target_class();
 	let obj = Reference::class(ClassInstance::new(class));
 
-	let mut args_with_receiver = vec![jvalue {
-		l: obj.clone().into_jni(),
-	}];
+	let mut args_with_receiver = vec![jvalue { l: obj.into_jni() }];
 	for i in 0usize.. {
 		if unsafe { args.add(i) }.is_null() {
 			break;
@@ -67,15 +69,19 @@ pub extern "system" fn NewObjectA(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn GetObjectClass(env: *mut JNIEnv, obj: jobject) -> jclass {
+pub unsafe extern "system" fn GetObjectClass(env: *mut JNIEnv, obj: jobject) -> jclass {
 	unimplemented!("jni::GetObjectClass");
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn IsInstanceOf(env: *mut JNIEnv, obj: jobject, clazz: jclass) -> jboolean {
+pub unsafe extern "system" fn IsInstanceOf(
+	env: *mut JNIEnv,
+	obj: jobject,
+	clazz: jclass,
+) -> jboolean {
 	unimplemented!("jni::IsInstanceOf");
 }
 
-pub extern "system" fn GetObjectRefType(env: *mut JNIEnv, obj: jobject) -> jobjectRefType {
+pub unsafe extern "system" fn GetObjectRefType(env: *mut JNIEnv, obj: jobject) -> jobjectRefType {
 	unimplemented!("jni::GetObjectRefType");
 }

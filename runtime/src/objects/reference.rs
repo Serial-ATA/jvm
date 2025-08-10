@@ -30,6 +30,13 @@ use instructions::Operand;
 #[repr(transparent)]
 pub struct Reference(*mut ());
 
+const _: () = {
+	assert!(
+		size_of::<Reference>() == size_of::<usize>(),
+		"Reference must be pointer-sized"
+	);
+};
+
 // SAFETY: Synchronization handled manually
 unsafe impl Send for Reference {}
 unsafe impl Sync for Reference {}

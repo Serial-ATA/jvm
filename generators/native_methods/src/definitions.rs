@@ -51,16 +51,17 @@ pub fn generate_definitions_for_class(def_path: &Path, class: &Class) {
 
 macro_rules! non_static_signature {
 	() => {
-		"\t#[allow(unused_mut)]\n\tpub fn _{}(env: ::jni::env::JniEnv, locals: \
-		 crate::stack::local_stack::LocalStack) -> crate::native::method::NativeReturn {{"
+		r"    #[allow(unused_mut)]
+    #[allow(clippy::unnecessary_wraps, clippy::needless_pass_by_value, clippy::identity_op)]
+    pub fn _{}(env: ::jni::env::JniEnv, locals: crate::stack::local_stack::LocalStack) -> crate::native::method::NativeReturn {{"
 	};
 }
 
 macro_rules! static_signature {
 	() => {
-		"\t#[allow(unused_mut)]\n\tpub fn _{}(env: ::jni::env::JniEnv, class: \
-		 crate::objects::class::ClassPtr, locals: crate::stack::local_stack::LocalStack) -> \
-		 crate::native::method::NativeReturn {{"
+		r"    #[allow(unused_mut)]
+    #[allow(clippy::unnecessary_wraps, clippy::needless_pass_by_value, clippy::identity_op)]
+    pub fn _{}(env: ::jni::env::JniEnv, class: crate::objects::class::ClassPtr, locals: crate::stack::local_stack::LocalStack) -> crate::native::method::NativeReturn {{"
 	};
 }
 

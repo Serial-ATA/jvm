@@ -88,7 +88,7 @@ impl Debug for ClassLoader {
 
 		f.debug_struct("ClassLoader")
 			.field("obj", &self.obj)
-			.finish()
+			.finish_non_exhaustive()
 	}
 }
 
@@ -106,7 +106,7 @@ impl ClassLoader {
 		let unnamed_module =
 			Module::unnamed(unnamed_module_obj).expect("unnamed module creation failed");
 
-		let (name, name_and_id) = Self::extract_name_and_id(obj.clone());
+		let (name, name_and_id) = Self::extract_name_and_id(obj);
 
 		Self {
 			obj,
@@ -131,7 +131,7 @@ impl ClassLoader {
 	}
 
 	fn new_hidden(obj: Reference) -> Self {
-		let (name, name_and_id) = Self::extract_name_and_id(obj.clone());
+		let (name, name_and_id) = Self::extract_name_and_id(obj);
 		Self {
 			obj,
 			name,
@@ -195,9 +195,10 @@ impl ClassLoader {
 			unreachable!("should never be called on hidden classloaders")
 		};
 
-		if module.name().is_none() {
-			panic!("Attempted to insert an unnamed module using `insert_module`")
-		};
+		assert!(
+			module.name().is_some(),
+			"Attempted to insert an unnamed module using `insert_module`"
+		);
 
 		modules.add(_guard, module)
 	}
@@ -299,7 +300,7 @@ impl ClassLoader {
 		};
 
 		let loaded_classes = classes.lock().unwrap();
-		loaded_classes.get(&name).map(|&class| class)
+		loaded_classes.get(&name).copied()
 	}
 
 	pub fn unnamed_module(&self) -> &'static Module {
@@ -335,7 +336,7 @@ impl ClassLoader {
 	}
 
 	pub fn obj(&self) -> Reference {
-		self.obj.clone()
+		self.obj
 	}
 
 	/// Whether the ClassLoader is parallel capable
@@ -608,7 +609,7 @@ impl ClassLoader {
 
 		loop {
 			if let FieldType::Object(obj) = &*component {
-				self.load(Symbol::intern(&obj))?;
+				self.load(Symbol::intern(obj))?;
 				break;
 			}
 
@@ -711,7 +712,7 @@ impl ClassLoader {
 		};
 
 		for class in classes.lock().unwrap().values() {
-			class.mirror().set_module(obj.clone());
+			class.mirror().set_module(obj);
 		}
 	}
 }

@@ -1,7 +1,7 @@
 mod error;
 use error::Error;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use jmod::JmodFile;
@@ -19,7 +19,7 @@ struct Command {
 	#[command(subcommand)]
 	command: SubCommand,
 }
-
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, clap::Subcommand)]
 enum SubCommand {
 	/// Creates a new jmod archive
@@ -122,7 +122,7 @@ fn main() -> Result<(), Error> {
 			exclude,
 			dir,
 			jmod_file,
-		} => extract(exclude, dir, jmod_file),
+		} => extract(exclude, &dir, &jmod_file),
 		SubCommand::List { jmod_file } => list(jmod_file),
 		c => unimplemented!("{:?}", c),
 	}
@@ -132,7 +132,7 @@ fn main() -> Result<(), Error> {
 }
 
 // TODO: excludes
-fn extract(_exclude: Option<String>, dir: PathBuf, jmod_file: PathBuf) -> Result<(), Error> {
+fn extract(_exclude: Option<String>, dir: &Path, jmod_file: &Path) -> Result<(), Error> {
 	let mut jmod = JmodFile::read_from_path(jmod_file)?;
 
 	jmod.try_for_each_entry(|mut entry| -> Result<(), Error> {

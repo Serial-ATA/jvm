@@ -14,3 +14,6 @@ libc.workspace = true
 
 [target.'cfg(target_family = "windows")'.dependencies]
 windows.workspace = true
+
+[lints]
+workspace = true

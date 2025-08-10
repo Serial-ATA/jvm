@@ -112,7 +112,7 @@ impl CloneableInstance for ClassInstanceRef {
 		// SAFETY: Every field type is `Copy`
 		unsafe {
 			self.field_base()
-				.copy_to_nonoverlapping(cloned_instance.field_base() as _, fields_size);
+				.copy_to_nonoverlapping(cloned_instance.field_base().cast(), fields_size);
 		}
 
 		cloned_instance

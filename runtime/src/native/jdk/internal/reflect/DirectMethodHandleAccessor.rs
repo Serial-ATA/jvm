@@ -81,7 +81,7 @@ pub(super) fn do_invoke(
 
 	for (index, (arg, parameter_mirror)) in args
 		.as_slice()
-		.into_iter()
+		.iter()
 		.zip(parameter_types.as_slice())
 		.enumerate()
 	{

@@ -109,7 +109,7 @@ impl JavaThread {
 	pub unsafe fn for_env(env: *const JNIEnv) -> *mut JavaThread {
 		unsafe {
 			let ptr = env.sub(core::mem::offset_of!(JavaThread, env));
-			ptr.cast::<Self>() as _
+			ptr.cast::<Self>().cast_mut()
 		}
 	}
 

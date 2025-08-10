@@ -9,9 +9,9 @@ pub struct HashState {
 }
 
 impl HashState {
-	const INIT_STATE_Y: u32 = 842502087;
+	const INIT_STATE_Y: u32 = 842_502_087;
 	const INIT_STATE_Z: u32 = 0x8767; // (int)(3579807591LL & 0xffff);
-	const INIT_STATE_W: u32 = 273326509;
+	const INIT_STATE_W: u32 = 273_326_509;
 
 	pub(super) fn new(seed: u32) -> Self {
 		HashState {

@@ -125,16 +125,14 @@ pub fn print_stack_trace_without_java_system(this: Reference, thread: &'static J
 		let line_number = elem.method.line_number(elem.pc as isize);
 		if line_number == -2 {
 			eprint!("Native Method)")
-		} else {
-			if let Some(source_file_name) = elem.method.class().source_file_name() {
-				if line_number == -1 {
-					eprint!("{source_file_name})")
-				} else {
-					eprint!("{source_file_name}:{line_number})")
-				}
+		} else if let Some(source_file_name) = elem.method.class().source_file_name() {
+			if line_number == -1 {
+				eprint!("{source_file_name})")
 			} else {
-				eprint!("Unknown Source)");
+				eprint!("{source_file_name}:{line_number})")
 			}
+		} else {
+			eprint!("Unknown Source)");
 		}
 
 		eprintln!();

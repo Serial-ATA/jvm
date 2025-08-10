@@ -46,7 +46,7 @@ pub fn vmtarget(instance: ClassInstanceRef) -> Option<&'static Method> {
 pub fn set_vmtarget(instance: ClassInstanceRef, value: &'static Method) {
 	instance.put_field_value0(
 		vmtarget_field_index(),
-		Operand::Long(value as *const Method as jlong),
+		Operand::Long(std::ptr::from_ref(value) as jlong),
 	)
 }
 

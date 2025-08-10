@@ -58,7 +58,7 @@ impl ThreadPool {
 			return Some(current);
 		}
 
-		if ThreadPool::contains(&java_thread) {
+		if ThreadPool::contains(java_thread) {
 			return Some(java_thread);
 		}
 

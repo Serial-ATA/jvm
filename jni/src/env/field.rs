@@ -42,7 +42,7 @@ impl super::JniEnv {
 		unsafe {
 			let invoke_interface = self.as_native_interface();
 			ret = ((*invoke_interface).GetFieldID)(
-				self.0 as _,
+				self.0.cast::<jni_sys::JNIEnv>(),
 				class.raw(),
 				name.as_cstr().as_ptr(),
 				sig.as_cstr().as_ptr(),

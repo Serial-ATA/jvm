@@ -20,10 +20,9 @@ pub fn main_class_from_jar_manifest(jar_path: &Path) -> Option<String> {
 		if let Some(main_class_line) = file_contents
 			.lines()
 			.find(|line| line.starts_with("Main-Class"))
+			&& let Some((_, class_name)) = main_class_line.split_once(':')
 		{
-			if let Some((_, class_name)) = main_class_line.split_once(':') {
-				main_class = Some(class_name.trim().to_string());
-			}
+			main_class = Some(class_name.trim().to_string());
 		}
 	}
 

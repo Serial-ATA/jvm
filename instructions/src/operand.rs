@@ -16,6 +16,7 @@ pub enum Operand<Reference> {
 	Empty,
 }
 
+#[allow(clippy::needless_pass_by_value)]
 impl<Reference: Debug + Clone> Operand<Reference> {
 	/// Add rhs to self
 	pub fn add(&mut self, rhs: Self) {
@@ -23,22 +24,18 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 			Operand::Int(lhs) => {
 				let rhs = rhs.expect_int();
 				*self = Operand::Int(lhs.overflowing_add(rhs).0);
-				return;
 			},
 			Operand::Float(lhs) => {
 				let rhs = rhs.expect_float();
 				*self = Operand::Float((*lhs) + rhs);
-				return;
 			},
 			Operand::Double(lhs) => {
 				let rhs = rhs.expect_double();
 				*self = Operand::Double((*lhs) + rhs);
-				return;
 			},
 			Operand::Long(lhs) => {
 				let rhs = rhs.expect_long();
 				*self = Operand::Long(lhs.overflowing_add(rhs).0);
-				return;
 			},
 			_ => panic!("Invalid operand type for `add` instruction"),
 		}
@@ -50,22 +47,18 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 			Operand::Int(lhs) => {
 				let rhs = rhs.expect_int();
 				*self = Operand::Int(lhs.overflowing_sub(rhs).0);
-				return;
 			},
 			Operand::Float(lhs) => {
 				let rhs = rhs.expect_float();
 				*self = Operand::Float((*lhs) - rhs);
-				return;
 			},
 			Operand::Double(lhs) => {
 				let rhs = rhs.expect_double();
 				*self = Operand::Double((*lhs) - rhs);
-				return;
 			},
 			Operand::Long(lhs) => {
 				let rhs = rhs.expect_long();
 				*self = Operand::Long(lhs.overflowing_sub(rhs).0);
-				return;
 			},
 			_ => panic!("Invalid operand type for `sub` instruction"),
 		}
@@ -77,22 +70,18 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 			Operand::Int(lhs) => {
 				let rhs = rhs.expect_int();
 				*self = Operand::Int(lhs.overflowing_mul(rhs).0);
-				return;
 			},
 			Operand::Float(lhs) => {
 				let rhs = rhs.expect_float();
 				*self = Operand::Float((*lhs) * rhs);
-				return;
 			},
 			Operand::Double(lhs) => {
 				let rhs = rhs.expect_double();
 				*self = Operand::Double((*lhs) * rhs);
-				return;
 			},
 			Operand::Long(lhs) => {
 				let rhs = rhs.expect_long();
 				*self = Operand::Long(lhs.overflowing_mul(rhs).0);
-				return;
 			},
 			_ => panic!("Invalid operand type for `mul` instruction"),
 		}
@@ -104,22 +93,18 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 			Operand::Int(lhs) => {
 				let rhs = rhs.expect_int();
 				*self = Operand::Int(lhs.overflowing_div(rhs).0);
-				return;
 			},
 			Operand::Float(lhs) => {
 				let rhs = rhs.expect_float();
 				*self = Operand::Float((*lhs) / rhs);
-				return;
 			},
 			Operand::Double(lhs) => {
 				let rhs = rhs.expect_double();
 				*self = Operand::Double((*lhs) / rhs);
-				return;
 			},
 			Operand::Long(lhs) => {
 				let rhs = rhs.expect_long();
 				*self = Operand::Long(lhs.overflowing_div(rhs).0);
-				return;
 			},
 			_ => panic!("Invalid operand type for `div` instruction"),
 		}
@@ -131,22 +116,18 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 			Operand::Int(lhs) => {
 				let rhs = rhs.expect_int();
 				*self = Operand::Int(lhs.overflowing_rem(rhs).0);
-				return;
 			},
 			Operand::Float(lhs) => {
 				let rhs = rhs.expect_float();
 				*self = Operand::Float((*lhs) % rhs);
-				return;
 			},
 			Operand::Double(lhs) => {
 				let rhs = rhs.expect_double();
 				*self = Operand::Double((*lhs) % rhs);
-				return;
 			},
 			Operand::Long(lhs) => {
 				let rhs = rhs.expect_long();
 				*self = Operand::Long(lhs.overflowing_rem(rhs).0);
-				return;
 			},
 			_ => panic!("Invalid operand type for `rem` instruction"),
 		}
@@ -157,19 +138,15 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 		match self {
 			Operand::Int(value) => {
 				*self = Operand::Int(value.neg());
-				return;
 			},
 			Operand::Float(value) => {
 				*self = Operand::Float(value.neg());
-				return;
 			},
 			Operand::Double(value) => {
 				*self = Operand::Double(value.neg());
-				return;
 			},
 			Operand::Long(value) => {
 				*self = Operand::Long(value.neg());
-				return;
 			},
 			_ => panic!("Invalid operand type for `neg` instruction"),
 		}
@@ -182,11 +159,9 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 		match self {
 			Operand::Int(lhs) => {
 				*self = Operand::Int((*lhs) << (rhs & 0x1F));
-				return;
 			},
 			Operand::Long(lhs) => {
 				*self = Operand::Long((*lhs) << s8::from(rhs & 0x3F));
-				return;
 			},
 			_ => panic!("Invalid operand type for `shl` instruction"),
 		}
@@ -199,11 +174,9 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 		match self {
 			Operand::Int(lhs) => {
 				*self = Operand::Int((*lhs) >> (rhs & 0x1F));
-				return;
 			},
 			Operand::Long(lhs) => {
 				*self = Operand::Long((*lhs) >> s8::from(rhs & 0x3F));
-				return;
 			},
 			_ => panic!("Invalid operand type for `shr` instruction"),
 		}
@@ -215,12 +188,10 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 			Operand::Int(lhs) => {
 				let rhs = rhs.expect_int();
 				*self = Operand::Int((*lhs) & rhs);
-				return;
 			},
 			Operand::Long(lhs) => {
 				let rhs = rhs.expect_long();
 				*self = Operand::Long((*lhs) & rhs);
-				return;
 			},
 			_ => panic!("Invalid operand type for `and` instruction"),
 		}
@@ -232,12 +203,10 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 			Operand::Int(lhs) => {
 				let rhs = rhs.expect_int();
 				*self = Operand::Int((*lhs) | rhs);
-				return;
 			},
 			Operand::Long(lhs) => {
 				let rhs = rhs.expect_long();
 				*self = Operand::Long((*lhs) | rhs);
-				return;
 			},
 			_ => panic!("Invalid operand type for `or` instruction"),
 		}
@@ -250,11 +219,9 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 		match self {
 			Operand::Int(lhs) => {
 				*self = Operand::Int((((*lhs) as u4) >> (rhs & 0x1F) as u4) as s4);
-				return;
 			},
 			Operand::Long(lhs) => {
 				*self = Operand::Long((((*lhs) as u8) >> (rhs & 0x3F) as u8) as s8);
-				return;
 			},
 			_ => panic!("Invalid operand type for `ushr` instruction"),
 		}
@@ -266,12 +233,10 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 			Operand::Int(lhs) => {
 				let rhs = rhs.expect_int();
 				*self = Operand::Int((*lhs) ^ rhs);
-				return;
 			},
 			Operand::Long(lhs) => {
 				let rhs = rhs.expect_long();
 				*self = Operand::Long((*lhs) ^ rhs);
-				return;
 			},
 			_ => panic!("Invalid operand type for `xor` instruction"),
 		}
@@ -531,13 +496,13 @@ impl<Reference: Debug + PartialEq + Clone> PartialOrd for Operand<Reference> {
 
 impl<Reference> From<s1> for Operand<Reference> {
 	fn from(value: s1) -> Self {
-		Operand::Int(value as s4)
+		Operand::Int(s4::from(value))
 	}
 }
 
 impl<Reference> From<s2> for Operand<Reference> {
 	fn from(value: s2) -> Self {
-		Operand::Int(value as s4)
+		Operand::Int(s4::from(value))
 	}
 }
 
@@ -549,13 +514,13 @@ impl<Reference> From<s4> for Operand<Reference> {
 
 impl<Reference> From<u2> for Operand<Reference> {
 	fn from(value: u2) -> Self {
-		Operand::Int(value as s4)
+		Operand::Int(s4::from(value))
 	}
 }
 
 impl<Reference> From<bool> for Operand<Reference> {
 	fn from(value: bool) -> Self {
-		Operand::Int(value as s4)
+		Operand::Int(s4::from(value))
 	}
 }
 

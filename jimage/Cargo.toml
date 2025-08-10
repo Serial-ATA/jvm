@@ -11,3 +11,6 @@ repository.workspace = true
 [dependencies]
 common.workspace = true
 zip.workspace = true
+
+[lints]
+workspace = true

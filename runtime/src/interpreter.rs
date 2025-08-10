@@ -1055,7 +1055,7 @@ impl Interpreter {
         let mut call_args = Vec::with_capacity(parameter_count);
         if let Some(appendix) = entry.appendix {
             assert!(parameter_count >= 1);
-            frame.stack_mut().push_reference(appendix.clone());
+            frame.stack_mut().push_reference(appendix);
         }
         
         call_args.extend(frame.stack_mut().popn(parameter_count));
@@ -1129,12 +1129,11 @@ impl Interpreter {
             }
         }
         
-        if is_static {
-            if let Throws::Exception(e) = ret.class.initialize(frame.thread()) {
+        if is_static
+            && let Throws::Exception(e) = ret.class.initialize(frame.thread()) {
                 e.throw(frame.thread());
                 return None;
             }
-        }
 
         Some(ret)
     }

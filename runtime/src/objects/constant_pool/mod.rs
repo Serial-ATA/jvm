@@ -54,7 +54,7 @@ impl ConstantPool {
 			return Throws::Ok(resolved);
 		}
 
-		entry.resolve::<T>(self.class, &self, index)
+		entry.resolve::<T>(self.class, self, index)
 	}
 
 	/// Overwrite the entry at `index` with a new value
@@ -73,7 +73,7 @@ impl ConstantPool {
 	unsafe fn resolve_entry_with<T: cp_types::EntryType>(
 		&self,
 		index: u2,
-		value: <T::RawEntryType as CpEntry>::Entry,
+		value: <T::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<T::Resolved> {
 		let entry = &self.entries[index as usize];
 		unsafe { entry.resolve_with::<T>(self.class, self, index, value) }

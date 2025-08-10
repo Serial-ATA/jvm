@@ -107,6 +107,13 @@ macro_rules! define_object_types {
 		pub struct $name($ty);
 
 		impl $name {
+            #[doc = "Create a "]
+            #[doc = stringify!($name)]
+            #[doc = " from a raw pointer"]
+            ///
+            /// # Safety
+            ///
+            /// The caller *must* ensure that the pointer provided was obtained from the VM.
 			pub unsafe fn from_raw(raw: $ty) -> Self {
 				Self(raw)
 			}
@@ -154,6 +161,11 @@ define_object_types! {
 pub struct JObject(jni_sys::jobject);
 
 impl JObject {
+	/// Construct a `JObject` from a raw pointer
+	///
+	/// # Safety
+	///
+	/// The `raw` pointer must point to a valid, JVM-allocated object.
 	pub unsafe fn from_raw(raw: jni_sys::jobject) -> Self {
 		Self(raw)
 	}
@@ -178,6 +190,11 @@ impl From<JObject> for JValue {
 pub struct JFieldId(jni_sys::jfieldID);
 
 impl JFieldId {
+	/// Construct a `JFieldId` from a raw pointer
+	///
+	/// # Safety
+	///
+	/// The `raw` pointer must point to a valid, JVM-allocated field ID.
 	pub unsafe fn from_raw(raw: jni_sys::jfieldID) -> Self {
 		Self(raw)
 	}
@@ -192,6 +209,11 @@ impl JFieldId {
 pub struct JMethodId(jni_sys::jmethodID);
 
 impl JMethodId {
+	/// Construct a `JMethodId` from a raw pointer
+	///
+	/// # Safety
+	///
+	/// The `raw` pointer must point to a valid, JVM-allocated method ID.
 	pub unsafe fn from_raw(raw: jni_sys::jmethodID) -> Self {
 		Self(raw)
 	}

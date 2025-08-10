@@ -15,6 +15,11 @@ impl SignalHandler {
 		self.0.as_usize()
 	}
 
+	/// Construct a `SignalHandler` from a raw pointer to a platform-specific handler
+	///
+	/// # Safety
+	///
+	/// The caller *must* ensure that `handler` is a valid signal handler
 	pub unsafe fn from_raw(handler: usize) -> Self {
 		let imp = unsafe { super::SignalHandlerT::from_raw(handler) };
 		Self(imp)
@@ -43,6 +48,11 @@ impl Signal {
 		<Self as SignalOsExt>::registration_allowed_impl(self)
 	}
 
+	/// Install `handler` as the handler for this `Signal`
+	///
+	/// # Safety
+	///
+	/// The caller must ensure that `handler` is a well-formed handler for this signal.
 	pub unsafe fn install<T: Into<SignalHandler>>(self, handler: T) -> Option<SignalHandler> {
 		unsafe { <Self as SignalOsExt>::install_impl(self, handler.into()) }
 	}
@@ -57,5 +67,11 @@ impl From<i32> for Signal {
 pub trait SignalOsExt: Sized {
 	fn from_name_impl(name: Cow<'_, str>) -> Option<Self>;
 	fn registration_allowed_impl(self) -> bool;
+
+	/// OS-specific signal handler installation
+	///
+	/// # Safety
+	///
+	/// See [`Signal::install()`]
 	unsafe fn install_impl(self, handler: SignalHandler) -> Option<SignalHandler>;
 }

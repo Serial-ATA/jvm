@@ -154,7 +154,7 @@ impl Debug for ResolvedBootstrapMethod {
 		f.debug_struct("ResolvedBoostrapMethod")
 			.field("method_handle_info", &self.method_handle_info)
 			.field("arguments", &self.arguments)
-			.finish()
+			.finish_non_exhaustive()
 	}
 }
 

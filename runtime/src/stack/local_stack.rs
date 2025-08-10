@@ -104,7 +104,7 @@ impl Iterator for LocalStackIter<'_> {
 	}
 }
 
-impl<'a> ExactSizeIterator for LocalStackIter<'a> {
+impl ExactSizeIterator for LocalStackIter<'_> {
 	fn len(&self) -> usize {
 		self.remaining
 	}

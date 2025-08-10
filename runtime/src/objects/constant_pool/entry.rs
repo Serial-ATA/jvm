@@ -26,7 +26,7 @@ pub union ResolvedEntry {
 	pub field_ref: &'static Field,
 	pub invoke_dynamic: InvokeDynamicEntry,
 	pub method_ref: MethodEntry,
-	pub method_handle: &'static Reference,
+	pub method_handle: Reference,
 	pub string: Symbol,
 }
 
@@ -46,10 +46,7 @@ impl ConstantPoolEntry {
 	}
 
 	pub(super) fn resolved<T: cp_types::EntryType>(&self) -> Option<T::Resolved> {
-		match self.resolved_field() {
-			Some(resolved) => Some(T::resolved_entry(resolved)),
-			None => None,
-		}
+		self.resolved_field().map(T::resolved_entry)
 	}
 
 	pub(super) fn resolve<T: cp_types::EntryType>(
@@ -85,7 +82,7 @@ impl ConstantPoolEntry {
 		class: ClassPtr,
 		cp: &super::ConstantPool,
 		index: u2,
-		value: <T::RawEntryType as CpEntry>::Entry,
+		value: <T::RawEntryType as CpEntry<'_>>::Entry,
 	) -> Throws<T::Resolved> {
 		// Reset in case something else is in here
 		unsafe { *self.resolved.get() = None }

@@ -245,7 +245,7 @@ impl PrimitiveArrayInstance {
 			let new_array_slice = unsafe {
 				slice::from_raw_parts_mut::<T>(array.field_base().cast::<T>(), elements.len())
 			};
-			new_array_slice.copy_from_slice(&*elements);
+			new_array_slice.copy_from_slice(&elements);
 		}
 
 		array
@@ -357,43 +357,43 @@ impl Array for PrimitiveArrayInstanceRef {
 		// verify these arrays to be of the same type.
 		match self.ty {
 			TypeCode::Boolean => unsafe {
-				let src_ptr = (self.field_base() as *mut jboolean).add(src_pos);
-				let dest_ptr = (dest.field_base() as *mut jboolean).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jboolean>().add(src_pos);
+				let dest_ptr = dest.field_base().cast::<jboolean>().add(dest_pos);
 				src_ptr.copy_to_nonoverlapping(dest_ptr, length);
 			},
 			TypeCode::Char => unsafe {
-				let src_ptr = (self.field_base() as *mut jchar).add(src_pos);
-				let dest_ptr = (dest.field_base() as *mut jchar).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jchar>().add(src_pos);
+				let dest_ptr = dest.field_base().cast::<jchar>().add(dest_pos);
 				src_ptr.copy_to_nonoverlapping(dest_ptr, length);
 			},
 			TypeCode::Float => unsafe {
-				let src_ptr = (self.field_base() as *mut jfloat).add(src_pos);
-				let dest_ptr = (dest.field_base() as *mut jfloat).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jfloat>().add(src_pos);
+				let dest_ptr = dest.field_base().cast::<jfloat>().add(dest_pos);
 				src_ptr.copy_to_nonoverlapping(dest_ptr, length);
 			},
 			TypeCode::Double => unsafe {
-				let src_ptr = (self.field_base() as *mut jdouble).add(src_pos);
-				let dest_ptr = (dest.field_base() as *mut jdouble).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jdouble>().add(src_pos);
+				let dest_ptr = dest.field_base().cast::<jdouble>().add(dest_pos);
 				src_ptr.copy_to_nonoverlapping(dest_ptr, length);
 			},
 			TypeCode::Byte => unsafe {
-				let src_ptr = (self.field_base() as *mut jbyte).add(src_pos);
-				let dest_ptr = (dest.field_base() as *mut jbyte).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jbyte>().add(src_pos);
+				let dest_ptr = dest.field_base().cast::<jbyte>().add(dest_pos);
 				src_ptr.copy_to_nonoverlapping(dest_ptr, length);
 			},
 			TypeCode::Short => unsafe {
-				let src_ptr = (self.field_base() as *mut jshort).add(src_pos);
-				let dest_ptr = (dest.field_base() as *mut jshort).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jshort>().add(src_pos);
+				let dest_ptr = dest.field_base().cast::<jshort>().add(dest_pos);
 				src_ptr.copy_to_nonoverlapping(dest_ptr, length);
 			},
 			TypeCode::Int => unsafe {
-				let src_ptr = (self.field_base() as *mut jint).add(src_pos);
-				let dest_ptr = (dest.field_base() as *mut jint).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jint>().add(src_pos);
+				let dest_ptr = dest.field_base().cast::<jint>().add(dest_pos);
 				src_ptr.copy_to_nonoverlapping(dest_ptr, length);
 			},
 			TypeCode::Long => unsafe {
-				let src_ptr = (self.field_base() as *mut jlong).add(src_pos);
-				let dest_ptr = (dest.field_base() as *mut jlong).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jlong>().add(src_pos);
+				let dest_ptr = dest.field_base().cast::<jlong>().add(dest_pos);
 				src_ptr.copy_to_nonoverlapping(dest_ptr, length);
 			},
 		}
@@ -404,43 +404,43 @@ impl Array for PrimitiveArrayInstanceRef {
 		// verify these arrays to be of the same type.
 		match self.ty {
 			TypeCode::Boolean => unsafe {
-				let src_ptr = (self.field_base() as *mut jboolean).add(src_pos);
-				let dest_ptr = (self.field_base() as *mut jboolean).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jboolean>().add(src_pos);
+				let dest_ptr = self.field_base().cast::<jboolean>().add(dest_pos);
 				src_ptr.copy_to(dest_ptr, length);
 			},
 			TypeCode::Char => unsafe {
-				let src_ptr = (self.field_base() as *mut jchar).add(src_pos);
-				let dest_ptr = (self.field_base() as *mut jchar).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jchar>().add(src_pos);
+				let dest_ptr = self.field_base().cast::<jchar>().add(dest_pos);
 				src_ptr.copy_to(dest_ptr, length);
 			},
 			TypeCode::Float => unsafe {
-				let src_ptr = (self.field_base() as *mut jfloat).add(src_pos);
-				let dest_ptr = (self.field_base() as *mut jfloat).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jfloat>().add(src_pos);
+				let dest_ptr = self.field_base().cast::<jfloat>().add(dest_pos);
 				src_ptr.copy_to(dest_ptr, length);
 			},
 			TypeCode::Double => unsafe {
-				let src_ptr = (self.field_base() as *mut jdouble).add(src_pos);
-				let dest_ptr = (self.field_base() as *mut jdouble).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jdouble>().add(src_pos);
+				let dest_ptr = self.field_base().cast::<jdouble>().add(dest_pos);
 				src_ptr.copy_to(dest_ptr, length);
 			},
 			TypeCode::Byte => unsafe {
-				let src_ptr = (self.field_base() as *mut jbyte).add(src_pos);
-				let dest_ptr = (self.field_base() as *mut jbyte).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jbyte>().add(src_pos);
+				let dest_ptr = self.field_base().cast::<jbyte>().add(dest_pos);
 				src_ptr.copy_to(dest_ptr, length);
 			},
 			TypeCode::Short => unsafe {
-				let src_ptr = (self.field_base() as *mut jshort).add(src_pos);
-				let dest_ptr = (self.field_base() as *mut jshort).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jshort>().add(src_pos);
+				let dest_ptr = self.field_base().cast::<jshort>().add(dest_pos);
 				src_ptr.copy_to(dest_ptr, length);
 			},
 			TypeCode::Int => unsafe {
-				let src_ptr = (self.field_base() as *mut jint).add(src_pos);
-				let dest_ptr = (self.field_base() as *mut jint).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jint>().add(src_pos);
+				let dest_ptr = self.field_base().cast::<jint>().add(dest_pos);
 				src_ptr.copy_to(dest_ptr, length);
 			},
 			TypeCode::Long => unsafe {
-				let src_ptr = (self.field_base() as *mut jlong).add(src_pos);
-				let dest_ptr = (self.field_base() as *mut jlong).add(dest_pos);
+				let src_ptr = self.field_base().cast::<jlong>().add(src_pos);
+				let dest_ptr = self.field_base().cast::<jlong>().add(dest_pos);
 				src_ptr.copy_to(dest_ptr, length);
 			},
 		}

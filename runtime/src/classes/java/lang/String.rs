@@ -92,21 +92,19 @@ where
 		if is_latin1 {
 			let byte_slice: &[jbyte] = bytemuck::cast_slice(string);
 			encoded_str = byte_slice.to_vec().into_boxed_slice();
+		} else if is_utf8 {
+			// SAFETY: &[u8] and &str have the same layout
+			let string: &str = unsafe { std::mem::transmute(string) };
+			// TODO: More efficient conversion
+			let utf16_encoded_bytes = string.encode_utf16().collect::<Box<[u16]>>();
+			encoded_str = bytemuck::cast_slice(&utf16_encoded_bytes)
+				.to_vec()
+				.into_boxed_slice()
 		} else {
-			if is_utf8 {
-				// SAFETY: &[u8] and &str have the same layout
-				let string: &str = unsafe { std::mem::transmute(string) };
-				// TODO: More efficient conversion
-				let utf16_encoded_bytes = string.encode_utf16().collect::<Box<[u16]>>();
-				encoded_str = bytemuck::cast_slice(&utf16_encoded_bytes)
-					.to_vec()
-					.into_boxed_slice()
-			} else {
-				// Otherwise, the source is a UTF-16 encoded string (hopefully)
-				assert_eq!(string.len() % 2, 0);
-				let byte_slice: &[jbyte] = bytemuck::cast_slice(string);
-				encoded_str = byte_slice.to_vec().into_boxed_slice();
-			}
+			// Otherwise, the source is a UTF-16 encoded string (hopefully)
+			assert_eq!(string.len() % 2, 0);
+			let byte_slice: &[jbyte] = bytemuck::cast_slice(string);
+			encoded_str = byte_slice.to_vec().into_boxed_slice();
 		}
 
 		let new_java_string_instance = ClassInstance::new(globals::classes::java_lang_String());
@@ -119,16 +117,10 @@ where
 
 		// Set `private final byte coder`
 		if is_latin1 {
-			set_coder(
-				new_java_string_instance,
-				native::java::lang::String::LATIN1.into(),
-			);
+			set_coder(new_java_string_instance, native::java::lang::String::LATIN1);
 		} else {
-			set_coder(
-				new_java_string_instance,
-				native::java::lang::String::UTF16.into(),
-			);
-		};
+			set_coder(new_java_string_instance, native::java::lang::String::UTF16);
+		}
 
 		new_java_string_instance
 	}
@@ -219,7 +211,7 @@ pub fn coder(instance: ClassInstanceRef) -> jbyte {
 }
 
 pub fn set_coder(instance: ClassInstanceRef, value: jbyte) {
-	instance.put_field_value0(coder_field_index(), Operand::Int(value as jint))
+	instance.put_field_value0(coder_field_index(), Operand::Int(jint::from(value)))
 }
 
 /// `java.lang.String#hash` field
@@ -240,7 +232,7 @@ pub fn hashIsZero(instance: ClassInstanceRef) -> jboolean {
 }
 
 pub fn set_hashIsZero(instance: ClassInstanceRef, value: jboolean) {
-	instance.put_field_value0(hashIsZero_field_index(), Operand::Int(value as jint))
+	instance.put_field_value0(hashIsZero_field_index(), Operand::Int(jint::from(value)))
 }
 
 crate::classes::field_module! {

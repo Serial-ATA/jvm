@@ -161,7 +161,8 @@ impl JmodFile {
 		Some(JmodEntry::new(entry, Some(section)))
 	}
 
-	/// Iterate each entry in the JMOD file, and perform an action on them
+	/// Iterate each entry in the JMOD file and perform an action on them
+	#[allow(clippy::missing_panics_doc)]
 	pub fn for_each_entry<F>(&mut self, mut map: F)
 	where
 		F: FnMut(JmodEntry<'_>),
@@ -173,6 +174,11 @@ impl JmodFile {
 	}
 
 	/// Iterate each entry in the JMOD file, and perform a fallible action on them
+	///
+	/// # Errors
+	///
+	/// Will return any error produced by `map`.
+	#[allow(clippy::missing_panics_doc)]
 	pub fn try_for_each_entry<F, E>(&mut self, mut map: F) -> core::result::Result<(), E>
 	where
 		F: FnMut(JmodEntry<'_>) -> core::result::Result<(), E>,

@@ -48,7 +48,7 @@ impl ModuleSet {
 		// Store the pointer in the module, to make future lookups cheaper
 		classes::java::lang::Module::set_injected_module_ptr_for(
 			obj,
-			ret as *const Module as jlong,
+			std::ptr::from_ref(ret) as jlong,
 		);
 
 		ret

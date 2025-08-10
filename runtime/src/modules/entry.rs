@@ -65,7 +65,7 @@ impl Debug for Module {
 			s.field("location", &location.as_str());
 		}
 
-		s.finish()
+		s.finish_non_exhaustive()
 	}
 }
 
@@ -115,7 +115,7 @@ impl Module {
 		unsafe {
 			*self.loader.get() = Some(ClassLoader::bootstrap());
 
-			*self.obj.get() = obj.clone();
+			*self.obj.get() = obj;
 			*self.version.get() = version;
 			*self.location.get() = location;
 		}
@@ -123,7 +123,7 @@ impl Module {
 		// Store the pointer in the module, to make future lookups cheaper
 		classes::java::lang::Module::set_injected_module_ptr_for(
 			obj,
-			self as *const Module as jlong,
+			std::ptr::from_ref(self) as jlong,
 		);
 
 		// All classes we've loaded up to this point need to be added to `java.base`
@@ -391,7 +391,7 @@ impl Module {
 	/// Get the associated `java.lang.Module` instance
 	pub fn obj(&self) -> Reference {
 		let obj_ptr = self.obj.get();
-		unsafe { &*obj_ptr }.clone()
+		*unsafe { &*obj_ptr }
 	}
 
 	/// Check whether this entry has an associated `java.lang.Module` object

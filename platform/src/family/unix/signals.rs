@@ -34,6 +34,11 @@ impl SignalHandlerT {
 		Self::SigAction(default_handler)
 	}
 
+	/// Create a UNIX signal handler from a raw pointer
+	///
+	/// # Safety
+	///
+	/// The caller *must* ensure that the `handler` is well-formed
 	pub unsafe fn from_raw(handler: usize) -> Self {
 		Self::Indiscriminate(handler)
 	}

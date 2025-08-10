@@ -71,20 +71,22 @@ pub struct Symbol(u32);
 
 impl Symbol {
 	/// Access the actual string associated with this symbol
-	pub fn as_str(&self) -> &'static str {
+	pub fn as_str(self) -> &'static str {
 		let guard = INTERNER.lock().unwrap();
-		unsafe { std::str::from_utf8_unchecked(guard.get(*self)) }
+
+		// SAFETY: Symbols are **always** UTF-8
+		unsafe { std::str::from_utf8_unchecked(guard.get(self)) }
 	}
 
 	/// Access the byte string associated with this symbol
-	pub fn as_bytes(&self) -> &'static [u8] {
+	pub fn as_bytes(self) -> &'static [u8] {
 		let guard = INTERNER.lock().unwrap();
-		guard.get(*self)
+		guard.get(self)
 	}
 
 	/// Access the `u32` representation of this symbol
 	#[inline]
-	pub fn as_u32(&self) -> u32 {
+	pub fn as_u32(self) -> u32 {
 		self.0
 	}
 }

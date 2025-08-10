@@ -3,6 +3,7 @@
 //! This module contains the definitions for the JNI functions, divided into modules as is [the specification](https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/functions.html).
 
 #![allow(unused_variables, non_snake_case)]
+#![allow(clippy::missing_safety_doc)]
 
 use crate::objects::class::ClassPtr;
 use crate::objects::field::Field;
@@ -126,7 +127,7 @@ impl IntoJni for &'static Method {
 
 	#[allow(trivial_casts)]
 	fn into_jni(self) -> Self::RawJniTy {
-		self as *const _ as jmethodID
+		std::ptr::from_ref(self) as jmethodID
 	}
 
 	fn into_jni_safe(self) -> Self::SafeJniTy {
@@ -162,7 +163,7 @@ pub unsafe fn field_ref_from_jfieldid(field: jfieldID) -> Option<&'static Field>
 	}
 
 	unsafe {
-		let field_ptr = core::mem::transmute::<jfieldID, *const Field>(field);
+		let field_ptr = field as *const Field;
 		Some(&*field_ptr)
 	}
 }
@@ -174,7 +175,7 @@ pub unsafe fn method_ref_from_jmethodid(method: jmethodID) -> Option<&'static Me
 	}
 
 	unsafe {
-		let method_ptr = core::mem::transmute::<jmethodID, *const Method>(method);
+		let method_ptr = method as *const Method;
 		Some(&*method_ptr)
 	}
 }
@@ -186,7 +187,7 @@ pub unsafe fn reference_from_jobject(obj: jobject) -> Option<Reference> {
 	}
 
 	unsafe {
-		let obj = core::mem::transmute::<jobject, *mut Reference>(obj);
+		let obj = obj.cast::<Reference>();
 		Some((&*obj).clone())
 	}
 }

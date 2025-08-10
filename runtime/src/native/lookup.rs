@@ -7,6 +7,7 @@ use crate::symbols::sym;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 
+use std::fmt::Write as _;
 use std::os::raw::c_int;
 
 use classfile::accessflags::MethodAccessFlags;
@@ -145,10 +146,8 @@ impl<'a> NativeNameConverter<'a> {
 			name.push_str(pure_name);
 		}
 
-		if include_long {
-			if let Some(long_name) = self.long_name.as_deref() {
-				name.push_str(long_name);
-			}
+		if include_long && let Some(long_name) = self.long_name.as_deref() {
+			name.push_str(long_name);
 		}
 
 		if os_style && cfg!(all(windows, not(target_arch = "x86_64"))) {
@@ -163,7 +162,7 @@ impl<'a> NativeNameConverter<'a> {
 		let mut check_escape_char = true;
 		for c in name.chars() {
 			if c as u32 <= 0x7F && c.is_alphanumeric() {
-				if check_escape_char && c >= '0' && c <= '3' {
+				if check_escape_char && ('0'..='3').contains(&c) {
 					return false;
 				}
 
@@ -184,7 +183,7 @@ impl<'a> NativeNameConverter<'a> {
 				'[' => stream.push_str("_3"),
 				c => {
 					let c = c as u32;
-					stream.push_str(&format!("_0{c:05x}"))
+					write!(stream, "_0{c:05x}");
 				},
 			}
 		}
@@ -204,10 +203,10 @@ fn lookup_style(
 	let jni_name = name_converter.compute_complete_jni_name(num_args, include_long, os_style);
 
 	let class_loader = method.class().loader();
-	if class_loader.is_bootstrap() {
-		if let Some(entry) = crate::native::method::lookup_method(method) {
-			return Some(entry);
-		}
+	if class_loader.is_bootstrap()
+		&& let Some(entry) = crate::native::method::lookup_method(method)
+	{
+		return Some(entry);
 	}
 
 	let classloader_class = crate::globals::classes::java_lang_ClassLoader();

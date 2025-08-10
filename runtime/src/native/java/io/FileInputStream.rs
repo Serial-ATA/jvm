@@ -12,7 +12,7 @@ use crate::{classes, native};
 use std::fs;
 use std::io::{Read, Seek};
 use std::mem::ManuallyDrop;
-use std::os::fd::{AsRawFd, FromRawFd, RawFd};
+use std::os::fd::{AsRawFd, FromRawFd};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
@@ -94,7 +94,7 @@ pub fn readBytes(
 	}
 
 	// Wrap in `ManuallyDrop` so the file descriptor doesn't get closed
-	let mut file = ManuallyDrop::new(unsafe { fs::File::from_raw_fd(current_fd as RawFd) });
+	let mut file = ManuallyDrop::new(unsafe { fs::File::from_raw_fd(current_fd) });
 
 	match file.read(window) {
 		Ok(n) => n as jint,
@@ -129,7 +129,7 @@ pub fn available0(env: JniEnv, this: Reference) -> jint {
 	}
 
 	// Wrap in `ManuallyDrop` so the file descriptor doesn't get closed
-	let mut file = ManuallyDrop::new(unsafe { fs::File::from_raw_fd(current_fd as RawFd) });
+	let mut file = ManuallyDrop::new(unsafe { fs::File::from_raw_fd(current_fd) });
 
 	let Ok(current) = file.stream_position() else {
 		return 0;

@@ -33,6 +33,9 @@ bumpalo = "3.16.0"
 native_methods = { path = "../generators/native_methods" }
 build-deps.workspace = true
 
+[lints]
+workspace = true
+
 [lib]
 name = "jvm_runtime"
 crate-type = ["rlib", "dylib"]

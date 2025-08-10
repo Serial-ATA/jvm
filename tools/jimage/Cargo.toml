@@ -11,6 +11,9 @@ clap = { workspace = true, features = ["derive"] }
 classfile = { path = "../../classfile" }
 jimage = { path = "../../jimage" }
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "jimage"
 path = "src/main.rs"

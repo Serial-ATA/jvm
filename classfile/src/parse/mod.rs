@@ -8,7 +8,7 @@ use crate::accessflags::ClassAccessFlags;
 use crate::classfile::ClassFile;
 use crate::constant_pool::ConstantPool;
 use crate::parse::attributes::Location;
-use crate::parse::error::Result;
+use crate::parse::error::{ClassFileParseError, Result};
 
 use std::io::Read;
 
@@ -20,7 +20,9 @@ where
 	R: Read,
 {
 	let magic = reader.read_u4()?;
-	assert_eq!(magic, 0xCAFE_BABE, "No magic found!");
+	if magic != 0xCAFE_BABE {
+		return Err(ClassFileParseError::InvalidMagic);
+	}
 
 	let minor_version = reader.read_u2()?;
 	let major_version = reader.read_u2()?;
