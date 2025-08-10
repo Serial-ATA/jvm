@@ -63,10 +63,7 @@ where
 		}
 
 		let offset = self.offset;
-		unsafe {
-			let ptr = self.object.get_raw::<T>(offset as usize) as *const T::Counterpart;
-			(&*ptr).load(Ordering::Acquire)
-		}
+		unsafe { self.object.atomic_get::<T>(offset as usize) }
 	}
 
 	unsafe fn put(&self, value: T) {
@@ -357,7 +354,7 @@ pub fn putReferenceVolatile(
 	offset: jlong,
 	value: Reference, // java.lang.Object
 ) {
-	unsafe { object.atomic_store::<usize>(offset as usize, value.raw_tagged() as usize) }
+	unsafe { object.atomic_store::<usize>(value.raw_tagged() as usize, offset as usize) }
 }
 
 /// Creates the many `{get, put}Ty` and `{get, put}TyVolatile` methods
@@ -488,18 +485,8 @@ pub fn copyMemory0(
 		let src_base = src_base.extract_primitive_array();
 		let dest_base = dest_base.extract_primitive_array();
 
-		let src_base_element_size = src_base.scale();
-		let dest_base_element_size = dest_base.scale();
-
-		let src_base_offset = (src_offset as usize) * src_base_element_size;
-		let dest_base_offset = (dest_offset as usize) * dest_base_element_size;
-
-		unsafe {
-			let src_base_ptr = src_base.field_base().add(src_base_offset);
-			let dest_base_ptr = dest_base.field_base().add(dest_base_offset);
-			src_base_ptr.copy_to(dest_base_ptr, size * src_base_element_size);
-			return;
-		}
+		unsafe { src_base.copy_into(src_offset as usize, &dest_base, dest_offset as usize, size) }
+		return;
 	}
 
 	todo!()
