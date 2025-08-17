@@ -401,6 +401,12 @@ impl ClassLoader {
 		// passing the name N of a class or interface.
 
 		let name_str = name.as_str();
+
+		// NON-SPEC: Array class loading can *NOT* go through traditional class loading: https://bugs.openjdk.org/browse/JDK-6516909
+		if name_str.starts_with('[') {
+			return self.create_array_class(name);
+		}
+
 		let external_name = name_str.replace('/', ".");
 		let external_name_string = StringInterner::intern(external_name);
 
@@ -602,6 +608,7 @@ impl ClassLoader {
 		//
 		//     If the component type is a reference type, the algorithm of this section (§5.3) is applied recursively using L in order to load and thereby create the component type of C.
 		let mut descriptor_str = descriptor.as_str();
+		// TODO: Could also just skip the parsing entirely and count the number of '[' and strip, since we only need the number of dimensions
 		let array = FieldType::parse(&mut descriptor_str.as_bytes()).unwrap(); // TODO: Error handling
 		let FieldType::Array(mut component) = array else {
 			unreachable!("The descriptor was validated as an array prior");
@@ -613,11 +620,15 @@ impl ClassLoader {
 				break;
 			}
 
-			if let FieldType::Array(array) = *component {
+			if let FieldType::Array(array_component) = *component {
 				// Just strip '[' until we finally reach the component type.
-				descriptor_str = &descriptor_str[1..];
-				self.load(Symbol::intern(descriptor_str))?;
-				component = array;
+				//
+				// Note that for multidimensional arrays, the component classes are **not** preemptively
+				// loaded.
+				//
+				// So, in the case of `[[Ljava/lang/String;`, only *that* class will be loaded. Not
+				// `[Ljava/lang/String;`, unless it is explicitly needed later on.
+				component = array_component;
 				continue;
 			}
 

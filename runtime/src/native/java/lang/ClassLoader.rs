@@ -226,8 +226,10 @@ pub fn findBootstrapClass(
 	name: Reference, // java.lang.String
 ) -> Reference // java.lang.Class
 {
-	let name = classes::java::lang::String::extract(name.extract_class());
-	if let Some(class) = ClassLoader::bootstrap().lookup_class(Symbol::intern(name)) {
+	let name_str = classes::java::lang::String::extract(name.extract_class());
+	let internal_name = Symbol::intern(name_str.replace('.', "/"));
+
+	if let Some(class) = ClassLoader::bootstrap().lookup_class(internal_name) {
 		return Reference::mirror(class.mirror());
 	}
 
