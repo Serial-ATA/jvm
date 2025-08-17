@@ -63,7 +63,7 @@ impl ClassAccessorExt for Class {
 	}
 
 	fn interfaces(&self) -> &[ClassPtr] {
-		self.interfaces.as_slice()
+		self.interfaces()
 	}
 
 	fn methods(&self) -> &'static VTable<'static> {

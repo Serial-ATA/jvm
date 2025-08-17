@@ -138,11 +138,29 @@ pub fn getSuperclass(
 	Reference::mirror(super_class.mirror())
 }
 pub fn getInterfaces0(
-	_env: JniEnv,
-	_this: Reference, // java.lang.Class
+	env: JniEnv,
+	this: Reference, // java.lang.Class
 ) -> Reference /* Class<?>[] */
 {
-	unimplemented!("Class#getInterfaces0");
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let mirror = this.extract_mirror();
+	let target_class = mirror.target_class();
+	let interfaces = target_class.interfaces();
+
+	let interfaces_array =
+		ObjectArrayInstance::new(interfaces.len() as s4, globals::classes::java_lang_Class());
+	let interfaces_array: ObjectArrayInstanceRef =
+		handle_exception!(Reference::null(), thread, interfaces_array);
+
+	for (index, interface) in interfaces.iter().enumerate() {
+		// SAFETY: interfaces_array.len() is guaranteed to equal interfaces.len()
+		unsafe {
+			interfaces_array.store_unchecked(index, Reference::mirror(interface.mirror()));
+		}
+	}
+
+	Reference::object_array(interfaces_array)
 }
 pub fn getModifiers(_env: JniEnv, this: Reference /* java.lang.Class */) -> jint {
 	let mirror = this.extract_mirror();

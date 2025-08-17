@@ -215,7 +215,7 @@ pub fn resolve_member_name(
 								|| calling_class
 									.parent_iter()
 									.any(|super_class| super_class == calling_class)
-								|| calling_class.interfaces.contains(&defining_class)
+								|| calling_class.interfaces().contains(&defining_class)
 								|| method.class() == globals::classes::java_lang_Object());
 					},
 					ReferenceKind::NewInvokeSpecial => {

@@ -134,7 +134,8 @@ pub struct Class {
 	pub access_flags: ClassAccessFlags,
 	loader: &'static ClassLoader,
 	pub super_class: Option<ClassPtr>,
-	pub interfaces: Vec<ClassPtr>,
+	// TODO: Box<[]>
+	interfaces: Vec<ClassPtr>,
 	misc_cache: UnsafeCell<MiscCache>,
 	mirror: UnsafeCell<MaybeUninit<MirrorInstanceRef>>,
 	field_container: FieldContainer,
@@ -285,6 +286,11 @@ impl Class {
 		// SAFETY: The only way to construct a `Class` is via `Class::new()`, which ensures that the
 		//         vtable is initialized.
 		unsafe { (&*self.vtable.get()).assume_init_ref() }
+	}
+
+	/// Get a list of the interfaces this class implements
+	pub fn interfaces(&self) -> &[ClassPtr] {
+		self.interfaces.as_slice()
 	}
 
 	/// Get the fields for this class
