@@ -1,4 +1,12 @@
+use crate::native::jni::{IntoJni, reference_from_jobject};
+use crate::symbols::Symbol;
+use crate::thread::JavaThread;
+use crate::thread::exceptions::Throws;
+
 use core::ffi::c_char;
+use std::ffi::CStr;
+
+use common::unicode;
 use jni::sys::{
 	JNIEnv, jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, jobject, jshort,
 };
@@ -13,7 +21,36 @@ pub extern "system" fn GetFieldID(
 	name: *const c_char,
 	sig: *const c_char,
 ) -> jfieldID {
-	unimplemented!("jni::GetFieldID")
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(class) = (unsafe { reference_from_jobject(clazz) }) else {
+		panic!("Invalid arguments to `GetFieldID`");
+	};
+
+	let name_c = unsafe { CStr::from_ptr(name) };
+	let sig_c = unsafe { CStr::from_ptr(sig) };
+
+	let Ok(name) = unicode::decode(name_c.to_bytes()) else {
+		return std::ptr::null_mut();
+	};
+	let Ok(sig) = unicode::decode(sig_c.to_bytes()) else {
+		return std::ptr::null_mut();
+	};
+
+	let name_sym = Symbol::intern(name);
+	let sig_sym = Symbol::intern(sig);
+
+	match class
+		.extract_target_class()
+		.resolve_field(name_sym, sig_sym)
+	{
+		Throws::Ok(field) => field.into_jni(),
+		Throws::Exception(e) => {
+			e.throw(thread);
+			std::ptr::null_mut()
+		},
+	}
 }
 
 pub extern "system" fn GetObjectField(

@@ -7,12 +7,15 @@ use crate::thread::JavaThread;
 use crate::thread::exceptions::Throws;
 
 use core::ffi::c_char;
+use std::ffi::CStr;
+
+use common::unicode;
 use instructions::Operand;
 use jni::sys::{
 	JNIEnv, jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, jobject,
 	jshort, jvalue, va_list,
 };
-use std::ffi::CStr;
+
 // --------------
 //   NON-STATIC
 // --------------
@@ -24,18 +27,25 @@ pub unsafe extern "system" fn GetMethodID(
 	name: *const c_char,
 	sig: *const c_char,
 ) -> jmethodID {
-	let name = unsafe { CStr::from_ptr(name) };
-	let sig = unsafe { CStr::from_ptr(sig) };
+	let name_c = unsafe { CStr::from_ptr(name) };
+	let sig_c = unsafe { CStr::from_ptr(sig) };
 
-	let name = Symbol::intern(name.to_bytes());
-	let sig = Symbol::intern(sig.to_bytes());
+	let Ok(name) = unicode::decode(name_c.to_bytes()) else {
+		return std::ptr::null_mut();
+	};
+	let Ok(sig) = unicode::decode(sig_c.to_bytes()) else {
+		return std::ptr::null_mut();
+	};
+
+	let name_sym = Symbol::intern(name);
+	let sig_sym = Symbol::intern(sig);
 
 	let Some(class_obj) = (unsafe { reference_from_jobject(clazz) }) else {
 		return core::ptr::null::<Method>() as jmethodID;
 	};
 
 	let class = class_obj.extract_target_class();
-	match class.resolve_method(name, sig) {
+	match class.resolve_method(name_sym, sig_sym) {
 		Throws::Ok(method) => method.into_jni(),
 		Throws::Exception(e) => {
 			let thread = JavaThread::current();

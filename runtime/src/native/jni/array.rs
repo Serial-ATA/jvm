@@ -1,19 +1,19 @@
-use super::{reference_from_jobject, IntoJni};
+use super::{IntoJni, reference_from_jobject};
 use crate::objects::instance::array::{
-    Array, ObjectArrayInstance, PrimitiveArrayInstance, TypeCode,
+	Array, ObjectArrayInstance, PrimitiveArrayInstance, TypeCode,
 };
 use crate::objects::reference::Reference;
-use crate::thread::exceptions::Throws;
 use crate::thread::JavaThread;
+use crate::thread::exceptions::Throws;
 
 use core::ffi::c_void;
 use std::ptr;
 
 use common::int_types::u1;
 use jni::sys::{
-    jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jclass, jdouble, jdoubleArray,
-    jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, jobject, jobjectArray, jshort,
-    jshortArray, jsize, JNIEnv,
+	JNIEnv, jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jclass, jdouble,
+	jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, jobject, jobjectArray,
+	jshort, jshortArray, jsize,
 };
 
 #[unsafe(no_mangle)]
