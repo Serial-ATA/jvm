@@ -1,7 +1,10 @@
 use proc_macro2::{Ident, Span};
 use quote::{ToTokens, quote, quote_spanned};
 use syn::spanned::Spanned;
-use syn::{Abi, FnArg, ItemFn, Pat, PatIdent, Path, ReturnType, Type, TypePath};
+use syn::{
+	Abi, FnArg, GenericArgument, ItemFn, Pat, PatIdent, Path, PathArguments, ReturnType, Type,
+	TypePath,
+};
 
 // jni_sys types
 macro_rules! parameter_types {
@@ -31,23 +34,30 @@ macro_rules! parameter_types {
 			}
 		}
 
-		#[derive(Copy, Clone)]
+		#[derive(Clone)]
 		enum SafeJniWrapperType {
 			Primitive(Primitive),
+            Optional(Box<SafeJniWrapperType>),
 			$($obj_ty),+
 		}
 
 		impl SafeJniWrapperType {
-			fn from_str(s: &str) -> Option<Self> {
+			fn from_str(s: &str, optional: bool) -> Option<Self> {
 				match s {
 					$(stringify!($sys_ty) | stringify!(jni::sys::$sys_ty) | stringify!(::jni::sys::$sys_ty) => Some(SafeJniWrapperType::Primitive(Primitive::$sys_ty)),)+
 					$(stringify!($obj_sys_ty) | stringify!(jni::objects::$obj_sys_ty) | stringify!(::jni::objects::$obj_sys_ty)
-					| stringify!($obj_ty) | stringify!(jni::objects::$obj_ty) | stringify!(::jni::objects::$obj_ty) => Some(SafeJniWrapperType::$obj_ty),)+
+					| stringify!($obj_ty) | stringify!(jni::objects::$obj_ty) | stringify!(::jni::objects::$obj_ty) => {
+                        if optional {
+                            Some(SafeJniWrapperType::Optional(Box::new(SafeJniWrapperType::$obj_ty)))
+                        } else {
+                            Some(SafeJniWrapperType::$obj_ty)
+                        }
+                    },)+
 					_ => None,
 				}
 			}
 
-			fn to_raw(self) -> proc_macro2::TokenStream {
+			fn to_raw(&self) -> proc_macro2::TokenStream {
 				match self {
 					SafeJniWrapperType::Primitive(p) => {
 						let ident = p.as_ident();
@@ -55,6 +65,9 @@ macro_rules! parameter_types {
 							::jni::sys::#ident
 						}
 					},
+                    SafeJniWrapperType::Optional(inner) => {
+                        inner.to_raw()
+                    },
 					$(
 					SafeJniWrapperType::$obj_ty => {
 						let ty = Ident::new(stringify!($obj_sys_ty), Span::call_site()).to_token_stream();
@@ -66,9 +79,15 @@ macro_rules! parameter_types {
 				}
 			}
 
-			fn to_safe(self) -> proc_macro2::TokenStream {
+			fn to_safe(&self) -> proc_macro2::TokenStream {
 				match self {
 					SafeJniWrapperType::Primitive(_) => self.to_raw(),
+                    SafeJniWrapperType::Optional(inner) => {
+                        let inner_safe = inner.to_safe();
+                        quote! {
+                            core::option::Option<#inner_safe>
+                        }
+                    },
 					$(
 					SafeJniWrapperType::$obj_ty => {
 						let ty = Ident::new(stringify!($obj_ty), Span::call_site()).to_token_stream();
@@ -80,13 +99,23 @@ macro_rules! parameter_types {
 				}
 			}
 
-			fn raw_conversion_fn(self, param_name: Ident) -> proc_macro2::TokenStream {
+			fn raw_conversion_fn(&self, param_name: Ident) -> proc_macro2::TokenStream {
 				match self {
 					SafeJniWrapperType::Primitive(_) => {
 						quote_spanned!{param_name.span()=>
 							::core::convert::identity(#param_name)
 						}
 					},
+                    SafeJniWrapperType::Optional(inner) => {
+                        let unwrapped = Ident::new("unwrapped", Span::call_site());
+                        let inner_raw = inner.raw_conversion_fn(unwrapped.clone());
+						quote_spanned! {param_name.span()=>
+							match #param_name {
+                                Some(#unwrapped) => #inner_raw,
+                                None => ::core::ptr::null_mut() as _,
+                            }
+						}
+                    },
 					$(
 					SafeJniWrapperType::$obj_ty => {
 						quote_spanned! {param_name.span()=>
@@ -97,9 +126,12 @@ macro_rules! parameter_types {
 				}
 			}
 
-			fn safe_conversion_fn(self, param_name: Ident) -> proc_macro2::TokenStream {
+			fn safe_conversion_fn(&self, param_name: Ident) -> proc_macro2::TokenStream {
 				match self {
 					SafeJniWrapperType::Primitive(_) => param_name.to_token_stream(),
+                    SafeJniWrapperType::Optional(_inner) => {
+                        unimplemented!("Optional object parameters");
+                    },
 					$(
 					SafeJniWrapperType::$obj_ty => {
 						let raw = self.to_safe();
@@ -247,7 +279,13 @@ fn validate_params(
 					continue;
 				};
 
-				let path_str = path_str(path);
+				let Some((path_str, _optional)) = path_str(path) else {
+					errors.push((
+						Error::BadParameterType(arg.ty.to_token_stream().to_string()),
+						param.span(),
+					));
+					continue;
+				};
 				if index == 0 {
 					const JNI_ENV_PATHS: &[&str] = &["JniEnv", "jni::env::JniEnv"];
 
@@ -259,7 +297,7 @@ fn validate_params(
 					continue;
 				}
 
-				let Some(parsed) = SafeJniWrapperType::from_str(&path_str) else {
+				let Some(parsed) = SafeJniWrapperType::from_str(&path_str, false) else {
 					errors.push((Error::BadParameterType(path_str), param.span()));
 					continue;
 				};
@@ -285,8 +323,14 @@ fn validate_return(errors: &mut Vec<(Error, Span)>, fun: &ItemFn) -> Option<Safe
 		return None;
 	};
 
-	let path_str = path_str(path);
-	let Some(parsed) = SafeJniWrapperType::from_str(&path_str) else {
+	let Some((path_str, optional)) = path_str(path) else {
+		errors.push((
+			Error::BadReturnType(ty.to_token_stream().to_string()),
+			ty.span(),
+		));
+		return None;
+	};
+	let Some(parsed) = SafeJniWrapperType::from_str(&path_str, optional) else {
 		errors.push((Error::BadReturnType(path_str), ty.span()));
 		return None;
 	};
@@ -294,19 +338,39 @@ fn validate_return(errors: &mut Vec<(Error, Span)>, fun: &ItemFn) -> Option<Safe
 	Some(parsed)
 }
 
-fn path_str(path: &Path) -> String {
-	let mut path_str = String::new();
+fn path_str(path: &Path) -> Option<(String, bool)> {
+	let mut s = String::new();
+	let mut optional = false;
 
 	let segments_len = path.segments.len();
 	for (index, segment) in path.segments.iter().enumerate() {
-		path_str.push_str(&segment.ident.to_string());
+		let segment_str = segment.ident.to_string();
+		if segment_str == "Option" {
+			optional = true;
+
+			let PathArguments::AngleBracketed(args) = &segment.arguments else {
+				return None;
+			};
+
+			if args.args.len() != 1 {
+				return None;
+			}
+
+			let GenericArgument::Type(Type::Path(TypePath { path, .. })) = &args.args[0] else {
+				return None;
+			};
+
+			s.push_str(&path_str(path)?.0);
+		} else {
+			s.push_str(&segment_str);
+		}
 
 		if index != segments_len - 1 {
-			path_str.push_str("::");
+			s.push_str("::");
 		}
 	}
 
-	path_str
+	Some((s, optional))
 }
 
 fn generate_extern_fn(
