@@ -11,7 +11,8 @@ use std::ffi::CStr;
 use jni::error::JniError;
 use jni::java_vm::JavaVm;
 use jni::sys::{
-	JNI_EVERSION, JNI_OK, JNIInvokeInterface_, JNINativeInterface_, JavaVM, jint, jsize,
+	JNI_EDETACHED, JNI_EINVAL, JNI_EVERSION, JNI_OK, JNIInvokeInterface_, JNINativeInterface_,
+	JavaVM, jint, jsize,
 };
 use jni::version::JniVersion;
 
@@ -49,7 +50,20 @@ pub unsafe extern "system" fn GetEnv(
 	penv: *mut *mut c_void,
 	version: jint,
 ) -> jint {
-	unimplemented!("jni::GetEnv")
+	if penv.is_null() {
+		return JNI_EINVAL;
+	}
+
+	if JniVersion::from_raw(version).is_none() {
+		return JNI_EVERSION;
+	}
+
+	let Some(thread) = JavaThread::current_opt() else {
+		return JNI_EDETACHED;
+	};
+
+	unsafe { *penv = thread.env().raw().cast::<c_void>() };
+	return JNI_OK;
 }
 
 #[unsafe(no_mangle)]

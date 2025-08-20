@@ -202,6 +202,19 @@ impl JavaVm {
 		todo!("DetachCurrentThread")
 	}
 
+	/// Get the [`JniEnv`] for the current thread
+	///
+	/// ## PARAMETERS
+	///
+	/// `version`: The requested JNI version.
+	///
+	/// ## RETURNS
+	///
+	/// If the current thread is not attached to the VM, this returns [`JniError::ThreadDetached`].
+	///
+	/// If the specified version is not supported, this returns [`JniError::BadVersion`].
+	///
+	/// Otherwise, the env is returned.
 	pub fn get_env(&self, version: JniVersion) -> Result<JniEnv> {
 		let mut env = core::ptr::null_mut();
 
