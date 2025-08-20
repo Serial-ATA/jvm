@@ -36,7 +36,21 @@ pub mod Raw {
 			String::from("java.library.path"),
 			platform::env::java_library_path(),
 		);
-		m.insert(String::from("java.home"), platform::env::java_home());
+		if let Some(system_paths) = platform::env::SystemPaths::init() {
+			m.insert(
+				String::from("sun.boot.library.path"),
+				system_paths
+					.boot_library_path
+					.to_string_lossy()
+					.into_owned(),
+			);
+			m.insert(
+				String::from("java.home"),
+				system_paths.java_home.to_string_lossy().into_owned(),
+			);
+			m.insert(String::from("java.ext.dirs"), system_paths.extensions_dirs);
+		}
+
 		Mutex::new(m)
 	});
 
