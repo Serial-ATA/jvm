@@ -144,8 +144,7 @@ impl IntoJni for Reference {
 
 	#[allow(trivial_casts)]
 	fn into_jni(self) -> Self::RawJniTy {
-		// Leak the reference to keep it alive indefinitely
-		Box::leak::<'static>(Box::new(self)) as *mut Reference as jobject
+		self.raw_tagged() as jobject
 	}
 
 	fn into_jni_safe(self) -> Self::SafeJniTy {
@@ -186,8 +185,5 @@ pub unsafe fn reference_from_jobject(obj: jobject) -> Option<Reference> {
 		return None;
 	}
 
-	unsafe {
-		let obj = obj.cast::<Reference>();
-		Some((&*obj).clone())
-	}
+	unsafe { Some(Reference::from_raw(obj.cast())) }
 }

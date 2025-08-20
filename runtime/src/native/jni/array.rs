@@ -1,16 +1,19 @@
-use super::{IntoJni, reference_from_jobject};
-use crate::objects::instance::array::{Array, ObjectArrayInstance};
+use super::{reference_from_jobject, IntoJni};
+use crate::objects::instance::array::{
+    Array, ObjectArrayInstance, PrimitiveArrayInstance, TypeCode,
+};
 use crate::objects::reference::Reference;
-use crate::thread::JavaThread;
 use crate::thread::exceptions::Throws;
+use crate::thread::JavaThread;
 
 use core::ffi::c_void;
 use std::ptr;
 
+use common::int_types::u1;
 use jni::sys::{
-	JNIEnv, jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jclass, jdouble,
-	jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, jobject, jobjectArray,
-	jshort, jshortArray, jsize,
+    jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jclass, jdouble, jdoubleArray,
+    jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, jobject, jobjectArray, jshort,
+    jshortArray, jsize, JNIEnv,
 };
 
 #[unsafe(no_mangle)]
@@ -92,7 +95,16 @@ pub unsafe extern "system" fn NewBooleanArray(env: *mut JNIEnv, len: jsize) -> j
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn NewByteArray(env: *mut JNIEnv, len: jsize) -> jbyteArray {
-	unimplemented!("jni::NewByteArray");
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	match PrimitiveArrayInstance::new_from_type(TypeCode::Byte as u1, len) {
+		Throws::Ok(array) => Reference::array(array).into_jni(),
+		Throws::Exception(e) => {
+			e.throw(thread);
+			ptr::null_mut()
+		},
+	}
 }
 
 #[unsafe(no_mangle)]
@@ -384,7 +396,17 @@ pub unsafe extern "system" fn SetByteArrayRegion(
 	len: jsize,
 	buf: *const jbyte,
 ) {
-	unimplemented!("jni::SetByteArrayRegion")
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(array) = (unsafe { reference_from_jobject(array) }) else {
+		panic!("Invalid arguments to `SetByteArrayRegion`");
+	};
+
+	let buf = unsafe { std::slice::from_raw_parts(buf, len as usize - 1) };
+	if let Throws::Exception(e) = array.extract_primitive_array().write_region(start, buf) {
+		e.throw(thread);
+	}
 }
 
 #[unsafe(no_mangle)]

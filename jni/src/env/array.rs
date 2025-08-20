@@ -1,6 +1,7 @@
 use crate::error::{JniError, Result};
-use crate::objects::{JClass, JObject, JObjectArray};
+use crate::objects::{JByteArray, JClass, JObject, JObjectArray};
 use crate::sys::jsize;
+use jni_sys::jbyte;
 
 impl super::JniEnv {
 	// TODO: GetArrayLength
@@ -88,7 +89,23 @@ impl super::JniEnv {
 	}
 
 	// TODO: NewBooleanArray
-	// TODO: NewByteArray
+	pub fn new_byte_array(&self, len: jsize) -> Result<JByteArray> {
+		let ret;
+		unsafe {
+			let invoke_interface = self.as_native_interface();
+			ret = ((*invoke_interface).NewByteArray)(self.0.cast::<jni_sys::JNIEnv>(), len);
+		}
+
+		if self.exception_check() {
+			return Err(JniError::ExceptionThrown);
+		}
+
+		if ret.is_null() {
+			return Err(JniError::Unknown);
+		}
+
+		Ok(unsafe { JByteArray::from_raw(ret) })
+	}
 	// TODO: NewCharArray
 	// TODO: NewShortArray
 	// TODO: NewIntArray
@@ -120,7 +137,29 @@ impl super::JniEnv {
 	// TODO: GetFloatArrayRegion
 	// TODO: GetDoubleArrayRegion
 	// TODO: SetBooleanArrayRegion
-	// TODO: SetByteArrayRegion
+	pub fn set_byte_array_region(
+		&self,
+		array: JByteArray,
+		start: jsize,
+		buf: &[jbyte],
+	) -> Result<()> {
+		unsafe {
+			let invoke_interface = self.as_native_interface();
+			((*invoke_interface).SetByteArrayRegion)(
+				self.0.cast::<jni_sys::JNIEnv>(),
+				array.raw(),
+				start,
+				buf.len() as jsize,
+				buf.as_ptr(),
+			);
+		}
+
+		if self.exception_check() {
+			return Err(JniError::ExceptionThrown);
+		}
+
+		Ok(())
+	}
 	// TODO: SetCharArrayRegion
 	// TODO: SetShortArrayRegion
 	// TODO: SetIntArrayRegion

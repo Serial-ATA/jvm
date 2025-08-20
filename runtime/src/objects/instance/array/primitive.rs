@@ -275,6 +275,31 @@ impl PrimitiveArrayInstance {
 	}
 }
 
+impl PrimitiveArrayInstanceRef {
+	/// Copy the contents of `buf` into `self[start..]`
+	pub fn write_region<T: PrimitiveType>(&self, start: s4, buf: &[T]) -> Throws<()> {
+		if start.is_negative() {
+			throw!(@DEFER NegativeArraySizeException);
+		}
+
+		if (start as usize) + buf.len() > self.len() {
+			throw!(@DEFER ArrayIndexOutOfBoundsException);
+		}
+
+		if T::TYPE_CODE != self.ty {
+			throw!(@DEFER IllegalArgumentException);
+		}
+
+		let src_ptr = buf.as_ptr();
+		unsafe {
+			let dest_ptr = self.field_base().cast::<T>().add(start as usize);
+			src_ptr.copy_to(dest_ptr, buf.len());
+		}
+
+		Throws::Ok(())
+	}
+}
+
 impl Array for PrimitiveArrayInstanceRef {
 	type Component = Operand<Reference>;
 
