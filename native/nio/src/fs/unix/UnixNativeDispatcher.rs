@@ -2,7 +2,7 @@
 
 use jni::env::JniEnv;
 use jni::objects::{JByteArray, JClass, JObject};
-use jni::sys::{jint, jlong};
+use jni::sys::{jint, jlong, jsize};
 use native_macros::jni_call;
 
 pub const SUPPORTS_OPENAT: jint = 1 << 1; // syscalls
@@ -16,8 +16,7 @@ pub extern "system" fn Java_sun_nio_fs_UnixNativeDispatcher_init(
 ) -> jint {
 	macro_rules! field_exists {
 		($env:ident, $sig:literal, $class:ident, $field_name:ident) => {
-			let Ok(_field) = $env.get_field_id($class, stringify!($field_name), stringify!($sig))
-			else {
+			let Ok(_field) = $env.get_field_id($class, stringify!($field_name), $sig) else {
 				return false;
 			};
 		};
@@ -118,10 +117,36 @@ pub extern "system" fn Java_sun_nio_fs_UnixNativeDispatcher_init(
 
 #[jni_call]
 pub extern "system" fn Java_sun_nio_fs_UnixNativeDispatcher_getcwd(
-	_env: JniEnv,
+	env: JniEnv,
 	_this: JClass,
-) -> JByteArray {
-	unimplemented!("sun.nio.fs.UnixNativeDispatcher#getcwd");
+) -> Option<JByteArray> {
+	// + 1 for null terminator
+	let mut buf = vec![0; libc::PATH_MAX as usize + 1];
+
+	let cwd = unsafe { libc::getcwd(buf.as_mut_ptr() as *mut libc::c_char, buf.capacity()) };
+	if cwd.is_null() {
+		todo!("Throw sun/util/UnixException")
+	}
+
+	unsafe {
+		let cwd_len = libc::strlen(cwd) + 1;
+		buf.set_len(cwd_len);
+	}
+
+	let buf_without_terminator = &buf[..buf.len() - 1];
+
+	let Ok(byte_array) = env.new_byte_array(buf_without_terminator.len() as jsize) else {
+		return None;
+	};
+
+	if env
+		.set_byte_array_region(byte_array, 0, buf_without_terminator)
+		.is_err()
+	{
+		return None;
+	}
+
+	Some(byte_array)
 }
 
 #[jni_call]
