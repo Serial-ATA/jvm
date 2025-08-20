@@ -23,6 +23,8 @@ impl super::JniEnv {
 	/// * `NoClassDefFoundError`: No definition for a requested class or interface can be found.
 	/// * `OutOfMemoryError`: The system runs out of memory.
 	pub fn find_class(&self, name: impl Into<JniString>) -> Result<JClass> {
+		assert!(!self.raw().is_null());
+
 		let name = name.into();
 
 		let ret;
@@ -55,6 +57,8 @@ impl super::JniEnv {
 	///
 	/// Returns the superclass of the class represented by `class`, or `None`.
 	pub fn get_super_class(&self, sub: JClass) -> Option<JClass> {
+		assert!(!self.raw().is_null());
+
 		let ret;
 		unsafe {
 			let invoke_interface = self.as_native_interface();
@@ -84,6 +88,8 @@ impl super::JniEnv {
 	/// * `sub` is a subclass of `sup`.
 	/// * `sub` has `sup` as one of its interfaces.
 	pub fn is_assignable_from(&self, sub: JClass, sup: JClass) -> bool {
+		assert!(!self.raw().is_null());
+
 		let ret;
 		unsafe {
 			let invoke_interface = self.as_native_interface();
