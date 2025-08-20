@@ -5,6 +5,7 @@ use crate::stack::local_stack::LocalStack;
 use crate::symbols::Symbol;
 
 use std::collections::HashMap;
+use std::ffi::c_void;
 use std::fmt::Debug;
 use std::sync::{LazyLock, RwLock};
 
@@ -36,44 +37,43 @@ pub type NativeStaticMethodPtr = fn(JniEnv, ClassPtr, LocalStack) -> NativeRetur
 pub type NativeNonStaticMethodPtr = fn(JniEnv, LocalStack) -> NativeReturn;
 
 #[derive(Copy, Clone)]
-union NativeMethodPtrInner {
-	_static: NativeStaticMethodPtr,
-	non_static: NativeNonStaticMethodPtr,
+pub enum NativeMethodPtr {
+	StaticInternal(NativeStaticMethodPtr),
+	NonStaticInternal(NativeNonStaticMethodPtr),
+	External(*const c_void),
 }
 
-#[derive(Copy, Clone)]
-pub struct NativeMethodPtr {
-	inner: NativeMethodPtrInner,
-}
+unsafe impl Send for NativeMethodPtr {}
+unsafe impl Sync for NativeMethodPtr {}
 
 impl NativeMethodPtr {
 	/// Used by the native method generator, should never be used directly.
 	#[doc(hidden)]
 	pub fn new_static(f: NativeStaticMethodPtr) -> NativeMethodPtr {
-		Self {
-			inner: NativeMethodPtrInner { _static: f },
-		}
+		Self::StaticInternal(f)
 	}
 	/// Used by the native method generator, should never be used directly.
 	#[doc(hidden)]
 	pub fn new_non_static(f: NativeNonStaticMethodPtr) -> NativeMethodPtr {
-		Self {
-			inner: NativeMethodPtrInner { non_static: f },
-		}
+		Self::NonStaticInternal(f)
 	}
 
 	pub unsafe fn from_raw(ptr: *const ()) -> Self {
-		Self {
-			inner: unsafe { core::mem::transmute::<*const (), NativeMethodPtrInner>(ptr) },
-		}
+		Self::External(ptr as *const c_void)
 	}
 
 	pub unsafe fn as_static(self) -> NativeStaticMethodPtr {
-		unsafe { self.inner._static }
+		let Self::StaticInternal(ptr) = self else {
+			unreachable!()
+		};
+		ptr
 	}
 
 	pub unsafe fn as_non_static(self) -> NativeNonStaticMethodPtr {
-		unsafe { self.inner.non_static }
+		let Self::NonStaticInternal(ptr) = self else {
+			unreachable!()
+		};
+		ptr
 	}
 }
 

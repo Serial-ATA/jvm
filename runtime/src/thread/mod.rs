@@ -9,7 +9,9 @@ pub mod pool;
 use crate::classes::java::lang::Thread::ThreadStatus;
 use crate::interpreter::Interpreter;
 use crate::native::java::lang::String::StringInterner;
+use crate::native::jni::IntoJni;
 use crate::native::jni::invocation_api::new_env;
+use crate::native::method::NativeMethodPtr;
 use crate::objects::instance::class::{ClassInstance, ClassInstanceRef};
 use crate::objects::instance::object::Object;
 use crate::objects::method::Method;
@@ -25,6 +27,7 @@ use std::cell::{Cell, SyncUnsafeCell, UnsafeCell};
 use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 use std::thread::JoinHandle;
 
+use classfile::FieldType;
 use classfile::accessflags::MethodAccessFlags;
 use instructions::{Operand, StackLike};
 use jni::env::JniEnv;
@@ -459,24 +462,91 @@ impl JavaThread {
 			.push(StackFrame::Native(NativeFrame { method }));
 
 		let ret;
-		if method.is_static() {
-			let fn_ptr = unsafe { fn_ptr.as_static() };
-			ret = fn_ptr(self.env(), method.class(), locals);
-		} else {
-			let fn_ptr = unsafe { fn_ptr.as_non_static() };
-			ret = fn_ptr(self.env(), locals);
+		match fn_ptr {
+			NativeMethodPtr::StaticInternal(func) => {
+				assert!(method.is_static());
+				ret = func(self.env(), method.class(), locals);
+			},
+			NativeMethodPtr::NonStaticInternal(func) => {
+				assert!(!method.is_static());
+				ret = func(self.env(), locals);
+			},
+			#[cfg(feature = "libffi")]
+			NativeMethodPtr::External(func) => {
+				use jni::sys::{
+					jarray, jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort,
+				};
+				use libffi::low::CodePtr;
+
+				let cfi = method.prepare_cfi(self.env().raw(), method.class().into_jni(), &locals);
+				ret = unsafe {
+					match method.descriptor.return_type {
+						FieldType::Byte => Some(Operand::Int(
+							cfi.cfi
+								.call::<jbyte>(CodePtr::from_ptr(func), &*cfi.args)
+								.into(),
+						)),
+						FieldType::Character => Some(Operand::Int(
+							cfi.cfi
+								.call::<jchar>(CodePtr::from_ptr(func), &*cfi.args)
+								.into(),
+						)),
+						FieldType::Double => Some(Operand::Double(
+							cfi.cfi
+								.call::<jdouble>(CodePtr::from_ptr(func), &*cfi.args)
+								.into(),
+						)),
+						FieldType::Float => Some(Operand::Float(
+							cfi.cfi
+								.call::<jfloat>(CodePtr::from_ptr(func), &*cfi.args)
+								.into(),
+						)),
+						FieldType::Integer => Some(Operand::Int(
+							cfi.cfi
+								.call::<jint>(CodePtr::from_ptr(func), &*cfi.args)
+								.into(),
+						)),
+						FieldType::Long => Some(Operand::Long(
+							cfi.cfi
+								.call::<jlong>(CodePtr::from_ptr(func), &*cfi.args)
+								.into(),
+						)),
+						FieldType::Short => Some(Operand::Int(
+							cfi.cfi
+								.call::<jshort>(CodePtr::from_ptr(func), &*cfi.args)
+								.into(),
+						)),
+						FieldType::Boolean => Some(Operand::Int(
+							cfi.cfi
+								.call::<jboolean>(CodePtr::from_ptr(func), &*cfi.args)
+								.into(),
+						)),
+						FieldType::Void => {
+							cfi.cfi.call::<()>(CodePtr::from_ptr(func), &*cfi.args);
+							None
+						},
+						FieldType::Object(_) | FieldType::Array(_) => {
+							Some(Operand::Reference(Reference::from_raw(
+								cfi.cfi
+									.call::<jobject>(CodePtr::from_ptr(func), &*cfi.args)
+									.cast(),
+							)))
+						},
+					}
+				};
+			},
 		}
+
+		// There's a chance that the native frame was consumed while handling an exception, otherwise
+		// it should always be present.
+		let popped_native_frame = self.frame_stack.pop_native().is_some();
 
 		// Exception from native code, nothing left to do
 		if self.has_pending_exception() {
 			return;
 		}
 
-		// The frame may have been consumed in the search for an exemption handler
-		assert!(
-			self.frame_stack.pop_native().is_some(),
-			"native frame consumed",
-		);
+		assert!(popped_native_frame, "native frame consumed",);
 
 		// Push the return value onto the previous frame's stack
 		if let Some(ret) = ret {

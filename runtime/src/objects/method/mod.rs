@@ -7,6 +7,7 @@ use crate::objects::constant_pool::cp_types;
 use crate::objects::constant_pool::cp_types::MethodEntry;
 use crate::objects::instance::array::{Array, ObjectArrayInstance, ObjectArrayInstanceRef};
 use crate::objects::instance::mirror::MirrorInstanceRef;
+use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
@@ -621,5 +622,109 @@ impl Method {
 		}
 
 		Some(parameters)
+	}
+}
+
+#[cfg(feature = "libffi")]
+pub struct PreparedCfi {
+	pub cfi: libffi::middle::Cif,
+	pub args: Vec<libffi::middle::Arg>,
+}
+
+impl Method {
+	#[cfg(feature = "libffi")]
+	pub fn prepare_cfi(
+		&'static self,
+		env: *mut jni::sys::JNIEnv,
+		class: jni::sys::jclass,
+		locals: &crate::stack::local_stack::LocalStack,
+	) -> PreparedCfi {
+		trait IntoFfiType {
+			fn into_ffi_type(&self) -> Type;
+		}
+
+		impl IntoFfiType for FieldType {
+			fn into_ffi_type(&self) -> Type {
+				match self {
+					FieldType::Byte => Type::c_schar(),
+					FieldType::Character => Type::u16(),
+					FieldType::Double => Type::f64(),
+					FieldType::Float => Type::f32(),
+					FieldType::Integer => Type::i32(),
+					FieldType::Long => Type::i64(),
+					FieldType::Short => Type::i16(),
+					FieldType::Boolean => Type::u8(),
+					FieldType::Object(_) | FieldType::Array(_) => Type::pointer(),
+					FieldType::Void => Type::void(),
+				}
+			}
+		}
+
+		use libffi::middle::{Arg, Type};
+
+		let num_args = self.descriptor.parameters.len() + if self.is_static() { 2 } else { 1 };
+
+		let mut args_types = Vec::with_capacity(num_args);
+		let mut args = Vec::with_capacity(num_args);
+
+		// env
+		args.push(Arg::new(&env));
+		args_types.push(Type::pointer());
+		if self.is_static() {
+			// jclass
+			args.push(Arg::new(&class));
+			args_types.push(Type::pointer());
+		}
+
+		for (arg_ty, arg) in self.descriptor.parameters.iter().zip(locals.iter()) {
+			match arg_ty {
+				FieldType::Byte => {
+					args.push(Arg::new(&(arg.expect_int() as i8)));
+					args_types.push(Type::i8());
+				},
+				FieldType::Character => {
+					args.push(Arg::new(&(arg.expect_int() as u16)));
+					args_types.push(Type::u16());
+				},
+				FieldType::Double => {
+					args.push(Arg::new(&(arg.expect_double())));
+					args_types.push(Type::f64());
+				},
+				FieldType::Float => {
+					args.push(Arg::new(&(arg.expect_float())));
+					args_types.push(Type::f32());
+				},
+				FieldType::Integer => {
+					args.push(Arg::new(&(arg.expect_int())));
+					args_types.push(Type::i32());
+				},
+				FieldType::Long => {
+					args.push(Arg::new(&(arg.expect_long())));
+					args_types.push(Type::i64());
+				},
+				FieldType::Short => {
+					args.push(Arg::new(&(arg.expect_int() as i16)));
+					args_types.push(Type::i16());
+				},
+				FieldType::Boolean => {
+					args.push(Arg::new(&(arg.expect_int() != 0)));
+					args_types.push(Type::u8());
+				},
+				FieldType::Object(_) | FieldType::Array(_) => {
+					args.push(Arg::new(&(unsafe { arg.expect_reference().raw() })));
+					args_types.push(Type::pointer());
+				},
+				FieldType::Void => {
+					args_types.push(Type::void());
+				},
+			}
+		}
+
+		let ret_ty = self.descriptor.return_type.into_ffi_type();
+
+		PreparedCfi {
+			cfi: libffi::middle::Cif::new(args_types, ret_ty),
+			args,
+		}
 	}
 }

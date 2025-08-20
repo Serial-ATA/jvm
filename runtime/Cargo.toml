@@ -22,6 +22,7 @@ byte-slice-cast.workspace = true
 fxhash.workspace = true
 tracing.workspace = true
 libc.workspace = true
+libffi = { workspace = true, optional = true }
 num_cpus = "1.16.0"
 paste = { workspace = true }
 platform.workspace = true
@@ -32,6 +33,10 @@ bumpalo = "3.16.0"
 [build-dependencies]
 native_methods = { path = "../generators/native_methods" }
 build-deps.workspace = true
+
+[features]
+default = ["libffi"]
+libffi = ["dep:libffi"]
 
 [lints]
 workspace = true
