@@ -237,6 +237,8 @@ vm_symbols::define_symbols! {
 	java_lang_Thread_FieldHolder: "java/lang/Thread$FieldHolder",
 	java_lang_ref_Finalizer: "java/lang/ref/Finalizer",
 	jdk_internal_loader_ClassLoaders_PlatformClassLoader: "jdk/internal/loader/ClassLoaders$PlatformClassLoader",
+	jdk_internal_loader_NativeLibraries: "jdk/internal/loader/NativeLibraries",
+	jdk_internal_loader_NativeLibraries_NativeLibraryImpl: "jdk/internal/loader/NativeLibraries$NativeLibraryImpl",
 
 	// Throwables
 	java_lang_Throwable: "java/lang/Throwable",
@@ -416,6 +418,8 @@ vm_symbols::define_symbols! {
 	annotationDefault,
 	form,
 	constantPoolOop,
+	handle,
+	jniVersion,
 
 	// Injected fields
 	loader_ptr,

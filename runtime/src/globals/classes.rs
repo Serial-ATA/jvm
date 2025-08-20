@@ -76,6 +76,8 @@ define_classes!(
 	jdk_internal_reflect_MethodAccessorImpl,
 	jdk_internal_reflect_ConstantPool,
 	java_lang_VirtualMachineError,
+	jdk_internal_loader_NativeLibraries,
+	jdk_internal_loader_NativeLibraries_NativeLibraryImpl,
 	// Primitive types
 	java_lang_Boolean,
 	java_lang_Byte,

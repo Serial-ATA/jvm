@@ -1,0 +1,5 @@
+import java.lang.String;
+
+public class NativeLibrary {
+    static native long findEntry0(long handle, String name);
+}

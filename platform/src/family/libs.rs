@@ -1,4 +1,4 @@
-use std::ffi::{CStr, NulError};
+use std::ffi::{CStr, NulError, c_void};
 use std::marker::PhantomData;
 use std::ops::Deref;
 
@@ -48,11 +48,17 @@ impl Library {
 		Ok(Self(imp))
 	}
 
+	/// Get a handle to the current process
+	pub fn current() -> Result<Self> {
+		let imp = unsafe { super::imp::libs::LibraryImpl::current()? };
+		Ok(Self(imp))
+	}
+
 	/// Consume and close the library
 	///
 	/// # Errors
 	///
-	/// If the library fails to lose, a description of the error will be returned. The format of that
+	/// If the library fails to close, a description of the error will be returned. The format of that
 	/// error will, of course, be platform-specific.
 	pub fn close(self) -> Result<()> {
 		unsafe { super::imp::libs::LibraryImpl::close(self.0) }
@@ -78,6 +84,20 @@ impl Library {
 			phantom: PhantomData,
 		})
 	}
+
+	/// Create a `Library` from a raw pointer to a library handle
+	///
+	/// # Safety
+	///
+	/// * The caller *must* ensure that `raw` is a valid pointer obtained from `dlopen`, for example.
+	pub unsafe fn from_raw(raw: *mut c_void) -> Self {
+		Self(unsafe { super::imp::libs::LibraryImpl::from_raw(raw) })
+	}
+
+	/// Get a raw pointer to the library handle
+	pub fn raw(&self) -> *mut c_void {
+		self.0.raw()
+	}
 }
 
 /// A symbol from a loaded [`Library`]
@@ -88,6 +108,12 @@ impl Library {
 pub struct Sym<'lib, T> {
 	inner: super::imp::libs::Sym<T>,
 	phantom: PhantomData<&'lib T>,
+}
+
+impl<T> Sym<'_, T> {
+	pub fn raw(&self) -> *mut c_void {
+		self.inner.raw()
+	}
 }
 
 impl<'a, T: 'a> Deref for Sym<'a, T> {

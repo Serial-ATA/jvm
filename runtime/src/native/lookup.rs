@@ -202,10 +202,7 @@ fn lookup_style(
 ) -> Option<NativeMethodPtr> {
 	let jni_name = name_converter.compute_complete_jni_name(num_args, include_long, os_style);
 
-	let class_loader = method.class().loader();
-	if class_loader.is_bootstrap()
-		&& let Some(entry) = crate::native::method::lookup_method(method)
-	{
+	if let Some(entry) = crate::native::method::lookup_method(method) {
 		return Some(entry);
 	}
 

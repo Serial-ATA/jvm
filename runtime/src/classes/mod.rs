@@ -217,6 +217,25 @@ macro_rules! field_constructor {
 			@FIELDS_ENUM $($rest)*
 		);
 	};
+    (
+		[
+			enum FieldNames { },
+			[],
+			$current_shift:expr
+		]
+
+		@FIELDS_ENUM) => {
+		#[derive(Debug, Copy, Clone)]
+		enum FieldNames {}
+
+		impl FieldNames {
+			const VARIANTS: [FieldNames; $current_shift] = [];
+
+			fn find_missing(found: usize) -> [Option<FieldNames>; $current_shift] {
+				[]
+			}
+		}
+	};
 	(
 		[
 			enum FieldNames { $($existing_variants:tt)* },

@@ -1,5 +1,6 @@
 use crate::libs::{Error, Result};
 
+use libc::{c_char, c_int};
 use std::ffi::{CStr, CString, c_void};
 use std::marker::PhantomData;
 
@@ -13,8 +14,23 @@ impl LibraryImpl {
 		let _ = unsafe { libc::dlerror() };
 
 		let name = CString::new(name)?;
+		unsafe { Self::open_name(name.as_ptr(), libc::RTLD_LAZY) }
+	}
 
-		let lib = unsafe { libc::dlopen(name.as_ptr(), libc::RTLD_LAZY) };
+	pub unsafe fn current() -> Result<Self> {
+		#[cfg(target_vendor = "apple")]
+		unsafe {
+			Self::open_name(std::ptr::null(), libc::RTLD_FIRST)
+		}
+
+		#[cfg(not(target_vendor = "apple"))]
+		unsafe {
+			Self::open_name(std::ptr::null(), libc::RTLD_LAZY)
+		}
+	}
+
+	unsafe fn open_name(name: *const c_char, flag: c_int) -> Result<Self> {
+		let lib = unsafe { libc::dlopen(name, flag) };
 		if lib.is_null() {
 			return Err(Error::Open {
 				description: unsafe { dlerror() },
@@ -36,6 +52,14 @@ impl LibraryImpl {
 		}
 
 		Ok(())
+	}
+
+	pub unsafe fn from_raw(raw: *mut c_void) -> Self {
+		Self { lib: raw }
+	}
+
+	pub fn raw(&self) -> *mut c_void {
+		self.lib
 	}
 
 	pub unsafe fn symbol<T>(&self, name: &CStr) -> Result<Sym<T>> {
