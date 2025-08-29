@@ -1,5 +1,6 @@
 pub mod resolved;
 
+use common::box_slice;
 use common::int_types::{u1, u2};
 
 macro_rules! attribute_getter_methods {
@@ -304,6 +305,24 @@ pub struct RuntimeVisibleAnnotations {
 	pub annotations: Vec<Annotation>,
 }
 
+fn encode_annotations(annotations: &[Annotation]) -> Box<[u1]> {
+	let num_annotations = annotations.len() as u2;
+	let mut ret = Vec::with_capacity((num_annotations as usize) * size_of::<Annotation>());
+	ret.extend(num_annotations.to_be_bytes());
+
+	for annotation in annotations {
+		ret.extend(annotation.as_bytes());
+	}
+
+	ret.into_boxed_slice()
+}
+
+impl RuntimeVisibleAnnotations {
+	pub fn as_bytes(&self) -> Box<[u1]> {
+		encode_annotations(self.annotations.as_slice())
+	}
+}
+
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct RuntimeInvisibleAnnotations {
@@ -314,6 +333,12 @@ pub struct RuntimeInvisibleAnnotations {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct RuntimeVisibleParameterAnnotations {
 	pub annotations: Vec<Annotation>,
+}
+
+impl RuntimeVisibleParameterAnnotations {
+	pub fn as_bytes(&self) -> Box<[u1]> {
+		encode_annotations(self.annotations.as_slice())
+	}
 }
 
 #[repr(transparent)]
@@ -328,6 +353,12 @@ pub struct RuntimeVisibleTypeAnnotations {
 	pub annotations: Vec<Annotation>,
 }
 
+impl RuntimeVisibleTypeAnnotations {
+	pub fn as_bytes(&self) -> Box<[u1]> {
+		encode_annotations(self.annotations.as_slice())
+	}
+}
+
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct RuntimeInvisibleTypeAnnotations {
@@ -338,6 +369,12 @@ pub struct RuntimeInvisibleTypeAnnotations {
 #[derive(Debug, Clone, PartialEq)]
 pub struct AnnotationDefault {
 	pub default_value: ElementValue,
+}
+
+impl AnnotationDefault {
+	pub fn as_bytes(&self) -> Box<[u1]> {
+		self.default_value.as_bytes()
+	}
 }
 
 #[repr(transparent)]
@@ -506,11 +543,34 @@ pub struct Annotation {
 	pub element_value_pairs: Vec<ElementValuePair>,
 }
 
+impl Annotation {
+	pub fn as_bytes(&self) -> Box<[u1]> {
+		let mut ret = Vec::with_capacity(size_of::<Self>() + size_of::<u2>());
+		ret.extend(self.type_index.to_be_bytes());
+		ret.extend((self.element_value_pairs.len() as u2).to_be_bytes());
+
+		for element_value_pair in &self.element_value_pairs {
+			ret.extend(element_value_pair.as_bytes());
+		}
+
+		ret.into_boxed_slice()
+	}
+}
+
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.16
 #[derive(Debug, Clone, PartialEq)]
 pub struct ElementValuePair {
 	pub element_name_index: u2,
 	pub value: ElementValue,
+}
+
+impl ElementValuePair {
+	pub fn as_bytes(&self) -> Box<[u1]> {
+		let mut ret = Vec::with_capacity(size_of::<Self>());
+		ret.extend(self.element_name_index.to_be_bytes());
+		ret.extend(self.value.as_bytes());
+		ret.into_boxed_slice()
+	}
 }
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.16.1
@@ -520,22 +580,33 @@ pub struct ElementValue {
 	pub ty: ElementValueType,
 }
 
+impl ElementValue {
+	pub fn as_bytes(&self) -> Box<[u1]> {
+		let mut ret =
+			Vec::with_capacity(size_of::<ElementValueTag>() + size_of::<ElementValueType>());
+		ret.push(self.tag as u8);
+		ret.extend(self.ty.as_bytes());
+		ret.into_boxed_slice()
+	}
+}
+
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.16.1
+#[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ElementValueTag {
-	Byte,
-	Char,
-	Double,
-	Float,
-	Int,
-	Long,
-	Short,
-	Boolean,
-	String,
-	Enum,
-	Class,
-	Annotation,
-	Array,
+	Byte = b'B',
+	Char = b'C',
+	Double = b'D',
+	Float = b'F',
+	Int = b'I',
+	Long = b'J',
+	Short = b'S',
+	Boolean = b'Z',
+	String = b's',
+	Enum = b'e',
+	Class = b'c',
+	Annotation = b'@',
+	Array = b'[',
 }
 
 impl From<u1> for ElementValueTag {
@@ -585,6 +656,48 @@ pub enum ElementValueType {
     Array {
         values: Vec<ElementValue>
     },
+}
+
+impl ElementValueType {
+	pub fn as_bytes(&self) -> Box<[u1]> {
+		match self {
+			ElementValueType::Byte { const_value_index }
+			| ElementValueType::Char { const_value_index }
+			| ElementValueType::Double { const_value_index }
+			| ElementValueType::Float { const_value_index }
+			| ElementValueType::Int { const_value_index }
+			| ElementValueType::Long { const_value_index }
+			| ElementValueType::Short { const_value_index }
+			| ElementValueType::Boolean { const_value_index }
+			| ElementValueType::String { const_value_index } => {
+				let [b1, b2] = const_value_index.to_be_bytes();
+				box_slice![b1, b2]
+			},
+			ElementValueType::Enum {
+				type_name_index,
+				const_value_index,
+			} => {
+				let [b1, b2] = type_name_index.to_be_bytes();
+				let [b3, b4] = const_value_index.to_be_bytes();
+				box_slice![b1, b2, b3, b4]
+			},
+			ElementValueType::Class { class_info_index } => {
+				let [b1, b2] = class_info_index.to_be_bytes();
+				box_slice![b1, b2]
+			},
+			ElementValueType::Annotation { annotation } => annotation.as_bytes(),
+			ElementValueType::Array { values } => {
+				let mut ret = Vec::with_capacity(values.len() * size_of::<ElementValue>());
+				ret.extend((values.len() as u2).to_be_bytes());
+
+				for value in values {
+					ret.extend(value.as_bytes());
+				}
+
+				ret.into_boxed_slice()
+			},
+		}
+	}
 }
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.23

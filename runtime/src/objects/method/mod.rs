@@ -5,7 +5,10 @@ use crate::native::method::NativeMethodPtr;
 use crate::objects::class::ClassPtr;
 use crate::objects::constant_pool::cp_types;
 use crate::objects::constant_pool::cp_types::MethodEntry;
-use crate::objects::instance::array::{Array, ObjectArrayInstance, ObjectArrayInstanceRef};
+use crate::objects::instance::array::{
+	Array, ObjectArrayInstance, ObjectArrayInstanceRef, PrimitiveArrayInstance,
+	PrimitiveArrayInstanceRef,
+};
 use crate::objects::instance::mirror::MirrorInstanceRef;
 use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
@@ -23,6 +26,7 @@ use classfile::accessflags::MethodAccessFlags;
 use classfile::attribute::resolved::ResolvedAnnotation;
 use classfile::attribute::{Attribute, Code, LineNumber};
 use classfile::{FieldType, MethodDescriptor, MethodInfo};
+use common::array::IntoJByte;
 use common::int_types::{s4, u1};
 use instructions::Operand;
 use jni::sys::{jdouble, jint, jlong, jobject, jvalue};
@@ -342,6 +346,34 @@ impl Method {
 		}
 
 		Throws::Ok(array)
+	}
+
+	pub fn annotations_array(&self) -> Option<PrimitiveArrayInstanceRef> {
+		self.attributes
+			.iter()
+			.find_map(Attribute::runtime_visible_annotations)
+			.map(|attr| PrimitiveArrayInstance::new(attr.as_bytes().into_jbyte_array()))
+	}
+
+	pub fn parameter_annotations_array(&self) -> Option<PrimitiveArrayInstanceRef> {
+		self.attributes
+			.iter()
+			.find_map(Attribute::runtime_visible_parameter_annotations)
+			.map(|attr| PrimitiveArrayInstance::new(attr.as_bytes().into_jbyte_array()))
+	}
+
+	pub fn type_annotations_array(&self) -> Option<PrimitiveArrayInstanceRef> {
+		self.attributes
+			.iter()
+			.find_map(Attribute::runtime_visible_type_annotations)
+			.map(|attr| PrimitiveArrayInstance::new(attr.as_bytes().into_jbyte_array()))
+	}
+
+	pub fn annotation_default(&self) -> Option<PrimitiveArrayInstanceRef> {
+		self.attributes
+			.iter()
+			.find_map(Attribute::annotation_default)
+			.map(|attr| PrimitiveArrayInstance::new(attr.as_bytes().into_jbyte_array()))
 	}
 }
 

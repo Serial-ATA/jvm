@@ -1,5 +1,6 @@
 extern crate alloc;
 
+pub mod array;
 pub mod atomic;
 pub mod endian;
 pub mod error;

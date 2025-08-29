@@ -1,7 +1,9 @@
 use crate::globals;
 use crate::native::java::lang::String::StringInterner;
 use crate::objects::instance::Instance;
-use crate::objects::instance::array::{ObjectArrayInstanceRef, PrimitiveArrayInstanceRef};
+use crate::objects::instance::array::{
+	ObjectArrayInstanceRef, PrimitiveArrayInstance, PrimitiveArrayInstanceRef,
+};
 use crate::objects::instance::class::{ClassInstance, ClassInstanceRef};
 use crate::objects::instance::mirror::MirrorInstanceRef;
 use crate::objects::method::Method;
@@ -35,21 +37,17 @@ pub fn new(method: &Method) -> Throws<ClassInstanceRef> {
 		set_signature(reflect_method, StringInterner::intern(generic_signature));
 	}
 
-	// // TODO
-	// set_annotations(
-	// 	constructor.get_mut(),
-	// 	Reference::null(),
-	// );
-	// // TODO
-	// set_parameterAnnotations(
-	// 	constructor.get_mut(),
-	// 	Reference::null(),
-	// );
-	// // TODO
-	// set_annotationDefault(
-	// 	constructor.get_mut(),
-	// 	Reference::null(),
-	// );
+	if let Some(annotations) = method.annotations_array() {
+		set_annotations(reflect_method, annotations);
+	}
+
+	if let Some(parameter_annotations) = method.parameter_annotations_array() {
+		set_parameterAnnotations(reflect_method, parameter_annotations);
+	}
+
+	if let Some(annotation_default) = method.annotation_default() {
+		set_annotationDefault(reflect_method, annotation_default);
+	}
 
 	Throws::Ok(reflect_method)
 }
