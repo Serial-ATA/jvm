@@ -106,8 +106,9 @@ pub fn resolve_member_name(
 	lookup_mode: jint,
 ) -> Throws<()> {
 	if calling_class.is_none() {
-		assert!(
-			(lookup_mode & LM_TRUSTED) == LM_TRUSTED,
+		assert_eq!(
+			lookup_mode & LM_TRUSTED,
+			LM_TRUSTED,
 			"untrusted member resolution requires a calling class"
 		);
 	}
@@ -176,7 +177,7 @@ pub fn resolve_member_name(
 
 			classes::java::lang::invoke::MemberName::set_vmindex(
 				member_name,
-				field.index() as jlong,
+				field.offset() as jlong,
 			);
 			classes::java::lang::invoke::MemberName::set_clazz(
 				member_name,

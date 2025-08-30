@@ -69,6 +69,12 @@ pub fn set_method(instance: ClassInstanceRef, value: Reference) {
 }
 
 /// Injected `java.lang.invoke.MemberName#vmindex` field
+///
+/// **NOTE**: For [`Method`]s, this is an index into the [`VTable`]. For [`Field`]s, this is the [**byte offset**].
+///
+/// [`VTable`]: crate::objects::vtable::VTable
+/// [`Field`]: crate::objects::field::Field
+/// [**byte offset**]: crate::objects::field::Field::offset
 pub fn vmindex(instance: ClassInstanceRef) -> jlong {
 	instance
 		.get_field_value0(vmindex_field_index())
@@ -112,10 +118,11 @@ crate::classes::field_module! {
 	///
 	/// Expected field type: `Reference` to `java.lang.invoke.ResolvedMethodName`
 	@FIELD method: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/invoke/ResolvedMethodName"),
-	/// [`Method`] offset in target class [`VTable`]
+	/// [`Method`] offset in target class [`VTable`] *or* [`Field`] offset
 	///
 	/// Expected type: `jlong`
 	/// [`Method`]: crate::objects::method::Method
 	/// [`VTable`]: crate::objects::vtable::VTable
+	/// [`Field`]: crate::objects::field::Field
 	@INJECTED vmindex: FieldType::Long => jni::sys::jlong,
 }
