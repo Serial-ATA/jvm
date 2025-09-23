@@ -4,6 +4,7 @@ members = [
     "generators/*",
     "tools/*",
     "classfile",
+    "classfile/fuzz",
     "instructions",
     "runtime",
     "common",
