@@ -3,7 +3,7 @@ use crate::attribute::resolved::{
 	ResolvedBootstrapMethod, ResolvedEnclosingMethod, ResolvedInnerClass,
 };
 use crate::attribute::{Attribute, AttributeType, SourceFile};
-use crate::constant_pool::types::{ClassNameEntry, raw as raw_types};
+use crate::constant_pool::types::{ClassNameEntry, ConstantPoolEntryError, raw as raw_types};
 use crate::constant_pool::{self, ConstantPool};
 use crate::fieldinfo::FieldInfo;
 use crate::methodinfo::MethodInfo;
@@ -34,7 +34,9 @@ impl ClassFile {
 		crate::parse::parse_class(reader)
 	}
 
-	pub fn get_super_class(&self) -> Option<Cow<'_, [u1]>> {
+	pub fn super_class(
+		&self,
+	) -> std::result::Result<Option<Cow<'_, [u1]>>, ConstantPoolEntryError> {
 		// For a class, the value of the super_class item either must be zero or must be a valid
 		// index into the constant_pool table.
 		let super_class_index = self.super_class;
@@ -43,30 +45,25 @@ impl ClassFile {
 
 		// If the value of the super_class item is zero, then this class file must represent
 		// the class Object, the only class or interface without a direct superclass.
-		if super_class_index == 0 {
-			let this_class_name = self
-				.constant_pool
-				.get::<constant_pool::types::raw::RawClassName>(self.this_class)
-				.name;
-			assert_eq!(
-				*this_class_name, *b"java/lang/Object",
-				"Only java/lang/Object can have no superclass!"
-			);
-		} else {
+		//
+		// That verification isn't done here, though.
+		if super_class_index != 0 {
 			super_class = Some(
 				self.constant_pool
-					.get::<constant_pool::types::raw::RawClassName>(super_class_index),
+					.get::<constant_pool::types::raw::RawClassName>(super_class_index)?,
 			);
 		}
 
-		super_class.map(|class| class.name)
+		Ok(super_class.map(|class| class.name))
 	}
 
-	pub fn get_super_interfaces(&self) -> impl Iterator<Item = Cow<'_, [u1]>> {
+	pub fn super_interfaces(
+		&self,
+	) -> impl Iterator<Item = std::result::Result<Cow<'_, [u1]>, ConstantPoolEntryError>> {
 		self.interfaces
 			.iter()
 			.map(|index| self.constant_pool.get::<raw_types::RawClassName>(*index))
-			.map(|class| class.name)
+			.map(|class| class.map(|class| class.name))
 	}
 
 	pub fn source_file_index(&self) -> Option<u2> {
@@ -79,24 +76,30 @@ impl ClassFile {
 		None
 	}
 
-	pub fn enclosing_method(&self) -> Option<ResolvedEnclosingMethod<'_>> {
+	pub fn enclosing_method(
+		&self,
+	) -> std::result::Result<Option<ResolvedEnclosingMethod<'_>>, ConstantPoolEntryError> {
 		for attr in &self.attributes {
 			let Some(enclosing_method) = attr.enclosing_method() else {
 				continue;
 			};
 
-			return Some(ResolvedEnclosingMethod::resolve_from(
+			return Ok(Some(ResolvedEnclosingMethod::resolve_from(
 				enclosing_method,
 				&self.constant_pool,
-			));
+			)?));
 		}
 
-		None
+		Ok(None)
 	}
 
 	pub fn inner_classes(
 		&self,
-	) -> Option<impl ExactSizeIterator<Item = ResolvedInnerClass<'_>> + use<'_>> {
+	) -> Option<
+		impl ExactSizeIterator<
+			Item = std::result::Result<ResolvedInnerClass<'_>, ConstantPoolEntryError>,
+		> + use<'_>,
+	> {
 		for attr in &self.attributes {
 			let Some(inner_classes) = attr.inner_classes() else {
 				continue;
@@ -124,7 +127,11 @@ impl ClassFile {
 		None
 	}
 
-	pub fn nest_members(&self) -> Option<impl Iterator<Item = ClassNameEntry<'_>> + use<'_>> {
+	pub fn nest_members(
+		&self,
+	) -> Option<
+		impl Iterator<Item = std::result::Result<ClassNameEntry<'_>, ConstantPoolEntryError>> + use<'_>,
+	> {
 		for attr in &self.attributes {
 			let Some(nest_members) = attr.nest_members() else {
 				continue;
@@ -143,7 +150,10 @@ impl ClassFile {
 
 	pub fn bootstrap_methods(
 		&self,
-	) -> Option<impl Iterator<Item = ResolvedBootstrapMethod> + use<'_>> {
+	) -> Option<
+		impl Iterator<Item = std::result::Result<ResolvedBootstrapMethod, ConstantPoolEntryError>>
+		+ use<'_>,
+	> {
 		for attr in &self.attributes {
 			let Some(bootstrap_methods) = attr.bootstrap_methods() else {
 				continue;

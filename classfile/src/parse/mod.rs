@@ -11,6 +11,7 @@ use crate::parse::attributes::Location;
 use crate::parse::error::{ClassFileParseError, Result};
 
 use std::io::Read;
+use std::num::NonZeroU16;
 
 use common::int_types::u2;
 use common::traits::JavaReadExt;
@@ -28,7 +29,11 @@ where
 	let major_version = reader.read_u2()?;
 
 	let constant_pool_count = reader.read_u2()?;
-	let mut constant_pool = ConstantPool::with_capacity(constant_pool_count as usize);
+	let Some(constant_pool_count) = NonZeroU16::new(constant_pool_count) else {
+		return Err(ClassFileParseError::EmptyConstantPool);
+	};
+
+	let mut constant_pool = ConstantPool::with_capacity(constant_pool_count.get() as usize);
 
 	constant_pool::read_cp_info(reader, &mut constant_pool, constant_pool_count)?;
 
@@ -52,7 +57,6 @@ where
 
 	let methods_count = reader.read_u2()?;
 	let mut methods = Vec::with_capacity(methods_count as usize);
-
 	for _ in 0..methods_count {
 		methods.push(methodinfo::read_method_info(reader, &constant_pool)?);
 	}

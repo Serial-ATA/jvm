@@ -14,7 +14,7 @@ use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
-use crate::thread::exceptions::Throws;
+use crate::thread::exceptions::{Throws, throw};
 use crate::thread::frame::Frame;
 use crate::{globals, java_call};
 
@@ -25,6 +25,7 @@ use std::fmt::{Debug, Formatter};
 use classfile::accessflags::MethodAccessFlags;
 use classfile::attribute::resolved::ResolvedAnnotation;
 use classfile::attribute::{Attribute, Code, LineNumber};
+use classfile::constant_pool::types::ConstantPoolEntryError;
 use classfile::{FieldType, MethodDescriptor, MethodInfo};
 use common::array::IntoJByte;
 use common::int_types::{s4, u1};
@@ -38,13 +39,20 @@ struct ExtraFlags {
 }
 
 impl ExtraFlags {
-	fn from_annotations(annotations: impl Iterator<Item = ResolvedAnnotation>) -> Self {
+	fn from_annotations(
+		class: ClassPtr,
+		annotations: impl Iterator<Item = Result<ResolvedAnnotation, ConstantPoolEntryError>>,
+	) -> Throws<Self> {
 		const CALLER_SENSITIVE_TYPE: &str = "Ljdk/internal/reflect/CallerSensitive;";
 		const INTRINSIC_CANDIDATE_TYPE: &str = "Ljdk/internal/vm/annotation/IntrinsicCandidate;";
 
 		let mut ret = Self::default();
 
 		for annotation in annotations {
+			let Ok(annotation) = annotation else {
+				throw!(@DEFER ClassFormatError, "Invalid field attribute in class file {}", class.name())
+			};
+
 			match &*annotation.name {
 				CALLER_SENSITIVE_TYPE => ret.caller_sensitive = true,
 				INTRINSIC_CANDIDATE_TYPE => ret.intrinsic = true,
@@ -52,7 +60,7 @@ impl ExtraFlags {
 			}
 		}
 
-		ret
+		Throws::Ok(ret)
 	}
 }
 
@@ -123,7 +131,7 @@ impl Method {
 	///
 	/// NOTE: This will leak the `Method` and return a reference. It is important that this only
 	///       be called once per method. It should never be used outside of class loading.
-	pub(super) fn new(class: ClassPtr, method_info: MethodInfo) -> &'static mut Self {
+	pub(super) fn new(class: ClassPtr, method_info: MethodInfo) -> Throws<&'static mut Self> {
 		let constant_pool = class.constant_pool().unwrap();
 
 		let access_flags = method_info.access_flags;
@@ -131,24 +139,18 @@ impl Method {
 		let extra_flags;
 		match method_info.runtime_visible_annotations(constant_pool.raw()) {
 			Some(annotations) => {
-				extra_flags = ExtraFlags::from_annotations(annotations);
+				extra_flags = ExtraFlags::from_annotations(class, annotations)?;
 			},
 			None => {
 				extra_flags = ExtraFlags::default();
 			},
 		}
 
-		// TODO: Handle throws
 		let name_index = method_info.name_index;
-		let name = constant_pool
-			.get::<cp_types::ConstantUtf8>(name_index)
-			.expect("method name should always resolve");
+		let name = constant_pool.get::<cp_types::ConstantUtf8>(name_index)?;
 
-		// TODO: Handle throws
 		let descriptor_index = method_info.descriptor_index;
-		let descriptor_sym = constant_pool
-			.get::<cp_types::ConstantUtf8>(descriptor_index)
-			.expect("method descriptor should always resolve");
+		let descriptor_sym = constant_pool.get::<cp_types::ConstantUtf8>(descriptor_index)?;
 
 		let descriptor = MethodDescriptor::parse(&mut descriptor_sym.as_bytes()).unwrap(); // TODO: Error handling
 
@@ -188,7 +190,7 @@ impl Method {
 			entry_point: SyncUnsafeCell::new(None), // Initialized later (if necessary)
 		};
 
-		Box::leak(Box::new(method))
+		Throws::Ok(Box::leak(Box::new(method)))
 	}
 
 	pub fn line_number(&self, pc: isize) -> s4 {

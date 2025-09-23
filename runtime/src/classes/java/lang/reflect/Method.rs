@@ -1,9 +1,7 @@
 use crate::globals;
 use crate::native::java::lang::String::StringInterner;
 use crate::objects::instance::Instance;
-use crate::objects::instance::array::{
-	ObjectArrayInstanceRef, PrimitiveArrayInstance, PrimitiveArrayInstanceRef,
-};
+use crate::objects::instance::array::{ObjectArrayInstanceRef, PrimitiveArrayInstanceRef};
 use crate::objects::instance::class::{ClassInstance, ClassInstanceRef};
 use crate::objects::instance::mirror::MirrorInstanceRef;
 use crate::objects::method::Method;

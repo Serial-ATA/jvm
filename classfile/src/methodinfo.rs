@@ -2,6 +2,7 @@ use crate::accessflags::MethodAccessFlags;
 use crate::attribute::resolved::ResolvedAnnotation;
 use crate::attribute::{Attribute, AttributeType, Code, LineNumber, LineNumberTable};
 use crate::constant_pool::ConstantPool;
+use crate::constant_pool::types::ConstantPoolEntryError;
 use crate::error::ClassFileParseError;
 use crate::fieldinfo::FieldType;
 use crate::parse::error::Result;
@@ -45,7 +46,9 @@ impl MethodInfo {
 	pub fn runtime_visible_annotations<'a>(
 		&'a self,
 		constant_pool: &'a ConstantPool,
-	) -> Option<impl Iterator<Item = ResolvedAnnotation> + 'a> {
+	) -> Option<
+		impl Iterator<Item = std::result::Result<ResolvedAnnotation, ConstantPoolEntryError>> + 'a,
+	> {
 		for attr in &self.attributes {
 			let Some(raw_annotations) = attr.runtime_visible_annotations() else {
 				continue;

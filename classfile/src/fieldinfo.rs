@@ -1,6 +1,6 @@
 use crate::accessflags::FieldAccessFlags;
 use crate::attribute::{Attribute, ConstantValue};
-use crate::error::Result;
+use crate::error::{ClassFileParseError, Result};
 
 use std::borrow::Cow;
 use std::fmt::Display;
@@ -85,10 +85,7 @@ impl FieldType {
 				Ok(Self::Array(Box::new(component_type)))
 			},
 			b'V' => Ok(Self::Void),
-			_ => {
-				// TODO: Error handling
-				panic!("Invalid field type descriptor")
-			},
+			start => Err(ClassFileParseError::BadFieldType(start)),
 		}
 	}
 

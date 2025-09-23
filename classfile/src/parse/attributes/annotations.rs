@@ -199,7 +199,7 @@ fn read_elementvalue<R>(reader: &mut R, constant_pool: &ConstantPool) -> Result<
 where
 	R: Read,
 {
-	let tag = ElementValueTag::from(reader.read_u1()?);
+	let tag = ElementValueTag::try_from(reader.read_u1()?)?;
 	let ty = read_element_value_type(reader, tag, constant_pool)?;
 
 	Ok(ElementValue { tag, ty })

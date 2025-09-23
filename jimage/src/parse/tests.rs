@@ -40,7 +40,7 @@ fn read_classes() {
 			size = location.uncompressed_size();
 		} else {
 			size = 0;
-		};
+		}
 
 		println!("reading: path: {}, size: {}", class, size);
 		if class.contains("NOSUCH") {

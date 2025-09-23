@@ -77,7 +77,7 @@ impl EntryType for Class {
 	}
 
 	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
-		let class_name = cp.raw().get::<Self::RawEntryType>(index);
+		let class_name = cp.raw().expect::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, class_name)
 	}
 
@@ -106,7 +106,7 @@ impl EntryType for Integer {
 	}
 
 	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
-		let integer = cp.raw().get::<Self::RawEntryType>(index);
+		let integer = cp.raw().expect::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, integer)
 	}
 
@@ -133,7 +133,7 @@ impl EntryType for Double {
 	}
 
 	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
-		let double = cp.raw().get::<Self::RawEntryType>(index);
+		let double = cp.raw().expect::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, double)
 	}
 
@@ -160,7 +160,7 @@ impl EntryType for Float {
 	}
 
 	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
-		let float = cp.raw().get::<Self::RawEntryType>(index);
+		let float = cp.raw().expect::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, float)
 	}
 
@@ -187,7 +187,7 @@ impl EntryType for Long {
 	}
 
 	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
-		let long = cp.raw().get::<Self::RawEntryType>(index);
+		let long = cp.raw().expect::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, long)
 	}
 
@@ -214,7 +214,7 @@ impl EntryType for ClassName {
 	}
 
 	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
-		let utf8 = cp.raw().get::<Self::RawEntryType>(index);
+		let utf8 = cp.raw().expect::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, utf8)
 	}
 
@@ -241,7 +241,7 @@ impl EntryType for ConstantUtf8 {
 	}
 
 	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
-		let utf8_raw = cp.raw().get::<Self::RawEntryType>(index);
+		let utf8_raw = cp.raw().expect::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, utf8_raw)
 	}
 
@@ -269,7 +269,7 @@ impl EntryType for NameAndType {
 	}
 
 	fn resolve(class: ClassPtr, cp: &ConstantPool, index: u2) -> Throws<ResolvedEntry> {
-		let name_and_type_raw = cp.raw().get::<Self::RawEntryType>(index);
+		let name_and_type_raw = cp.raw().expect::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, name_and_type_raw)
 	}
 
@@ -308,7 +308,7 @@ impl EntryType for InvokeDynamic {
 	}
 
 	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
-		let raw_invoke_dynamic = cp.raw().get::<Self::RawEntryType>(index);
+		let raw_invoke_dynamic = cp.raw().expect::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, raw_invoke_dynamic)
 	}
 
@@ -445,7 +445,7 @@ impl EntryType for MethodHandle {
 	}
 
 	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
-		let raw_method_handle = cp.raw().get::<Self::RawEntryType>(index);
+		let raw_method_handle = cp.raw().expect::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, raw_method_handle)
 	}
 
@@ -542,7 +542,7 @@ impl EntryType for FieldRef {
 	}
 
 	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
-		let raw_field_ref = cp.raw().get::<raw_types::RawFieldRef>(index);
+		let raw_field_ref = cp.raw().expect::<raw_types::RawFieldRef>(index);
 		Self::resolve_with(class, cp, index, raw_field_ref)
 	}
 
@@ -596,7 +596,7 @@ impl EntryType for MethodRef {
 	}
 
 	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
-		let raw_method_ref = cp.raw().get::<Self::RawEntryType>(index);
+		let raw_method_ref = cp.raw().expect::<Self::RawEntryType>(index);
 		Self::resolve_with(class, cp, index, raw_method_ref)
 	}
 
@@ -661,7 +661,7 @@ impl EntryType for String {
 	}
 
 	fn resolve(class: ClassPtr, cp: &super::ConstantPool, index: u2) -> Throws<ResolvedEntry> {
-		let string_raw = cp.raw().get::<raw_types::RawString>(index);
+		let string_raw = cp.raw().expect::<raw_types::RawString>(index);
 		Self::resolve_with(class, cp, index, string_raw)
 	}
 

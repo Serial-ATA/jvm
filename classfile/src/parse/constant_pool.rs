@@ -2,15 +2,15 @@ use crate::constant_pool::{ConstantPool, ConstantPoolTag, ConstantPoolValueInfo}
 use crate::error::Result;
 
 use std::io::Read;
+use std::num::NonZeroU16;
 
 use common::box_slice;
-use common::int_types::u2;
 use common::traits::JavaReadExt;
 
 pub fn read_cp_info<R>(
 	reader: &mut R,
 	constant_pool: &mut ConstantPool,
-	constant_pool_count: u2,
+	constant_pool_count: NonZeroU16,
 ) -> Result<()>
 where
 	R: Read,
@@ -21,8 +21,10 @@ where
 
 	let mut i = 0;
 
-	while i < constant_pool_count - 1 {
-		let tag = ConstantPoolTag::from(reader.read_u1()?);
+	let max = constant_pool_count.get() - 1;
+	while i < max {
+		let tag_raw = reader.read_u1()?;
+		let tag = ConstantPoolTag::try_from(tag_raw)?;
 
 		let cp_value_info = match tag {
 			ConstantPoolTag::Class => ConstantPoolValueInfo::Class {
@@ -49,7 +51,7 @@ where
 							name_and_type_index,
 						}
 					},
-					_ => unreachable!(),
+					_ => unreachable!("all variants covered"),
 				}
 			},
 			ConstantPoolTag::String => ConstantPoolValueInfo::String {
@@ -87,6 +89,10 @@ where
 			ConstantPoolTag::MethodType => ConstantPoolValueInfo::MethodType {
 				descriptor_index: reader.read_u2()?,
 			},
+			ConstantPoolTag::Dynamic => ConstantPoolValueInfo::Dynamic {
+				bootstrap_method_attr_index: reader.read_u2()?,
+				name_and_type_index: reader.read_u2()?,
+			},
 			ConstantPoolTag::InvokeDynamic => ConstantPoolValueInfo::InvokeDynamic {
 				bootstrap_method_attr_index: reader.read_u2()?,
 				name_and_type_index: reader.read_u2()?,
@@ -98,7 +104,7 @@ where
 				name_index: reader.read_u2()?,
 			},
 			// Doesn't actually exist
-			ConstantPoolTag::Unusable => unreachable!(),
+			ConstantPoolTag::Unusable => unreachable!("should never encounter an unusable slot"),
 		};
 
 		constant_pool.push(cp_value_info);

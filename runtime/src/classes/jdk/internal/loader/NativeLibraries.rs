@@ -31,7 +31,7 @@ pub mod NativeLibraryImpl {
 		/// `jdk.internal.loader.NativeLibraries.NativeLibraryImpl#handle` field offset
 		///
 		/// Expected type: `jlong`
-		@FIELD handle: ty @ FieldType::Long,
+		@FIELD handle: FieldType::Long,
 		/// `jdk.internal.loader.NativeLibraries.NativeLibraryImpl#jniVersion` field offset
 		///
 		/// Expected type: `jint`

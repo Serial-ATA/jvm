@@ -81,19 +81,22 @@ impl<T> FromResidual<Exception> for Throws<T> {
 	}
 }
 
-impl<T> FromIterator<Throws<T>> for Throws<Vec<T>> {
-	fn from_iter<I: IntoIterator<Item = Throws<T>>>(iter: I) -> Self {
-		let mut vec = Vec::new();
-		for item in iter {
-			match item {
-				Throws::Ok(val) => vec.push(val),
-				Throws::Exception(e) => {
-					return Throws::Exception(e);
-				},
-			}
+impl<T> From<Throws<T>> for Result<T, Exception> {
+	fn from(throws: Throws<T>) -> Self {
+		match throws {
+			Throws::Ok(val) => Ok(val),
+			Throws::Exception(val) => Err(val),
 		}
+	}
+}
 
-		Throws::Ok(vec)
+// Roundabout impl, since the impl for Result does a decent amount of work and uses private types/methods
+impl<A, V: FromIterator<A>> FromIterator<Throws<A>> for Throws<V> {
+	fn from_iter<I: IntoIterator<Item = Throws<A>>>(iter: I) -> Self {
+		match Result::<V, Exception>::from_iter(iter.into_iter().map(Into::<Result<A, _>>::into)) {
+			Ok(val) => Throws::Ok(val),
+			Err(exception) => Throws::Exception(exception),
+		}
 	}
 }
 

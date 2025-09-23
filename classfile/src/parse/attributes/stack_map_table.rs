@@ -2,7 +2,7 @@ use super::Location;
 use crate::attribute::{
 	AttributeTag, AttributeType, StackMapFrame, StackMapTable, VerificationTypeInfo,
 };
-use crate::error::Result;
+use crate::error::{ClassFileParseError, Result};
 
 use std::io::Read;
 
@@ -79,7 +79,7 @@ where
 					stack,
 				}
 			},
-			_ => unreachable!(),
+			_ => unreachable!("all u1 values covered"),
 		};
 
 		entries.push(stack_map_frame);
@@ -108,9 +108,6 @@ where
 		8 => Ok(VerificationTypeInfo::UninitializedVariableInfo {
 			offset: reader.read_u2()?,
 		}),
-		_ => {
-			// TODO: Error handling
-			panic!("Encountered invalid verification type info tag")
-		},
+		_ => Err(ClassFileParseError::BadAttributeVerification(tag)),
 	}
 }

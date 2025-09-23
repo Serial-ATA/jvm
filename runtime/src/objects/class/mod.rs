@@ -17,7 +17,7 @@ use crate::objects::instance::mirror::MirrorInstanceRef;
 use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
-use crate::thread::exceptions::Throws;
+use crate::thread::exceptions::{Throws, throw};
 
 use std::cell::{Cell, UnsafeCell};
 use std::fmt::{Debug, Formatter};
@@ -862,21 +862,51 @@ impl Class {
 
 		let source_file_index = parsed_file.source_file_index();
 
+		let Ok(name_raw) = parsed_file
+			.constant_pool
+			.get::<raw_types::RawClassName>(class_name_index)
+		else {
+			throw!(@DEFER ClassFormatError, "Invalid this class index {class_name_index} in constant pool in class file");
+		};
+		let name = Symbol::intern(&*name_raw.name);
+
 		// Check the NestMembers attribute
-		let nest_members = parsed_file.nest_members().map(|nest_members| {
-			nest_members
-				.map(|entry| Symbol::intern(entry.name))
-				.collect::<Box<[Symbol]>>()
-		});
+		let nest_members;
+		match parsed_file.nest_members() {
+			Some(members) => {
+				nest_members = Some(members
+                    .map(|entry| match entry {
+                        Ok(entry) => Throws::Ok(Symbol::intern(entry.name)),
+                        Err(_) => throw!(@DEFER ClassFormatError, "Invalid nest member index in constant pool in class file {name}"),
+                    })
+                    .collect::<Throws<Box<[Symbol]>>>()?);
+			},
+			None => {
+				nest_members = None;
+			},
+		}
 
 		let nest_host_index = parsed_file.nest_host_index();
 
 		// Check the BootstrapMethods attribute
-		let bootstrap_methods = parsed_file
-			.bootstrap_methods()
-			.map(Iterator::collect::<Box<[ResolvedBootstrapMethod]>>);
+		let bootstrap_methods;
+		match parsed_file.bootstrap_methods() {
+			Some(methods) => {
+				bootstrap_methods = Some(methods
+                    .map(|entry| match entry {
+                        Ok(entry) => Throws::Ok(entry),
+                        Err(_) => throw!(@DEFER ClassFormatError, "Invalid bootstrap method index in constant pool in class file {name}"),
+                    })
+                    .collect::<Throws<Box<[ResolvedBootstrapMethod]>>>()?);
+			},
+			None => bootstrap_methods = None,
+		}
 
-		let enclosing_method = match parsed_file.enclosing_method() {
+		let Ok(enclosing_method_opt) = parsed_file.enclosing_method() else {
+			throw!(@DEFER ClassFormatError, "Unable to resolve EnclosingMethod attribute in class file {name}");
+		};
+
+		let enclosing_method = match enclosing_method_opt {
 			Some(enclosing_method_info) => {
 				let enclosing_class =
 					loader.load(Symbol::intern(&*enclosing_method_info.class.name))?;
@@ -912,6 +942,10 @@ impl Class {
 			Some(inner_classes) => {
 				let mut classes = Vec::with_capacity(inner_classes.len());
 				for class in inner_classes {
+					let Ok(class) = class else {
+						throw!(@DEFER ClassFormatError, "Unable to resolve InnerClasses attribute in class file {name}");
+					};
+
 					classes.push(InnerClassInfo {
 						inner_class: Symbol::intern(&*class.inner_class.name),
 						outer_class: class.outer_class.map(|oc| Symbol::intern(&*oc.name)),
@@ -932,11 +966,6 @@ impl Class {
 			.attributes
 			.iter()
 			.any(|attr| attr.record().is_some());
-
-		let constant_pool = parsed_file.constant_pool;
-
-		let name_raw = constant_pool.get::<raw_types::RawClassName>(class_name_index);
-		let name = Symbol::intern(&*name_raw.name);
 
 		let static_field_count = parsed_file
 			.fields
@@ -981,7 +1010,7 @@ impl Class {
 		// The `ClassDescriptor` holds a `ConstantPool`, which holds a reference to the `Class`.
 		let class_instance = ClassDescriptor {
 			source_file_index,
-			constant_pool: ConstantPool::new(class_ptr, constant_pool),
+			constant_pool: ConstantPool::new(class_ptr, parsed_file.constant_pool),
 			inner_classes,
 			enclosing_method,
 			is_record,
@@ -996,7 +1025,7 @@ impl Class {
 		}
 
 		// Create our vtable...
-		let vtable = new_vtable(Some(parsed_file.methods), class_ptr);
+		let vtable = new_vtable(Some(parsed_file.methods), class_ptr)?;
 		unsafe {
 			*class_ptr.vtable.get() = MaybeUninit::new(vtable);
 		}
@@ -1061,7 +1090,7 @@ impl Class {
 		name: Symbol,
 		component: FieldType,
 		loader: &'static ClassLoader,
-	) -> ClassPtr {
+	) -> Throws<ClassPtr> {
 		let dimensions = name
 			.as_str()
 			.chars()
@@ -1097,12 +1126,12 @@ impl Class {
 		let class_ptr = ClassPtr::new(class);
 
 		// Create a vtable, inheriting from `java.lang.Object`
-		let vtable = new_vtable(None, class_ptr);
+		let vtable = new_vtable(None, class_ptr)?;
 		unsafe {
 			*class_ptr.vtable.get() = MaybeUninit::new(vtable);
 		}
 
-		class_ptr
+		Throws::Ok(class_ptr)
 	}
 
 	pub fn parent_iter(&self) -> ClassParentIterator {
@@ -1220,15 +1249,15 @@ impl Iterator for ClassParentIterator {
 	}
 }
 
-fn new_vtable(class_methods: Option<Vec<MethodInfo>>, class: ClassPtr) -> VTable<'static> {
+fn new_vtable(class_methods: Option<Vec<MethodInfo>>, class: ClassPtr) -> Throws<VTable<'static>> {
 	let mut vtable;
 	match class_methods {
 		// Initialize the vtable with the new `ClassFile`'s parsed methods
 		Some(class_methods) => {
 			vtable = class_methods
 				.into_iter()
-				.map(|mi| &*Method::new(class, mi))
-				.collect::<Vec<_>>();
+				.map(|mi| Method::new(class, mi).map(|m| &*m))
+				.collect::<Throws<Vec<_>>>()?;
 		},
 		// The vtable will only inherit from the super classes
 		None => vtable = Vec::new(),
@@ -1239,5 +1268,5 @@ fn new_vtable(class_methods: Option<Vec<MethodInfo>>, class: ClassPtr) -> VTable
 		vtable.extend(super_class.vtable().iter())
 	}
 
-	VTable::new(vtable, local_methods_end)
+	Throws::Ok(VTable::new(vtable, local_methods_end))
 }

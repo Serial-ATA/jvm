@@ -474,7 +474,7 @@ impl JavaThread {
 			#[cfg(feature = "libffi")]
 			NativeMethodPtr::External(func) => {
 				use jni::sys::{
-					jarray, jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort,
+					jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort,
 				};
 				use libffi::low::CodePtr;
 

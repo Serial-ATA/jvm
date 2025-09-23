@@ -10,6 +10,7 @@ use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 use crate::{classes, java_call};
 
+use std::borrow::Cow;
 use std::cell::SyncUnsafeCell;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -475,11 +476,15 @@ impl ClassLoader {
 		// 2. Otherwise, the Java Virtual Machine attempts to parse the purported representation.
 		//    The purported representation may not in fact be a valid representation of C, so
 		//    derivation must detect the following problems:
-		let Ok(classfile) = ClassFile::read_from(&mut &classfile_bytes[..]) else {
-			//  2.1. If the purported representation is not a ClassFile structure (§4.1, §4.8), derivation
-			//       throws a ClassFormatError.
-			throw!(@DEFER ClassFormatError);
-		};
+		let classfile;
+		match ClassFile::read_from(&mut &classfile_bytes[..]) {
+			Ok(c) => classfile = c,
+			Err(e) => {
+				//  2.1. If the purported representation is not a ClassFile structure (§4.1, §4.8), derivation
+				//       throws a ClassFormatError.
+				throw!(@DEFER ClassFormatError, "{e}");
+			},
+		}
 
 		//  2.2. Otherwise, if the purported representation is not of a supported major or
 		//       minor version (§4.1), derivation throws an UnsupportedClassVersionError.
@@ -491,9 +496,12 @@ impl ClassLoader {
 		//       interface named N, derivation throws a NoClassDefFoundError. This occurs when the
 		//       purported representation has either a this_class item which specifies a name other
 		//       than N, or an access_flags item which has the ACC_MODULE flag set.
-		let specified_class_name = classfile
+		let Ok(specified_class_name) = classfile
 			.constant_pool
-			.get::<raw_types::RawClassName>(classfile.this_class);
+			.get::<raw_types::RawClassName>(classfile.this_class)
+		else {
+			throw!(@DEFER ClassFormatError, "Invalid this class index {} in constant pool in class file", classfile.this_class)
+		};
 		if name_str.as_bytes() != &*specified_class_name.name || classfile.access_flags.is_module()
 		{
 			throw!(@DEFER NoClassDefFoundError);
@@ -504,17 +512,28 @@ impl ClassLoader {
 		//     it must have Object as its direct superclass, which must already have been loaded.
 		//     Only Object has no direct superclass.
 		let mut super_class = None;
-		if let Some(super_class_name) = classfile.get_super_class() {
+		let Ok(super_class_name_opt) = classfile.super_class() else {
+			throw!(@DEFER ClassFormatError, "Invalid super class index in constant pool in class file")
+		};
+
+		if let Some(super_class_name) = super_class_name_opt {
 			super_class = Some(self.resolve_super_class(Symbol::intern(&*super_class_name))?);
 		}
 
 		// 4. If C has any direct superinterfaces, the symbolic references from C to its direct
 		//    superinterfaces are resolved using the algorithm of §5.4.3.1.
 		let super_interfaces = classfile
-			.get_super_interfaces()
+			.super_interfaces()
 			.map(|interface_name| {
-				let sym = Symbol::intern(&*interface_name);
-				self.resolve_interface(sym)
+                match interface_name {
+                    Ok(interface_name) => {
+                        let sym = Symbol::intern(&*interface_name);
+                        self.resolve_interface(sym)
+                    }
+                    Err(_) => {
+                        throw!(@DEFER ClassFormatError, "Interface name has bad constant pool index in class file {name}");
+                    }
+                }
 			})
 			.collect::<Throws<Vec<_>>>()?;
 
@@ -636,7 +655,7 @@ impl ClassLoader {
 		}
 
 		//     The Java Virtual Machine creates a new array class with the indicated component type and number of dimensions.
-		let array_class = unsafe { Class::new_array(descriptor, *component, self) };
+		let array_class = unsafe { Class::new_array(descriptor, *component, self)? };
 
 		//     If the component type is a reference type, the Java Virtual Machine marks C to have the defining loader of the component type as its defining loader.
 		//     Otherwise, the Java Virtual Machine marks C to have the bootstrap class loader as its defining loader.

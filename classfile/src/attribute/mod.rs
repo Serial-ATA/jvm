@@ -1,5 +1,7 @@
 pub mod resolved;
 
+use crate::error::ClassFileParseError;
+
 use common::box_slice;
 use common::int_types::{u1, u2};
 
@@ -113,43 +115,44 @@ pub enum AttributeTag {
 	PermittedSubclasses,
 }
 
-impl From<&[u1]> for AttributeTag {
-	fn from(bytes: &[u1]) -> Self {
+impl TryFrom<&[u1]> for AttributeTag {
+	type Error = ClassFileParseError;
+
+	fn try_from(bytes: &[u1]) -> Result<Self, Self::Error> {
 		match bytes {
-			b"ConstantValue" => Self::ConstantValue,
-			b"Code" => Self::Code,
-			b"StackMapTable" => Self::StackMapTable,
-			b"Exceptions" => Self::Exceptions,
-			b"InnerClasses" => Self::InnerClasses,
-			b"EnclosingMethod" => Self::EnclosingMethod,
-			b"Synthetic" => Self::Synthetic,
-			b"Signature" => Self::Signature,
-			b"SourceFile" => Self::SourceFile,
-			b"SourceDebugExtension" => Self::SourceDebugExtension,
-			b"LineNumberTable" => Self::LineNumberTable,
-			b"LocalVariableTable" => Self::LocalVariableTable,
-			b"LocalVariableTypeTable" => Self::LocalVariableTypeTable,
-			b"Deprecated" => Self::Deprecated,
-			b"RuntimeVisibleAnnotations" => Self::RuntimeVisibleAnnotations,
-			b"RuntimeInvisibleAnnotations" => Self::RuntimeInvisibleAnnotations,
-			b"RuntimeVisibleParameterAnnotations" => Self::RuntimeVisibleParameterAnnotations,
-			b"RuntimeInvisibleParameterAnnotations" => Self::RuntimeInvisibleParameterAnnotations,
-			b"RuntimeVisibleTypeAnnotations" => Self::RuntimeVisibleTypeAnnotations,
-			b"RuntimeInvisibleTypeAnnotations" => Self::RuntimeInvisibleTypeAnnotations,
-			b"AnnotationDefault" => Self::AnnotationDefault,
-			b"BootstrapMethods" => Self::BootstrapMethods,
-			b"MethodParameters" => Self::MethodParameters,
-			b"Module" => Self::Module,
-			b"ModulePackages" => Self::ModulePackages,
-			b"ModuleMainClass" => Self::ModuleMainClass,
-			b"NestHost" => Self::NestHost,
-			b"NestMembers" => Self::NestMembers,
-			b"Record" => Self::Record,
-			b"PermittedSubclasses" => Self::PermittedSubclasses,
-			_ => panic!(
-				"Encountered unknown attribute type: {:?}",
-				std::str::from_utf8(bytes)
-			),
+			b"ConstantValue" => Ok(Self::ConstantValue),
+			b"Code" => Ok(Self::Code),
+			b"StackMapTable" => Ok(Self::StackMapTable),
+			b"Exceptions" => Ok(Self::Exceptions),
+			b"InnerClasses" => Ok(Self::InnerClasses),
+			b"EnclosingMethod" => Ok(Self::EnclosingMethod),
+			b"Synthetic" => Ok(Self::Synthetic),
+			b"Signature" => Ok(Self::Signature),
+			b"SourceFile" => Ok(Self::SourceFile),
+			b"SourceDebugExtension" => Ok(Self::SourceDebugExtension),
+			b"LineNumberTable" => Ok(Self::LineNumberTable),
+			b"LocalVariableTable" => Ok(Self::LocalVariableTable),
+			b"LocalVariableTypeTable" => Ok(Self::LocalVariableTypeTable),
+			b"Deprecated" => Ok(Self::Deprecated),
+			b"RuntimeVisibleAnnotations" => Ok(Self::RuntimeVisibleAnnotations),
+			b"RuntimeInvisibleAnnotations" => Ok(Self::RuntimeInvisibleAnnotations),
+			b"RuntimeVisibleParameterAnnotations" => Ok(Self::RuntimeVisibleParameterAnnotations),
+			b"RuntimeInvisibleParameterAnnotations" => {
+				Ok(Self::RuntimeInvisibleParameterAnnotations)
+			},
+			b"RuntimeVisibleTypeAnnotations" => Ok(Self::RuntimeVisibleTypeAnnotations),
+			b"RuntimeInvisibleTypeAnnotations" => Ok(Self::RuntimeInvisibleTypeAnnotations),
+			b"AnnotationDefault" => Ok(Self::AnnotationDefault),
+			b"BootstrapMethods" => Ok(Self::BootstrapMethods),
+			b"MethodParameters" => Ok(Self::MethodParameters),
+			b"Module" => Ok(Self::Module),
+			b"ModulePackages" => Ok(Self::ModulePackages),
+			b"ModuleMainClass" => Ok(Self::ModuleMainClass),
+			b"NestHost" => Ok(Self::NestHost),
+			b"NestMembers" => Ok(Self::NestMembers),
+			b"Record" => Ok(Self::Record),
+			b"PermittedSubclasses" => Ok(Self::PermittedSubclasses),
+			_ => Err(ClassFileParseError::BadAttributeTag(bytes.into())),
 		}
 	}
 }
@@ -609,23 +612,25 @@ pub enum ElementValueTag {
 	Array = b'[',
 }
 
-impl From<u1> for ElementValueTag {
-	fn from(value: u1) -> Self {
+impl TryFrom<u1> for ElementValueTag {
+	type Error = ClassFileParseError;
+
+	fn try_from(value: u1) -> Result<Self, Self::Error> {
 		match value {
-			b'B' => ElementValueTag::Byte,
-			b'C' => ElementValueTag::Char,
-			b'D' => ElementValueTag::Double,
-			b'F' => ElementValueTag::Float,
-			b'I' => ElementValueTag::Int,
-			b'J' => ElementValueTag::Long,
-			b'S' => ElementValueTag::Short,
-			b'Z' => ElementValueTag::Boolean,
-			b's' => ElementValueTag::String,
-			b'e' => ElementValueTag::Enum,
-			b'c' => ElementValueTag::Class,
-			b'@' => ElementValueTag::Annotation,
-			b'[' => ElementValueTag::Array,
-			_ => panic!("Invalid element tag encountered: {}", value),
+			b'B' => Ok(ElementValueTag::Byte),
+			b'C' => Ok(ElementValueTag::Char),
+			b'D' => Ok(ElementValueTag::Double),
+			b'F' => Ok(ElementValueTag::Float),
+			b'I' => Ok(ElementValueTag::Int),
+			b'J' => Ok(ElementValueTag::Long),
+			b'S' => Ok(ElementValueTag::Short),
+			b'Z' => Ok(ElementValueTag::Boolean),
+			b's' => Ok(ElementValueTag::String),
+			b'e' => Ok(ElementValueTag::Enum),
+			b'c' => Ok(ElementValueTag::Class),
+			b'@' => Ok(ElementValueTag::Annotation),
+			b'[' => Ok(ElementValueTag::Array),
+			_ => Err(ClassFileParseError::BadElementTag(value)),
 		}
 	}
 }

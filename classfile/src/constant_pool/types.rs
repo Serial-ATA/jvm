@@ -1,7 +1,7 @@
-use super::{ConstantPool, ConstantPoolValueInfo};
+use super::{ConstantPool, ConstantPoolTag, ConstantPoolValueInfo};
 
 use std::borrow::Cow;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
 use common::int_types::{s4, s8, u1, u2, u4};
 
@@ -287,13 +287,53 @@ impl DynamicEntry<'_> {
 	}
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum ConstantPoolEntryError {
+	OutOfBounds(u2),
+	NotLoadable {
+		index: u2,
+		tag: ConstantPoolTag,
+	},
+	Unexpected {
+		index: u2,
+		expected: ConstantPoolTag,
+		actual: ConstantPoolTag,
+	},
+}
+
+impl Display for ConstantPoolEntryError {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		match self {
+			ConstantPoolEntryError::OutOfBounds(index) => {
+				f.write_fmt(format_args!("Index {index} out of bounds"))
+			},
+			ConstantPoolEntryError::NotLoadable { index, tag } => f.write_fmt(format_args!(
+				"The constant pool entry at index {index} is of type {tag:?}, which is not \
+				 loadable"
+			)),
+			ConstantPoolEntryError::Unexpected {
+				index,
+				expected,
+				actual,
+			} => f.write_fmt(format_args!(
+				"Expected an entry of type `{expected:?}` at index {index}, got {actual:?}",
+			)),
+		}
+	}
+}
+
+impl std::error::Error for ConstantPoolEntryError {}
+
 pub trait CpEntry<'a> {
 	type Entry;
 	type HandleArgs;
 
-	fn get(cp: &'a ConstantPool, index: u2) -> Self::Entry;
+	fn get(cp: &'a ConstantPool, index: u2) -> Result<Self::Entry, ConstantPoolEntryError>;
 
-	fn handle(cp: &'a ConstantPool, args: Self::HandleArgs) -> Self::Entry;
+	fn handle(
+		cp: &'a ConstantPool,
+		args: Self::HandleArgs,
+	) -> Result<Self::Entry, ConstantPoolEntryError>;
 }
 
 pub mod raw {
@@ -306,18 +346,29 @@ pub mod raw {
 		type Entry = s4;
 		type HandleArgs = u4;
 
-		fn get(cp: &ConstantPool, index: u2) -> Self::Entry {
+		fn get(cp: &ConstantPool, index: u2) -> Result<Self::Entry, ConstantPoolEntryError> {
+			if index >= (cp.len() as u2) {
+				return Err(ConstantPoolEntryError::OutOfBounds(index));
+			}
+
 			let constant = &cp[index];
 
 			match constant {
 				ConstantPoolValueInfo::Integer { bytes } => Self::handle(cp, *bytes),
-				_ => panic!("Expected a constant value of \"Integer\""),
+				_ => Err(ConstantPoolEntryError::Unexpected {
+					index,
+					expected: ConstantPoolTag::Integer,
+					actual: constant.tag(),
+				}),
 			}
 		}
 
 		#[inline]
-		fn handle(_: &ConstantPool, args: Self::HandleArgs) -> Self::Entry {
-			args as s4
+		fn handle(
+			_: &ConstantPool,
+			args: Self::HandleArgs,
+		) -> Result<Self::Entry, ConstantPoolEntryError> {
+			Ok(args as s4)
 		}
 	}
 
@@ -327,18 +378,29 @@ pub mod raw {
 		type Entry = f32;
 		type HandleArgs = u4;
 
-		fn get(cp: &ConstantPool, index: u2) -> f32 {
+		fn get(cp: &ConstantPool, index: u2) -> Result<Self::Entry, ConstantPoolEntryError> {
+			if index >= (cp.len() as u2) {
+				return Err(ConstantPoolEntryError::OutOfBounds(index));
+			}
+
 			let constant = &cp[index];
 
 			match constant {
 				ConstantPoolValueInfo::Float { bytes } => Self::handle(cp, *bytes),
-				_ => panic!("Expected a constant value of \"Float\""),
+				_ => Err(ConstantPoolEntryError::Unexpected {
+					index,
+					expected: ConstantPoolTag::Float,
+					actual: constant.tag(),
+				}),
 			}
 		}
 
 		#[inline]
-		fn handle(_: &ConstantPool, args: Self::HandleArgs) -> Self::Entry {
-			f32::from_bits(args)
+		fn handle(
+			_: &ConstantPool,
+			args: Self::HandleArgs,
+		) -> Result<Self::Entry, ConstantPoolEntryError> {
+			Ok(f32::from_bits(args))
 		}
 	}
 
@@ -348,7 +410,11 @@ pub mod raw {
 		type Entry = s8;
 		type HandleArgs = (u4, u4);
 
-		fn get(cp: &ConstantPool, index: u2) -> s8 {
+		fn get(cp: &ConstantPool, index: u2) -> Result<Self::Entry, ConstantPoolEntryError> {
+			if index >= (cp.len() as u2) {
+				return Err(ConstantPoolEntryError::OutOfBounds(index));
+			}
+
 			let constant = &cp[index];
 
 			match constant {
@@ -356,13 +422,20 @@ pub mod raw {
 					high_bytes,
 					low_bytes,
 				} => Self::handle(cp, (*high_bytes, *low_bytes)),
-				_ => panic!("Expected a constant value of \"Long\""),
+				_ => Err(ConstantPoolEntryError::Unexpected {
+					index,
+					expected: ConstantPoolTag::Long,
+					actual: constant.tag(),
+				}),
 			}
 		}
 
 		#[inline]
-		fn handle(_: &ConstantPool, args: Self::HandleArgs) -> Self::Entry {
-			(s8::from(args.0) << 32) + s8::from(args.1)
+		fn handle(
+			_: &ConstantPool,
+			args: Self::HandleArgs,
+		) -> Result<Self::Entry, ConstantPoolEntryError> {
+			Ok((s8::from(args.0) << 32) + s8::from(args.1))
 		}
 	}
 
@@ -372,7 +445,11 @@ pub mod raw {
 		type Entry = f64;
 		type HandleArgs = (u4, u4);
 
-		fn get(cp: &ConstantPool, index: u2) -> f64 {
+		fn get(cp: &ConstantPool, index: u2) -> Result<Self::Entry, ConstantPoolEntryError> {
+			if index >= (cp.len() as u2) {
+				return Err(ConstantPoolEntryError::OutOfBounds(index));
+			}
+
 			let constant = &cp[index];
 
 			match constant {
@@ -380,15 +457,22 @@ pub mod raw {
 					high_bytes,
 					low_bytes,
 				} => Self::handle(cp, (*high_bytes, *low_bytes)),
-				_ => panic!("Expected a constant value of \"Double\""),
+				_ => Err(ConstantPoolEntryError::Unexpected {
+					index,
+					expected: ConstantPoolTag::Double,
+					actual: constant.tag(),
+				}),
 			}
 		}
 
 		#[inline]
-		fn handle(_: &ConstantPool, args: Self::HandleArgs) -> Self::Entry {
+		fn handle(
+			_: &ConstantPool,
+			args: Self::HandleArgs,
+		) -> Result<Self::Entry, ConstantPoolEntryError> {
 			let high = u64::from(args.0) << 32;
 			let low = args.1;
-			f64::from_bits(high | u64::from(low))
+			Ok(f64::from_bits(high | u64::from(low)))
 		}
 	}
 
@@ -398,21 +482,32 @@ pub mod raw {
 		type Entry = ClassNameEntry<'a>;
 		type HandleArgs = u2;
 
-		fn get(cp: &'a ConstantPool, index: u2) -> Self::Entry {
+		fn get(cp: &'a ConstantPool, index: u2) -> Result<Self::Entry, ConstantPoolEntryError> {
+			if index >= (cp.len() as u2) {
+				return Err(ConstantPoolEntryError::OutOfBounds(index));
+			}
+
 			let constant = &cp[index];
 
 			match constant {
 				ConstantPoolValueInfo::Class { name_index } => Self::handle(cp, *name_index),
-				_ => panic!("Expected a constant value of \"Class\""),
+				_ => Err(ConstantPoolEntryError::Unexpected {
+					index,
+					expected: ConstantPoolTag::Class,
+					actual: constant.tag(),
+				}),
 			}
 		}
 
 		#[inline]
-		fn handle(cp: &'a ConstantPool, args: Self::HandleArgs) -> Self::Entry {
-			ClassNameEntry {
+		fn handle(
+			cp: &'a ConstantPool,
+			args: Self::HandleArgs,
+		) -> Result<Self::Entry, ConstantPoolEntryError> {
+			Ok(ClassNameEntry {
 				name_index: args,
-				name: cp.get::<RawConstantUtf8>(args),
-			}
+				name: cp.get::<RawConstantUtf8>(args)?,
+			})
 		}
 	}
 
@@ -422,7 +517,11 @@ pub mod raw {
 		type Entry = FieldRefEntry<'a>;
 		type HandleArgs = (u2, u2);
 
-		fn get(cp: &'a ConstantPool, index: u2) -> Self::Entry {
+		fn get(cp: &'a ConstantPool, index: u2) -> Result<Self::Entry, ConstantPoolEntryError> {
+			if index >= (cp.len() as u2) {
+				return Err(ConstantPoolEntryError::OutOfBounds(index));
+			}
+
 			let constant = &cp[index];
 
 			match constant {
@@ -430,17 +529,24 @@ pub mod raw {
 					class_index,
 					name_and_type_index,
 				} => Self::handle(cp, (*class_index, *name_and_type_index)),
-				_ => panic!("Expected a constant value of \"Fieldref\""),
+				_ => Err(ConstantPoolEntryError::Unexpected {
+					index,
+					expected: ConstantPoolTag::FieldRef,
+					actual: constant.tag(),
+				}),
 			}
 		}
 
-		fn handle(cp: &'a ConstantPool, args: Self::HandleArgs) -> Self::Entry {
-			FieldRefEntry {
+		fn handle(
+			cp: &'a ConstantPool,
+			args: Self::HandleArgs,
+		) -> Result<Self::Entry, ConstantPoolEntryError> {
+			Ok(FieldRefEntry {
 				class_index: args.0,
-				class: cp.get::<RawClassName>(args.0),
+				class: cp.get::<RawClassName>(args.0)?,
 				name_and_type_index: args.1,
-				name_and_type: cp.get::<RawNameAndType>(args.1),
-			}
+				name_and_type: cp.get::<RawNameAndType>(args.1)?,
+			})
 		}
 	}
 
@@ -450,7 +556,11 @@ pub mod raw {
 		type Entry = MethodRefEntry<'a>;
 		type HandleArgs = (bool, u2, u2);
 
-		fn get(cp: &'a ConstantPool, index: u2) -> Self::Entry {
+		fn get(cp: &'a ConstantPool, index: u2) -> Result<Self::Entry, ConstantPoolEntryError> {
+			if index >= (cp.len() as u2) {
+				return Err(ConstantPoolEntryError::OutOfBounds(index));
+			}
+
 			let constant = &cp[index];
 
 			match constant {
@@ -462,18 +572,25 @@ pub mod raw {
 					class_index,
 					name_and_type_index,
 				} => Self::handle(cp, (true, *class_index, *name_and_type_index)),
-				_ => panic!("Expected a constant value of \"Methodref\""),
+				_ => Err(ConstantPoolEntryError::Unexpected {
+					index,
+					expected: ConstantPoolTag::MethodRef,
+					actual: constant.tag(),
+				}),
 			}
 		}
 
-		fn handle(cp: &'a ConstantPool, args: Self::HandleArgs) -> Self::Entry {
-			MethodRefEntry {
+		fn handle(
+			cp: &'a ConstantPool,
+			args: Self::HandleArgs,
+		) -> Result<Self::Entry, ConstantPoolEntryError> {
+			Ok(MethodRefEntry {
 				is_interface: args.0,
 				class_index: args.1,
-				class: cp.get::<RawClassName>(args.1),
+				class: cp.get::<RawClassName>(args.1)?,
 				name_and_type_index: args.2,
-				name_and_type: cp.get::<RawNameAndType>(args.2),
-			}
+				name_and_type: cp.get::<RawNameAndType>(args.2)?,
+			})
 		}
 	}
 
@@ -483,18 +600,29 @@ pub mod raw {
 		type Entry = Cow<'a, [u1]>;
 		type HandleArgs = &'a [u1];
 
-		fn get(cp: &'a ConstantPool, index: u2) -> Self::Entry {
+		fn get(cp: &'a ConstantPool, index: u2) -> Result<Self::Entry, ConstantPoolEntryError> {
+			if index >= (cp.len() as u2) {
+				return Err(ConstantPoolEntryError::OutOfBounds(index));
+			}
+
 			let constant = &cp[index];
 
 			match constant {
 				ConstantPoolValueInfo::Utf8 { bytes, .. } => Self::handle(cp, bytes),
-				_ => panic!("Expected a constant value of \"Utf8\""),
+				_ => Err(ConstantPoolEntryError::Unexpected {
+					index,
+					expected: ConstantPoolTag::Utf8,
+					actual: constant.tag(),
+				}),
 			}
 		}
 
 		#[inline]
-		fn handle(_: &ConstantPool, args: Self::HandleArgs) -> Self::Entry {
-			Cow::Borrowed(args)
+		fn handle(
+			_: &ConstantPool,
+			args: Self::HandleArgs,
+		) -> Result<Self::Entry, ConstantPoolEntryError> {
+			Ok(Cow::Borrowed(args))
 		}
 	}
 
@@ -504,16 +632,27 @@ pub mod raw {
 		type Entry = <RawConstantUtf8 as super::CpEntry<'a>>::Entry;
 		type HandleArgs = u2;
 
-		fn get(cp: &'a ConstantPool, index: u2) -> Self::Entry {
+		fn get(cp: &'a ConstantPool, index: u2) -> Result<Self::Entry, ConstantPoolEntryError> {
+			if index >= (cp.len() as u2) {
+				return Err(ConstantPoolEntryError::OutOfBounds(index));
+			}
+
 			let constant = &cp[index];
 
 			match constant {
 				ConstantPoolValueInfo::String { string_index } => Self::handle(cp, *string_index),
-				_ => panic!("Expected a constant value of \"String\""),
+				_ => Err(ConstantPoolEntryError::Unexpected {
+					index,
+					expected: ConstantPoolTag::String,
+					actual: constant.tag(),
+				}),
 			}
 		}
 
-		fn handle(cp: &'a ConstantPool, args: Self::HandleArgs) -> Self::Entry {
+		fn handle(
+			cp: &'a ConstantPool,
+			args: Self::HandleArgs,
+		) -> Result<Self::Entry, ConstantPoolEntryError> {
 			cp.get::<RawConstantUtf8>(args)
 		}
 	}
@@ -524,7 +663,11 @@ pub mod raw {
 		type Entry = NameAndTypeEntry<'a>;
 		type HandleArgs = (u2, u2);
 
-		fn get(cp: &'a ConstantPool, index: u2) -> Self::Entry {
+		fn get(cp: &'a ConstantPool, index: u2) -> Result<Self::Entry, ConstantPoolEntryError> {
+			if index >= (cp.len() as u2) {
+				return Err(ConstantPoolEntryError::OutOfBounds(index));
+			}
+
 			let constant = &cp[index];
 
 			match constant {
@@ -532,17 +675,24 @@ pub mod raw {
 					name_index,
 					descriptor_index,
 				} => Self::handle(cp, (*name_index, *descriptor_index)),
-				_ => panic!("Expected a constant value of \"NameAndType\""),
+				_ => Err(ConstantPoolEntryError::Unexpected {
+					index,
+					expected: ConstantPoolTag::NameAndType,
+					actual: constant.tag(),
+				}),
 			}
 		}
 
-		fn handle(cp: &'a ConstantPool, args: Self::HandleArgs) -> Self::Entry {
-			NameAndTypeEntry {
+		fn handle(
+			cp: &'a ConstantPool,
+			args: Self::HandleArgs,
+		) -> Result<Self::Entry, ConstantPoolEntryError> {
+			Ok(NameAndTypeEntry {
 				name_index: args.0,
-				name: cp.get::<RawConstantUtf8>(args.0),
+				name: cp.get::<RawConstantUtf8>(args.0)?,
 				descriptor_index: args.1,
-				descriptor: cp.get::<RawConstantUtf8>(args.1),
-			}
+				descriptor: cp.get::<RawConstantUtf8>(args.1)?,
+			})
 		}
 	}
 
@@ -552,7 +702,11 @@ pub mod raw {
 		type Entry = super::MethodHandleEntry<'a>;
 		type HandleArgs = (u1, u2);
 
-		fn get(cp: &'a ConstantPool, index: u2) -> Self::Entry {
+		fn get(cp: &'a ConstantPool, index: u2) -> Result<Self::Entry, ConstantPoolEntryError> {
+			if index >= (cp.len() as u2) {
+				return Err(ConstantPoolEntryError::OutOfBounds(index));
+			}
+
 			let constant = &cp[index];
 
 			match constant {
@@ -560,11 +714,18 @@ pub mod raw {
 					reference_kind: kind,
 					reference_index: index,
 				} => Self::handle(cp, (*kind, *index)),
-				_ => panic!("Expected a constant value of \"MethodHandle\""),
+				_ => Err(ConstantPoolEntryError::Unexpected {
+					index,
+					expected: ConstantPoolTag::MethodHandle,
+					actual: constant.tag(),
+				}),
 			}
 		}
 
-		fn handle(cp: &'a ConstantPool, args: Self::HandleArgs) -> Self::Entry {
+		fn handle(
+			cp: &'a ConstantPool,
+			args: Self::HandleArgs,
+		) -> Result<Self::Entry, ConstantPoolEntryError> {
 			let reference_kind = args.0;
 			let reference_index = args.1;
 
@@ -574,25 +735,25 @@ pub mod raw {
 				ReferenceKind::GetField
 				| ReferenceKind::GetStatic
 				| ReferenceKind::PutField
-				| ReferenceKind::PutStatic => ReferenceEntry::FieldRef(cp.get::<RawFieldRef>(reference_index)),
+				| ReferenceKind::PutStatic => ReferenceEntry::FieldRef(cp.get::<RawFieldRef>(reference_index)?),
 				ReferenceKind::InvokeVirtual
 				| ReferenceKind::NewInvokeSpecial
 				| ReferenceKind::InvokeStatic
 				| ReferenceKind::InvokeSpecial => {
-					ReferenceEntry::MethodRef(cp.get::<RawMethodRef>(reference_index))
+					ReferenceEntry::MethodRef(cp.get::<RawMethodRef>(reference_index)?)
 				},
 				ReferenceKind::InvokeInterface => {
-					let entry = cp.get::<RawMethodRef>(reference_index);
+					let entry = cp.get::<RawMethodRef>(reference_index)?;
 					assert!(entry.is_interface, "method must be interface method ref");
 					ReferenceEntry::MethodRef(entry)
 				},
 			};
 
-			super::MethodHandleEntry {
+			Ok(super::MethodHandleEntry {
 				reference_kind,
 				reference_index,
 				reference,
-			}
+			})
 		}
 	}
 
@@ -602,18 +763,29 @@ pub mod raw {
 		type Entry = <RawConstantUtf8 as super::CpEntry<'a>>::Entry;
 		type HandleArgs = u2;
 
-		fn get(cp: &'a ConstantPool, index: u2) -> Self::Entry {
+		fn get(cp: &'a ConstantPool, index: u2) -> Result<Self::Entry, ConstantPoolEntryError> {
+			if index >= (cp.len() as u2) {
+				return Err(ConstantPoolEntryError::OutOfBounds(index));
+			}
+
 			let constant = &cp[index];
 
 			match constant {
 				ConstantPoolValueInfo::MethodType { descriptor_index } => {
 					Self::handle(cp, *descriptor_index)
 				},
-				_ => panic!("Expected a constant value of \"MethodType\""),
+				_ => Err(ConstantPoolEntryError::Unexpected {
+					index,
+					expected: ConstantPoolTag::MethodType,
+					actual: constant.tag(),
+				}),
 			}
 		}
 
-		fn handle(cp: &'a ConstantPool, args: Self::HandleArgs) -> Self::Entry {
+		fn handle(
+			cp: &'a ConstantPool,
+			args: Self::HandleArgs,
+		) -> Result<Self::Entry, ConstantPoolEntryError> {
 			cp.get::<RawConstantUtf8>(args)
 		}
 	}
@@ -624,7 +796,11 @@ pub mod raw {
 		type Entry = InvokeDynamicEntry<'a>;
 		type HandleArgs = (u2, u2);
 
-		fn get(cp: &'a ConstantPool, index: u2) -> Self::Entry {
+		fn get(cp: &'a ConstantPool, index: u2) -> Result<Self::Entry, ConstantPoolEntryError> {
+			if index >= (cp.len() as u2) {
+				return Err(ConstantPoolEntryError::OutOfBounds(index));
+			}
+
 			let constant = &cp[index];
 
 			match constant {
@@ -632,16 +808,23 @@ pub mod raw {
 					bootstrap_method_attr_index,
 					name_and_type_index,
 				} => Self::handle(cp, (*bootstrap_method_attr_index, *name_and_type_index)),
-				_ => panic!("Expected a constant value of \"InvokeDynamic\""),
+				_ => Err(ConstantPoolEntryError::Unexpected {
+					index,
+					expected: ConstantPoolTag::InvokeDynamic,
+					actual: constant.tag(),
+				}),
 			}
 		}
 
-		fn handle(cp: &'a ConstantPool, args: Self::HandleArgs) -> Self::Entry {
-			InvokeDynamicEntry {
+		fn handle(
+			cp: &'a ConstantPool,
+			args: Self::HandleArgs,
+		) -> Result<Self::Entry, ConstantPoolEntryError> {
+			Ok(InvokeDynamicEntry {
 				bootstrap_method_attr_index: args.0,
 				name_and_type_index: args.1,
-				name_and_type: cp.get::<RawNameAndType>(args.1),
-			}
+				name_and_type: cp.get::<RawNameAndType>(args.1)?,
+			})
 		}
 	}
 
@@ -651,7 +834,11 @@ pub mod raw {
 		type Entry = DynamicEntry<'a>;
 		type HandleArgs = (u2, u2);
 
-		fn get(cp: &'a ConstantPool, index: u2) -> Self::Entry {
+		fn get(cp: &'a ConstantPool, index: u2) -> Result<Self::Entry, ConstantPoolEntryError> {
+			if index >= (cp.len() as u2) {
+				return Err(ConstantPoolEntryError::OutOfBounds(index));
+			}
+
 			let constant = &cp[index];
 
 			match constant {
@@ -659,16 +846,23 @@ pub mod raw {
 					bootstrap_method_attr_index,
 					name_and_type_index,
 				} => Self::handle(cp, (*bootstrap_method_attr_index, *name_and_type_index)),
-				_ => panic!("Expected a constant value of \"Dynamic\""),
+				_ => Err(ConstantPoolEntryError::Unexpected {
+					index,
+					expected: ConstantPoolTag::Dynamic,
+					actual: constant.tag(),
+				}),
 			}
 		}
 
-		fn handle(cp: &'a ConstantPool, args: Self::HandleArgs) -> Self::Entry {
-			DynamicEntry {
+		fn handle(
+			cp: &'a ConstantPool,
+			args: Self::HandleArgs,
+		) -> Result<Self::Entry, ConstantPoolEntryError> {
+			Ok(DynamicEntry {
 				bootstrap_method_attr_index: args.0,
 				name_and_type_index: args.1,
-				name_and_type: cp.get::<RawNameAndType>(args.1),
-			}
+				name_and_type: cp.get::<RawNameAndType>(args.1)?,
+			})
 		}
 	}
 }
