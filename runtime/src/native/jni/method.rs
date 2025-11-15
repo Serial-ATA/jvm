@@ -727,7 +727,7 @@ pub unsafe extern "system" fn CallStaticObjectMethodA(
 	args: *const jvalue,
 ) -> jobject {
 	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
-		return Default::default();
+		return core::ptr::null_mut();
 	};
 
 	unsafe { ret.into_jni().l }
