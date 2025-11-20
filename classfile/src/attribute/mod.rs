@@ -1,9 +1,13 @@
 pub mod resolved;
 
+use crate::constant_pool::ConstantPool;
 use crate::error::ClassFileParseError;
+
+use std::io::Read;
 
 use common::box_slice;
 use common::int_types::{u1, u2};
+use common::traits::JavaReadExt;
 
 macro_rules! attribute_getter_methods {
 	($($([$flag:ident])? $variant:ident),+ $(,)?) => {
@@ -353,19 +357,27 @@ pub struct RuntimeInvisibleParameterAnnotations {
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct RuntimeVisibleTypeAnnotations {
-	pub annotations: Vec<Annotation>,
+	pub annotations: Vec<TypeAnnotation>,
 }
 
 impl RuntimeVisibleTypeAnnotations {
 	pub fn as_bytes(&self) -> Box<[u1]> {
-		encode_annotations(self.annotations.as_slice())
+		let num_annotations = self.annotations.len() as u2;
+		let mut ret = Vec::with_capacity((num_annotations as usize) * size_of::<Annotation>());
+		ret.extend(num_annotations.to_be_bytes());
+
+		for annotation in &self.annotations {
+			ret.extend(annotation.as_bytes());
+		}
+
+		ret.into_boxed_slice()
 	}
 }
 
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct RuntimeInvisibleTypeAnnotations {
-	pub annotations: Vec<Annotation>,
+	pub annotations: Vec<TypeAnnotation>,
 }
 
 #[repr(transparent)]
@@ -530,7 +542,7 @@ pub struct LocalVariable {
 }
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.14
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct LocalVariableType {
 	pub start_pc: u2,
 	pub length: u2,
@@ -540,13 +552,35 @@ pub struct LocalVariableType {
 }
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.16
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Annotation {
 	pub type_index: u2,
 	pub element_value_pairs: Vec<ElementValuePair>,
 }
 
 impl Annotation {
+	pub fn parse<R>(
+		reader: &mut R,
+		constant_pool: &ConstantPool,
+	) -> Result<Self, ClassFileParseError>
+	where
+		R: Read,
+	{
+		let type_index = reader.read_u2()?;
+
+		let num_element_value_pairs = reader.read_u2()?;
+		let mut element_value_pairs = Vec::with_capacity(num_element_value_pairs as usize);
+
+		for _ in 0..num_element_value_pairs {
+			element_value_pairs.push(ElementValuePair::parse(reader, constant_pool)?);
+		}
+
+		Ok(Annotation {
+			type_index,
+			element_value_pairs,
+		})
+	}
+
 	pub fn as_bytes(&self) -> Box<[u1]> {
 		let mut ret = Vec::with_capacity(size_of::<Self>() + size_of::<u2>());
 		ret.extend(self.type_index.to_be_bytes());
@@ -561,13 +595,29 @@ impl Annotation {
 }
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.16
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElementValuePair {
 	pub element_name_index: u2,
 	pub value: ElementValue,
 }
 
 impl ElementValuePair {
+	pub fn parse<R>(
+		reader: &mut R,
+		constant_pool: &ConstantPool,
+	) -> Result<Self, ClassFileParseError>
+	where
+		R: Read,
+	{
+		let element_name_index = reader.read_u2()?;
+		let value = ElementValue::parse(reader, constant_pool)?;
+
+		Ok(ElementValuePair {
+			element_name_index,
+			value,
+		})
+	}
+
 	pub fn as_bytes(&self) -> Box<[u1]> {
 		let mut ret = Vec::with_capacity(size_of::<Self>());
 		ret.extend(self.element_name_index.to_be_bytes());
@@ -577,13 +627,67 @@ impl ElementValuePair {
 }
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.16.1
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElementValue {
 	pub tag: ElementValueTag,
 	pub ty: ElementValueType,
 }
 
 impl ElementValue {
+	pub fn parse<R>(
+		reader: &mut R,
+		constant_pool: &ConstantPool,
+	) -> Result<Self, ClassFileParseError>
+	where
+		R: Read,
+	{
+		let tag = ElementValueTag::try_from(reader.read_u1()?)?;
+
+		#[rustfmt::skip]
+        let ty = match tag {
+            // The const_value_index item is used if the tag item is one of B, C, D, F, I, J, S, Z, or s.
+            ElementValueTag::Byte    => ElementValueType::Byte    { const_value_index: reader.read_u2()? },
+            ElementValueTag::Char    => ElementValueType::Char    { const_value_index: reader.read_u2()? },
+            ElementValueTag::Double  => ElementValueType::Double  { const_value_index: reader.read_u2()? },
+            ElementValueTag::Float   => ElementValueType::Float   { const_value_index: reader.read_u2()? },
+            ElementValueTag::Int     => ElementValueType::Int     { const_value_index: reader.read_u2()? },
+            ElementValueTag::Long    => ElementValueType::Long    { const_value_index: reader.read_u2()? },
+            ElementValueTag::Short   => ElementValueType::Short   { const_value_index: reader.read_u2()? },
+            ElementValueTag::Boolean => ElementValueType::Boolean { const_value_index: reader.read_u2()? },
+            ElementValueTag::String  => ElementValueType::String  { const_value_index: reader.read_u2()? },
+
+            // The enum_const_value item is used if the tag item is e.
+            ElementValueTag::Enum => ElementValueType::Enum {
+                type_name_index: reader.read_u2()?,
+                const_value_index: reader.read_u2()?,
+            },
+
+            // The class_info_index item is used if the tag item is c.
+            ElementValueTag::Class => ElementValueType::Class {
+                class_info_index: reader.read_u2()?,
+            },
+
+            // The annotation_value item is used if the tag item is @.
+            ElementValueTag::Annotation => ElementValueType::Annotation {
+                annotation: Annotation::parse(reader, constant_pool)?,
+            },
+
+            // The array_value item is used if the tag item is [.
+            ElementValueTag::Array => {
+                let num_values = reader.read_u2()?;
+                let mut values = Vec::with_capacity(num_values as usize);
+
+                for _ in 0..num_values {
+                    values.push(ElementValue::parse(reader, constant_pool)?);
+                }
+
+                ElementValueType::Array { values }
+            },
+        };
+
+		Ok(ElementValue { tag, ty })
+	}
+
 	pub fn as_bytes(&self) -> Box<[u1]> {
 		let mut ret =
 			Vec::with_capacity(size_of::<ElementValueTag>() + size_of::<ElementValueType>());
@@ -595,7 +699,7 @@ impl ElementValue {
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.16.1
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ElementValueTag {
 	Byte = b'B',
 	Char = b'C',
@@ -636,7 +740,7 @@ impl TryFrom<u1> for ElementValueTag {
 }
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.16.1
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[rustfmt::skip]
 pub enum ElementValueType {
     Byte    { const_value_index: u2 },
@@ -701,6 +805,290 @@ impl ElementValueType {
 
 				ret.into_boxed_slice()
 			},
+		}
+	}
+}
+
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.20
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeAnnotation {
+	pub target_type: u1,
+	pub target_info: TypeAnnotationTargetInfo,
+	pub type_path: TypePath,
+	pub annotation: Annotation,
+}
+
+impl TypeAnnotation {
+	pub fn parse<R>(
+		reader: &mut R,
+		constant_pool: &ConstantPool,
+	) -> Result<Self, ClassFileParseError>
+	where
+		R: Read,
+	{
+		let (target_type, target_info) = TypeAnnotationTargetInfo::parse(reader)?;
+		let type_path = TypePath::parse(reader)?;
+		Ok(Self {
+			target_type,
+			target_info,
+			type_path,
+			annotation: Annotation::parse(reader, constant_pool)?,
+		})
+	}
+
+	pub fn as_bytes(&self) -> Box<[u1]> {
+		let mut encoded = Vec::new();
+		encoded.push(self.target_type);
+		encoded.extend(self.target_info.as_bytes());
+		encoded.extend(self.type_path.as_bytes());
+		encoded.extend(self.annotation.as_bytes());
+		encoded.into_boxed_slice()
+	}
+}
+
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.20
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypeAnnotationTargetInfo {
+	TypeParameter {
+		type_parameter_index: u1,
+	},
+	Supertype {
+		supertype_index: u2,
+	},
+	TypeParameterBound {
+		type_parameter_index: u1,
+		bound_index: u1,
+	},
+	Empty,
+	FormalParameter {
+		formal_parameter_index: u1,
+	},
+	Throws {
+		throws_type_index: u2,
+	},
+	LocalVar(Vec<LocalVarTableEntry>),
+	Catch {
+		exception_table_index: u2,
+	},
+	Offset(u2),
+	TypeArgument {
+		offset: u2,
+		type_argument_index: u1,
+	},
+}
+
+impl TypeAnnotationTargetInfo {
+	pub fn parse<R>(reader: &mut R) -> Result<(u1, Self), ClassFileParseError>
+	where
+		R: Read,
+	{
+		let target_type = reader.read_u1()?;
+
+		let target_info = match target_type {
+			0x00 | 0x01 => Self::TypeParameter {
+				type_parameter_index: reader.read_u1()?,
+			},
+			0x10 => Self::Supertype {
+				supertype_index: reader.read_u2()?,
+			},
+			0x11 | 0x12 => Self::TypeParameterBound {
+				type_parameter_index: reader.read_u1()?,
+				bound_index: reader.read_u1()?,
+			},
+			0x13 | 0x14 | 0x15 => Self::Empty,
+			0x16 => Self::FormalParameter {
+				formal_parameter_index: reader.read_u1()?,
+			},
+			0x17 => Self::Throws {
+				throws_type_index: reader.read_u2()?,
+			},
+			0x40 | 0x41 => {
+				let table_length = reader.read_u2()?;
+
+				let mut entries = Vec::with_capacity(table_length as usize);
+				for _ in 0..table_length {
+					entries.push(LocalVarTableEntry::parse(reader)?);
+				}
+
+				Self::LocalVar(entries)
+			},
+			0x42 => Self::Catch {
+				exception_table_index: reader.read_u2()?,
+			},
+			0x43 | 0x44 | 0x45 | 0x46 => Self::Offset(reader.read_u2()?),
+			0x47 | 0x48 | 0x49 | 0x4A | 0x4B => Self::TypeArgument {
+				offset: reader.read_u2()?,
+				type_argument_index: reader.read_u1()?,
+			},
+			_ => panic!("TODO: error"),
+		};
+
+		Ok((target_type, target_info))
+	}
+
+	pub fn as_bytes(&self) -> Box<[u1]> {
+		let mut encoded = Vec::new();
+		match self {
+			TypeAnnotationTargetInfo::TypeParameter {
+				type_parameter_index,
+			} => encoded.push(*type_parameter_index),
+			TypeAnnotationTargetInfo::Supertype { supertype_index } => {
+				encoded.extend(supertype_index.to_be_bytes())
+			},
+			TypeAnnotationTargetInfo::TypeParameterBound {
+				type_parameter_index,
+				bound_index,
+			} => {
+				encoded.push(*type_parameter_index);
+				encoded.push(*bound_index);
+			},
+			TypeAnnotationTargetInfo::Empty => {},
+			TypeAnnotationTargetInfo::FormalParameter {
+				formal_parameter_index,
+			} => {
+				encoded.push(*formal_parameter_index);
+			},
+			TypeAnnotationTargetInfo::Throws { throws_type_index } => {
+				encoded.extend(throws_type_index.to_be_bytes());
+			},
+			TypeAnnotationTargetInfo::LocalVar(entries) => {
+				encoded.extend((entries.len() as u2).to_be_bytes());
+				for entry in entries {
+					encoded.extend(entry.as_bytes());
+				}
+			},
+			TypeAnnotationTargetInfo::Catch {
+				exception_table_index,
+			} => {
+				encoded.extend(exception_table_index.to_be_bytes());
+			},
+			TypeAnnotationTargetInfo::Offset(offset) => {
+				encoded.extend(offset.to_be_bytes());
+			},
+			TypeAnnotationTargetInfo::TypeArgument {
+				offset,
+				type_argument_index,
+			} => {
+				encoded.extend(offset.to_be_bytes());
+				encoded.push(*type_argument_index);
+			},
+		}
+
+		encoded.into_boxed_slice()
+	}
+}
+
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.20
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
+pub struct LocalVarTableEntry {
+	pub start_pc: u2,
+	pub length: u2,
+	pub index: u2,
+}
+
+impl LocalVarTableEntry {
+	pub fn parse<R>(reader: &mut R) -> Result<Self, ClassFileParseError>
+	where
+		R: Read,
+	{
+		Ok(Self {
+			start_pc: reader.read_u2()?,
+			length: reader.read_u2()?,
+			index: reader.read_u2()?,
+		})
+	}
+
+	pub fn as_bytes(&self) -> Box<[u1]> {
+		let mut encoded = Vec::with_capacity(6);
+		encoded.extend(self.start_pc.to_be_bytes());
+		encoded.extend(self.length.to_be_bytes());
+		encoded.extend(self.index.to_be_bytes());
+		encoded.into_boxed_slice()
+	}
+}
+
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.20.2
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+pub struct TypePath {
+	pub path: Vec<Path>,
+}
+
+impl TypePath {
+	pub fn parse<R>(reader: &mut R) -> Result<Self, ClassFileParseError>
+	where
+		R: Read,
+	{
+		let path_length = reader.read_u1()?;
+
+		let mut path = Vec::with_capacity(path_length as usize);
+		for _ in 0..path_length {
+			path.push(Path::parse(reader)?);
+		}
+
+		Ok(Self { path })
+	}
+
+	pub fn as_bytes(&self) -> Box<[u1]> {
+		let mut encoded = Vec::new();
+		encoded.push(self.path.len() as u1);
+
+		for path in &self.path {
+			encoded.extend(path.as_bytes());
+		}
+
+		encoded.into_boxed_slice()
+	}
+}
+
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.20.2
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub struct Path {
+	pub kind: TypePathKind,
+	pub type_argument_index: u1,
+}
+
+impl Path {
+	pub fn parse<R>(reader: &mut R) -> Result<Self, ClassFileParseError>
+	where
+		R: Read,
+	{
+		let type_path_kind = TypePathKind::try_from(reader.read_u1()?)?;
+		let type_argument_index = reader.read_u1()?;
+
+		Ok(Self {
+			kind: type_path_kind,
+			type_argument_index,
+		})
+	}
+
+	pub fn as_bytes(&self) -> Box<[u1]> {
+		vec![self.kind as u1, self.type_argument_index].into_boxed_slice()
+	}
+}
+
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.20.2-220-B-A.1
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum TypePathKind {
+	/// Annotation is deeper in an array type
+	InArrayType = 0,
+	/// Annotation is deeper in a nested type
+	InNestedType = 1,
+	/// Annotation is on the bound of a wildcard type argument of a parameterized type
+	InWildcardTypeBound = 2,
+	/// Annotation is on a type argument of a parameterized type
+	InTypeArgument = 3,
+}
+
+impl TryFrom<u1> for TypePathKind {
+	type Error = ClassFileParseError;
+
+	fn try_from(value: u1) -> Result<Self, Self::Error> {
+		match value {
+			0 => Ok(TypePathKind::InArrayType),
+			1 => Ok(TypePathKind::InNestedType),
+			2 => Ok(TypePathKind::InWildcardTypeBound),
+			3 => Ok(TypePathKind::InTypeArgument),
+			_ => panic!("TODO: Error"),
 		}
 	}
 }

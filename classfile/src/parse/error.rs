@@ -49,7 +49,7 @@ impl Display for ClassFileParseError {
 				write!(
 					f,
 					"Encountered unknown attribute tag: `{}`",
-					attr.escape_ascii().to_string()
+					attr.escape_ascii()
 				)
 			},
 			Self::BadAttributeVerification(tag) => {
