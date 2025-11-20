@@ -410,7 +410,7 @@ public final class Unsafe {
     private native void    copyMemory0(Object srcBase, long srcOffset, Object destBase, long destOffset, long bytes);
     private native void    copySwapMemory0(Object srcBase, long srcOffset, Object destBase, long destOffset, long bytes, long elemSize);
     private native long    objectFieldOffset0(Field f);
-    private native long    objectFieldOffset1(Class<?> c, String name);
+    private native long    knownObjectFieldOffset0(Class<?> c, String name);
     private native long    staticFieldOffset0(Field f);
     private native Object  staticFieldBase0(Field f);
     private native boolean shouldBeInitialized0(Class<?> c);

@@ -520,12 +520,16 @@ pub fn objectFieldOffset0(
 	unimplemented!("jdk.internal.misc.Unsafe#objectFieldOffset0")
 }
 
-pub fn objectFieldOffset1(
-	env: JniEnv,
+pub fn knownObjectFieldOffset0(
+	_env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 	class: Reference, // java.lang.Class
 	name: Reference,  // String
 ) -> jlong {
+	// error codes
+	const NOT_FOUND: jlong = -1;
+	const IS_STATIC: jlong = -2;
+
 	let class = class.extract_mirror();
 
 	let name_str = classes::java::lang::String::extract(name.extract_class());
@@ -533,12 +537,15 @@ pub fn objectFieldOffset1(
 
 	for field in classref.instance_fields() {
 		if field.name.as_str() == name_str {
+			if field.is_static() {
+				return IS_STATIC;
+			}
+
 			return field.offset() as jlong;
 		}
 	}
 
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	throw_with_ret!(0, thread, InternalError);
+	NOT_FOUND
 }
 
 pub fn staticFieldOffset0(
