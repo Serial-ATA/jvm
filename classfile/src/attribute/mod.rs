@@ -338,20 +338,37 @@ pub struct RuntimeInvisibleAnnotations {
 
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Default)]
+// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.7.18
+pub struct ParameterAnnotations {
+	pub annotations: Box<[Box<[Annotation]>]>,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct RuntimeVisibleParameterAnnotations {
-	pub annotations: Vec<Annotation>,
+	pub annotations: ParameterAnnotations,
 }
 
 impl RuntimeVisibleParameterAnnotations {
 	pub fn as_bytes(&self) -> Box<[u1]> {
-		encode_annotations(self.annotations.as_slice())
+		let num_parameters = self.annotations.annotations.len() as u2;
+		let num_annotations: usize = self.annotations.annotations.iter().map(|a| a.len()).sum();
+		let mut ret = Vec::with_capacity(
+			(num_parameters as usize) * (num_annotations * size_of::<Annotation>()),
+		);
+		ret.extend(num_parameters.to_be_bytes());
+
+		for annotation in &self.annotations.annotations {
+			ret.extend(encode_annotations(annotation))
+		}
+		ret.into_boxed_slice()
 	}
 }
 
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct RuntimeInvisibleParameterAnnotations {
-	pub annotations: Vec<Annotation>,
+	pub annotations: ParameterAnnotations,
 }
 
 #[repr(transparent)]

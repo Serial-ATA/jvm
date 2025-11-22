@@ -1,7 +1,6 @@
 use super::Location;
 use crate::attribute::{
-	Annotation, AttributeTag, AttributeType, ElementValue, ElementValuePair, ElementValueTag,
-	ElementValueType, RuntimeInvisibleAnnotations, RuntimeVisibleAnnotations,
+	Annotation, AttributeTag, AttributeType, RuntimeInvisibleAnnotations, RuntimeVisibleAnnotations,
 };
 use crate::constant_pool::ConstantPool;
 use crate::error::Result;
@@ -77,7 +76,7 @@ pub mod type_annotations {
 	use crate::constant_pool::ConstantPool;
 	use crate::error::Result;
 
-    use std::io::Read;
+	use std::io::Read;
 
 	use common::traits::JavaReadExt;
 
@@ -147,15 +146,43 @@ pub mod type_annotations {
 pub mod parameter_annotations {
 	use super::Location;
 	use crate::attribute::{
-		AttributeTag, AttributeType, RuntimeInvisibleParameterAnnotations,
-		RuntimeVisibleParameterAnnotations,
+		Annotation, AttributeTag, AttributeType, ParameterAnnotations,
+		RuntimeInvisibleParameterAnnotations, RuntimeVisibleParameterAnnotations,
 	};
 	use crate::constant_pool::ConstantPool;
 	use crate::error::Result;
 
 	use std::io::Read;
 
+	use common::traits::JavaReadExt;
+
 	const VALID_LOCATIONS: &[Location] = &[Location::MethodInfo];
+
+	fn read_attribute_runtime_parameter_annotations<R>(
+		reader: &mut R,
+		constant_pool: &ConstantPool,
+	) -> Result<ParameterAnnotations>
+	where
+		R: Read,
+	{
+		let num_parameters = reader.read_u1()?;
+		let mut parameter_annotations = Vec::with_capacity(num_parameters as usize);
+
+		for _ in 0..num_parameters {
+			let num_annotations = reader.read_u2()?;
+			let mut annotations = Vec::with_capacity(num_annotations as usize);
+
+			for _ in 0..num_annotations {
+				annotations.push(Annotation::parse(reader, constant_pool)?);
+			}
+
+			parameter_annotations.push(annotations.into_boxed_slice());
+		}
+
+		Ok(ParameterAnnotations {
+			annotations: parameter_annotations.into_boxed_slice(),
+		})
+	}
 
 	/// Read `RuntimeVisibleParameterAnnotations` attribute
 	pub fn read_visible<R>(
@@ -172,7 +199,7 @@ pub mod parameter_annotations {
 		)?;
 		Ok(AttributeType::RuntimeVisibleParameterAnnotations(
 			RuntimeVisibleParameterAnnotations {
-				annotations: super::read_attribute_runtime_annotations(reader, constant_pool)?,
+				annotations: read_attribute_runtime_parameter_annotations(reader, constant_pool)?,
 			},
 		))
 	}
@@ -192,7 +219,7 @@ pub mod parameter_annotations {
 		)?;
 		Ok(AttributeType::RuntimeInvisibleParameterAnnotations(
 			RuntimeInvisibleParameterAnnotations {
-				annotations: super::read_attribute_runtime_annotations(reader, constant_pool)?,
+				annotations: read_attribute_runtime_parameter_annotations(reader, constant_pool)?,
 			},
 		))
 	}
