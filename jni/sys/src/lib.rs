@@ -16,7 +16,6 @@
 
 #![feature(extern_types)]
 #![feature(c_variadic)]
-#![feature(extended_varargs_abi_support)]
 #![no_std]
 #![allow(non_snake_case, non_camel_case_types)]
 #![cfg_attr(rustfmt, rustfmt_skip)]
