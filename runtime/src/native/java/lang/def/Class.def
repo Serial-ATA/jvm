@@ -66,6 +66,4 @@ public class Class {
     private native Class<?>[] getPermittedSubclasses0();
 
     private native int getClassFileVersion0();
-
-    private native int getClassAccessFlagsRaw0();
 }

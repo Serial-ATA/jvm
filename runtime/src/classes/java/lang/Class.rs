@@ -71,6 +71,10 @@ crate::classes::field_module! {
 	///
 	/// Expected type: char
 	@FIELD modifiers: FieldType::Character,
+	/// `java.lang.Class#classFileAccessFlags` field offset
+	///
+	/// Expected type: char
+	@FIELD classFileAccessFlags: FieldType::Character,
 	/// `java.lang.Class#primitive` field offset
 	///
 	/// Expected type: boolean

@@ -76,6 +76,10 @@ impl MirrorInstanceRef {
 			Operand::Int(jint::from(modifiers)),
 		);
 		ret.put_field_value0(
+			classes::java::lang::Class::classFileAccessFlags_field_index(),
+			Operand::Int(jint::from(target_class.access_flags.as_u2())),
+		);
+		ret.put_field_value0(
 			classes::java::lang::Class::primitive_field_index(),
 			Operand::Int(jint::from(is_primitive)),
 		);

@@ -592,10 +592,3 @@ pub fn getClassFileVersion0(
 ) -> jint {
 	unimplemented!("Class#getClassFileVersion0");
 }
-
-pub fn getClassAccessFlagsRaw0(
-	_env: JniEnv,
-	_this: Reference, // java.lang.Class
-) -> jint {
-	unimplemented!("Class#getClassAccessFlagsRaw0");
-}

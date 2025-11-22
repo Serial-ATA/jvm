@@ -411,6 +411,7 @@ vm_symbols::define_symbols! {
 	parameterTypes,
 	exceptionTypes,
 	modifiers,
+	classFileAccessFlags,
 	trustedFinal,
 	signature,
 	annotations,
