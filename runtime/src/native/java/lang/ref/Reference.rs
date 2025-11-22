@@ -20,6 +20,13 @@ pub fn waitForReferencePendingList(_: JniEnv, _class: ClassPtr) {
 	unimplemented!("java.lang.ref.Reference#waitForReferencePendingList")
 }
 
+pub fn get0(
+	_: JniEnv,
+	this: Reference, // java.lang.ref.Reference
+) -> Reference {
+	classes::java::lang::r#ref::Reference::referent(this)
+}
+
 pub fn refersTo0(
 	_: JniEnv,
 	this: Reference, // java.lang.ref.Reference

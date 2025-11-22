@@ -11,6 +11,9 @@ public abstract class Reference {
     private static native void waitForReferencePendingList();
 
     @IntrinsicCandidate
+    private native Object get0();
+
+    @IntrinsicCandidate
     private native boolean refersTo0(Object o);
 
     @IntrinsicCandidate
