@@ -299,6 +299,11 @@ fn init_field_offsets() {
 		unsafe {
 			classes::java::lang::reflect::Constructor::init_offsets();
 		}
+
+		// java.lang.reflect.Constructor
+		unsafe {
+			classes::jdk::internal::reflect::ConstantPool::init_offsets();
+		}
 	}
 }
 

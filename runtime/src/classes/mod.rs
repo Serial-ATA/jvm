@@ -62,7 +62,7 @@ macro_rules! instance_field_count {
 	(
 		$(#[$meta:meta])*
 		$([sym: $specified_sym_name:ident])?
-		@INJECTED $field_name:ident: $_descriptor:pat => $field_ty:ty, $($rest:tt)*
+		@INJECTED $field_name:ident: $_descriptor:expr => $field_ty:ty, $($rest:tt)*
 	) => {
 		0 + crate::classes::instance_field_count!($($rest)*)
 	};

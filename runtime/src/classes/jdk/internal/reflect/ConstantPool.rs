@@ -44,8 +44,6 @@ crate::classes::field_module! {
 	@CLASS jdk_internal_reflect_ConstantPool;
 
 	@FIELDSTART
-	/// `jdk.internal.reflect.ConstantPool#constantPoolOop` field offset
-	///
-	/// Expected type: `Reference`
-	@FIELD constantPoolOop: ty @ FieldType::Object(_) if ty.is_class(b"java/lang/Object"),
+	/// Injected mirror for the target class
+	@INJECTED constantPoolOop: FieldType::Object((*b"java/lang/Object").into()) => jni::sys::jobject,
 }

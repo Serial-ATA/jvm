@@ -699,6 +699,8 @@ impl Class {
 			old_fields.assume_init()
 		};
 
+		let has_instance_fields = old_fields.len() > 0;
+
 		let max_instance_index = old_fields
 			.iter()
 			.fold(0, |a, b| if b.is_static() { a } else { a.max(b.index()) });
@@ -711,10 +713,19 @@ impl Class {
 		let mut new_fields = Vec::with_capacity(expected_len);
 		new_fields.extend(old_fields);
 
+		let injected_field_start_index;
+		if has_instance_fields {
+			// + 1 as `max_instance_index` is the index of the *last* instance field, not of the first
+			// field we inject.
+			injected_field_start_index = max_instance_index + 1;
+		} else {
+			injected_field_start_index = 0;
+		}
+
 		for (idx, field) in fields.into_iter().enumerate() {
 			assert!(!field.is_static());
 			unsafe {
-				field.set_index(max_instance_index + idx + 1);
+				field.set_index(injected_field_start_index + idx);
 				field.set_offset(offset);
 			}
 			offset = field.offset() + field.descriptor.size();
@@ -729,10 +740,8 @@ impl Class {
 			std::ptr::write(old_fields_ptr, new_fields);
 		}
 
-		// + 1 as `max_instance_index` is the index of the *last* instance field, not of the first
-		// field we inject.
 		self.field_container
-			.set_instance_field_count((max_instance_index + 1 + field_count) as u32);
+			.set_instance_field_count((injected_field_start_index + field_count) as u32);
 	}
 
 	/// Set the nest host for this class
