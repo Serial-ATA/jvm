@@ -42,8 +42,7 @@ pub fn forName0(
 	_class: ClassPtr,
 	name: Reference, // java.lang.String
 	initialize: jboolean,
-	loader: Reference,  // java.lang.ClassLoader
-	_caller: Reference, // java.lang.Class
+	loader: Reference, // java.lang.ClassLoader
 ) -> Reference /* java.lang.Class */ {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 

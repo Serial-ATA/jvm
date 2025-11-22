@@ -13,8 +13,7 @@ public class Class {
     private static native void registerNatives();
 
     private static native Class<?> forName0(String name, boolean initialize,
-                                            ClassLoader loader,
-                                            Class<?> caller)
+                                            ClassLoader loader)
         throws ClassNotFoundException;
 
     @IntrinsicCandidate
