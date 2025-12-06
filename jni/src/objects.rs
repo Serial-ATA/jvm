@@ -97,11 +97,13 @@ impl From<jdouble> for JValue {
 macro_rules! define_object_types {
 	(
         $(
+        $(#[$meta:meta])*
         struct $name:ident($ty:path)
         );+
         $(;)?
     ) => {
         $(
+        $(#[$meta])*
 		#[repr(transparent)]
 		#[derive(Copy, Clone, PartialEq, Eq)]
 		pub struct $name($ty);
@@ -118,9 +120,17 @@ macro_rules! define_object_types {
 				Self(raw)
 			}
 
+            pub fn null() -> Self {
+                Self(core::ptr::null_mut())
+            }
+
 			pub fn raw(&self) -> $ty {
 				self.0
 			}
+
+            pub fn is_null(&self) -> bool {
+		        self.raw().is_null()
+	        }
 		}
 
 		impl From<$name> for JValue {
@@ -139,8 +149,10 @@ macro_rules! define_object_types {
 }
 
 define_object_types! {
+	/// An instance of java.lang.Class
 	struct JClass(jni_sys::jclass);
 	struct JThrowable(jni_sys::jthrowable);
+	/// An instance of java.lang.String
 	struct JString(jni_sys::jstring);
 	struct JWeak(jni_sys::jweak);
 
@@ -168,6 +180,10 @@ impl JObject {
 	/// The `raw` pointer must point to a valid, JVM-allocated object.
 	pub unsafe fn from_raw(raw: jni_sys::jobject) -> Self {
 		Self(raw)
+	}
+
+	pub fn null() -> Self {
+		Self(core::ptr::null_mut())
 	}
 
 	pub fn raw(&self) -> jni_sys::jobject {
