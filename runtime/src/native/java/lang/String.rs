@@ -3,6 +3,7 @@ use crate::objects::instance::class::ClassInstanceRef;
 use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::{LazyLock, RwLock};
@@ -92,6 +93,11 @@ impl StringHashDerivable<String> for String {
 impl<'a> StringHashDerivable<&'a str> for &'a str {
 	fn string_hash(value: &Self) -> StringHash {
 		<&[u1] as StringHashDerivable<&[u1]>>::string_hash(&value.as_bytes())
+	}
+}
+impl<'a> StringHashDerivable<Cow<'a, str>> for Cow<'a, str> {
+	fn string_hash(value: &Cow<'a, str>) -> StringHash {
+		<&str as StringHashDerivable<&str>>::string_hash(&&**value)
 	}
 }
 impl<'a> StringHashDerivable<&'a [u1]> for &'a [u1] {

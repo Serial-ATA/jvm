@@ -1,18 +1,93 @@
-use crate::classes;
+use crate::native::java;
+use crate::native::java::lang::String::StringInterner;
+use crate::native::jni::reference_from_jobject;
+use crate::objects::method::Method;
+use crate::objects::reference::Reference;
+use crate::symbols::sym;
 use crate::thread::JavaThread;
+use crate::thread::exceptions::Throws;
+use crate::{classes, java_call};
 
 use core::ffi::c_char;
+use std::{ptr, slice};
 
-use jni::sys::{JNIEnv, jboolean, jclass, jint, jthrowable};
+use ::jni::sys::{JNI_ERR, JNI_OK, JNIEnv, jboolean, jclass, jint, jthrowable};
+use common::unicode;
+use instructions::Operand;
+use libc::strlen;
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
-	unimplemented!("jni::Throw");
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(throwable) = (unsafe { reference_from_jobject(obj) }) else {
+		return JNI_ERR;
+	};
+
+	if !throwable.is_instance_of(crate::globals::classes::java_lang_Throwable()) {
+		return JNI_ERR;
+	}
+
+	thread.set_pending_exception(throwable);
+
+	JNI_OK
 }
 
 #[unsafe(no_mangle)]
 pub extern "system" fn ThrowNew(env: *mut JNIEnv, clazz: jclass, msg: *const c_char) -> jint {
-	unimplemented!("jni::ThrowNew");
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(mirror) = (unsafe { reference_from_jobject(clazz) }) else {
+		return JNI_ERR;
+	};
+
+	let mut message = None;
+	if !msg.is_null() {
+		// SAFETY: It's entirely up to the caller to pass in a valid string
+		let len = unsafe { strlen(msg) };
+
+		// SAFETY: c_char is always 8 bits
+		let utf = unsafe { slice::from_raw_parts(msg.cast::<u8>(), len) };
+
+		if let Ok(utf_8) = unicode::decode(utf) {
+			message = Some(utf_8);
+		};
+	}
+
+	let throwable_class = mirror.extract_target_class();
+
+	let constructor;
+	if message.is_none() {
+		constructor = throwable_class
+			.resolve_method(sym!(object_initializer_name), sym!(void_method_signature));
+	} else {
+		constructor = throwable_class
+			.resolve_method(sym!(object_initializer_name), sym!(String_void_signature));
+	}
+
+	match constructor {
+		Throws::Ok(constructor) => match message {
+			Some(message) => {
+				let string = StringInterner::intern(message);
+				java_call!(
+					thread,
+					constructor,
+					Operand::Reference(Reference::class(string))
+				);
+			},
+			None => {
+				java_call!(thread, constructor);
+			},
+		},
+		Throws::Exception(e) => {
+			e.throw(thread);
+			return JNI_ERR;
+		},
+	}
+
+	JNI_OK
 }
 
 #[unsafe(no_mangle)]
