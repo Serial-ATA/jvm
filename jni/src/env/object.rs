@@ -51,6 +51,24 @@ impl super::JniEnv {
 	}
 
 	// TODO: GetObjectClass
-	// TODO: IsInstanceOf
+	/// Tests whether an object is an instance of a class.
+	///
+	/// ## PARAMETERS
+	///
+	/// `obj`: a Java object.
+	/// `class`: a Java class object.
+	pub fn is_instance_of(&self, obj: JObject, class: JClass) -> bool {
+		let ret;
+		unsafe {
+			let invoke_interface = self.as_native_interface();
+			ret = ((*invoke_interface).IsInstanceOf)(
+				self.0.cast::<jni_sys::JNIEnv>(),
+				obj.raw(),
+				class.raw(),
+			);
+		}
+
+		ret
+	}
 	// TODO: GetObjectRefType
 }

@@ -79,7 +79,17 @@ pub unsafe extern "system" fn IsInstanceOf(
 	obj: jobject,
 	clazz: jclass,
 ) -> jboolean {
-	unimplemented!("jni::IsInstanceOf");
+	let obj = unsafe { reference_from_jobject(obj) };
+	let Some(obj) = obj else {
+		return false;
+	};
+
+	let class_obj = unsafe { reference_from_jobject(clazz) };
+	let Some(class_obj) = class_obj else {
+		return false;
+	};
+
+	obj.is_instance_of(class_obj.extract_instance_class())
 }
 
 pub unsafe extern "system" fn GetObjectRefType(env: *mut JNIEnv, obj: jobject) -> jobjectRefType {
