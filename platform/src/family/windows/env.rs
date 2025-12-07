@@ -7,7 +7,7 @@ fn java_home() -> String {
 }
 
 impl SystemPaths {
-	pub fn init() -> Option<Self> {
+	pub(in crate::family) fn init_impl() -> Option<Self> {
 		unimplemented!("Windows `SystemPaths` loading");
 	}
 }

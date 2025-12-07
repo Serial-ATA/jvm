@@ -8,6 +8,7 @@ BINARIES = [
 VM_LIBRARIES = ["jvm_runtime"]
 
 LIBRARIES = [
+    "java",
     "nio",
 ]
 

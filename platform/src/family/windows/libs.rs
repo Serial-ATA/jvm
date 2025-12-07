@@ -1,12 +1,12 @@
 use crate::libs::{Error, Result};
 
-use std::ffi::{CStr, c_void};
+use std::ffi::{CStr, OsString, c_void};
 use std::marker::PhantomData;
 
 pub struct LibraryImpl {}
 
 impl LibraryImpl {
-	pub unsafe fn load(name: &str) -> Result<Self> {
+	pub unsafe fn load(name: impl Into<OsString>) -> Result<Self> {
 		todo!("Windows lib loading")
 	}
 

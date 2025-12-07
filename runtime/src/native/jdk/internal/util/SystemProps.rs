@@ -48,7 +48,10 @@ pub mod Raw {
 				String::from("java.home"),
 				system_paths.java_home.to_string_lossy().into_owned(),
 			);
-			m.insert(String::from("java.ext.dirs"), system_paths.extensions_dirs);
+			m.insert(
+				String::from("java.ext.dirs"),
+				system_paths.extensions_dirs.clone(),
+			);
 		}
 
 		Mutex::new(m)

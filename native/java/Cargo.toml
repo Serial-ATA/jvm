@@ -1,15 +1,21 @@
 [package]
-name = "native-meta"
+name = "native-java"
 version = "0.1.0"
 authors.workspace = true
 repository.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[lib]
+name = "java"
+crate-type = ["rlib", "dylib"]
+
 [dependencies]
+jni.workspace = true
 native-macros.workspace = true
-native-java = { path = "../java" }
-native-nio = { path = "../nio" }
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
 
 [lints]
 workspace = true

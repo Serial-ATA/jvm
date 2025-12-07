@@ -63,7 +63,7 @@ fn java_home(boot_library_path: &Path) -> Option<PathBuf> {
 }
 
 impl SystemPaths {
-	pub fn init() -> Option<Self> {
+	pub(in crate::family) fn init_impl() -> Option<Self> {
 		let libjvm_path = libjvm_path()?;
 		let boot_library_path = boot_library_path(&libjvm_path)?;
 		let java_home = java_home(&libjvm_path)?;
@@ -79,6 +79,7 @@ impl SystemPaths {
 			boot_class_path: crate::env::boot_class_path(&java_home)?,
 			java_home,
 			extensions_dirs,
+			_priv: (),
 		})
 	}
 }

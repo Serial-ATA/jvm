@@ -1,6 +1,9 @@
-use std::ffi::{CStr, NulError, c_void};
+use crate::{JNI_LIB_PREFIX, JNI_LIB_SUFFIX};
+
+use std::ffi::{CStr, NulError, OsString, c_void};
 use std::marker::PhantomData;
 use std::ops::Deref;
+use std::path::Path;
 
 #[derive(Debug)]
 pub enum Error {
@@ -43,9 +46,13 @@ pub type Result<T> = core::result::Result<T, Error>;
 pub struct Library(super::imp::libs::LibraryImpl);
 
 impl Library {
-	pub fn load(name: &str) -> Result<Self> {
+	pub fn load(name: impl Into<OsString>) -> Result<Self> {
 		let imp = unsafe { super::imp::libs::LibraryImpl::load(name)? };
 		Ok(Self(imp))
+	}
+
+	pub fn load_from_path(base: &Path, name: &str) -> Result<Self> {
+		Self::load(base.join(format!("{JNI_LIB_PREFIX}{name}{JNI_LIB_SUFFIX}")))
 	}
 
 	/// Get a handle to the current process

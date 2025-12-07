@@ -7,6 +7,7 @@ use crate::symbols::sym;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 
+use std::ffi::{CString, c_void};
 use std::fmt::Write as _;
 use std::os::raw::c_int;
 
@@ -201,9 +202,18 @@ fn lookup_style(
 	os_style: bool,
 ) -> Option<NativeMethodPtr> {
 	let jni_name = name_converter.compute_complete_jni_name(num_args, include_long, os_style);
+	debug_assert!(!jni_name.contains('\0'));
+
+	// SAFETY: The name converter won't generate names with null bytes
+	let jni_name_c = unsafe { CString::from_vec_unchecked(jni_name.as_bytes().to_vec()) };
 
 	if let Some(entry) = crate::native::method::lookup_method(method) {
 		return Some(entry);
+	}
+
+	// SAFETY: Assuming symbols from libjava are valid
+	if let Ok(sym) = unsafe { crate::native::lib_java().symbol::<*const c_void>(&jni_name_c) } {
+		return Some(NativeMethodPtr::External(sym.raw()));
 	}
 
 	let classloader_class = crate::globals::classes::java_lang_ClassLoader();

@@ -1,19 +1,20 @@
 use crate::libs::{Error, Result};
 
-use libc::{c_char, c_int};
-use std::ffi::{CStr, CString, c_void};
+use std::ffi::{CStr, CString, OsString, c_void};
 use std::marker::PhantomData;
+
+use libc::{c_char, c_int};
 
 pub struct LibraryImpl {
 	lib: *mut c_void,
 }
 
 impl LibraryImpl {
-	pub unsafe fn load(name: &str) -> Result<Self> {
+	pub unsafe fn load(name: impl Into<OsString>) -> Result<Self> {
 		// Clear dlerror
 		let _ = unsafe { libc::dlerror() };
 
-		let name = CString::new(name)?;
+		let name = CString::new(name.into().into_encoded_bytes())?;
 		unsafe { Self::open_name(name.as_ptr(), libc::RTLD_LAZY) }
 	}
 
