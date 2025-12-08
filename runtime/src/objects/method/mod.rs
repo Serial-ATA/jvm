@@ -660,19 +660,19 @@ impl Method {
 }
 
 #[cfg(feature = "libffi")]
-pub struct PreparedCfi {
+pub struct PreparedCfi<'a> {
 	pub cfi: libffi::middle::Cif,
-	pub args: Vec<libffi::middle::Arg>,
+	pub args: Vec<libffi::middle::Arg<'a>>,
 }
 
 impl Method {
 	#[cfg(feature = "libffi")]
-	pub fn prepare_cfi(
+	pub fn prepare_cfi<'a>(
 		&'static self,
-		env: *mut jni::sys::JNIEnv,
-		class: jni::sys::jclass,
-		locals: &crate::stack::local_stack::LocalStack,
-	) -> PreparedCfi {
+		env: &'a *mut jni::sys::JNIEnv,
+		receiver: libffi::middle::Arg<'a>,
+		locals: &mut crate::stack::local_stack::LocalStackIter<'a>,
+	) -> PreparedCfi<'a> {
 		trait IntoFfiType {
 			fn into_ffi_type(&self) -> Type;
 		}
@@ -694,6 +694,23 @@ impl Method {
 			}
 		}
 
+		trait OperandArgExt {
+			fn as_arg(&self) -> Arg<'_>;
+		}
+
+		impl OperandArgExt for Operand<Reference> {
+			fn as_arg(&self) -> Arg<'_> {
+				match self {
+					Operand::Int(val) => Arg::new(val),
+					Operand::Float(val) => Arg::new(val),
+					Operand::Double(val) => Arg::new(val),
+					Operand::Long(val) => Arg::new(val),
+					Operand::Reference(val) => Arg::new(val),
+					Operand::Empty => unreachable!(),
+				}
+			}
+		}
+
 		use libffi::middle::{Arg, Type};
 
 		let num_args = self.descriptor.parameters.len() + if self.is_static() { 2 } else { 1 };
@@ -702,56 +719,50 @@ impl Method {
 		let mut args = Vec::with_capacity(num_args);
 
 		// env
-		args.push(Arg::new(&env));
+		args.push(Arg::new(env));
 		args_types.push(Type::pointer());
-		if self.is_static() {
-			// jclass
-			args.push(Arg::new(&class));
-			args_types.push(Type::pointer());
-		}
 
-		for (arg_ty, arg) in self.descriptor.parameters.iter().zip(locals.iter()) {
+		// jclass or jobject
+		args.push(receiver);
+		args_types.push(Type::pointer());
+
+		for (arg_ty, operand) in self.descriptor.parameters.iter().zip(locals) {
 			match arg_ty {
+				FieldType::Void => {
+					args_types.push(Type::void());
+					continue;
+				},
+
 				FieldType::Byte => {
-					args.push(Arg::new(&(arg.expect_int() as i8)));
 					args_types.push(Type::i8());
 				},
 				FieldType::Character => {
-					args.push(Arg::new(&(arg.expect_int() as u16)));
 					args_types.push(Type::u16());
 				},
 				FieldType::Double => {
-					args.push(Arg::new(&(arg.expect_double())));
 					args_types.push(Type::f64());
 				},
 				FieldType::Float => {
-					args.push(Arg::new(&(arg.expect_float())));
 					args_types.push(Type::f32());
 				},
 				FieldType::Integer => {
-					args.push(Arg::new(&(arg.expect_int())));
 					args_types.push(Type::i32());
 				},
 				FieldType::Long => {
-					args.push(Arg::new(&(arg.expect_long())));
 					args_types.push(Type::i64());
 				},
 				FieldType::Short => {
-					args.push(Arg::new(&(arg.expect_int() as i16)));
 					args_types.push(Type::i16());
 				},
 				FieldType::Boolean => {
-					args.push(Arg::new(&(arg.expect_int() != 0)));
 					args_types.push(Type::u8());
 				},
 				FieldType::Object(_) | FieldType::Array(_) => {
-					args.push(Arg::new(&(unsafe { arg.expect_reference().raw() })));
 					args_types.push(Type::pointer());
 				},
-				FieldType::Void => {
-					args_types.push(Type::void());
-				},
 			}
+
+			args.push(operand.as_arg());
 		}
 
 		let ret_ty = self.descriptor.return_type.into_ffi_type();

@@ -68,7 +68,7 @@ impl LocalStack {
 }
 
 impl<'a> IntoIterator for &'a LocalStack {
-	type Item = Operand<Reference>;
+	type Item = &'a Operand<Reference>;
 	type IntoIter = LocalStackIter<'a>;
 
 	fn into_iter(self) -> Self::IntoIter {
@@ -84,8 +84,8 @@ pub struct LocalStackIter<'a> {
 	remaining: usize,
 }
 
-impl Iterator for LocalStackIter<'_> {
-	type Item = Operand<Reference>;
+impl<'a> Iterator for LocalStackIter<'a> {
+	type Item = &'a Operand<Reference>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		match self.inner.next() {
@@ -98,7 +98,7 @@ impl Iterator for LocalStackIter<'_> {
 				}
 
 				self.remaining -= 1;
-				Some(operand.clone())
+				Some(operand)
 			},
 		}
 	}

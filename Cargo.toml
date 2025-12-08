@@ -100,7 +100,7 @@ vm_symbols = { path = "generators/vm_symbols" }
 native-macros = { path = "native/macros" }
 libc = "0.2"
 windows = "0.61.3"
-libffi = "4.1.1"
+libffi = "5.0.0"
 
 byteorder = "1.5.0"
 byte-slice-cast = "1.2.2"

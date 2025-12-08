@@ -24,6 +24,7 @@ use crate::thread::frame::native::NativeFrame;
 use crate::{classes, globals, java_call};
 
 use std::cell::{Cell, SyncUnsafeCell, UnsafeCell};
+use std::mem::MaybeUninit;
 use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 use std::thread::JoinHandle;
 
@@ -477,8 +478,29 @@ impl JavaThread {
 					jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort,
 				};
 				use libffi::low::CodePtr;
+				use libffi::middle::Arg;
 
-				let cfi = method.prepare_cfi(self.env().raw(), method.class().into_jni(), &locals);
+				let env = self.env().raw();
+				let target_class = method.class().into_jni();
+
+				let mut locals = locals.iter();
+
+				// To keep the receiver live
+				let mut this = MaybeUninit::uninit();
+
+				let receiver;
+				if method.is_static() {
+					receiver = Arg::new(&target_class);
+				} else {
+					let this_ref = locals
+						.next()
+						.expect("should have a receiver")
+						.expect_reference();
+					this.write(unsafe { this_ref.raw() });
+					receiver = Arg::new(&this);
+				}
+
+				let cfi = method.prepare_cfi(&env, receiver, &mut locals);
 				ret = unsafe {
 					match method.descriptor.return_type {
 						FieldType::Byte => Some(Operand::Int(
