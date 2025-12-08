@@ -9,6 +9,7 @@ mod object;
 mod references;
 mod reflection;
 mod register;
+pub use register::*;
 mod string;
 mod version;
 mod vm;
