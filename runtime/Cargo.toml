@@ -42,7 +42,7 @@ libffi = ["dep:libffi"]
 workspace = true
 
 [lib]
-name = "jvm_runtime"
+name = "jvm"
 crate-type = ["rlib", "dylib"]
 
 [profile.dev]

@@ -9,7 +9,7 @@ pub const SYS_EXTENSIONS_DIR: &str = "/usr/java/packages";
 pub const EXTENSIONS_DIR: &str = "/lib/ext";
 pub const DEFAULT_LIBPATH: &str = "/usr/lib64:/lib64:/lib:/usr/lib";
 
-// In the Hotspot-style JAVA_HOME, the libjvm_runtime.so will be located at $JAVA_HOME/lib/<vm_variant>/libjvm_runtime.so
+// In the Hotspot-style JAVA_HOME, the libjvm.so will be located at $JAVA_HOME/lib/<vm_variant>/libjvm.so
 pub fn libjvm_path() -> Option<PathBuf> {
 	let mut dlinfo;
 	let dladdr_ret;

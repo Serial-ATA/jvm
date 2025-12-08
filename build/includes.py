@@ -5,7 +5,7 @@ BINARIES = [
     ("jimage", "jimage"),
 ]
 
-VM_LIBRARIES = ["jvm_runtime"]
+VM_LIBRARIES = ["jvm"]
 
 LIBRARIES = [
     "java",

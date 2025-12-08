@@ -10,12 +10,12 @@ pub enum Error {
 impl core::fmt::Display for Error {
 	fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
 		match self {
-			Error::LibJvmNotFound => write!(f, "Could not find libjvm_runtime"),
-			Error::LibJvmLoad(e) => write!(f, "Could not load libjvm_runtime: {}", e),
+			Error::LibJvmNotFound => write!(f, "Could not find libjvm"),
+			Error::LibJvmLoad(e) => write!(f, "Could not load libjvm: {}", e),
 			Error::SymbolNotFound(symbol) => {
 				write!(
 					f,
-					"Could not find symbol `{}` in libjvm_runtime",
+					"Could not find symbol `{}` in libjvm",
 					symbol.escape_ascii()
 				)
 			},
