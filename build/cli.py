@@ -28,6 +28,11 @@ def args() -> Namespace:
         default=str(VmVariant.SERVER),
     )
     parser.add_argument(
+        "--no-native-libs",
+        action="store_true",
+        help="don't use sj native libraries, copy the libraries from the BOOT_JDK",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="force re-package, even if nothing has changed",

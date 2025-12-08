@@ -61,6 +61,48 @@ else:
     )
     exit(1)
 
+BIN_DIR: Path = DIST_DIR.joinpath("bin")
+LIB_DIR: Path = DIST_DIR.joinpath("lib")
+
+
+def copy_native_libs(target_dir: Path, variant: VmVariant):
+    for lib in LIBRARIES:
+        packaged_lib_name = LIBRARY_PREFIX + lib + LIBRARY_SUFFIX
+        src = os.path.join(target_dir, packaged_lib_name)
+
+        # Special case for VM libraries, copy them into a Hotspot-style directory (<out>/lib/<vm_variant>/<lib_name>)
+        if lib in VM_LIBRARIES:
+            out = LIB_DIR.joinpath(variant)
+            out.mkdir(parents=True, exist_ok=True)
+
+            dest = os.path.join(out, packaged_lib_name)
+        else:
+            dest = os.path.join(LIB_DIR, packaged_lib_name)
+        shutil.copy(src, dest)
+
+
+def copy_native_libs_from_boot_jdk(
+    target_dir: Path, variant: VmVariant, boot_jdk: Path
+):
+    # Always copy VM libraries from sj
+    for lib in VM_LIBRARIES:
+        packaged_lib_name = LIBRARY_PREFIX + lib + LIBRARY_SUFFIX
+        src = os.path.join(target_dir, packaged_lib_name)
+
+        out = LIB_DIR.joinpath(variant)
+        out.mkdir(parents=True, exist_ok=True)
+
+        dest = os.path.join(out, packaged_lib_name)
+        shutil.copy(src, dest)
+
+    # For all other libraries, copy them from the boot JDK
+    boot_jdk_libs = boot_jdk.joinpath("lib")
+    for entry in os.listdir(boot_jdk_libs):
+        path = boot_jdk_libs.joinpath(entry)
+        if not path.is_file() or not path.name.endswith(LIBRARY_SUFFIX):
+            continue
+        shutil.copy(path, LIB_DIR)
+
 
 def main():
     args = cli.args()
@@ -81,28 +123,13 @@ def main():
 
     mk_dist_dir_if_needed()
 
-    bin_dir = DIST_DIR.joinpath("bin")
     for binary, packaged_binary_name in BINARIES:
         src = os.path.join(target_dir, binary)
-        dest = os.path.join(bin_dir, packaged_binary_name)
+        dest = os.path.join(BIN_DIR, packaged_binary_name)
         shutil.copy(src, dest)
 
-    lib_dir = DIST_DIR.joinpath("lib")
-    for lib in LIBRARIES:
-        packaged_lib_name = LIBRARY_PREFIX + lib + LIBRARY_SUFFIX
-        src = os.path.join(target_dir, packaged_lib_name)
-
-        # Special case for VM libraries, copy them into a Hotspot-style directory (<out>/lib/<vm_variant>/<lib_name>)
-        if lib in VM_LIBRARIES:
-            out = lib_dir.joinpath(args.variant)
-            out.mkdir(parents=True, exist_ok=True)
-
-            dest = os.path.join(out, packaged_lib_name)
-        else:
-            dest = os.path.join(lib_dir, packaged_lib_name)
-        shutil.copy(src, dest)
-
-    boot_jdk_modules = Path(args.boot_jdk).joinpath("lib").joinpath("modules")
+    boot_jdk = Path(args.boot_jdk)
+    boot_jdk_modules = boot_jdk.joinpath("lib").joinpath("modules")
     if not boot_jdk_modules.exists():
         print(
             f"Boot JDK modules not found (searched {str(boot_jdk_modules)})",
@@ -110,7 +137,12 @@ def main():
         )
         exit(1)
 
-    shutil.copy(boot_jdk_modules, lib_dir)
+    shutil.copy(boot_jdk_modules, LIB_DIR)
+
+    if args.no_native_libs:
+        copy_native_libs_from_boot_jdk(target_dir, args.variant, boot_jdk)
+    else:
+        copy_native_libs(target_dir, args.variant)
 
 
 if __name__ == "__main__":
