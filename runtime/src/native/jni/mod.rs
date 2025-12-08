@@ -11,7 +11,7 @@ use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 
 use instructions::Operand;
-use jni::objects::{JClass, JFieldId, JMethodId, JObject, JValue};
+use jni::objects::{JClass, JFieldId, JMethodId, JObject, JString, JValue};
 use jni::sys::{jclass, jfieldID, jmethodID, jobject, jvalue};
 
 pub mod array;
@@ -30,6 +30,32 @@ pub mod string;
 pub mod version;
 pub mod vm;
 pub mod weak;
+
+/// Extra methods to convert [`Reference`]s to more concrete JNI types (e.g. [`JString`])
+///
+/// The [`IntoJni`] implementation for [`Reference`] will always produce a [`JObject`]. Since all other
+/// JNI object types are just aliases for [`JObject`], that's correct. However, for documentation purposes
+/// it's better to use the most concrete types whenever possible.
+pub trait ReferenceJniExt {
+	fn into_jstring(self) -> jni::sys::jstring;
+	fn into_jstring_safe(self) -> JString;
+}
+
+impl ReferenceJniExt for Reference {
+	fn into_jstring(self) -> jni::sys::jstring {
+		debug_assert_eq!(
+			self.extract_instance_class(),
+			crate::globals::classes::java_lang_String(),
+			"Expected java.lang.String"
+		);
+		self.into_jni()
+	}
+
+	fn into_jstring_safe(self) -> JString {
+		// SAFETY: From the rust side, we can only create valid references, anyway
+		unsafe { JString::from_raw(self.into_jstring()) }
+	}
+}
 
 pub trait IntoJni {
 	type RawJniTy;
