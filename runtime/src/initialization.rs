@@ -153,6 +153,9 @@ fn load_global_classes() -> Throws<()> {
 		java_lang_Class,
 	);
 
+	// Register the native methods of java.lang.Object
+	classes::java::lang::Object::register_natives();
+
 	// Pre-fire java.lang.Class field offset initialization, as it's needed by mirrors. All other
 	// classes handle this in `init_field_offsets()`.
 	unsafe {

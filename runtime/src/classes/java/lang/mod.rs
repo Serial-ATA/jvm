@@ -7,7 +7,9 @@ pub mod Thread;
 pub mod Throwable;
 
 mod boxes;
+pub use boxes::*;
+
+pub mod Object;
 pub mod invoke;
 pub mod r#ref;
 pub mod reflect;
-pub use boxes::*;
