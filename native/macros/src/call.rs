@@ -2,8 +2,8 @@ use proc_macro2::{Ident, Span};
 use quote::{ToTokens, quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{
-	Abi, FnArg, GenericArgument, ItemFn, Pat, PatIdent, Path, PathArguments, ReturnType, Type,
-	TypePath,
+	Abi, FnArg, GenericArgument, ItemFn, Pat, PatIdent, PatType, Path, PathArguments, ReturnType,
+	Type, TypePath,
 };
 
 // jni_sys types
@@ -176,6 +176,34 @@ parameter_types!(
 	]
 );
 
+enum ParameterType {
+	Strict(SafeJniWrapperType),
+	Loose(Box<Type>),
+}
+
+impl ParameterType {
+	fn to_raw(&self) -> proc_macro2::TokenStream {
+		match self {
+			ParameterType::Strict(inner) => inner.to_raw(),
+			ParameterType::Loose(inner) => inner.to_token_stream(),
+		}
+	}
+
+	fn safe_conversion_fn(&self, param_name: Ident) -> proc_macro2::TokenStream {
+		match self {
+			ParameterType::Strict(inner) => inner.safe_conversion_fn(param_name),
+			ParameterType::Loose(_inner) => param_name.to_token_stream(),
+		}
+	}
+
+	fn raw_conversion_fn(&self, param_name: Ident) -> proc_macro2::TokenStream {
+		match self {
+			ParameterType::Strict(inner) => inner.raw_conversion_fn(param_name),
+			ParameterType::Loose(_inner) => param_name.to_token_stream(),
+		}
+	}
+}
+
 pub enum Error {
 	MissingAbi,
 	BadAbi,
@@ -189,7 +217,7 @@ impl Error {
 	pub fn into_syn(self, span: Span) -> syn::Error {
 		match self {
 			Error::MissingAbi => syn::Error::new(span, "Must specify an ABI"),
-			Error::BadAbi => syn::Error::new(span, "Must specify \"system\" ABI"),
+			Error::BadAbi => syn::Error::new(span, "Must specify valid ABI"),
 			Error::MissingEnv => syn::Error::new(span, "First parameter must be a JniEnv"),
 			Error::HasReceiver => syn::Error::new(span, "JNI functions must be freestanding"),
 			Error::BadParameterType(ty) => syn::Error::new(
@@ -210,16 +238,16 @@ pub struct JniFn {
 	pub errors: Vec<(Error, Span)>,
 }
 
-pub fn generate(input: &ItemFn) -> JniFn {
+pub fn generate(input: &ItemFn, no_env: bool, no_strict_types: bool) -> JniFn {
 	let mut errors = Vec::new();
 	validate_abi(&mut errors, input);
-	let params = validate_params(&mut errors, input);
-	let return_ty = validate_return(&mut errors, input);
+	let params = validate_params(&mut errors, input, no_env, no_strict_types);
+	let return_ty = validate_return(&mut errors, input, no_strict_types);
 
 	let fn_name = &input.sig.ident;
 	let raw_mod_name = Ident::new(&format!("raw_{}", fn_name), Span::call_site());
 
-	let extern_fn_def = generate_extern_fn(input, &params, return_ty);
+	let extern_fn_def = generate_extern_fn(input, &params, return_ty, no_env);
 	let extern_fn = quote! {
 		mod #raw_mod_name {
 			use super::*;
@@ -249,7 +277,7 @@ fn validate_abi(errors: &mut Vec<(Error, Span)>, fun: &ItemFn) {
 		return;
 	};
 
-	if name.value() != "system" {
+	if name.value() != "system" && name.value() != "C" {
 		errors.push((Error::BadAbi, fun.sig.span()));
 	}
 }
@@ -257,20 +285,51 @@ fn validate_abi(errors: &mut Vec<(Error, Span)>, fun: &ItemFn) {
 fn validate_params(
 	errors: &mut Vec<(Error, Span)>,
 	fun: &ItemFn,
-) -> Vec<(Ident, SafeJniWrapperType)> {
+	no_env: bool,
+	no_strict_types: bool,
+) -> Vec<(Ident, ParameterType)> {
+	fn parse_type(
+		fun: &ItemFn,
+		no_env: bool,
+		index: usize,
+		param: &FnArg,
+		arg: &PatType,
+	) -> Result<Option<SafeJniWrapperType>, (Error, Span)> {
+		let Type::Path(TypePath { path, .. }) = &*arg.ty else {
+			return Err((
+				Error::BadParameterType(arg.ty.to_token_stream().to_string()),
+				arg.ty.span(),
+			));
+		};
+
+		let Some((path_str, _optional)) = path_str(path) else {
+			return Err((
+				Error::BadParameterType(arg.ty.to_token_stream().to_string()),
+				param.span(),
+			));
+		};
+		if index == 0 && !no_env {
+			const JNI_ENV_PATHS: &[&str] = &["JniEnv", "jni::env::JniEnv"];
+
+			if !JNI_ENV_PATHS.contains(&path_str.as_str()) {
+				return Err((Error::MissingEnv, fun.sig.span()));
+			}
+
+			// Implicit
+			return Ok(None);
+		}
+
+		match SafeJniWrapperType::from_str(&path_str, false) {
+			Some(parsed) => Ok(Some(parsed)),
+			None => Err((Error::BadParameterType(path_str), param.span())),
+		}
+	}
+
 	let mut params = Vec::new();
 	for (index, param) in fun.sig.inputs.iter().enumerate() {
 		match param {
 			FnArg::Receiver(receiver) => errors.push((Error::HasReceiver, receiver.span())),
 			FnArg::Typed(arg) => {
-				let Type::Path(TypePath { path, .. }) = &*arg.ty else {
-					errors.push((
-						Error::BadParameterType(arg.ty.to_token_stream().to_string()),
-						arg.ty.span(),
-					));
-					continue;
-				};
-
 				let Pat::Ident(PatIdent { ident, .. }) = &*arg.pat else {
 					errors.push((
 						Error::BadParameterType(arg.ty.to_token_stream().to_string()),
@@ -279,30 +338,18 @@ fn validate_params(
 					continue;
 				};
 
-				let Some((path_str, _optional)) = path_str(path) else {
-					errors.push((
-						Error::BadParameterType(arg.ty.to_token_stream().to_string()),
-						param.span(),
-					));
-					continue;
-				};
-				if index == 0 {
-					const JNI_ENV_PATHS: &[&str] = &["JniEnv", "jni::env::JniEnv"];
+				match parse_type(fun, no_env, index, param, arg) {
+					Ok(Some(parsed)) => params.push((ident.clone(), ParameterType::Strict(parsed))),
+					Ok(None) => {},
+					Err(e) => {
+						if no_strict_types {
+							params.push((ident.clone(), ParameterType::Loose(arg.ty.clone())));
+							continue;
+						}
 
-					if !JNI_ENV_PATHS.contains(&path_str.as_str()) {
-						errors.push((Error::MissingEnv, fun.sig.span()));
-						continue;
-					}
-
-					continue;
+						errors.push(e);
+					},
 				}
-
-				let Some(parsed) = SafeJniWrapperType::from_str(&path_str, false) else {
-					errors.push((Error::BadParameterType(path_str), param.span()));
-					continue;
-				};
-
-				params.push((ident.clone(), parsed));
 			},
 		}
 	}
@@ -310,10 +357,18 @@ fn validate_params(
 	params
 }
 
-fn validate_return(errors: &mut Vec<(Error, Span)>, fun: &ItemFn) -> Option<SafeJniWrapperType> {
+fn validate_return(
+	errors: &mut Vec<(Error, Span)>,
+	fun: &ItemFn,
+	no_strict_types: bool,
+) -> Option<ParameterType> {
 	let ReturnType::Type(_, ty) = &fun.sig.output else {
 		return None;
 	};
+
+	if no_strict_types {
+		return Some(ParameterType::Loose(ty.clone()));
+	}
 
 	let Type::Path(TypePath { path, .. }) = &**ty else {
 		errors.push((
@@ -335,7 +390,7 @@ fn validate_return(errors: &mut Vec<(Error, Span)>, fun: &ItemFn) -> Option<Safe
 		return None;
 	};
 
-	Some(parsed)
+	Some(ParameterType::Strict(parsed))
 }
 
 fn path_str(path: &Path) -> Option<(String, bool)> {
@@ -375,22 +430,38 @@ fn path_str(path: &Path) -> Option<(String, bool)> {
 
 fn generate_extern_fn(
 	fun: &ItemFn,
-	params: &[(Ident, SafeJniWrapperType)],
-	return_type: Option<SafeJniWrapperType>,
+	params: &[(Ident, ParameterType)],
+	return_type: Option<ParameterType>,
+	no_env: bool,
 ) -> proc_macro2::TokenStream {
 	let fn_name = &fun.sig.ident;
 
-	let sys_params = params.iter().map(|(param, parsed_ty)| {
+	let mut sys_params = Vec::new();
+	if !no_env {
+		sys_params.push(quote! { env: *mut ::jni::sys::JNIEnv });
+	}
+
+	sys_params.extend(params.iter().map(|(param, parsed_ty)| {
 		let ty = parsed_ty.to_raw();
 		quote! { #param: #ty }
-	});
+	}));
 
-	let arg_conversions = params.iter().map(|(param, parsed_ty)| {
+	let mut arg_conversions = Vec::new();
+	if !no_env {
+		arg_conversions.push(quote! { let env = unsafe { ::jni::env::JniEnv::from_raw(env) }; });
+	}
+
+	arg_conversions.extend(params.iter().map(|(param, parsed_ty)| {
 		let conversion = parsed_ty.safe_conversion_fn(param.clone());
 		quote! { let #param = #conversion; }
-	});
+	}));
 
-	let all_param_names = params.iter().map(|(param, _)| param);
+	let mut all_param_names = Vec::new();
+	if !no_env {
+		all_param_names.push(Ident::new("env", Span::call_site()));
+	}
+
+	all_param_names.extend(params.iter().map(|(param, _)| param.clone()));
 
 	let result_ident = Ident::new("result", Span::call_site());
 
@@ -408,11 +479,10 @@ fn generate_extern_fn(
 	quote! {
 		#[unsafe(no_mangle)]
 		#[allow(non_snake_case)]
-		pub unsafe extern "system" fn #fn_name(env: *mut ::jni::sys::JNIEnv, #(#sys_params),*) #ret {
-			let env = unsafe { ::jni::env::JniEnv::from_raw(env) };
+		pub unsafe extern "system" fn #fn_name(#(#sys_params),*) #ret {
 			#(#arg_conversions)*
 
-			let #result_ident = super::#fn_name(env, #(#all_param_names),*);
+			let #result_ident = super::#fn_name(#(#all_param_names),*);
 			#to_raw_conversion
 		}
 	}

@@ -15,6 +15,6 @@ impl super::JniEnv {
 			return Err(JniError::Unknown);
 		}
 
-		Ok(unsafe { JavaVm::from_raw(vm) })
+		Ok(unsafe { JavaVm::from_raw(unsafe { *vm }) })
 	}
 }

@@ -132,7 +132,7 @@ pub fn load(
 				);
 			};
 
-			jni_version = unsafe { on_load(vm.raw().cast_mut(), std::ptr::null_mut()) };
+			jni_version = unsafe { on_load(vm.raw(), std::ptr::null_mut()) };
 
 			if thread.has_pending_exception() {
 				if !is_builtin {

@@ -10,6 +10,7 @@ use platform::libs::Library;
 mod class;
 pub mod intrinsics;
 pub mod jni;
+mod jvm;
 pub mod lookup;
 pub mod method;
 

@@ -16,6 +16,7 @@ instructions.workspace = true
 jimage.workspace = true
 jni.workspace = true
 vm_symbols.workspace = true
+native-macros.workspace = true
 
 bytemuck = "1.20.0"
 byte-slice-cast.workspace = true

@@ -174,7 +174,7 @@ fn attach_current_thread_impl(
 
 #[allow(trivial_casts)]
 pub unsafe fn main_java_vm() -> JavaVm {
-	let raw = &raw const RAW_INVOKE_INTERFACE.0;
+	let raw: jni::sys::JavaVM = &raw const RAW_INVOKE_INTERFACE.0;
 	unsafe { JavaVm::from_raw(raw as *mut _) }
 }
 

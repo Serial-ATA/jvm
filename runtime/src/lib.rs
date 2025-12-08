@@ -14,6 +14,8 @@
 #![feature(reentrant_lock)]
 #![feature(std_internals)]
 #![feature(pointer_is_aligned_to)]
+#![feature(custom_inner_attributes)]
+#![feature(proc_macro_hygiene)]
 
 pub mod calls;
 pub mod classes;
