@@ -10,7 +10,7 @@ use std::mem;
 use jni::java_vm::{AbortHookFn, ExitHookFn, VFPrintFHookFn};
 use jni::sys::JavaVMInitArgs;
 
-unsafe extern "C" fn vfprintf_default(_stream: *mut c_void, _format: *const c_char, ...) {
+unsafe extern "C" fn vfprintf_default(_stream: *mut c_void, _format: *const c_char, _: ...) {
 	todo!("vfprintf")
 }
 

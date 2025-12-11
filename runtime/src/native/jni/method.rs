@@ -62,7 +62,7 @@ pub unsafe extern "C" fn CallObjectMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jobject {
 	unimplemented!("jni::CallObjectMethod");
 }
@@ -91,7 +91,7 @@ pub unsafe extern "C" fn CallBooleanMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jboolean {
 	unimplemented!("jni::CallBooleanMethod");
 }
@@ -121,7 +121,7 @@ pub unsafe extern "C" fn CallByteMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jbyte {
 	unimplemented!("jni::CallByteMethod");
 }
@@ -151,7 +151,7 @@ pub unsafe extern "C" fn CallCharMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jchar {
 	unimplemented!("jni::CallCharMethod");
 }
@@ -181,7 +181,7 @@ pub unsafe extern "C" fn CallShortMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jshort {
 	unimplemented!("jni::CallShortMethod");
 }
@@ -211,7 +211,7 @@ pub unsafe extern "C" fn CallIntMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jint {
 	unimplemented!("jni::CallIntMethod");
 }
@@ -241,7 +241,7 @@ pub unsafe extern "C" fn CallLongMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jlong {
 	unimplemented!("jni::CallLongMethod");
 }
@@ -271,7 +271,7 @@ pub unsafe extern "C" fn CallFloatMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jfloat {
 	unimplemented!("jni::CallFloatMethod");
 }
@@ -301,7 +301,7 @@ pub unsafe extern "C" fn CallDoubleMethod(
 	env: *mut JNIEnv,
 	obj: jobject,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jdouble {
 	unimplemented!("jni::CallDoubleMethod");
 }
@@ -327,7 +327,12 @@ pub unsafe extern "system" fn CallDoubleMethodA(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn CallVoidMethod(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...) {
+pub unsafe extern "C" fn CallVoidMethod(
+	env: *mut JNIEnv,
+	obj: jobject,
+	methodID: jmethodID,
+	_: ...
+) {
 	unimplemented!("jni::CallVoidMethod");
 }
 
@@ -361,7 +366,7 @@ pub unsafe extern "C" fn CallNonvirtualObjectMethod(
 	obj: jobject,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jobject {
 	unimplemented!("jni::CallNonvirtualObjectMethod")
 }
@@ -394,7 +399,7 @@ pub unsafe extern "C" fn CallNonvirtualBooleanMethod(
 	obj: jobject,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jboolean {
 	unimplemented!("jni::CallNonvirtualBooleanMethod")
 }
@@ -427,7 +432,7 @@ pub unsafe extern "C" fn CallNonvirtualByteMethod(
 	obj: jobject,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jbyte {
 	unimplemented!("jni::CallNonvirtualByteMethod")
 }
@@ -460,7 +465,7 @@ pub unsafe extern "C" fn CallNonvirtualCharMethod(
 	obj: jobject,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jchar {
 	unimplemented!("jni::CallNonvirtualCharMethod")
 }
@@ -493,7 +498,7 @@ pub unsafe extern "C" fn CallNonvirtualShortMethod(
 	obj: jobject,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jshort {
 	unimplemented!("jni::CallNonvirtualShortMethod")
 }
@@ -526,7 +531,7 @@ pub unsafe extern "C" fn CallNonvirtualIntMethod(
 	obj: jobject,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jint {
 	unimplemented!("jni::CallNonvirtualIntMethod")
 }
@@ -559,7 +564,7 @@ pub unsafe extern "C" fn CallNonvirtualLongMethod(
 	obj: jobject,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jlong {
 	unimplemented!("jni::CallNonvirtualLongMethod")
 }
@@ -592,7 +597,7 @@ pub unsafe extern "C" fn CallNonvirtualFloatMethod(
 	obj: jobject,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jfloat {
 	unimplemented!("jni::CallNonvirtualFloatMethod")
 }
@@ -625,7 +630,7 @@ pub unsafe extern "C" fn CallNonvirtualDoubleMethod(
 	obj: jobject,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jdouble {
 	unimplemented!("jni::CallNonvirtualDoubleMethod")
 }
@@ -658,7 +663,7 @@ pub unsafe extern "C" fn CallNonvirtualVoidMethod(
 	obj: jobject,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) {
 	unimplemented!("jni::CallNonvirtualVoidMethod")
 }
@@ -704,7 +709,7 @@ pub unsafe extern "C" fn CallStaticObjectMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jobject {
 	unimplemented!("jni::CallStaticObjectMethod");
 }
@@ -738,7 +743,7 @@ pub unsafe extern "C" fn CallStaticBooleanMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jboolean {
 	unimplemented!("jni::CallStaticBooleanMethod");
 }
@@ -772,7 +777,7 @@ pub unsafe extern "C" fn CallStaticByteMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jbyte {
 	unimplemented!("jni::CallStaticByteMethod");
 }
@@ -806,7 +811,7 @@ pub unsafe extern "C" fn CallStaticCharMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jchar {
 	unimplemented!("jni::CallStaticCharMethod");
 }
@@ -840,7 +845,7 @@ pub unsafe extern "C" fn CallStaticShortMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jshort {
 	unimplemented!("jni::CallStaticShortMethod");
 }
@@ -874,7 +879,7 @@ pub unsafe extern "C" fn CallStaticIntMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jint {
 	unimplemented!("jni::CallStaticIntMethod");
 }
@@ -908,7 +913,7 @@ pub unsafe extern "C" fn CallStaticLongMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jlong {
 	unimplemented!("jni::CallStaticLongMethod");
 }
@@ -942,7 +947,7 @@ pub unsafe extern "C" fn CallStaticFloatMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jfloat {
 	unimplemented!("jni::CallStaticFloatMethod");
 }
@@ -976,7 +981,7 @@ pub unsafe extern "C" fn CallStaticDoubleMethod(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jdouble {
 	unimplemented!("jni::CallStaticDoubleMethod");
 }

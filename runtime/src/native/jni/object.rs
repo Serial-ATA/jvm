@@ -23,7 +23,7 @@ pub unsafe extern "C" fn NewObject(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
-	...
+	_: ...
 ) -> jobject {
 	unimplemented!("jni::NewObject");
 }
