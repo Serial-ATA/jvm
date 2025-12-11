@@ -328,6 +328,13 @@ vm_symbols::define_symbols! {
 	class_initializer_name: "<clinit>",
 	athrow_name: "<athrow>",
 
+	getClass,
+	hashCode,
+	clone,
+	notify,
+	notifyAll,
+	wait0,
+
 	linkCallSite,
 	findMethodHandleType,
 	linkMethodHandleConstant,
