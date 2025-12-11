@@ -263,6 +263,8 @@ vm_symbols::define_symbols! {
 	java_lang_NegativeArraySizeException: "java/lang/NegativeArraySizeException",
 	java_lang_ArrayIndexOutOfBoundsException: "java/lang/ArrayIndexOutOfBoundsException",
 
+	java_lang_StringIndexOutOfBoundsException: "java/lang/StringIndexOutOfBoundsException",
+
 	java_lang_CloneNotSupportedException: "java/lang/CloneNotSupportedException",
 
 	java_lang_InvalidClassException: "java/lang/InvalidClassException",

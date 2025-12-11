@@ -76,7 +76,6 @@ pub(crate) mod java {
 		pub(crate) mod StringBuilder;
 		pub(crate) mod Runtime;
 		pub(crate) mod StringUTF16;
-		pub(crate) mod System;
 		pub(crate) mod Float;
 		pub(crate) mod Module;
 		pub(crate) mod ClassLoader;

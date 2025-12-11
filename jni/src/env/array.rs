@@ -141,7 +141,7 @@ impl super::JniEnv {
 		&self,
 		array: JByteArray,
 		start: jsize,
-		buf: &[jbyte],
+		buf: &mut [jbyte],
 	) -> Result<()> {
 		unsafe {
 			let invoke_interface = self.as_native_interface();
@@ -150,7 +150,7 @@ impl super::JniEnv {
 				array.raw(),
 				start,
 				buf.len() as jsize,
-				buf.as_ptr(),
+				buf.as_mut_ptr(),
 			);
 		}
 

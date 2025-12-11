@@ -383,7 +383,7 @@ pub unsafe extern "system" fn SetBooleanArrayRegion(
 	array: jbooleanArray,
 	start: jsize,
 	l: jsize,
-	buf: *const jboolean,
+	buf: *mut jboolean,
 ) {
 	unimplemented!("jni::SetBooleanArrayRegion")
 }
@@ -394,7 +394,7 @@ pub unsafe extern "system" fn SetByteArrayRegion(
 	array: jbyteArray,
 	start: jsize,
 	len: jsize,
-	buf: *const jbyte,
+	buf: *mut jbyte,
 ) {
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
@@ -403,7 +403,7 @@ pub unsafe extern "system" fn SetByteArrayRegion(
 		panic!("Invalid arguments to `SetByteArrayRegion`");
 	};
 
-	let buf = unsafe { std::slice::from_raw_parts(buf, len as usize - 1) };
+	let buf = unsafe { std::slice::from_raw_parts_mut(buf, len as usize - 1) };
 	if let Throws::Exception(e) = array.extract_primitive_array().write_region(start, buf) {
 		e.throw(thread);
 	}
@@ -415,7 +415,7 @@ pub unsafe extern "system" fn SetCharArrayRegion(
 	array: jcharArray,
 	start: jsize,
 	len: jsize,
-	buf: *const jchar,
+	buf: *mut jchar,
 ) {
 	unimplemented!("jni::SetCharArrayRegion")
 }
@@ -426,7 +426,7 @@ pub unsafe extern "system" fn SetShortArrayRegion(
 	array: jshortArray,
 	start: jsize,
 	len: jsize,
-	buf: *const jshort,
+	buf: *mut jshort,
 ) {
 	unimplemented!("jni::SetShortArrayRegion")
 }
@@ -437,7 +437,7 @@ pub unsafe extern "system" fn SetIntArrayRegion(
 	array: jintArray,
 	start: jsize,
 	len: jsize,
-	buf: *const jint,
+	buf: *mut jint,
 ) {
 	unimplemented!("jni::SetIntArrayRegion")
 }
@@ -448,7 +448,7 @@ pub unsafe extern "system" fn SetLongArrayRegion(
 	array: jlongArray,
 	start: jsize,
 	len: jsize,
-	buf: *const jlong,
+	buf: *mut jlong,
 ) {
 	unimplemented!("jni::SetLongArrayRegion")
 }
@@ -459,7 +459,7 @@ pub unsafe extern "system" fn SetFloatArrayRegion(
 	array: jfloatArray,
 	start: jsize,
 	len: jsize,
-	buf: *const jfloat,
+	buf: *mut jfloat,
 ) {
 	unimplemented!("jni::SetFloatArrayRegion")
 }
@@ -470,7 +470,7 @@ pub unsafe extern "system" fn SetDoubleArrayRegion(
 	array: jdoubleArray,
 	start: jsize,
 	len: jsize,
-	buf: *const jdouble,
+	buf: *mut jdouble,
 ) {
 	unimplemented!("jni::SetDoubleArrayRegion")
 }

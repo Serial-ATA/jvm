@@ -133,6 +133,9 @@ pub enum ExceptionKind {
 	/// java.lang.ArrayIndexOutOfBoundsException
 	ArrayIndexOutOfBoundsException,
 
+    /// java.lang.StringIndexOutOfBoundsException
+    StringIndexOutOfBoundsException,
+    
 	/// java.lang.CloneNotSupportedException
 	CloneNotSupportedException,
 
@@ -191,6 +194,8 @@ impl ExceptionKind {
 				sym!(java_lang_ArrayIndexOutOfBoundsException)
 			},
 
+            ExceptionKind::StringIndexOutOfBoundsException => sym!(java_lang_StringIndexOutOfBoundsException),
+            
 			ExceptionKind::CloneNotSupportedException => sym!(java_lang_CloneNotSupportedException),
 
 			ExceptionKind::InvalidClassException => sym!(java_lang_InvalidClassException),

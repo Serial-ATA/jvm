@@ -128,14 +128,15 @@ pub extern "system" fn Java_sun_nio_fs_UnixNativeDispatcher_getcwd(
 		todo!("Throw sun/util/UnixException")
 	}
 
+	let cwd_len;
 	unsafe {
-		let cwd_len = libc::strlen(cwd) + 1;
+		cwd_len = libc::strlen(cwd) + 1;
 		buf.set_len(cwd_len);
 	}
 
-	let buf_without_terminator = &buf[..buf.len() - 1];
+	let buf_without_terminator = &mut buf[..cwd_len - 1];
 
-	let Ok(byte_array) = env.new_byte_array(buf_without_terminator.len() as jsize) else {
+	let Ok(byte_array) = env.new_byte_array((cwd_len - 1) as jsize) else {
 		return None;
 	};
 

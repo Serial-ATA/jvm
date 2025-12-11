@@ -1,15 +1,48 @@
-use crate::native::jni::{IntoJni, reference_from_jobject};
+use crate::native::jni::{
+	IntoJni, field_ref_from_jfieldid, reference_from_jobject, reference_from_jobject_maybe_null,
+};
+use crate::objects::class::ClassPtr;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
-use crate::thread::exceptions::Throws;
+use crate::thread::exceptions::{Throws, throw};
 
 use core::ffi::c_char;
 use std::ffi::CStr;
 
-use common::unicode;
-use jni::sys::{
+use ::jni::sys::{
 	JNIEnv, jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, jobject, jshort,
 };
+use common::unicode;
+use instructions::Operand;
+
+fn find_field(
+	class: ClassPtr,
+	name: *const c_char,
+	sig: *const c_char,
+	is_static: bool,
+) -> Throws<jfieldID> {
+	let name_c = unsafe { CStr::from_ptr(name) };
+	let sig_c = unsafe { CStr::from_ptr(sig) };
+
+	let Ok(name) = unicode::decode(name_c.to_bytes()) else {
+		return Throws::Ok(std::ptr::null_mut());
+	};
+	let Ok(sig) = unicode::decode(sig_c.to_bytes()) else {
+		return Throws::Ok(std::ptr::null_mut());
+	};
+
+	let name_sym = Symbol::intern(name);
+	let sig_sym = Symbol::intern(sig);
+
+	let ret = class.resolve_field(name_sym, sig_sym);
+	if let Throws::Ok(ret) = &ret {
+		if !(ret.is_static() == is_static) {
+			throw!(@DEFER NoSuchFieldError, "{name_sym}");
+		}
+	}
+
+	ret.map(|field| field.into_jni())
+}
 
 // --------------
 //   NON-STATIC
@@ -28,24 +61,8 @@ pub extern "system" fn GetFieldID(
 		panic!("Invalid arguments to `GetFieldID`");
 	};
 
-	let name_c = unsafe { CStr::from_ptr(name) };
-	let sig_c = unsafe { CStr::from_ptr(sig) };
-
-	let Ok(name) = unicode::decode(name_c.to_bytes()) else {
-		return std::ptr::null_mut();
-	};
-	let Ok(sig) = unicode::decode(sig_c.to_bytes()) else {
-		return std::ptr::null_mut();
-	};
-
-	let name_sym = Symbol::intern(name);
-	let sig_sym = Symbol::intern(sig);
-
-	match class
-		.extract_target_class()
-		.resolve_field(name_sym, sig_sym)
-	{
-		Throws::Ok(field) => field.into_jni(),
+	match find_field(class.extract_target_class(), name, sig, false) {
+		Throws::Ok(f) => f,
 		Throws::Exception(e) => {
 			e.throw(thread);
 			std::ptr::null_mut()
@@ -172,7 +189,20 @@ pub extern "system" fn GetStaticFieldID(
 	name: *const c_char,
 	sig: *const c_char,
 ) -> jfieldID {
-	unimplemented!("jni::GetStaticFieldID")
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(class) = (unsafe { reference_from_jobject(clazz) }) else {
+		panic!("Invalid arguments to `GetStaticFieldID`");
+	};
+
+	match find_field(class.extract_target_class(), name, sig, true) {
+		Throws::Ok(f) => f,
+		Throws::Exception(e) => {
+			e.throw(thread);
+			std::ptr::null_mut()
+		},
+	}
 }
 
 pub extern "system" fn GetStaticObjectField(
@@ -249,11 +279,23 @@ pub extern "system" fn GetStaticDoubleField(
 
 pub extern "system" fn SetStaticObjectField(
 	env: *mut JNIEnv,
-	clazz: jclass,
+	_clazz: jclass,
 	fieldID: jfieldID,
 	value: jobject,
 ) {
-	unimplemented!("jni::SetStaticObjectField")
+	let Some(field) = (unsafe { field_ref_from_jfieldid(fieldID) }) else {
+		panic!("Invalid field ID");
+	};
+
+	let value = unsafe { reference_from_jobject_maybe_null(value) };
+
+	// SAFETY: Assuming that `fieldID` points to a valid field, then its index is guaranteed to be valid
+	//         by the class loader.
+	unsafe {
+		field
+			.class
+			.set_static_field(field.index(), Operand::Reference(value))
+	}
 }
 
 pub extern "system" fn SetStaticBooleanField(

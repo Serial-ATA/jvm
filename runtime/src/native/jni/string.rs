@@ -1,12 +1,15 @@
 use crate::classes;
-use crate::native::jni::IntoJni;
+use crate::native::java::lang::String::LATIN1;
+use crate::native::jni::{IntoJni, ReferenceJniExt, reference_from_jobject};
 use crate::objects::reference::Reference;
+use crate::thread::JavaThread;
+use crate::thread::exceptions::throw;
 
 use core::ffi::c_char;
 use std::{ptr, slice};
 
+use ::jni::sys::{JNIEnv, jboolean, jchar, jsize, jstring};
 use common::unicode;
-use jni::sys::{JNIEnv, jboolean, jchar, jsize, jstring};
 use libc::strlen;
 
 #[unsafe(no_mangle)]
@@ -15,12 +18,19 @@ pub unsafe extern "system" fn NewString(
 	unicode: *const jchar,
 	len: jsize,
 ) -> jstring {
-	unimplemented!("jni::NewString");
+	// SAFETY: Have the trust that the caller gave us a valid buffer
+	let value = unsafe { slice::from_raw_parts(unicode, len as usize) };
+
+	Reference::class(classes::java::lang::String::new(value)).into_jstring()
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn GetStringLength(env: *mut JNIEnv, str: jstring) -> jsize {
-	unimplemented!("jni::GetStringLength");
+	let Some(str) = (unsafe { reference_from_jobject(str) }) else {
+		panic!("GetStringLength called on null object");
+	};
+
+	classes::java::lang::String::length(str.extract_class()) as jsize
 }
 
 #[unsafe(no_mangle)]
@@ -93,7 +103,42 @@ pub unsafe extern "system" fn GetStringRegion(
 	len: jsize,
 	buf: *mut jchar,
 ) {
-	unimplemented!("jni::GetStringRegion")
+	let Some(str) = (unsafe { reference_from_jobject(str) }) else {
+		panic!("GetStringRegion called on null object");
+	};
+
+	if len == 0 {
+		// Nothing to copy
+		return;
+	}
+
+	let str_instance = str.extract_class();
+	let coder = classes::java::lang::String::coder(str_instance);
+	let value = classes::java::lang::String::value(str_instance);
+	let str_length_in_chars = classes::java::lang::String::length(str_instance);
+
+	if start < 0 || len < 0 || start > str_length_in_chars as jsize - len {
+		throw!(JavaThread::current(), StringIndexOutOfBoundsException);
+	}
+
+	if coder == LATIN1 {
+		for (index, b) in value
+			.as_bytes()
+			.iter()
+			.copied()
+			.take(len as usize)
+			.enumerate()
+		{
+			// SAFETY: Assuming the caller passed in a valid buffer >= value.len()
+			unsafe { buf.add(index).write(b as jchar) };
+		}
+		return;
+	}
+
+	let buf = unsafe { slice::from_raw_parts_mut(buf, len as usize) };
+	value
+		.write_region::<jchar>(start, buf)
+		.expect("preconditions already checked")
 }
 
 #[unsafe(no_mangle)]

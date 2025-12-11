@@ -2002,7 +2002,7 @@ pub struct JNINativeInterface_ {
 			array: jbooleanArray,
 			start: jsize,
 			l: jsize,
-			buf: *const jboolean,
+			buf: *mut jboolean,
 		)),
 	
 	pub SetByteArrayRegion: jni_system_fn!((
@@ -2010,7 +2010,7 @@ pub struct JNINativeInterface_ {
 			array: jbyteArray,
 			start: jsize,
 			len: jsize,
-			buf: *const jbyte,
+			buf: *mut jbyte,
 		)),
 	
 	pub SetCharArrayRegion: jni_system_fn!((
@@ -2018,7 +2018,7 @@ pub struct JNINativeInterface_ {
 			array: jcharArray,
 			start: jsize,
 			len: jsize,
-			buf: *const jchar,
+			buf: *mut jchar,
 		)),
 	
 	pub SetShortArrayRegion: jni_system_fn!((
@@ -2026,7 +2026,7 @@ pub struct JNINativeInterface_ {
 			array: jshortArray,
 			start: jsize,
 			len: jsize,
-			buf: *const jshort,
+			buf: *mut jshort,
 		)),
 	
 	pub SetIntArrayRegion: jni_system_fn!((
@@ -2034,7 +2034,7 @@ pub struct JNINativeInterface_ {
 			array: jintArray,
 			start: jsize,
 			len: jsize,
-			buf: *const jint,
+			buf: *mut jint,
 		)),
 	
 	pub SetLongArrayRegion: jni_system_fn!((
@@ -2042,7 +2042,7 @@ pub struct JNINativeInterface_ {
 			array: jlongArray,
 			start: jsize,
 			len: jsize,
-			buf: *const jlong,
+			buf: *mut jlong,
 		)),
 	
 	pub SetFloatArrayRegion: jni_system_fn!((
@@ -2050,7 +2050,7 @@ pub struct JNINativeInterface_ {
 			array: jfloatArray,
 			start: jsize,
 			len: jsize,
-			buf: *const jfloat,
+			buf: *mut jfloat,
 		)),
 	
 	pub SetDoubleArrayRegion: jni_system_fn!((
@@ -2058,7 +2058,7 @@ pub struct JNINativeInterface_ {
 			array: jdoubleArray,
 			start: jsize,
 			len: jsize,
-			buf: *const jdouble,
+			buf: *mut jdouble,
 		)),
 	
 	/// Registers native methods with the class specified by the `clazz` argument.

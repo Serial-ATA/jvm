@@ -277,7 +277,7 @@ impl PrimitiveArrayInstance {
 
 impl PrimitiveArrayInstanceRef {
 	/// Copy the contents of `buf` into `self[start..]`
-	pub fn write_region<T: PrimitiveType>(&self, start: s4, buf: &[T]) -> Throws<()> {
+	pub fn write_region<T: PrimitiveType>(&self, start: s4, buf: &mut [T]) -> Throws<()> {
 		if start.is_negative() {
 			throw!(@DEFER NegativeArraySizeException);
 		}
@@ -290,7 +290,7 @@ impl PrimitiveArrayInstanceRef {
 			throw!(@DEFER IllegalArgumentException);
 		}
 
-		let src_ptr = buf.as_ptr();
+		let src_ptr = buf.as_mut_ptr();
 		unsafe {
 			let dest_ptr = self.field_base().cast::<T>().add(start as usize);
 			src_ptr.copy_to(dest_ptr, buf.len());
