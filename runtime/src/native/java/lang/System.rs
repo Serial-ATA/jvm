@@ -1,5 +1,6 @@
 use crate::classes;
 use crate::native::java::lang::String::StringInterner;
+use crate::native::jni::IntoJni;
 use crate::objects::class::ClassPtr;
 use crate::objects::instance::array::Array;
 use crate::objects::instance::object::Object;
@@ -7,7 +8,6 @@ use crate::objects::reference::Reference;
 use crate::symbols::sym;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw, throw_and_return_null};
-use crate::native::jni::IntoJni;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
