@@ -1,12 +1,5 @@
-use crate::classes;
-use crate::classes::java::lang::Thread::ThreadStatus;
 use crate::objects::class::ClassPtr;
 use crate::objects::reference::Reference;
-use crate::thread::exceptions::throw;
-use crate::thread::pool::ThreadPool;
-use crate::thread::{JavaThread, JavaThreadBuilder};
-
-use std::cmp;
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jlong};

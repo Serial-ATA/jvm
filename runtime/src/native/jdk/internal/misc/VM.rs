@@ -1,4 +1,3 @@
-use crate::include_generated;
 use crate::objects::class::ClassPtr;
 use crate::objects::reference::Reference;
 

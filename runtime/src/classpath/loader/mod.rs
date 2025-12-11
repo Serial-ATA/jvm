@@ -10,7 +10,6 @@ use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 use crate::{classes, java_call};
 
-use std::borrow::Cow;
 use std::cell::SyncUnsafeCell;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;

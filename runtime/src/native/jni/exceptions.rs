@@ -1,7 +1,5 @@
-use crate::native::java;
 use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::reference_from_jobject;
-use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
 use crate::thread::JavaThread;
@@ -9,7 +7,7 @@ use crate::thread::exceptions::Throws;
 use crate::{classes, java_call};
 
 use core::ffi::c_char;
-use std::{ptr, slice};
+use std::slice;
 
 use ::jni::sys::{JNI_ERR, JNI_OK, JNIEnv, jboolean, jclass, jint, jthrowable};
 use common::unicode;

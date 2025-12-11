@@ -12,7 +12,7 @@ use crate::thread::JavaThread;
 use crate::thread::exceptions::{
 	Throws, handle_exception, throw, throw_and_return_null, throw_with_ret,
 };
-use crate::{classes, globals, include_generated};
+use crate::{classes, globals};
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint};

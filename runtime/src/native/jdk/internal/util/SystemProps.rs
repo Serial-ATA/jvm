@@ -1,5 +1,4 @@
 pub mod Raw {
-	use crate::include_generated;
 	use crate::native::java::lang::String::StringInterner;
 	use crate::objects::class::ClassPtr;
 	use crate::objects::instance::array::{Array, ObjectArrayInstance};

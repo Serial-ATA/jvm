@@ -10,7 +10,6 @@ use crate::objects::instance::array::{
 	PrimitiveArrayInstanceRef,
 };
 use crate::objects::instance::mirror::MirrorInstanceRef;
-use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;

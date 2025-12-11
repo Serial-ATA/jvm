@@ -496,7 +496,7 @@ impl JavaThread {
 						.next()
 						.expect("should have a receiver")
 						.expect_reference();
-					this.write(unsafe { this_ref.raw_tagged() });
+					this.write(this_ref.raw_tagged());
 					receiver = Arg::new(&this);
 				}
 

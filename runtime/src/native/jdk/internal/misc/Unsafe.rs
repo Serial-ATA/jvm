@@ -5,7 +5,7 @@ use crate::objects::instance::class::ClassInstance;
 use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
-use crate::thread::exceptions::{Throws, throw, throw_with_ret};
+use crate::thread::exceptions::{Throws, throw};
 
 use std::marker::PhantomData;
 use std::sync::atomic::Ordering;
