@@ -20,7 +20,8 @@ include!("../../../generated/native/intrinsics_generated.rs");
 
 impl IntrinsicId {
 	pub fn does_virtual_dispatch(self) -> bool {
-		matches!(self, Self::Object_hashCode | Self::Object_clone)
+		// matches!(self, Self::Object_hashCode | Self::Object_clone)
+		false
 	}
 
 	/// Whether the intrinsic is available, according to the platform and JVM flags
