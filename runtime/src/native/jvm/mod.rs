@@ -7,7 +7,7 @@ mod finalization;
 mod libraries;
 mod methods;
 mod modules;
-mod object;
+pub mod object;
 mod os;
 mod printing;
 mod references;

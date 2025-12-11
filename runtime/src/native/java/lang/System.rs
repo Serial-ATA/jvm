@@ -7,6 +7,7 @@ use crate::objects::reference::Reference;
 use crate::symbols::sym;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw, throw_and_return_null};
+use crate::native::jni::IntoJni;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -176,7 +177,7 @@ pub fn identityHashCode(
 	_class: ClassPtr,
 	x: Reference, // java.lang.Object
 ) -> jint {
-	crate::native::java::lang::Object::hashCode(env, x)
+	crate::native::jvm::object::JVM_IHashCode(env, x.into_jni_safe())
 }
 
 pub fn mapLibraryName(env: JniEnv, _class: ClassPtr, libname: Reference) -> Reference {
