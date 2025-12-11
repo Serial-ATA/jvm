@@ -70,7 +70,11 @@ pub unsafe extern "system" fn NewObjectA(
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn GetObjectClass(env: *mut JNIEnv, obj: jobject) -> jclass {
-	unimplemented!("jni::GetObjectClass");
+	let Some(obj) = (unsafe { reference_from_jobject(obj) }) else {
+		panic!("Calling GetObjectClass with a null object");
+	};
+
+	obj.extract_instance_class().into_jni()
 }
 
 #[unsafe(no_mangle)]
