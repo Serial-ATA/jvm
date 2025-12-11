@@ -201,7 +201,10 @@ impl Object for Reference {
 	}
 
 	unsafe fn raw(&self) -> *mut () {
-		self.addr()
+		panic!(
+			"The raw address of `References` can't be fetched. See `Reference::raw_tagged()` \
+			 instead."
+		)
 	}
 
 	unsafe fn field_base(&self) -> *mut u8 {
