@@ -213,3 +213,11 @@ pub unsafe fn reference_from_jobject(obj: jobject) -> Option<Reference> {
 
 	unsafe { Some(Reference::from_raw(obj.cast())) }
 }
+
+pub unsafe fn reference_from_jobject_maybe_null(obj: jobject) -> Reference {
+	if obj.is_null() {
+		return Reference::null();
+	}
+
+	unsafe { Reference::from_raw(obj.cast()) }
+}

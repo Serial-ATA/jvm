@@ -1,13 +1,22 @@
 #![native_macros::jni_fn_module]
 
+use crate::native::jni::reference_from_jobject_maybe_null;
+use crate::objects::instance::object::Object;
+use crate::thread::JavaThread;
+
 use jni::env::JniEnv;
-use jni::objects::{JClass, JObject, JString};
-use jni::sys::{jboolean, jint, jlong};
+use jni::objects::JObject;
+use jni::sys::{jint, jlong};
 use native_macros::jni_call;
 
 #[jni_call]
-pub extern "C" fn JVM_IHashCode(_env: JniEnv, _handle: JObject) -> jint {
-	todo!()
+pub extern "C" fn JVM_IHashCode(env: JniEnv, handle: JObject) -> jint {
+	// Null references can be hashed
+	let handle = (unsafe { reference_from_jobject_maybe_null(handle.raw()) });
+
+	// This will only calculate a hash if one isn't already cached in the header
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	handle.hash(thread)
 }
 
 #[jni_call]
