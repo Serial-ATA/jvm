@@ -617,10 +617,7 @@ impl Method {
 		Some(parameters)
 	}
 
-	pub unsafe fn args_for_va_list(
-		&self,
-		mut args: VaList<'_, '_>,
-	) -> Option<Vec<Operand<Reference>>> {
+	pub unsafe fn args_for_va_list(&self, mut args: VaList<'_>) -> Option<Vec<Operand<Reference>>> {
 		let mut parameters = Vec::with_capacity(self.parameter_count() as usize);
 		for parameter in &self.descriptor.parameters {
 			match parameter {

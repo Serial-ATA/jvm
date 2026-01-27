@@ -5,7 +5,7 @@ pub unsafe extern "C" fn jio_vsnprintf(
 	_s: *const c_char,
 	_count: usize,
 	_fmt: *const c_char,
-	_args: VaList<'_, '_>,
+	_args: VaList<'_>,
 ) {
 	todo!()
 }
