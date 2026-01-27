@@ -6,6 +6,7 @@ use crate::objects::method::Method;
 use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::OperandStack;
 use crate::thread::JavaThread;
+use crate::thread::exceptions::{ExceptionKind, Throws};
 
 use std::cell::UnsafeCell;
 use std::fmt::{Debug, Formatter};
@@ -46,24 +47,30 @@ impl Debug for Frame {
 
 impl Frame {
 	/// Create a new `Frame` for a [`Method`] invocation
+	///
+	/// # Exceptions
+	///
+	/// This may throw [`ExceptionKind::OutOfMemoryError`] when allocating the [`OperandStack`].
 	pub fn new(
 		thread: &'static JavaThread,
 		locals: LocalStack,
 		max_stack: u2,
 		method: &'static Method,
-	) -> Self {
+	) -> Throws<Self> {
 		let constant_pool = method
 			.class()
 			.constant_pool()
 			.expect("Methods do not exist on array classes");
-		Self {
+		let stack = OperandStack::new(max_stack as usize)?;
+		Throws::Ok(Self {
 			locals,
-			stack: OperandStack::new(max_stack as usize),
+			stack,
 			constant_pool,
 			method,
 			thread: UnsafeCell::new(&raw const *thread),
 			cached_pc: AtomicIsize::default(),
 			depth: 0,
+		})
 		}
 	}
 }

@@ -156,6 +156,8 @@ pub enum ExceptionKind {
 	IllegalThreadStateException,
 	/// java.lang.IllegalMonitorStateException
 	IllegalMonitorStateException,
+	/// java.lang.OutOfMemoryError
+	OutOfMemoryError,
 
 	/// java.io.IOException
 	IOException,
@@ -215,6 +217,7 @@ impl ExceptionKind {
 			ExceptionKind::IllegalMonitorStateException => {
 				sym!(java_lang_IllegalMonitorStateException)
 			},
+			ExceptionKind::OutOfMemoryError => sym!(java_lang_OutOfMemoryError),
 
 			ExceptionKind::IOException => sym!(java_io_IOException),
 

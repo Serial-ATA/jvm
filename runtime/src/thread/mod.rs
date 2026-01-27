@@ -443,6 +443,15 @@ impl JavaThread {
 
 		self.stash_and_reset_pc();
 		self.frame_stack.push(StackFrame::Real(frame));
+		match Frame::new(self, locals, max_stack, method) {
+			Throws::Ok(frame) => {
+				self.stash_and_reset_pc();
+				self.frame_stack.push(StackFrame::Real(frame));
+			},
+			Throws::Exception(exception) => {
+				exception.throw(self);
+			},
+		}
 	}
 
 	fn invoke_native(&'static self, method: &'static Method, locals: LocalStack) {
