@@ -3,7 +3,8 @@
 # TARGETS:
 # -----------------------------------------------------------------------------
 
-BUILD_DIR := justfile_directory() / "build"
+PROJECT_ROOT := justfile_directory()
+BUILD_DIR := PROJECT_ROOT / "build"
 DIST_DIR := BUILD_DIR / "dist"
 
 default: debug
@@ -25,7 +26,7 @@ native-release:
 native: native-debug
 
 dist *ARGS:
-    python3 {{ BUILD_DIR }}/entry.py {{ ARGS }}
+    PYTHONPATH={{ PROJECT_ROOT }} python3 {{ BUILD_DIR }}/entry.py {{ ARGS }}
 
 # Build and run the java binary with the provided arguments
 java +ARGS: debug

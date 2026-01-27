@@ -6,6 +6,7 @@ from pathlib import Path
 import cli
 from enum import StrEnum
 
+from build.constants import DIST_DIR, TARGET_DIR
 from includes import BINARIES, LIBRARIES, VM_LIBRARIES
 
 
@@ -21,13 +22,6 @@ class ModuleType(StrEnum):
 
 class VmVariant(StrEnum):
     SERVER = "server"
-
-
-PROJECT_ROOT = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-BUILD_DIR = PROJECT_ROOT.joinpath("build")
-TARGET_DIR = PROJECT_ROOT.joinpath("target")
-OUT_DIR = BUILD_DIR.joinpath("out")
-DIST_DIR = BUILD_DIR.joinpath("dist")
 
 
 def needs_repackage() -> bool:
