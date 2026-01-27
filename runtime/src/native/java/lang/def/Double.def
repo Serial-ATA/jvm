@@ -1,4 +1,0 @@
-public class Double {
-    public static native long doubleToRawLongBits(double value);
-    public static native double longBitsToDouble(long bits);
-}

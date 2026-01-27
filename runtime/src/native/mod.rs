@@ -79,7 +79,6 @@ pub(crate) mod java {
 		pub(crate) mod Float;
 		pub(crate) mod Module;
 		pub(crate) mod ClassLoader;
-		pub(crate) mod Double;
 		pub(crate) mod Throwable;
 		pub(crate) mod Thread;
 		pub(crate) mod String;
