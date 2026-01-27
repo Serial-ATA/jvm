@@ -133,9 +133,9 @@ pub enum ExceptionKind {
 	/// java.lang.ArrayIndexOutOfBoundsException
 	ArrayIndexOutOfBoundsException,
 
-    /// java.lang.StringIndexOutOfBoundsException
-    StringIndexOutOfBoundsException,
-    
+	/// java.lang.StringIndexOutOfBoundsException
+	StringIndexOutOfBoundsException,
+
 	/// java.lang.CloneNotSupportedException
 	CloneNotSupportedException,
 
@@ -162,6 +162,8 @@ pub enum ExceptionKind {
 
 	/// java.lang.InternalError
 	InternalError,
+	/// java.lang.VirtualMachineError
+	VirtualMachineError,
 
 	/// Used to indicate an exception is pending on the current thread. For when we want to use our
 	/// exception control flow, but exceptions occur that are out of our control.
@@ -194,8 +196,10 @@ impl ExceptionKind {
 				sym!(java_lang_ArrayIndexOutOfBoundsException)
 			},
 
-            ExceptionKind::StringIndexOutOfBoundsException => sym!(java_lang_StringIndexOutOfBoundsException),
-            
+			ExceptionKind::StringIndexOutOfBoundsException => {
+				sym!(java_lang_StringIndexOutOfBoundsException)
+			},
+
 			ExceptionKind::CloneNotSupportedException => sym!(java_lang_CloneNotSupportedException),
 
 			ExceptionKind::InvalidClassException => sym!(java_lang_InvalidClassException),
@@ -215,6 +219,7 @@ impl ExceptionKind {
 			ExceptionKind::IOException => sym!(java_io_IOException),
 
 			ExceptionKind::InternalError => sym!(java_lang_InternalError),
+			ExceptionKind::VirtualMachineError => sym!(java_lang_VirtualMachineError),
 
 			ExceptionKind::PendingException => unreachable!(),
 		}

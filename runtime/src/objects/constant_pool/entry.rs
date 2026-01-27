@@ -4,7 +4,7 @@ use crate::objects::constant_pool::cp_types::{InvokeDynamicEntry, MethodEntry};
 use crate::objects::field::Field;
 use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
-use crate::thread::exceptions::Throws;
+use crate::thread::exceptions::{Throws, throw};
 
 use std::cell::UnsafeCell;
 use std::sync::Mutex;
@@ -55,10 +55,9 @@ impl ConstantPoolEntry {
 		cp: &super::ConstantPool,
 		index: u2,
 	) -> Throws<T::Resolved> {
-		let _guard = self
-			._resolution_lock
-			.try_lock()
-			.expect("re-entrant resolution");
+		let Ok(_guard) = self._resolution_lock.try_lock() else {
+			throw!(@DEFER VirtualMachineError, "re-entrant resolution")
+		};
 
 		// Some other thread beat us here
 		if let Some(resolved) = self.resolved::<T>() {
