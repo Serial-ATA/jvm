@@ -16,6 +16,8 @@ pub enum Operand<Reference> {
 	Empty,
 }
 
+impl<Reference> Copy for Operand<Reference> where Reference: Copy {}
+
 #[allow(clippy::needless_pass_by_value)]
 impl<Reference: Debug + Clone> Operand<Reference> {
 	/// Add rhs to self
