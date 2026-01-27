@@ -10,10 +10,10 @@ use crate::thread::exceptions::{ExceptionKind, Throws};
 
 use std::cell::UnsafeCell;
 use std::fmt::{Debug, Formatter};
-use std::mem;
 use std::sync::atomic::{AtomicIsize, Ordering};
 
 use common::int_types::{s1, s2, s4, u1, u2, u4};
+use instructions::StackLike;
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.6
 #[rustfmt::skip]
@@ -26,12 +26,24 @@ pub struct Frame {
 	stack: OperandStack,
     // and a reference to the run-time constant pool (§2.5.5)
 	constant_pool: &'static ConstantPool,
-	method: &'static Method,
+
+    // Fields outside the spec:
+
+    method: &'static Method,
 	thread: UnsafeCell<*const JavaThread>,
 	
 	// Used to remember the last pc when we return to a frame after a method invocation
 	cached_pc: AtomicIsize,
-	pub depth: isize,
+
+    // TODO: depth should never be > 5, could be packed with flags
+    // Extra depth within the current instruction
+    //
+    // When parsing a bytecode instruction, `pc` stays at the beginning of the instruction. This keeps
+    // track of any additional bytes we read *after* that bytecode (e.g. arguments for the instruction).
+    //
+    // The depth is used at the end of an instruction to calculate the offset to the next instruction.
+	depth: u16,
+    flags: u8,
 }
 
 impl Debug for Frame {
@@ -42,6 +54,15 @@ impl Debug for Frame {
 			.field("method", &self.method)
 			.field("cached_pc", &self.cached_pc.load(Ordering::Acquire))
 			.finish_non_exhaustive()
+	}
+}
+
+// Flags
+impl Frame {
+	const IN_TAIL_CALL: u8 = 0b1;
+
+	pub fn in_tail_call(&self) -> bool {
+		self.flags & Self::IN_TAIL_CALL != 0
 	}
 }
 
@@ -70,8 +91,68 @@ impl Frame {
 			thread: UnsafeCell::new(&raw const *thread),
 			cached_pc: AtomicIsize::default(),
 			depth: 0,
+			flags: 0,
 		})
+	}
+
+	/// Reuse this frame for a tail method call
+	///
+	/// This will replace the original [`LocalStack`] and return it. It must be retained and used in
+	/// a subsequent call to [`Self::reset_from_tail_call()`].
+	///
+	/// # Safety
+	///
+	/// The current [`OperandStack`] is retained (including its current position), so the stack
+	/// ***must*** be setup correctly for the target `method`.
+	pub(in crate::thread) unsafe fn swap_for_tail_call(
+		&mut self,
+		method: &'static Method,
+	) -> LocalStack {
+		assert!(method.parameter_count() as usize <= self.locals.total_slots());
+		assert!(!self.has_stashed_depth());
+
+		let mut parameter_count = method.parameter_count() as usize;
+		if !method.is_static() {
+			// receiver
+			parameter_count += 1;
 		}
+
+		let locals = unsafe {
+			LocalStack::new_with_args(
+				self.stack_mut().popn(parameter_count),
+				method.code.max_locals as usize,
+			)
+		};
+
+		let old_locals = core::mem::replace(&mut self.locals, locals);
+		self.constant_pool = method
+			.class()
+			.constant_pool()
+			.expect("Methods do not exist on array classes");
+
+		self.depth = self.depth << 8;
+		self.method = method;
+		self.flags |= Self::IN_TAIL_CALL;
+
+		old_locals
+	}
+
+	/// Restore this frame to its state prior to a tail call
+	///
+	/// NOTE: The [`OperandStack`] will be left in whatever state the prior method returned with.
+	pub(in crate::thread) fn reset_from_tail_call(
+		&mut self,
+		old_locals: LocalStack,
+		method: &'static Method,
+	) {
+		self.locals = old_locals;
+		self.constant_pool = method
+			.class()
+			.constant_pool()
+			.expect("Methods do not exist on array classes");
+		self.depth = self.depth >> 8;
+		self.method = method;
+		self.flags |= !Self::IN_TAIL_CALL;
 	}
 }
 
@@ -127,6 +208,19 @@ impl Frame {
 	pub fn stashed_pc(&self) -> isize {
 		self.cached_pc.load(Ordering::Relaxed)
 	}
+
+	fn depth(&self) -> isize {
+		(self.depth & 0b1111_1111) as isize
+	}
+
+	fn inc_depth(&mut self) {
+		assert!(self.depth() <= u8::MAX as isize);
+		self.depth = (self.depth & 0xFF00) | ((self.depth & 0x00FF) + 1);
+	}
+
+	fn has_stashed_depth(&self) -> bool {
+		(self.depth >> 8) > 0
+	}
 }
 
 // Setters
@@ -159,8 +253,8 @@ impl Frame {
 			pc = thread.pc.load(Ordering::Relaxed);
 		}
 
-		let ret = self.method.code.code[(pc + self.depth) as usize];
-		self.depth += 1;
+		let ret = self.method.code.code[(pc + self.depth()) as usize];
+		self.inc_depth();
 
 		ret
 	}
@@ -206,17 +300,20 @@ impl Frame {
 	///
 	/// This is used in the `tableswitch` and `lookupswitch` instructions.
 	pub fn skip_padding(&mut self) {
-		let current_pc = self.thread().pc.load(Ordering::Relaxed) + self.depth;
+		let current_pc = self.thread().pc.load(Ordering::Relaxed) + self.depth();
 
 		let mut pc = current_pc;
 		while pc % 4 != 0 {
 			pc += 1;
-			self.depth += 1;
+			self.inc_depth();
 		}
 	}
 
 	pub fn take_cached_depth(&mut self) -> isize {
-		mem::replace(&mut self.depth, 0)
+		let depth = self.depth();
+		self.depth = 0;
+
+		depth
 	}
 
 	/// Commit the [pc] to the current [`JavaThread`]
@@ -230,7 +327,7 @@ impl Frame {
 				let _ = self.thread().pc.fetch_add(off, Ordering::Relaxed);
 			},
 			PcUpdateStrategy::FromInstruction => {
-				let _ = self.thread().pc.fetch_add(self.depth, Ordering::Relaxed);
+				let _ = self.thread().pc.fetch_add(self.depth(), Ordering::Relaxed);
 			},
 		}
 

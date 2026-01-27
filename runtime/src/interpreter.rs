@@ -19,7 +19,7 @@ use crate::thread::exceptions::{
 	Exception, ExceptionKind, Throws, handle_exception, throw, throw_with_ret,
 };
 use crate::thread::frame::{Frame, PcUpdateStrategy};
-use crate::thread::{JavaThread, exceptions};
+use crate::thread::{ControlFlow, JavaThread, exceptions};
 use crate::{classes, java_call};
 
 use std::cmp::Ordering;
@@ -240,7 +240,12 @@ macro_rules! comparisons {
 macro_rules! control_return {
 	($frame:ident, $instruction:ident) => {{
 		let thread = $frame.thread();
-		thread.drop_to_previous_frame(None);
+		if !$frame.in_tail_call() {
+			thread.drop_to_previous_frame(None);
+			return;
+		}
+
+		thread.set_control_flow(ControlFlow::Break);
 		return;
 	}};
 	($frame:ident, $instruction:ident, $return_ty:ident) => {{
@@ -257,7 +262,12 @@ macro_rules! control_return {
 		}
 
 		let thread = $frame.thread();
-		thread.drop_to_previous_frame(Some(value));
+		if !$frame.in_tail_call() {
+			thread.drop_to_previous_frame(Some(value));
+			return;
+		}
+
+		thread.set_control_flow(ControlFlow::Break);
 		return;
 	}};
 }
@@ -1091,7 +1101,7 @@ impl Interpreter {
             MethodInvoker::invoke_virtual(frame, entry.method);
             return;
         }
-        
+
         if entry.method.class().is_subclass_of(crate::globals::classes::java_lang_invoke_MethodHandle()) {
             let Some(MethodEntryPoint::MethodHandleInvoker(mh_invoker)) = entry.method.entry_point() else {
                 panic!("Expected MethodHandleInvoker entry point");

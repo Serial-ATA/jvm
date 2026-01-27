@@ -132,9 +132,22 @@ mod _dynamic {
 		}
 	}
 
+	fn invoke_target(frame: &mut Frame, method: &'static Method) {
+		let mut parameters_count = method.parameter_count() as usize;
+		if !method.is_static() {
+			parameters_count += 1;
+		}
+
+		unsafe {
+			frame.thread().tail_call(method);
+			frame.stack_mut().seek_stack_pointer(1);
+		}
+	}
+
 	pub fn invoke_basic(frame: &mut Frame, entry: MethodEntry) {
 		// Add 1 to the parameters size, since it doesn't account for `this`
 		let parameters_count = (entry.parameters_stack_size as usize) + 1;
+		debug_assert!(frame.stack().len() >= parameters_count);
 
 		let receiver = frame.stack().at(parameters_count).expect_reference();
 		if receiver.is_null() {
@@ -145,11 +158,7 @@ mod _dynamic {
 			return;
 		};
 
-		let call_args = frame.stack_mut().popn(parameters_count);
-		let call_args =
-			unsafe { LocalStack::new_with_args(call_args, target_method.code.max_locals as usize) };
-		let ret = java_call!(@WITH_ARGS_LIST frame.thread(), target_method, call_args);
-		morph_return_value(frame, ret);
+		invoke_target(frame, target_method);
 	}
 
 	pub fn invoke_exact(frame: &mut Frame, entry: MethodEntry) {
@@ -177,7 +186,7 @@ mod _dynamic {
 		let Some((_appendix, target_method)) = appendix_and_target_method(frame) else {
 			return;
 		};
-		MethodInvoker::invoke_virtual(frame, target_method);
+		invoke_target(frame, target_method);
 	}
 
 	pub fn link_to_special(frame: &mut Frame) {

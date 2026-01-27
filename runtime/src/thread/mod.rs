@@ -40,6 +40,7 @@ static CURRENT_JAVA_THREAD: SyncUnsafeCell<Option<&'static JavaThread>> = SyncUn
 #[derive(Copy, Clone, Debug)]
 pub enum ControlFlow {
 	Continue,
+	Break,
 	ExceptionThrown,
 }
 
@@ -349,7 +350,7 @@ impl JavaThread {
 		&self.frame_stack
 	}
 
-	fn set_remaining_operand(&self, operand: Option<Operand<Reference>>) {
+	pub fn set_remaining_operand(&self, operand: Option<Operand<Reference>>) {
 		let remaining_operand_ptr = self.remaining_operand.get();
 
 		let remaining_operand_opt = unsafe { &*remaining_operand_ptr };
@@ -400,16 +401,9 @@ impl JavaThread {
 					// Thread finished execution normally
 					break;
 				},
-				ControlFlow::ExceptionThrown => {
-					self.handle_pending_exception();
-					if self.has_pending_exception() {
-						// Uncaught exception, nothing further we can do
-						self.set_exiting();
-						break;
-					}
-
-					// Exception handled, good to continue
-					self.set_control_flow(ControlFlow::Continue);
+				ControlFlow::ExceptionThrown => self.on_exception(),
+				ControlFlow::Break => {
+					break;
 				},
 			}
 		}
@@ -439,10 +433,6 @@ impl JavaThread {
 
 		let max_stack = method.code.max_stack;
 
-		let frame = Frame::new(self, locals, max_stack, method);
-
-		self.stash_and_reset_pc();
-		self.frame_stack.push(StackFrame::Real(frame));
 		match Frame::new(self, locals, max_stack, method) {
 			Throws::Ok(frame) => {
 				self.stash_and_reset_pc();
@@ -452,6 +442,62 @@ impl JavaThread {
 				exception.throw(self);
 			},
 		}
+	}
+
+	/// Practically the same as [`Self::invoke_method_scoped()`], but reuses the current frame
+	///
+	/// # Safety
+	///
+	/// The stack pointer needs to be setup properly beforehand
+	pub unsafe fn tail_call(&'static self, method: &'static Method) {
+		#[cfg(test)]
+		{
+			self.assert_not_sealed();
+		}
+
+		assert!(!method.is_native());
+
+		self.stash_and_reset_pc();
+
+		let previous_method;
+		let old_locals;
+		{
+			let current_frame = self
+				.frame_stack
+				.current()
+				.expect("can't reach this point without a caller");
+
+			previous_method = current_frame.method();
+			old_locals = unsafe { current_frame.swap_for_tail_call(method) }
+		}
+
+		loop {
+			match self.control_flow() {
+				ControlFlow::Continue => {
+					if let Some(current_frame) = self.frame_stack.current() {
+						Interpreter::instruction(current_frame);
+						continue;
+					}
+
+					unreachable!("Frame consumed during tail call");
+				},
+				ControlFlow::ExceptionThrown => self.on_exception(),
+				ControlFlow::Break => break,
+			}
+		}
+
+		if self.has_pending_exception() {
+			return;
+		}
+
+		// Continue executing the caller
+		self.set_control_flow(ControlFlow::Continue);
+
+		self.restore_pc();
+		self.frame_stack
+			.current()
+			.expect("can't reach this point without a caller")
+			.reset_from_tail_call(old_locals, previous_method);
 	}
 
 	fn invoke_native(&'static self, method: &'static Method, locals: LocalStack) {
@@ -634,7 +680,7 @@ impl JavaThread {
 		unsafe { *self.control_flow.get() }
 	}
 
-	fn set_control_flow(&self, control_flow: ControlFlow) {
+	pub fn set_control_flow(&self, control_flow: ControlFlow) {
 		unsafe { *self.control_flow.get() = control_flow }
 	}
 
@@ -703,6 +749,19 @@ impl JavaThread {
 
 	pub fn is_exiting(&self) -> bool {
 		self.exiting.load(Ordering::Relaxed)
+	}
+
+	fn on_exception(&self) {
+		self.handle_pending_exception();
+		if self.has_pending_exception() {
+			// Uncaught exception, nothing further we can do
+			self.set_exiting();
+			self.set_control_flow(ControlFlow::Break);
+			return;
+		}
+
+		// Exception handled, good to continue
+		self.set_control_flow(ControlFlow::Continue);
 	}
 
 	/// Handle the pending exception on this thread
