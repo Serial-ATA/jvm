@@ -7,6 +7,7 @@ use crate::objects::instance::class::ClassInstance;
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 
+use std::fmt::Display;
 use std::ops::{ControlFlow, FromResidual, Try};
 
 use classfile::accessflags::MethodAccessFlags;
@@ -228,19 +229,17 @@ impl ExceptionKind {
 		}
 	}
 
-	pub fn class(&self) -> ClassPtr {
+	pub fn class(&self) -> Throws<ClassPtr> {
 		if *self == ExceptionKind::PendingException {
 			let Some(exception) = JavaThread::current().pending_exception() else {
 				panic!("Thread has no pending exception");
 			};
 
-			return exception.extract_target_class();
+			return Throws::Ok(exception.extract_target_class());
 		}
 
 		let class_name = self.class_name();
-		ClassLoader::bootstrap()
-			.load(class_name)
-			.expect("exception class should exist")
+		ClassLoader::bootstrap().load(class_name)
 	}
 }
 
@@ -279,7 +278,9 @@ impl Exception {
 			return;
 		}
 
-		let this = Reference::class(ClassInstance::new(self.kind.class()));
+		let this = Reference::class(ClassInstance::new(
+			self.kind.class().expect("class should be loaded"),
+		));
 
 		match self.message {
 			Some(message) => {
@@ -315,6 +316,15 @@ impl Exception {
 		}
 
 		thread.set_pending_exception(this);
+	}
+}
+
+impl Display for Exception {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match &self.message {
+			Some(message) => write!(f, "{:?}: {message}", self.kind),
+			None => write!(f, "{:?}", self.kind),
+		}
 	}
 }
 

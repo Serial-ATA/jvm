@@ -166,7 +166,7 @@ impl ClassPtr {
 				}
 			},
 			Throws::Exception(e) => {
-				if e.kind().class() == classes::java_lang_VirtualMachineError() {
+				if e.kind().class()? == classes::java_lang_VirtualMachineError() {
 					return Throws::PENDING_EXCEPTION;
 				}
 

@@ -7,7 +7,7 @@ use crate::objects::instance::class::ClassInstance;
 use crate::objects::reference::Reference;
 use crate::options::JvmOptions;
 use crate::symbols::sym;
-use crate::thread::exceptions::Throws;
+use crate::thread::exceptions::{Exception, Throws};
 use crate::thread::{JavaThread, JavaThreadBuilder};
 use crate::{classes, java_call};
 
@@ -17,28 +17,32 @@ use jni::error::JniError;
 use jni::java_vm::JavaVm;
 use jni::sys::{JNI_OK, JavaVMInitArgs, jint};
 
+/// Errors that can occur during VM initialization.
+pub enum InitializationError {
+	/// An exception was thrown before its class and/or the main thread were initialized.
+	///
+	/// This exception can *not* be thrown normally. The VM is not in a valid state to continue
+	/// executing Java code.
+	EarlyExceptionThrown(Exception),
+	/// Some other error occurred.
+	///
+	/// In the case of [`JniError::ExceptionThrown`], the thread will be available to print the
+	/// exception if necessary.
+	Other(JniError),
+}
+
 /// Creates and initializes the Java VM
 ///
 /// # Errors
 ///
-/// Errors come in the form ([`JniError`], Option<[`Reference`]>), where the [`Reference`] is the exception thrown.
-///
-/// There are two error cases:
-///
-/// * **Before** the creation of the main thread, in which case the exception will be `None` since the
-///   VM will not be able to throw any exception.
-/// * **After** the creation of the main thread, where the exception *should* be `Some`. In this case,
-///   the caller should print the contents of the exception.
-pub fn create_java_vm(
-	args: Option<&JavaVMInitArgs>,
-) -> Result<JavaVm, (JniError, Option<Reference>)> {
+/// See [`InitializationError`].
+pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> Result<JavaVm, InitializationError> {
 	let _span = tracing::debug_span!("initialization").entered();
 	tracing::debug!("Creating Java VM");
 
 	let options = match args {
-		Some(args) => {
-			unsafe { JvmOptions::load(args) }.map_err(|_| (JniError::InvalidArguments, None))?
-		},
+		Some(args) => unsafe { JvmOptions::load(args) }
+			.map_err(|_| InitializationError::Other(JniError::InvalidArguments))?,
 		None => JvmOptions::default(),
 	};
 
@@ -52,18 +56,7 @@ pub fn create_java_vm(
 		JavaThread::set_current_thread(thread);
 	}
 
-	if let Err((e, thread_available)) = initialize_thread(JavaThread::current(), true) {
-		if !thread_available {
-			return Err((e, None));
-		}
-
-		let Some(exception) = JavaThread::current().take_pending_exception() else {
-			tracing::warn!("Exception thrown but not set?");
-			return Err((e, None));
-		};
-
-		return Err((e, Some(exception)));
-	}
+	initialize_thread(JavaThread::current(), true)?;
 
 	Ok(unsafe { main_java_vm() })
 }
@@ -88,28 +81,26 @@ pub fn create_java_vm(
 pub(crate) fn initialize_thread(
 	thread: &'static JavaThread,
 	do_java_lang_system_init: bool,
-) -> Result<(), (JniError, bool)> {
+) -> Result<(), InitializationError> {
 	crate::modules::with_module_lock(Module::create_java_base);
 
 	// Load some important classes
-	if let Throws::Exception(_) = load_global_classes() {
-		return Err((JniError::ExceptionThrown, false));
+	if let Throws::Exception(exception) = load_global_classes() {
+		return Err(InitializationError::EarlyExceptionThrown(exception));
 	}
 
 	init_field_offsets();
 
 	// Init some important classes
-	if let Throws::Exception(_) = initialize_global_classes(thread) {
-		// An exception was thrown while initializing classes, no thread exists to handle it.
-		return Err((JniError::ExceptionThrown, false));
+	if let Throws::Exception(exception) = initialize_global_classes(thread) {
+		return Err(InitializationError::EarlyExceptionThrown(exception));
 	}
 
 	if !create_thread_object(thread) {
-		// An exception was thrown, this thread is NOT safe to use.
-		return Err((JniError::ExceptionThrown, false));
+		return Err(InitializationError::Other(JniError::ExceptionThrown));
 	}
 
-	// SAFETY: Preconditions filled in `init_field_offsets` & `initialize_global_classes`
+	// SAFETY: Preconditions filled in `init_field_offsets` && `initialize_global_classes`
 	unsafe {
 		misc::UnsafeConstants::init();
 	}
@@ -118,9 +109,9 @@ pub(crate) fn initialize_thread(
 	classes::java::lang::invoke::MethodHandle::init_entry_points();
 
 	if do_java_lang_system_init {
-		init_phase_1(thread).map_err(|e| (e, true))?;
-		init_phase_2(thread).map_err(|e| (e, true))?;
-		init_phase_3(thread).map_err(|e| (e, true))?;
+		init_phase_1(thread).map_err(InitializationError::Other)?;
+		init_phase_2(thread).map_err(InitializationError::Other)?;
+		init_phase_3(thread).map_err(InitializationError::Other)?;
 	}
 
 	Ok(())

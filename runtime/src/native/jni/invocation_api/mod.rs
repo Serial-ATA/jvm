@@ -2,6 +2,7 @@
 //!
 //! Vendors can deliver Java-enabled applications without having to link with the Java VM source code.
 
+use crate::initialization::InitializationError;
 use crate::thread::{JavaThread, JavaThreadBuilder};
 use crate::{classes, initialization};
 
@@ -98,21 +99,31 @@ pub unsafe extern "system" fn JNI_CreateJavaVM(
 	let vm;
 	match initialization::create_java_vm(Some(args)) {
 		Ok(java_vm) => vm = java_vm,
-		Err((e, exception)) => {
-			if let JniError::ExceptionThrown = e {
-				eprintln!("Error occurred during initialization of VM");
-				if let Some(exception) = exception {
-					classes::java::lang::Throwable::print_stack_trace_without_java_system(
-						exception,
-						JavaThread::current(),
-					);
+		// A manually constructed exception was thrown. We can expect that either the exception
+		// classes aren't loaded or the thread isn't initialized. Either way, we just print the
+		// little information we have.
+		Err(InitializationError::EarlyExceptionThrown(exception)) => {
+			eprintln!("Error occurred during initialization of VM");
+			eprintln!("{exception}");
 
-					// If a VM was created and initialized to the point that an exception was thrown,
-					// the entire process just gets aborted like Hotspot.
-					std::process::abort();
-				}
+			// If a VM was created and initialized to the point that an exception was thrown,
+			// the entire process just gets aborted like Hotspot.
+			std::process::abort();
+		},
+		// Same as above, except we actually have an initialized thread and some classes loaded
+		Err(InitializationError::Other(JniError::ExceptionThrown)) => {
+			eprintln!("Error occurred during initialization of VM");
+
+			let thread = JavaThread::current();
+			if let Some(exception) = thread.take_pending_exception() {
+				classes::java::lang::Throwable::print_stack_trace_without_java_system(
+					exception, thread,
+				);
 			}
 
+			std::process::abort();
+		},
+		Err(InitializationError::Other(e)) => {
 			// Otherwise, the error can just be returned to the caller
 			return e.as_jint();
 		},

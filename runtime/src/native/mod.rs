@@ -54,34 +54,34 @@ pub(crate) fn lib_java() -> &'static Library {
 
 pub(crate) mod java {
 	pub(crate) mod io {
-		pub(crate) mod FileDescriptor;
 		pub(crate) mod FileInputStream;
-		pub(crate) mod FileOutputStream;
-		pub(crate) mod FileSystem;
 		pub(crate) mod UnixFileSystem;
+		pub(crate) mod FileDescriptor;
+		pub(crate) mod FileSystem;
+		pub(crate) mod FileOutputStream;
 	}
 	pub(crate) mod lang {
 		pub(crate) mod invoke {
-			pub(crate) mod MethodHandle;
 			pub(crate) mod MethodHandleNatives;
+			pub(crate) mod MethodHandle;
 		}
 		pub(crate) mod r#ref {
-			pub(crate) mod Finalizer;
 			pub(crate) mod PhantomReference;
 			pub(crate) mod Reference;
+			pub(crate) mod Finalizer;
 		}
 		pub(crate) mod reflect {
 			pub(crate) mod Array;
 		}
-		pub(crate) mod Class;
-		pub(crate) mod ClassLoader;
-		pub(crate) mod Module;
-		pub(crate) mod Runtime;
-		pub(crate) mod String;
 		pub(crate) mod StringBuilder;
+		pub(crate) mod Runtime;
 		pub(crate) mod StringUTF16;
-		pub(crate) mod Thread;
+		pub(crate) mod Module;
+		pub(crate) mod ClassLoader;
 		pub(crate) mod Throwable;
+		pub(crate) mod Thread;
+		pub(crate) mod String;
+		pub(crate) mod Class;
 	}
 	pub(crate) mod security {
 		pub(crate) mod AccessController;
@@ -91,18 +91,18 @@ pub(crate) mod java {
 pub(crate) mod jdk {
 	pub(crate) mod internal {
 		pub(crate) mod misc {
-			pub(crate) mod CDS;
 			pub(crate) mod ScopedMemoryAccess;
-			pub(crate) mod Signal;
-			pub(crate) mod Unsafe;
+			pub(crate) mod CDS;
 			pub(crate) mod VM;
+			pub(crate) mod Unsafe;
+			pub(crate) mod Signal;
 		}
 		pub(crate) mod util {
 			pub(crate) mod SystemProps;
 		}
 		pub(crate) mod loader {
-			pub(crate) mod BootLoader;
 			pub(crate) mod NativeLibraries;
+			pub(crate) mod BootLoader;
 			pub(crate) mod NativeLibrary;
 		}
 		pub(crate) mod reflect {
@@ -112,3 +112,4 @@ pub(crate) mod jdk {
 		}
 	}
 }
+

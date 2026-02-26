@@ -488,7 +488,12 @@ impl ClassLoader {
 		//  2.2. Otherwise, if the purported representation is not of a supported major or
 		//       minor version (§4.1), derivation throws an UnsupportedClassVersionError.
 		if !SUPPORTED_MAJOR_VERSION_RANGE.contains(&(classfile.major_version as u1)) {
-			throw!(@DEFER UnsupportedClassVersionError);
+			throw!(@DEFER UnsupportedClassVersionError,
+				"{name_str} has been compiled by a more recent version of the Java Runtime (class file version {}.{}), this version of the Java Runtime only recognizes class file versions up to {}.0",
+				classfile.major_version,
+				classfile.minor_version,
+				SUPPORTED_MAJOR_VERSION_RANGE.end()
+			);
 		}
 
 		//  2.3. Otherwise, if the purported representation does not actually represent a class or
