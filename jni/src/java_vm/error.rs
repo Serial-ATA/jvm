@@ -2,7 +2,6 @@
 pub enum Error {
 	LibJvmNotFound,
 	LibJvmLoad(platform::libs::Error),
-	NonUtf8Path,
 	SymbolNotFound(&'static [u8]),
 	JavaVmNull,
 }
@@ -20,7 +19,6 @@ impl core::fmt::Display for Error {
 				)
 			},
 			Error::JavaVmNull => write!(f, "Java VM was not populated"),
-			Error::NonUtf8Path => write!(f, "The library path is not UTF-8"),
 		}
 	}
 }

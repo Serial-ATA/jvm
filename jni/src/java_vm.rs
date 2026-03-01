@@ -94,16 +94,12 @@ impl JavaVmBuilder {
 
 		let args = self.args.unwrap_or_default().finish();
 
-		let libjvm_path_str = libjvm_path
-			.to_str()
-			.ok_or(JniError::JavaVm(Error::NonUtf8Path))?;
-
 		let libjvm;
 		let ret;
 		let mut javavm_raw = core::ptr::null_mut::<jni_sys::JavaVM>();
 		let mut jni_env_raw = core::ptr::null_mut::<c_void>();
 		unsafe {
-			libjvm = platform::libs::Library::load(libjvm_path_str).map_err(Error::LibJvmLoad)?;
+			libjvm = platform::libs::Library::load(libjvm_path).map_err(Error::LibJvmLoad)?;
 
 			let create_java_vm = libjvm
 				.symbol::<CreateJavaVmFn>(c"JNI_CreateJavaVM")
