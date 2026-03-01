@@ -17,6 +17,18 @@ DIST_DIR := BUILD_DIR / "dist"
 
 default: debug
 
+# Run `cargo test`
+test *ARGS:
+    cargo +nightly -Z unstable-options test {{ ARGS }}
+
+# Run `cargo clippy`
+lint *ARGS:
+    cargo +nightly -Z unstable-options clippy {{ ARGS }}
+
+# Run `cargo doc`
+doc *ARGS:
+    cargo +nightly -Z unstable-options doc {{ ARGS }}
+
 # Build the entire project in debug
 debug:
     cargo +nightly -Z unstable-options build --workspace
