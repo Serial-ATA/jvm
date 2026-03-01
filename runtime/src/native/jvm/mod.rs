@@ -1,12 +1,16 @@
+mod agents;
 mod arrays;
 mod assertions;
 mod cds;
 mod constant_pool;
 mod exceptions;
+mod fields;
 mod finalization;
 mod libraries;
+mod management;
 mod methods;
 mod modules;
+mod monitors;
 pub mod object;
 mod os;
 mod printing;

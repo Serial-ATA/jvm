@@ -25,7 +25,7 @@ use common::int_types::u1;
 use instructions::Operand;
 
 const SUPPORTED_MAJOR_LOWER_BOUND: u1 = 45;
-const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 70;
+const SUPPORTED_MAJOR_UPPER_BOUND: u1 = 71;
 const SUPPORTED_MAJOR_VERSION_RANGE: RangeInclusive<u1> =
 	SUPPORTED_MAJOR_LOWER_BOUND..=SUPPORTED_MAJOR_UPPER_BOUND;
 

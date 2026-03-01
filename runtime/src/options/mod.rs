@@ -119,6 +119,15 @@ impl JvmOptions {
 			}
 		}
 
+		system_props_guard.insert(String::from("java.vm.info"), vm_info_str());
+
 		Ok(options)
 	}
+}
+
+fn vm_info_str() -> String {
+	format!(
+		"interpreted, based on OpenJDK {}",
+		env!("TARGET_OPENJDK_TAG")
+	)
 }

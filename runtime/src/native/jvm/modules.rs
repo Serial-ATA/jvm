@@ -1,7 +1,7 @@
 #![native_macros::jni_fn_module]
 
 use jni::env::JniEnv;
-use jni::objects::{JObject, JObjectArray, JString};
+use jni::objects::{JClass, JObject, JObjectArray, JString};
 use jni::sys::jboolean;
 use native_macros::jni_call;
 
@@ -71,5 +71,14 @@ pub extern "C" fn JVM_GetSystemPackage(_env: JniEnv, _name: JString) -> JString 
 
 #[jni_call]
 pub extern "C" fn JVM_GetSystemPackages(_env: JniEnv) -> JObjectArray {
+	todo!()
+}
+
+#[jni_call]
+pub extern "C" fn JVM_IsSameClassPackage(
+	_env: JniEnv,
+	_class1: JClass,
+	_class2: JClass,
+) -> jboolean {
 	todo!()
 }

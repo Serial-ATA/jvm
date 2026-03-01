@@ -93,9 +93,9 @@ class CType(StrEnum):
             case CType.INT:
                 return "c_int"
             case CType.UNSIGNEDCHAR:
-                return "c_char"
+                return "c_uchar"
             case CType.UNSIGNEDSHORT:
-                return "c_short"
+                return "c_ushort"
 
 
 class JniType(StrEnum):
@@ -281,13 +281,17 @@ def parse(jvm_h_path, temp_dir) -> list[Function]:
 
 
 def main():
-    if len(sys.argv) != 2:
+    if len(sys.argv) == 2:
+        tag = sys.argv[1]
+    elif os.environ.get("TARGET_OPENJDK_TAG"):
+        tag = os.environ.get("TARGET_OPENJDK_TAG")
+    else:
         print("Expected a git tag", file=sys.stderr)
         sys.exit(1)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         jvm_h_path = os.path.join(temp_dir, "jvm.h")
-        fetch(Path(temp_dir), sys.argv[1])
+        fetch(Path(temp_dir), tag)
         functions = parse(jvm_h_path, temp_dir)
 
         functions.sort(key=lambda fun: fun.name)

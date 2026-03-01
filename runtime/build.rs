@@ -175,17 +175,21 @@ fn collect_jvm_h() {
 			return_type,
 		};
 
-		let Some(defined) = defined_jvm_functions.get(&*name) else {
+		let Some(defined) = defined_jvm_functions.remove(&*name) else {
 			println!("cargo::warning=JVM function {name} not found",);
 			continue;
 		};
 
-		if &expected != defined {
+		if expected != defined {
 			println!(
 				"cargo::warning=JVM function {} has the wrong signature. (found: {defined}, \
 				 expected: {expected})",
 				defined.name
 			);
 		}
+	}
+
+	for name in defined_jvm_functions.keys() {
+		println!("cargo::warning=Function {name} does not exist in jvm.h");
 	}
 }

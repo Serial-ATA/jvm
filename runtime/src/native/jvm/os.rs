@@ -36,7 +36,7 @@ pub extern "C" fn JVM_IsContainerized() -> jboolean {
 }
 
 #[jni_call(no_env, no_strict_types)]
-pub extern "C" fn JVM_RegisterSignal(_signal: jint, _handler: *const c_void) {
+pub extern "C" fn JVM_RegisterSignal(_signal: jint, _handler: *mut c_void) -> *mut c_void {
 	todo!()
 }
 
@@ -47,5 +47,10 @@ pub extern "C" fn JVM_RaiseSignal(_signal: jint) -> jboolean {
 
 #[jni_call(no_env, no_strict_types)]
 pub extern "C" fn JVM_FindSignal(_name: *const c_char) -> jint {
+	todo!()
+}
+
+#[jni_call(no_env, no_strict_types)]
+pub extern "C" fn JVM_NativePath(_name: *mut c_char) -> *mut c_char {
 	todo!()
 }

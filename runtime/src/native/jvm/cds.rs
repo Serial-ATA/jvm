@@ -2,7 +2,7 @@
 
 use jni::env::JniEnv;
 use jni::objects::{JClass, JObject, JString};
-use jni::sys::{jboolean, jlong};
+use jni::sys::{jboolean, jint, jlong};
 use native_macros::jni_call;
 
 #[jni_call]
@@ -43,7 +43,7 @@ pub extern "C" fn JVM_GetRandomSeedForDumping() -> jlong {
 }
 
 #[jni_call(no_env)]
-pub extern "C" fn JVM_GetCDSConfigStatus() -> jlong {
+pub extern "C" fn JVM_GetCDSConfigStatus() -> jint {
 	todo!()
 }
 

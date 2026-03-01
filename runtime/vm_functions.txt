@@ -73,7 +73,7 @@ JVM_GetCPMethodSignatureUTF	JniEnv,JClass,jint	-> *const c_char
 JVM_GetCallerClass	JniEnv	-> JClass
 JVM_GetClassAnnotations	JniEnv,JClass	-> JByteArray
 JVM_GetClassCPEntriesCount	JniEnv,JClass	-> jint
-JVM_GetClassCPTypes	JniEnv,JClass,*mut c_char
+JVM_GetClassCPTypes	JniEnv,JClass,*mut c_uchar
 JVM_GetClassConstantPool	JniEnv,JClass	-> JObject
 JVM_GetClassDeclaredConstructors	JniEnv,JClass,jboolean	-> JObjectArray
 JVM_GetClassDeclaredFields	JniEnv,JClass,jboolean	-> JObjectArray
@@ -93,9 +93,9 @@ JVM_GetFieldIxModifiers	JniEnv,JClass,c_int	-> jint
 JVM_GetFieldTypeAnnotations	JniEnv,JObject	-> JByteArray
 JVM_GetManagement	jint	-> *mut c_void
 JVM_GetMethodIxArgsSize	JniEnv,JClass,c_int	-> jint
-JVM_GetMethodIxByteCode	JniEnv,JClass,jint,*mut c_char
+JVM_GetMethodIxByteCode	JniEnv,JClass,jint,*mut c_uchar
 JVM_GetMethodIxByteCodeLength	JniEnv,JClass,jint	-> jint
-JVM_GetMethodIxExceptionIndexes	JniEnv,JClass,jint,*mut c_short
+JVM_GetMethodIxExceptionIndexes	JniEnv,JClass,jint,*mut c_ushort
 JVM_GetMethodIxExceptionTableEntry	JniEnv,JClass,jint,jint,*mut JVM_ExceptionTableEntryType
 JVM_GetMethodIxExceptionTableLength	JniEnv,JClass,c_int	-> jint
 JVM_GetMethodIxExceptionsCount	JniEnv,JClass,jint	-> jint
@@ -185,7 +185,7 @@ JVM_SetArrayElement	JniEnv,JObject,jint,JObject
 JVM_SetBootLoaderUnnamedModule	JniEnv,JObject
 JVM_SetCurrentThread	JniEnv,JObject,JObject
 JVM_SetNativeThreadName	JniEnv,JObject,JString
-JVM_SetPrimitiveArrayElement	JniEnv,JObject,jint,jvalue,c_char
+JVM_SetPrimitiveArrayElement	JniEnv,JObject,jint,jvalue,c_uchar
 JVM_SetScopedValueCache	JniEnv,JClass,JObject
 JVM_SetStackWalkContinuation	JniEnv,JObject,jlong,JObjectArray,JObject
 JVM_SetThreadPriority	JniEnv,JObject,jint

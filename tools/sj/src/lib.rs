@@ -12,7 +12,10 @@ const USAGE: &str = r"java [OPTIONS] <MAIN_CLASS> [ARGS]...
    or  java [OPTIONS] [--module|-m] <module>[/<mainclass>] [ARGS]...
    or  java [OPTIONS] <sourcefile> [ARGS]...";
 
-const ABOUT: &str = "Serial's JVM - An implementation of the Java SE 23 Virtual Machine";
+const ABOUT: &str = const_format::formatcp!(
+	"Serial's JVM - An implementation of the Java SE {} Virtual Machine",
+	env!("JAVA_VERSION")
+);
 
 const ARGS_NOTICE: &str = r" Arguments following the main class, source file, -jar <jarfile>,
  -m or --module <module>/<mainclass> are passed as the arguments to

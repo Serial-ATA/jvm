@@ -1,6 +1,6 @@
 #![native_macros::jni_fn_module]
 
-use std::ffi::c_char;
+use std::ffi::{c_char, c_int};
 
 use jni::env::JniEnv;
 use jni::objects::{JByteArray, JClass, JObject, JObjectArray, JString};
@@ -59,12 +59,11 @@ pub extern "C" fn JVM_LookupDefineClass(
 	_env: JniEnv,
 	_lookup: JClass,
 	_name: *const c_char,
-	_loader: JObject,
 	_buf: *const jbyte,
 	_len: jsize,
 	_protection_domain: JObject,
 	_initialize: jboolean,
-	_flags: jint,
+	_flags: c_int,
 	_class_data: JObject,
 ) -> JClass {
 	todo!()
@@ -95,6 +94,11 @@ pub extern "C" fn JVM_InitClassName(_env: JniEnv, _class: JClass) -> JString {
 
 #[jni_call]
 pub extern "C" fn JVM_GetClassInterfaces(_env: JniEnv, _class: JClass) -> JObjectArray {
+	todo!()
+}
+
+#[jni_call]
+pub extern "C" fn JVM_IsInterface(_env: JniEnv, _class: JClass) -> jboolean {
 	todo!()
 }
 
@@ -207,6 +211,21 @@ pub extern "C" fn JVM_GetNestMembers(_env: JniEnv, _current: JClass) -> JObjectA
 
 #[jni_call]
 pub extern "C" fn JVM_GetPermittedSubclasses(_env: JniEnv, _current: JClass) -> JObjectArray {
+	todo!()
+}
+
+#[jni_call(no_strict_types)]
+pub extern "C" fn JVM_GetClassNameUTF(_env: JniEnv, _cb: JClass) -> *const c_char {
+	todo!()
+}
+
+#[jni_call]
+pub extern "C" fn JVM_GetClassFieldsCount(_env: JniEnv, _cb: JClass) -> jint {
+	todo!()
+}
+
+#[jni_call]
+pub extern "C" fn JVM_GetClassMethodsCount(_env: JniEnv, _cb: JClass) -> jint {
 	todo!()
 }
 

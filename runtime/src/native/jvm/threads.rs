@@ -155,22 +155,30 @@ pub extern "C" fn JVM_DumpThreads(
 }
 
 #[jni_call]
-pub extern "C" fn JVM_VirtualThreadStart(_env: JniEnv, _vthread: JObject) {
+pub extern "C" fn JVM_VirtualThreadEndFirstTransition(_env: JniEnv, _vthread: JObject) {
 	todo!()
 }
 
 #[jni_call]
-pub extern "C" fn JVM_VirtualThreadEnd(_env: JniEnv, _vthread: JObject) {
+pub extern "C" fn JVM_VirtualThreadStartFinalTransition(_env: JniEnv, _vthread: JObject) {
 	todo!()
 }
 
 #[jni_call]
-pub extern "C" fn JVM_VirtualThreadMount(_env: JniEnv, _vthread: JObject, _hide: jboolean) {
+pub extern "C" fn JVM_VirtualThreadStartTransition(
+	_env: JniEnv,
+	_vthread: JObject,
+	_is_mount: jboolean,
+) {
 	todo!()
 }
 
 #[jni_call]
-pub extern "C" fn JVM_VirtualThreadUnmount(_env: JniEnv, _vthread: JObject, _hide: jboolean) {
+pub extern "C" fn JVM_VirtualThreadEndTransition(
+	_env: JniEnv,
+	_vthread: JObject,
+	_is_mount: jboolean,
+) {
 	todo!()
 }
 

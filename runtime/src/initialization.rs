@@ -18,6 +18,7 @@ use jni::java_vm::JavaVm;
 use jni::sys::{JNI_OK, JavaVMInitArgs, jint};
 
 /// Errors that can occur during VM initialization.
+#[derive(Debug)]
 pub enum InitializationError {
 	/// An exception was thrown before its class and/or the main thread were initialized.
 	///

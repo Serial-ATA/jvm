@@ -8,16 +8,21 @@ use jni::sys::jboolean;
 use native_macros::jni_call;
 
 #[jni_call(no_env, no_strict_types)]
+pub extern "C" fn JVM_LoadZipLibrary() -> *mut c_void {
+	todo!()
+}
+
+#[jni_call(no_env, no_strict_types)]
 pub extern "C" fn JVM_LoadLibrary(_name: *const c_char, _throw_exception: jboolean) -> *mut c_void {
 	todo!()
 }
 
 #[jni_call(no_env, no_strict_types)]
-pub extern "C" fn JVM_UnloadLibrary(_handle: *const c_void) {
+pub extern "C" fn JVM_UnloadLibrary(_handle: *mut c_void) {
 	todo!()
 }
 
 #[jni_call(no_env, no_strict_types)]
-pub extern "C" fn JVM_FindLibraryEntry(_handle: *const c_void, name: *const c_char) {
+pub extern "C" fn JVM_FindLibraryEntry(_handle: *mut c_void, name: *const c_char) -> *mut c_void {
 	todo!()
 }

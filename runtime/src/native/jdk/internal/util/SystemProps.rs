@@ -14,7 +14,7 @@ pub mod Raw {
 	include_generated!("native/jdk/internal/util/def/SystemProps$Raw.constants.rs");
 	include_generated!("native/jdk/internal/util/def/SystemProps.definitions.rs");
 
-	const JAVA_VERSION: &str = env!("SYSTEM_PROPS_JAVA_VERSION");
+	const JAVA_VERSION: &str = env!("JAVA_VERSION");
 	const VM_SPECIFICATION_NAME: &str = env!("SYSTEM_PROPS_VM_SPECIFICATION_NAME");
 	const VM_NAME: &str = env!("SYSTEM_PROPS_VM_NAME");
 	const VM_VERSION: &str = env!("CARGO_PKG_VERSION");
