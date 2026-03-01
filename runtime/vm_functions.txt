@@ -1,0 +1,204 @@
+# DO NOT EDIT THIS MANUALLY!
+# Generated with ../scripts/jvm_h.py
+#
+# Format: <name><TAB>[PARAM_TYPE1,PARAM_TYPE2][<TAB>-> RETURN_TYPE]
+JVM_ActiveProcessorCount		-> jint
+JVM_AddModuleExports	JniEnv,JObject,JString,JObject
+JVM_AddModuleExportsToAll	JniEnv,JObject,JString
+JVM_AddModuleExportsToAllUnnamed	JniEnv,JObject,JString
+JVM_AddReadsModule	JniEnv,JObject,JObject
+JVM_AreNestMates	JniEnv,JClass,JClass	-> jboolean
+JVM_ArrayCopy	JniEnv,JClass,JObject,jint,JObject,jint,jint
+JVM_AssertionStatusDirectives	JniEnv,JClass	-> JObject
+JVM_BeforeHalt	
+JVM_CallStackWalk	JniEnv,JObject,jint,jint,JObject,JObject,jint,jint,JObjectArray	-> JObject
+JVM_Clone	JniEnv,JObject	-> JObject
+JVM_ConstantPoolGetClassAt	JniEnv,JObject,jint	-> JClass
+JVM_ConstantPoolGetClassAtIfLoaded	JniEnv,JObject,jint	-> JClass
+JVM_ConstantPoolGetClassRefIndexAt	JniEnv,JObject,jint	-> jint
+JVM_ConstantPoolGetDoubleAt	JniEnv,JObject,jint	-> jdouble
+JVM_ConstantPoolGetFieldAt	JniEnv,JObject,jint	-> JObject
+JVM_ConstantPoolGetFieldAtIfLoaded	JniEnv,JObject,jint	-> JObject
+JVM_ConstantPoolGetFloatAt	JniEnv,JObject,jint	-> jfloat
+JVM_ConstantPoolGetIntAt	JniEnv,JObject,jint	-> jint
+JVM_ConstantPoolGetLongAt	JniEnv,JObject,jint	-> jlong
+JVM_ConstantPoolGetMemberRefInfoAt	JniEnv,JObject,jint	-> JObjectArray
+JVM_ConstantPoolGetMethodAt	JniEnv,JObject,jint	-> JObject
+JVM_ConstantPoolGetMethodAtIfLoaded	JniEnv,JObject,jint	-> JObject
+JVM_ConstantPoolGetNameAndTypeRefIndexAt	JniEnv,JObject,jint	-> jint
+JVM_ConstantPoolGetNameAndTypeRefInfoAt	JniEnv,JObject,jint	-> JObjectArray
+JVM_ConstantPoolGetSize	JniEnv,JObject	-> jint
+JVM_ConstantPoolGetStringAt	JniEnv,JObject,jint	-> JString
+JVM_ConstantPoolGetTagAt	JniEnv,JObject,jint	-> jbyte
+JVM_ConstantPoolGetUTF8At	JniEnv,JObject,jint	-> JString
+JVM_CreateThreadSnapshot	JniEnv,JObject	-> JObject
+JVM_CurrentCarrierThread	JniEnv,JClass	-> JObject
+JVM_CurrentThread	JniEnv,JClass	-> JObject
+JVM_CurrentTimeMillis	JniEnv,JClass	-> jlong
+JVM_DefineArchivedModules	JniEnv,JObject,JObject
+JVM_DefineClass	JniEnv,*const c_char,JObject,*const jbyte,jsize,JObject	-> JClass
+JVM_DefineClassWithSource	JniEnv,*const c_char,JObject,*const jbyte,jsize,JObject,*const c_char	-> JClass
+JVM_DefineModule	JniEnv,JObject,jboolean,JString,JString,JObjectArray
+JVM_DesiredAssertionStatus	JniEnv,JClass,JClass	-> jboolean
+JVM_DumpClassListToFile	JniEnv,JString
+JVM_DumpDynamicArchive	JniEnv,JString
+JVM_DumpThreads	JniEnv,JClass,JObjectArray	-> JObjectArray
+JVM_EnsureMaterializedForStackWalk_func	JniEnv,JObject,JObject
+JVM_ExpandStackFrameInfo	JniEnv,JObject
+JVM_FillInStackTrace	JniEnv,JObject
+JVM_FindClassFromBootLoader	JniEnv,*const c_char	-> JClass
+JVM_FindClassFromClass	JniEnv,*const c_char,jboolean,JClass	-> JClass
+JVM_FindClassFromLoader	JniEnv,*const c_char,jboolean,JObject	-> JClass
+JVM_FindLibraryEntry	*mut c_void,*const c_char	-> *mut c_void
+JVM_FindLoadedClass	JniEnv,JObject,JString	-> JClass
+JVM_FindPrimitiveClass	JniEnv,*const c_char	-> JClass
+JVM_FindScopedValueBindings	JniEnv,JClass	-> JObject
+JVM_FindSignal	*const c_char	-> jint
+JVM_FreeMemory		-> jlong
+JVM_GC	
+JVM_GetAllThreads	JniEnv,JClass	-> JObjectArray
+JVM_GetAndClearReferencePendingList	JniEnv	-> JObject
+JVM_GetArrayElement	JniEnv,JObject,jint	-> JObject
+JVM_GetArrayLength	JniEnv,JObject	-> jint
+JVM_GetCDSConfigStatus		-> jint
+JVM_GetCPClassNameUTF	JniEnv,JClass,jint	-> *const c_char
+JVM_GetCPFieldClassNameUTF	JniEnv,JClass,jint	-> *const c_char
+JVM_GetCPFieldModifiers	JniEnv,JClass,c_int,JClass	-> jint
+JVM_GetCPFieldNameUTF	JniEnv,JClass,jint	-> *const c_char
+JVM_GetCPFieldSignatureUTF	JniEnv,JClass,jint	-> *const c_char
+JVM_GetCPMethodClassNameUTF	JniEnv,JClass,jint	-> *const c_char
+JVM_GetCPMethodModifiers	JniEnv,JClass,c_int,JClass	-> jint
+JVM_GetCPMethodNameUTF	JniEnv,JClass,jint	-> *const c_char
+JVM_GetCPMethodSignatureUTF	JniEnv,JClass,jint	-> *const c_char
+JVM_GetCallerClass	JniEnv	-> JClass
+JVM_GetClassAnnotations	JniEnv,JClass	-> JByteArray
+JVM_GetClassCPEntriesCount	JniEnv,JClass	-> jint
+JVM_GetClassCPTypes	JniEnv,JClass,*mut c_char
+JVM_GetClassConstantPool	JniEnv,JClass	-> JObject
+JVM_GetClassDeclaredConstructors	JniEnv,JClass,jboolean	-> JObjectArray
+JVM_GetClassDeclaredFields	JniEnv,JClass,jboolean	-> JObjectArray
+JVM_GetClassDeclaredMethods	JniEnv,JClass,jboolean	-> JObjectArray
+JVM_GetClassFieldsCount	JniEnv,JClass	-> jint
+JVM_GetClassFileVersion	JniEnv,JClass	-> jint
+JVM_GetClassInterfaces	JniEnv,JClass	-> JObjectArray
+JVM_GetClassMethodsCount	JniEnv,JClass	-> jint
+JVM_GetClassNameUTF	JniEnv,JClass	-> *const c_char
+JVM_GetClassSignature	JniEnv,JClass	-> JString
+JVM_GetClassTypeAnnotations	JniEnv,JClass	-> JByteArray
+JVM_GetDeclaredClasses	JniEnv,JClass	-> JObjectArray
+JVM_GetDeclaringClass	JniEnv,JClass	-> JClass
+JVM_GetEnclosingMethodInfo	JniEnv,JClass	-> JObjectArray
+JVM_GetExtendedNPEMessage	JniEnv,JThrowable	-> JString
+JVM_GetFieldIxModifiers	JniEnv,JClass,c_int	-> jint
+JVM_GetFieldTypeAnnotations	JniEnv,JObject	-> JByteArray
+JVM_GetManagement	jint	-> *mut c_void
+JVM_GetMethodIxArgsSize	JniEnv,JClass,c_int	-> jint
+JVM_GetMethodIxByteCode	JniEnv,JClass,jint,*mut c_char
+JVM_GetMethodIxByteCodeLength	JniEnv,JClass,jint	-> jint
+JVM_GetMethodIxExceptionIndexes	JniEnv,JClass,jint,*mut c_short
+JVM_GetMethodIxExceptionTableEntry	JniEnv,JClass,jint,jint,*mut JVM_ExceptionTableEntryType
+JVM_GetMethodIxExceptionTableLength	JniEnv,JClass,c_int	-> jint
+JVM_GetMethodIxExceptionsCount	JniEnv,JClass,jint	-> jint
+JVM_GetMethodIxLocalsCount	JniEnv,JClass,c_int	-> jint
+JVM_GetMethodIxMaxStack	JniEnv,JClass,c_int	-> jint
+JVM_GetMethodIxModifiers	JniEnv,JClass,c_int	-> jint
+JVM_GetMethodIxNameUTF	JniEnv,JClass,jint	-> *const c_char
+JVM_GetMethodIxSignatureUTF	JniEnv,JClass,jint	-> *const c_char
+JVM_GetMethodParameters	JniEnv,JObject	-> JObjectArray
+JVM_GetMethodTypeAnnotations	JniEnv,JObject	-> JByteArray
+JVM_GetNanoTimeAdjustment	JniEnv,JClass,jlong	-> jlong
+JVM_GetNestHost	JniEnv,JClass	-> JClass
+JVM_GetNestMembers	JniEnv,JClass	-> JObjectArray
+JVM_GetNextThreadIdOffset	JniEnv,JClass	-> jlong
+JVM_GetPermittedSubclasses	JniEnv,JClass	-> JObjectArray
+JVM_GetPrimitiveArrayElement	JniEnv,JObject,jint,jint	-> jvalue
+JVM_GetProperties	JniEnv	-> JObjectArray
+JVM_GetRandomSeedForDumping		-> jlong
+JVM_GetRecordComponents	JniEnv,JClass	-> JObjectArray
+JVM_GetSimpleBinaryName	JniEnv,JClass	-> JString
+JVM_GetStackTrace	JniEnv,JObject	-> JObject
+JVM_GetSystemPackage	JniEnv,JString	-> JString
+JVM_GetSystemPackages	JniEnv	-> JObjectArray
+JVM_GetTemporaryDirectory	JniEnv	-> JString
+JVM_GetVmArguments	JniEnv	-> JObjectArray
+JVM_Halt	jint
+JVM_HasReferencePendingList	JniEnv	-> jboolean
+JVM_HoldsLock	JniEnv,JClass,JObject	-> jboolean
+JVM_IHashCode	JniEnv,JObject	-> jint
+JVM_InitAgentProperties	JniEnv,JObject	-> JObject
+JVM_InitClassName	JniEnv,JClass	-> JString
+JVM_InitStackTraceElement	JniEnv,JObject,JObject
+JVM_InitStackTraceElementArray	JniEnv,JObjectArray,JObject,jint
+JVM_InitializeFromArchive	JniEnv,JClass
+JVM_InternString	JniEnv,JString	-> JString
+JVM_Interrupt	JniEnv,JObject
+JVM_InvokeMethod	JniEnv,JObject,JObject,JObjectArray	-> JObject
+JVM_IsConstructorIx	JniEnv,JClass,c_int	-> jboolean
+JVM_IsContainerized		-> jboolean
+JVM_IsContinuationsSupported		-> jboolean
+JVM_IsFinalizationEnabled	JniEnv	-> jboolean
+JVM_IsForeignLinkerSupported		-> jboolean
+JVM_IsHiddenClass	JniEnv,JClass	-> jboolean
+JVM_IsInterface	JniEnv,JClass	-> jboolean
+JVM_IsPreviewEnabled		-> jboolean
+JVM_IsRecord	JniEnv,JClass	-> jboolean
+JVM_IsSameClassPackage	JniEnv,JClass,JClass	-> jboolean
+JVM_IsStaticallyLinked		-> jboolean
+JVM_IsSupportedJNIVersion	jint	-> jboolean
+JVM_IsUseContainerSupport		-> jboolean
+JVM_IsVMGeneratedMethodIx	JniEnv,JClass,c_int	-> jboolean
+JVM_LatestUserDefinedLoader	JniEnv	-> JObject
+JVM_LoadLibrary	*const c_char,jboolean	-> *mut c_void
+JVM_LoadZipLibrary		-> *mut c_void
+JVM_LogLambdaFormInvoker	JniEnv,JString
+JVM_LookupDefineClass	JniEnv,JClass,*const c_char,*const jbyte,jsize,JObject,jboolean,c_int,JObject	-> JClass
+JVM_LookupLambdaProxyClassFromArchive	JniEnv,JClass,JString,JObject,JObject,JObject,JObject	-> JClass
+JVM_MaxMemory		-> jlong
+JVM_MaxObjectInspectionAge		-> jlong
+JVM_MonitorNotify	JniEnv,JObject
+JVM_MonitorNotifyAll	JniEnv,JObject
+JVM_MonitorWait	JniEnv,JObject,jlong
+JVM_MoreStackWalk	JniEnv,JObject,jint,jlong,jint,jint,jint,JObjectArray	-> jint
+JVM_NanoTime	JniEnv,JClass	-> jlong
+JVM_NativePath	*mut c_char	-> *mut c_char
+JVM_NeedsClassInitBarrierForCDS	JniEnv,JClass	-> jboolean
+JVM_NewArray	JniEnv,JClass,jint	-> JObject
+JVM_NewInstanceFromConstructor	JniEnv,JObject,JObjectArray	-> JObject
+JVM_NewMultiArray	JniEnv,JClass,JIntArray	-> JObject
+JVM_PhantomReferenceRefersTo	JniEnv,JObject,JObject	-> jboolean
+JVM_PrintWarningAtDynamicAgentLoad		-> jboolean
+JVM_RaiseSignal	jint	-> jboolean
+JVM_RawMonitorCreate		-> *mut c_void
+JVM_RawMonitorDestroy	*mut c_void
+JVM_RawMonitorEnter	*mut c_void	-> jint
+JVM_RawMonitorExit	*mut c_void
+JVM_ReferenceClear	JniEnv,JObject
+JVM_ReferenceGet	JniEnv,JObject	-> JObject
+JVM_ReferenceRefersTo	JniEnv,JObject,JObject	-> jboolean
+JVM_RegisterContinuationMethods	JniEnv,JClass
+JVM_RegisterLambdaProxyClassForArchiving	JniEnv,JClass,JString,JObject,JObject,JObject,JObject,JClass
+JVM_RegisterSignal	jint,*mut c_void	-> *mut c_void
+JVM_ReleaseUTF	*const c_char
+JVM_ReportFinalizationComplete	JniEnv,JObject
+JVM_ScopedValueCache	JniEnv,JClass	-> JObject
+JVM_SetArrayElement	JniEnv,JObject,jint,JObject
+JVM_SetBootLoaderUnnamedModule	JniEnv,JObject
+JVM_SetCurrentThread	JniEnv,JObject,JObject
+JVM_SetNativeThreadName	JniEnv,JObject,JString
+JVM_SetPrimitiveArrayElement	JniEnv,JObject,jint,jvalue,c_char
+JVM_SetScopedValueCache	JniEnv,JClass,JObject
+JVM_SetStackWalkContinuation	JniEnv,JObject,jlong,JObjectArray,JObject
+JVM_SetThreadPriority	JniEnv,JObject,jint
+JVM_SleepNanos	JniEnv,JClass,jlong
+JVM_StartThread	JniEnv,JObject
+JVM_TakeVirtualThreadListToUnblock	JniEnv,JClass	-> JObject
+JVM_TotalMemory		-> jlong
+JVM_UnloadLibrary	*mut c_void
+JVM_VirtualThreadDisableSuspend	JniEnv,JClass,jboolean
+JVM_VirtualThreadEndFirstTransition	JniEnv,JObject
+JVM_VirtualThreadEndTransition	JniEnv,JObject,jboolean
+JVM_VirtualThreadPinnedEvent	JniEnv,JClass,JString
+JVM_VirtualThreadStartFinalTransition	JniEnv,JObject
+JVM_VirtualThreadStartTransition	JniEnv,JObject,jboolean
+JVM_WaitForReferencePendingList	JniEnv
+JVM_Yield	JniEnv,JClass

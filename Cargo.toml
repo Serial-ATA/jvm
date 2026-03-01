@@ -24,6 +24,10 @@ repository = "https://github.com/Serial-ATA/jvm"
 edition = "2024"
 license = "MIT OR APACHE-2.0"
 
+[profile.dev]
+debug = "full"
+opt-level = 0
+
 [workspace.lints.rust]
 rust_2018_idioms = { level = "deny", priority = -1 }
 rust_2021_compatibility = { level = "deny", priority = -1 }

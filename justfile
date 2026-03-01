@@ -4,6 +4,7 @@
 # -----------------------------------------------------------------------------
 
 PROJECT_ROOT := justfile_directory()
+PYTHON_VENV := PROJECT_ROOT / ".venv"
 BUILD_DIR := PROJECT_ROOT / "build"
 DIST_DIR := BUILD_DIR / "dist"
 
@@ -27,6 +28,14 @@ native: native-debug
 
 dist *ARGS:
     PYTHONPATH={{ PROJECT_ROOT }} python3 {{ BUILD_DIR }}/entry.py {{ ARGS }}
+
+venv:
+    python -m venv {{ PYTHON_VENV }}
+    {{ PYTHON_VENV }}/bin/python -m pip install --upgrade pip
+    {{ PYTHON_VENV }}/bin/python -m pip install -r {{ PROJECT_ROOT }}/scripts/requirements.txt
+
+script name *ARGS: venv
+    {{ PYTHON_VENV }}/bin/python {{ PROJECT_ROOT }}/scripts/{{ name }}.py {{ ARGS }}
 
 # Build and run the java binary with the provided arguments
 java +ARGS: debug

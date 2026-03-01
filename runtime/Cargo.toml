@@ -34,6 +34,8 @@ bumpalo = "3.16.0"
 [build-dependencies]
 native_methods = { path = "../generators/native_methods" }
 build-deps.workspace = true
+quote.workspace = true
+syn.workspace = true
 
 [features]
 default = ["libffi"]
@@ -45,7 +47,3 @@ workspace = true
 [lib]
 name = "jvm"
 crate-type = ["rlib", "dylib"]
-
-[profile.dev]
-debuginfo = "full"
-opt-level = 0
