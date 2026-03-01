@@ -1,5 +1,6 @@
 #![feature(custom_inner_attributes)]
 #![feature(proc_macro_hygiene)]
+#![feature(cfg_select)]
 
 pub mod channel;
 pub mod fs;

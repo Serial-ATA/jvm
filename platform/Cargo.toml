@@ -9,7 +9,6 @@ repository.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cfg-if.workspace = true
 libc.workspace = true
 
 [target.'cfg(target_family = "windows")'.dependencies]

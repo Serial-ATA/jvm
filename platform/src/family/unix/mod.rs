@@ -1,13 +1,15 @@
 // OS specific modules
 
-cfg_if::cfg_if! {
-	if #[cfg(target_os = "linux")] {
+cfg_select! {
+	target_os = "linux" => {
 		mod linux;
 		use linux as imp;
-	} else if #[cfg(target_os = "macos")] {
+	}
+	target_os = "macos" => {
 		mod macos;
 		use macos as imp;
-	} else {
+	}
+	_ => {
 		compile_error!("target OS is not supported!");
 	}
 }

@@ -14,8 +14,6 @@ crate-type = ["rlib", "dylib"]
 jni.workspace = true
 native-macros.workspace = true
 
-cfg-if.workspace = true
-
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true
 

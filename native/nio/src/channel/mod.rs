@@ -7,14 +7,16 @@ use jni::objects::JClass;
 use jni::sys::jint;
 use native_macros::jni_call;
 
-cfg_if::cfg_if! {
-	if #[cfg(unix)] {
+cfg_select! {
+	unix => {
 		mod unix;
 		pub use unix::*;
-	} else if #[cfg(windows)] {
+	}
+	windows => {
 		mod windows;
 		pub use windows::*;
-	} else {
+	}
+	_ => {
 		compile_error!("Unsupported platform for libnio");
 	}
 }

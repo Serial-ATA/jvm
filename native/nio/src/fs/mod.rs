@@ -1,11 +1,13 @@
-cfg_if::cfg_if! {
-	if #[cfg(unix)] {
+cfg_select! {
+	unix => {
 		mod unix;
 		pub use unix::*;
-	} else if #[cfg(windows)] {
+	}
+	windows => {
 		mod windows;
 		pub use windows::*;
-	} else {
+	}
+	_ => {
 		compile_error!("Unsupported platform for libnio");
 	}
 }
