@@ -89,6 +89,7 @@ pub fn jni_fn_module(_attr: TokenStream, input: TokenStream) -> TokenStream {
 			#(#items)*
 
 			/// Generated C bindings for sun.io.fs.UnixNativeDispatcher methods
+			#[allow(unused_imports)]
 			pub mod raw {
 				#(#raw_mod_entries)*
 			}

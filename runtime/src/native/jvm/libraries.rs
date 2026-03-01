@@ -23,6 +23,6 @@ pub extern "C" fn JVM_UnloadLibrary(_handle: *mut c_void) {
 }
 
 #[jni_call(no_env, no_strict_types)]
-pub extern "C" fn JVM_FindLibraryEntry(_handle: *mut c_void, name: *const c_char) -> *mut c_void {
+pub extern "C" fn JVM_FindLibraryEntry(_handle: *mut c_void, _name: *const c_char) -> *mut c_void {
 	todo!()
 }

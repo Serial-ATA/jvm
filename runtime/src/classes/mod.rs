@@ -154,6 +154,8 @@ macro_rules! field_constructor {
 			}
 
 			let mut field_set = 0;
+
+            #[allow(unused_variables)]
 			for field in class.fields() {
 				crate::classes::field_constructor!(@CHECKS field, field_set, 0, $($field_tt)*);
 			}
@@ -231,7 +233,7 @@ macro_rules! field_constructor {
 		impl FieldNames {
 			const VARIANTS: [FieldNames; $current_shift] = [];
 
-			fn find_missing(found: usize) -> [Option<FieldNames>; $current_shift] {
+			fn find_missing(_found: usize) -> [Option<FieldNames>; $current_shift] {
 				[]
 			}
 		}

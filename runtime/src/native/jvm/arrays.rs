@@ -2,7 +2,7 @@
 
 use jni::env::JniEnv;
 use jni::objects::{JClass, JIntArray, JObject};
-use jni::sys::{jbyte, jint, jvalue};
+use jni::sys::{jint, jvalue};
 use native_macros::jni_call;
 use std::ffi::c_uchar;
 

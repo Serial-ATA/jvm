@@ -249,6 +249,7 @@ pub fn generate(input: &ItemFn, no_env: bool, no_strict_types: bool) -> JniFn {
 
 	let extern_fn_def = generate_extern_fn(input, &params, return_ty, no_env);
 	let extern_fn = quote! {
+		#[allow(unused_imports)]
 		mod #raw_mod_name {
 			use super::*;
 

@@ -8,7 +8,6 @@
 #![feature(try_with_capacity)]
 #![feature(try_trait_v2)]
 #![feature(associated_type_defaults)]
-#![feature(ptr_as_ref_unchecked)]
 #![feature(iter_next_chunk)]
 #![feature(if_let_guard)]
 #![feature(reentrant_lock)]

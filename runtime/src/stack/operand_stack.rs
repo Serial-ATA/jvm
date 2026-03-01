@@ -4,7 +4,6 @@ use crate::thread::exceptions::{Throws, throw};
 use std::alloc;
 use std::alloc::Layout;
 use std::fmt::Debug;
-use std::mem::ManuallyDrop;
 
 use common::int_types::{s4, s8};
 use instructions::{Operand, StackLike};

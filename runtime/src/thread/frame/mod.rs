@@ -6,7 +6,7 @@ use crate::objects::method::Method;
 use crate::stack::local_stack::LocalStack;
 use crate::stack::operand_stack::OperandStack;
 use crate::thread::JavaThread;
-use crate::thread::exceptions::{ExceptionKind, Throws};
+use crate::thread::exceptions::Throws;
 
 use std::cell::UnsafeCell;
 use std::fmt::{Debug, Formatter};

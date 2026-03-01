@@ -66,7 +66,7 @@ fn extract_and_verify_lib_name(name: Reference) -> Option<LibraryName> {
 }
 
 fn find_jni_on_load<'a>(lib: &'a Library, name: Option<&str>) -> Option<Sym<'a, JniOnLoadFn>> {
-	let mut on_load_sym = match name {
+	let on_load_sym = match name {
 		Some(name) => format!("JNI_OnLoad_{}\0", name).into_bytes(),
 		None => String::from("JNI_OnLoad\0").into_bytes(),
 	};

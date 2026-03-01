@@ -45,7 +45,7 @@ pub(crate) fn lib_java() -> &'static Library {
 		},
 	);
 
-	unsafe { (&*LIB_JAVA.get()) }
+	unsafe { &*LIB_JAVA.get() }
 		.as_ref()
 		.expect("Should be set at this point")
 }
