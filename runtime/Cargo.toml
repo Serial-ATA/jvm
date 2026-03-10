@@ -15,6 +15,7 @@ common.workspace = true
 instructions.workspace = true
 jimage.workspace = true
 jni.workspace = true
+jvmti.workspace = true
 vm_symbols.workspace = true
 native-macros.workspace = true
 

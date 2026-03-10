@@ -14,6 +14,8 @@ members = [
     "platform",
     "jni",
     "jni/sys",
+    "jvmti",
+    "jvmti/sys",
     # Native libraries
     "native/*"
 ]
@@ -97,6 +99,8 @@ instructions = { path = "instructions" }
 jimage = { path = "jimage" }
 jni = { path = "jni" }
 jni_sys = { path = "jni/sys" }
+jvmti = { path = "jvmti" }
+jvmti_sys = { path = "jvmti/sys" }
 platform = { path = "platform" }
 vm_symbols = { path = "generators/vm_symbols" }
 

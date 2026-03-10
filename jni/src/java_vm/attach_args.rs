@@ -84,6 +84,7 @@ impl VmAttachArgs {
 /// } JavaVMAttachArgs
 /// ```
 #[expect(dead_code)]
+#[repr(C)]
 pub(super) struct FinalizedJavaVMAttachArgs {
 	version: jint,
 	name: *const c_char,

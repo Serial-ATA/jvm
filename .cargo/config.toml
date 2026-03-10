@@ -5,6 +5,7 @@ artifact-dir = "./build/out"
 [env]
 
 # Constant VM properties
+JAVA_VERSION = "27"
 SYSTEM_PROPS_VM_SPECIFICATION_NAME = "Java Virtual Machine Specification"
 SYSTEM_PROPS_VM_NAME = "SJVM"
 SYSTEM_PROPS_VM_VENDOR = "Serial-ATA"

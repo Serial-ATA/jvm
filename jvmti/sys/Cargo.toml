@@ -1,0 +1,7 @@
+[package]
+name = "jvmti_sys"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+jni_sys.workspace = true
