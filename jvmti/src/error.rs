@@ -133,4 +133,77 @@ impl JvmtiError {
 			_ => None,
 		}
 	}
+
+	pub fn raw(&self) -> jvmtiError {
+		match self {
+			JvmtiError::InvalidThread => crate::sys::JVMTI_ERROR_INVALID_THREAD,
+			JvmtiError::InvalidThreadGroup => crate::sys::JVMTI_ERROR_INVALID_THREAD_GROUP,
+			JvmtiError::InvalidPriority => crate::sys::JVMTI_ERROR_INVALID_PRIORITY,
+			JvmtiError::ThreadNotSuspended => crate::sys::JVMTI_ERROR_THREAD_NOT_SUSPENDED,
+			JvmtiError::ThreadSuspended => crate::sys::JVMTI_ERROR_THREAD_SUSPENDED,
+			JvmtiError::ThreadNotAlive => crate::sys::JVMTI_ERROR_THREAD_NOT_ALIVE,
+			JvmtiError::InvalidObject => crate::sys::JVMTI_ERROR_INVALID_OBJECT,
+			JvmtiError::InvalidClass => crate::sys::JVMTI_ERROR_INVALID_CLASS,
+			JvmtiError::ClassNotPrepared => crate::sys::JVMTI_ERROR_CLASS_NOT_PREPARED,
+			JvmtiError::InvalidMethodId => crate::sys::JVMTI_ERROR_INVALID_METHODID,
+			JvmtiError::InvalidLocation => crate::sys::JVMTI_ERROR_INVALID_LOCATION,
+			JvmtiError::InvalidFieldId => crate::sys::JVMTI_ERROR_INVALID_FIELDID,
+			JvmtiError::InvalidModule => crate::sys::JVMTI_ERROR_INVALID_MODULE,
+			JvmtiError::NoMoreFrames => crate::sys::JVMTI_ERROR_NO_MORE_FRAMES,
+			JvmtiError::OpaqueFrame => crate::sys::JVMTI_ERROR_OPAQUE_FRAME,
+			JvmtiError::TypeMismatch => crate::sys::JVMTI_ERROR_TYPE_MISMATCH,
+			JvmtiError::InvalidSlot => crate::sys::JVMTI_ERROR_INVALID_SLOT,
+			JvmtiError::Duplicate => crate::sys::JVMTI_ERROR_DUPLICATE,
+			JvmtiError::NotFound => crate::sys::JVMTI_ERROR_NOT_FOUND,
+			JvmtiError::InvalidMonitor => crate::sys::JVMTI_ERROR_INVALID_MONITOR,
+			JvmtiError::NotMonitorOwner => crate::sys::JVMTI_ERROR_NOT_MONITOR_OWNER,
+			JvmtiError::Interrupt => crate::sys::JVMTI_ERROR_INTERRUPT,
+			JvmtiError::InvalidClassFormat => crate::sys::JVMTI_ERROR_INVALID_CLASS_FORMAT,
+			JvmtiError::CircularClassDefinition => {
+				crate::sys::JVMTI_ERROR_CIRCULAR_CLASS_DEFINITION
+			},
+			JvmtiError::FailsVerification => crate::sys::JVMTI_ERROR_FAILS_VERIFICATION,
+			JvmtiError::UnsupportedRedefinitionMethodAdded => {
+				crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_ADDED
+			},
+			JvmtiError::UnsupportedRedefinitionSchemaChanged => {
+				crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_SCHEMA_CHANGED
+			},
+			JvmtiError::InvalidTypestate => crate::sys::JVMTI_ERROR_INVALID_TYPESTATE,
+			JvmtiError::UnsupportedRedefinitionHierarchyChanged => {
+				crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_HIERARCHY_CHANGED
+			},
+			JvmtiError::UnsupportedRedefinitionMethodDeleted => {
+				crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_DELETED
+			},
+			JvmtiError::UnsupportedVersion => crate::sys::JVMTI_ERROR_UNSUPPORTED_VERSION,
+			JvmtiError::NamesDontMatch => crate::sys::JVMTI_ERROR_NAMES_DONT_MATCH,
+			JvmtiError::UnsupportedRedefinitionClassModifiersChanged => {
+				crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_MODIFIERS_CHANGED
+			},
+			JvmtiError::UnsupportedRedefinitionMethodModifiersChanged => {
+				crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_MODIFIERS_CHANGED
+			},
+			JvmtiError::UnsupportedRedefinitionClassAttributeChanged => {
+				crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_ATTRIBUTE_CHANGED
+			},
+			JvmtiError::UnsupportedOperation => crate::sys::JVMTI_ERROR_UNSUPPORTED_OPERATION,
+			JvmtiError::UnmodifiableClass => crate::sys::JVMTI_ERROR_UNMODIFIABLE_CLASS,
+			JvmtiError::UnmodifiableModule => crate::sys::JVMTI_ERROR_UNMODIFIABLE_MODULE,
+			JvmtiError::NotAvailable => crate::sys::JVMTI_ERROR_NOT_AVAILABLE,
+			JvmtiError::MustPossessCapability => crate::sys::JVMTI_ERROR_MUST_POSSESS_CAPABILITY,
+			JvmtiError::NullPointer => crate::sys::JVMTI_ERROR_NULL_POINTER,
+			JvmtiError::AbsentInformation => crate::sys::JVMTI_ERROR_ABSENT_INFORMATION,
+			JvmtiError::InvalidEventType => crate::sys::JVMTI_ERROR_INVALID_EVENT_TYPE,
+			JvmtiError::IllegalArgument => crate::sys::JVMTI_ERROR_ILLEGAL_ARGUMENT,
+			JvmtiError::NativeMethod => crate::sys::JVMTI_ERROR_NATIVE_METHOD,
+			JvmtiError::ClassLoaderUnsupported => crate::sys::JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED,
+			JvmtiError::OutOfMemory => crate::sys::JVMTI_ERROR_OUT_OF_MEMORY,
+			JvmtiError::AccessDenied => crate::sys::JVMTI_ERROR_ACCESS_DENIED,
+			JvmtiError::WrongPhase => crate::sys::JVMTI_ERROR_WRONG_PHASE,
+			JvmtiError::Internal => crate::sys::JVMTI_ERROR_INTERNAL,
+			JvmtiError::UnattachedThread => crate::sys::JVMTI_ERROR_UNATTACHED_THREAD,
+			JvmtiError::InvalidEnvironment => crate::sys::JVMTI_ERROR_INVALID_ENVIRONMENT,
+		}
+	}
 }

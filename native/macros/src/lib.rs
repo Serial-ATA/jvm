@@ -3,7 +3,19 @@ use proc_macro2::Ident;
 use quote::{quote, quote_spanned};
 use syn::parse_macro_input;
 
-mod call;
+mod calls;
+
+fn quote_errors(errors: Vec<(calls::Error, proc_macro2::Span)>) -> Vec<proc_macro2::TokenStream> {
+	errors
+		.into_iter()
+		.map(|(err, span)| {
+			let syn_err = err.into_syn(span).into_compile_error();
+			quote_spanned! {span=>
+				#syn_err
+			}
+		})
+		.collect::<Vec<_>>()
+}
 
 #[proc_macro_attribute]
 pub fn jni_call(args: TokenStream, input: TokenStream) -> TokenStream {
@@ -23,22 +35,32 @@ pub fn jni_call(args: TokenStream, input: TokenStream) -> TokenStream {
 
 	parse_macro_input!(args with meta_parser);
 	let input = parse_macro_input!(input as syn::ItemFn);
-	let call::JniFn {
+	let calls::jni::JniFn {
 		rust_fn,
 		extern_fn,
 		errors,
-	} = call::generate(&input, no_env, no_strict_types);
+	} = calls::jni::generate(&input, no_env, no_strict_types);
 
-	let errors = errors
-		.into_iter()
-		.map(|(err, span)| {
-			let syn_err = err.into_syn(span).into_compile_error();
-			quote_spanned! {span=>
-				#syn_err
-			}
-		})
-		.collect::<Vec<_>>();
+	let errors = quote_errors(errors);
+	quote! {
+		#(#errors)*
 
+		#rust_fn
+		#extern_fn
+	}
+	.into()
+}
+
+#[proc_macro_attribute]
+pub fn jvmti_call(_args: TokenStream, input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as syn::ItemFn);
+	let calls::jvmti::JvmtiFn {
+		rust_fn,
+		extern_fn,
+		errors,
+	} = calls::jvmti::generate(&input);
+
+	let errors = quote_errors(errors);
 	quote! {
 		#(#errors)*
 
