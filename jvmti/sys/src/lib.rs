@@ -1,6 +1,7 @@
 #![feature(extern_types)]
 #![allow(non_snake_case, non_camel_case_types)]
 
+#[rustfmt::skip]
 mod version;
 
 use jni_sys::{
