@@ -12,10 +12,17 @@ export TARGET_OPENJDK_TAG := "jdk-27+0"
 
 PROJECT_ROOT := justfile_directory()
 PYTHON_VENV := PROJECT_ROOT / ".venv"
+GENERATED_DIR := PROJECT_ROOT / "generated"
 BUILD_DIR := PROJECT_ROOT / "build"
 DIST_DIR := BUILD_DIR / "dist"
+OUT_DIR := BUILD_DIR / "out"
 
 default: debug
+
+# Clean up all build artifacts
+clean:
+    cargo clean
+    rm -r {{ DIST_DIR }} {{ OUT_DIR }} {{ GENERATED_DIR }}
 
 # Run `cargo test`
 test *ARGS:
