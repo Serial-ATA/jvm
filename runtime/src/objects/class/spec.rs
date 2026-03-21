@@ -1,6 +1,5 @@
 use crate::globals::PRIMITIVES;
 use crate::java_call;
-use crate::method_invoker::MethodInvoker;
 use crate::native::java::lang::String::StringInterner;
 use crate::objects::class::{Class, ClassPtr};
 use crate::objects::constant_pool::cp_types;
@@ -591,36 +590,6 @@ impl Class {
 		init.notify_all();
 
 		Throws::PENDING_EXCEPTION
-	}
-
-	// Instance initialization method
-	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.9.1
-	#[tracing::instrument(skip_all)]
-	pub fn construct(
-		&self,
-		thread: &'static JavaThread,
-		descriptor: Symbol,
-		args: Vec<Operand<Reference>>,
-	) {
-		// A class has zero or more instance initialization methods, each typically corresponding to a constructor written in the Java programming language.
-
-		// A method is an instance initialization method if all of the following are true:
-
-		//     It is defined in a class (not an interface).
-		if self.is_interface() {
-			return;
-		}
-
-		let method = self
-			.vtable()
-			.find_local(
-				sym!(object_initializer_name), // It has the special name <init>.
-				descriptor,                    // It is void (§4.3.3).
-				MethodAccessFlags::NONE,
-			)
-			.unwrap();
-
-		MethodInvoker::invoke_with_args(thread, method, args)
 	}
 
 	// Class initialization method

@@ -66,9 +66,10 @@ pub trait IntoJni {
 	/// # Examples
 	///
 	/// ```rust,no_run
-	/// use jvm_runtime::native::jni::IntoJni;
+	/// use jvm::globals::classes;
+	/// use jvm::native::jni::IntoJni;
 	///
-	/// let class = jvm_runtime::globals::classes::java_lang_Object();
+	/// let class = classes::java_lang_Object();
 	/// let class_jni: jni::sys::jclass = class.into_jni();
 	/// ```
 	fn into_jni(self) -> Self::RawJniTy;
@@ -77,9 +78,10 @@ pub trait IntoJni {
 	/// # Examples
 	///
 	/// ```rust,no_run
-	/// use jvm_runtime::native::jni::IntoJni;
+	/// use jvm::globals::classes;
+	/// use jvm::native::jni::IntoJni;
 	///
-	/// let class = jvm_runtime::globals::classes::java_lang_Object();
+	/// let class = classes::java_lang_Object();
 	/// let class_jni_safe: jni::objects::JClass = class.into_jni_safe();
 	/// ```
 	fn into_jni_safe(self) -> Self::SafeJniTy;

@@ -123,7 +123,7 @@ impl ClassPtr {
 	/// * The nest host is invalid
 	///   * Not in the same package as `self`
 	///   * `self` isn't a member of the host
-	pub fn nest_host(self, thread: &'static JavaThread) -> Throws<ClassPtr> {
+	pub fn nest_host(self, _thread: &'static JavaThread) -> Throws<ClassPtr> {
 		if let Some(nest_host) = unsafe { (*self.misc_cache.get()).nest_host } {
 			return Throws::Ok(nest_host);
 		}

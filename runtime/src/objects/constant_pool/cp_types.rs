@@ -570,8 +570,12 @@ pub struct MethodEntry {
 	///
 	/// This is needed for variadic methods, saving the effort of parsing the descriptor on
 	/// every call.
+	///
+	/// This does **not** include the receiver for non-static methods.
 	pub parameter_count: u1,
 	/// The number of stack slots that the parameters take up
+	///
+	/// This does **not** include the receiver for non-static methods.
 	pub parameters_stack_size: u2,
 }
 

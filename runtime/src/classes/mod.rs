@@ -153,6 +153,7 @@ macro_rules! field_constructor {
 				}
 			}
 
+            #[allow(unused_mut)]
 			let mut field_set = 0;
 
             #[allow(unused_variables)]

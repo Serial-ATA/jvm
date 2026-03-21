@@ -1,13 +1,15 @@
-use jni::objects::JObject;
-use jni::sys::{jint, jlong, jobject};
-use jvmti::env::JvmtiEnv;
-use jvmti::error::JvmtiError;
-use jvmti::objects::JThread;
-use jvmti::sys::{
+use std::ffi::c_void;
+
+use native_macros::jvmti_call;
+
+use ::jni::objects::JObject;
+use ::jni::sys::{jint, jobject};
+use ::jvmti::env::JvmtiEnv;
+use ::jvmti::error::JvmtiError;
+use ::jvmti::objects::JThread;
+use ::jvmti::sys::{
 	jthread, jvmtiError, jvmtiMonitorStackDepthInfo, jvmtiStartFunction, jvmtiThreadInfo,
 };
-use native_macros::jvmti_call;
-use std::ffi::{c_uchar, c_void};
 
 #[jvmti_call]
 pub extern "system" fn GetThreadState(
