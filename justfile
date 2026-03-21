@@ -25,8 +25,9 @@ clean:
     rm -r {{ DIST_DIR }} {{ OUT_DIR }} {{ GENERATED_DIR }}
 
 # Run `cargo test`
-test *ARGS:
-    cargo +nightly -Z unstable-options test {{ ARGS }}
+test *ARGS: debug
+    just dist --profile debug
+    JAVA_HOME={{ DIST_DIR }} cargo +nightly -Z unstable-options test {{ ARGS }}
 
 # Run `cargo clippy`
 lint *ARGS:
