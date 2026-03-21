@@ -66,4 +66,4 @@ script name *ARGS: venv
 # Build and run the java binary with the provided arguments
 java +ARGS: debug
     just dist --profile debug
-    {{ DIST_DIR / "bin" / "java" }} -Djava.home={{ DIST_DIR }} {{ ARGS }}
+    JAVA_HOME={{ DIST_DIR }} {{ DIST_DIR / "bin" / "java" }} -Djava.home={{ DIST_DIR }} {{ ARGS }}

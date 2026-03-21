@@ -127,8 +127,7 @@ impl JavaVmBuilder {
 }
 
 fn default_libjvm_path() -> Option<PathBuf> {
-	// let java_home = PathBuf::from(std::env::var("JAVA_HOME").ok()?);
-	let java_home = PathBuf::from("./build/dist");
+	let java_home = PathBuf::from(std::env::var("JAVA_HOME").ok()?);
 	let file_name = format!("{JNI_LIB_PREFIX}jvm{JNI_LIB_SUFFIX}");
 	Some(java_home.join("lib").join("server").join(file_name))
 }
