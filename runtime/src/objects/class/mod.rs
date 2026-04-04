@@ -158,13 +158,7 @@ unsafe impl Sync for Class {}
 
 impl Debug for Class {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		f.debug_struct("Class")
-			.field("name", &self.name().as_str())
-			.field("access_flags", &self.access_flags)
-			.field("loader", &self.loader)
-			.field("super_class", &self.super_class.map(|c| c.name().as_str()))
-			.field("interfaces", &self.interfaces)
-			.finish_non_exhaustive()
+		f.debug_tuple("Class").field(&self.name().as_str()).finish()
 	}
 }
 
