@@ -8,7 +8,7 @@ use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 
 use std::fmt::Display;
-use std::ops::{ControlFlow, FromResidual, Try};
+use std::ops::{ControlFlow, FromResidual, Residual, Try};
 
 use classfile::accessflags::MethodAccessFlags;
 use instructions::Operand;
@@ -247,6 +247,10 @@ impl ExceptionKind {
 pub struct Exception {
 	kind: ExceptionKind,
 	message: Option<String>,
+}
+
+impl<T> Residual<T> for Exception {
+	type TryType = Throws<T>;
 }
 
 impl Exception {

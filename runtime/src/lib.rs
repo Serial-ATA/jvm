@@ -14,6 +14,7 @@
 #![feature(pointer_is_aligned_to)]
 #![feature(custom_inner_attributes)]
 #![feature(proc_macro_hygiene)]
+#![feature(try_trait_v2_residual)]
 
 pub mod calls;
 pub mod classes;
