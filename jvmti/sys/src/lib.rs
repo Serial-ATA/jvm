@@ -1,14 +1,16 @@
 #![feature(extern_types)]
+#![no_std]
 #![allow(non_snake_case, non_camel_case_types)]
 
 #[rustfmt::skip]
 mod version;
 
+use core::ffi::{c_char, c_int, c_uchar, c_uint, c_void};
+
 use jni_sys::{
 	JNIEnv, JNINativeInterface_, JavaVM, jboolean, jchar, jclass, jdouble, jfieldID, jfloat, jint,
 	jlong, jmethodID, jobject, jvalue,
 };
-use std::ffi::{c_char, c_int, c_uchar, c_uint, c_void};
 
 pub const JVMTI_VERSION_1: c_int = 0x30010000;
 pub const JVMTI_VERSION_1_0: c_int = 0x30010000;
