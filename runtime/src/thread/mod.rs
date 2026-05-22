@@ -35,7 +35,7 @@ use jni::env::JniEnv;
 use jni::sys::JNIEnv;
 
 #[thread_local]
-static CURRENT_JAVA_THREAD: SyncUnsafeCell<Option<&'static JavaThread>> = SyncUnsafeCell::new(None);
+static CURRENT_JAVA_THREAD: Cell<Option<&'static JavaThread>> = Cell::new(None);
 
 #[derive(Copy, Clone, Debug)]
 pub enum ControlFlow {
@@ -70,6 +70,7 @@ pub struct JavaThread {
 	pub sealed: AtomicBool,
 }
 
+// TODO: This isn't *actually* safe, but the way it's currently used is
 unsafe impl Sync for JavaThread {}
 unsafe impl Send for JavaThread {}
 
@@ -120,11 +121,7 @@ impl JavaThread {
 
 	/// Get a pointer to the current `JavaThread` for this thread
 	pub fn current_ptr() -> *const JavaThread {
-		let current = CURRENT_JAVA_THREAD.get();
-
-		// SAFETY: The thread is an `Option`, so it's always initialized with *something*
-		let opt = unsafe { &*current };
-		match *opt {
+		match Self::current_opt() {
 			None => std::ptr::null(),
 			Some(thread) => thread,
 		}
@@ -145,11 +142,7 @@ impl JavaThread {
 	///
 	/// This will return `None` if there is no `JavaThread` available.
 	pub fn current_opt() -> Option<&'static JavaThread> {
-		let current = CURRENT_JAVA_THREAD.get();
-
-		// SAFETY: The thread is an `Option`, so it's always initialized with *something*
-		let opt = unsafe { &*current };
-		*opt
+		CURRENT_JAVA_THREAD.get()
 	}
 
 	/// Sets the current Java [`JavaThread`]
@@ -158,33 +151,23 @@ impl JavaThread {
 	///
 	/// This will panic if there is already a current thread set
 	pub unsafe fn set_current_thread(thread: &'static JavaThread) {
-		let current = CURRENT_JAVA_THREAD.get();
-
-		// SAFETY: The thread is an `Option`, so it's always initialized with *something*
-		let opt = unsafe { &*current };
-		assert!(
-			opt.is_none(),
-			"attempting to overwrite an existing JavaThread"
-		);
-
-		unsafe {
-			*current = Some(thread);
-		}
+		CURRENT_JAVA_THREAD.update(|current| {
+			assert!(
+				current.is_none(),
+				"attempting to overwrite an existing JavaThread"
+			);
+			Some(thread)
+		});
 	}
 
 	pub unsafe fn unset_current_thread() {
-		let current = CURRENT_JAVA_THREAD.get();
-
-		// SAFETY: The thread is an `Option`, so it's always initialized with *something*
-		let opt = unsafe { &*current };
-		assert!(
-			opt.is_some(),
-			"JavaThread already unset (how was this called?)"
-		);
-
-		unsafe {
-			*current = None;
-		}
+		CURRENT_JAVA_THREAD.update(|current| {
+			assert!(
+				current.is_some(),
+				"JavaThread already unset (how was this called?)"
+			);
+			None
+		});
 	}
 }
 
