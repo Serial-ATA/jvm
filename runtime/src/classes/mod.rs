@@ -232,6 +232,7 @@ macro_rules! field_constructor {
 		enum FieldNames {}
 
 		impl FieldNames {
+            #[allow(dead_code)]
 			const VARIANTS: [FieldNames; $current_shift] = [];
 
 			fn find_missing(_found: usize) -> [Option<FieldNames>; $current_shift] {
