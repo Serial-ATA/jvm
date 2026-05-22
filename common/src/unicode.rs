@@ -108,11 +108,7 @@ pub fn encode(input: &str) -> Cow<'_, [u8]> {
 			}
 
 			let mut index = 0;
-			loop {
-				let Some(b) = self.input.get(index).copied() else {
-					break;
-				};
-
+			while let Some(b) = self.input.get(index).copied() {
 				match b {
                     // All of the following require no changes:
 

@@ -46,7 +46,7 @@ missing_panics_doc = "allow"
 missing_errors_doc = "allow"
 tabs_in_doc_comments = "allow"
 
-string_to_string = "deny"
+implicit_clone = "deny"
 pedantic = { level = "deny", priority = -1 }
 all = { level = "deny", priority = -1 }
 too_many_lines = "allow"

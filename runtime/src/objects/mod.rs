@@ -6,4 +6,3 @@ pub mod instance;
 pub mod method;
 pub mod monitor;
 pub mod reference;
-pub mod vtable;
