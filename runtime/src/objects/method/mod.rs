@@ -622,16 +622,18 @@ impl Method {
 		for parameter in &self.descriptor.parameters {
 			match parameter {
 				FieldType::Byte | FieldType::Character | FieldType::Short | FieldType::Integer => {
-					parameters.push(Operand::from(unsafe { args.arg::<jint>() }))
+					parameters.push(Operand::from(unsafe { args.next_arg::<jint>() }))
 				},
 
 				FieldType::Boolean => {
-					parameters.push(Operand::from(unsafe { args.arg::<jint>() != 0 }))
+					parameters.push(Operand::from(unsafe { args.next_arg::<jint>() != 0 }))
 				},
 
-				FieldType::Long => parameters.push(Operand::from(unsafe { args.arg::<jlong>() })),
+				FieldType::Long => {
+					parameters.push(Operand::from(unsafe { args.next_arg::<jlong>() }))
+				},
 				FieldType::Double => {
-					parameters.push(Operand::from(unsafe { args.arg::<jdouble>() }))
+					parameters.push(Operand::from(unsafe { args.next_arg::<jdouble>() }))
 				},
 				FieldType::Float => todo!("float parameter"),
 
@@ -640,7 +642,7 @@ impl Method {
 					let obj;
 
 					unsafe {
-						let obj_raw = args.arg::<*mut ()>();
+						let obj_raw = args.next_arg::<*mut ()>();
 						obj = reference_from_jobject(obj_raw as jobject)?;
 					}
 
