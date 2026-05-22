@@ -9,7 +9,6 @@
 #![feature(try_trait_v2)]
 #![feature(associated_type_defaults)]
 #![feature(iter_next_chunk)]
-#![feature(if_let_guard)]
 #![feature(reentrant_lock)]
 #![feature(std_internals)]
 #![feature(pointer_is_aligned_to)]
