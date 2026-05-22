@@ -2,13 +2,14 @@ mod ptr;
 pub use ptr::ClassPtr;
 
 mod spec;
+pub mod vtable;
+
 pub use spec::ClassInitializationState;
 use spec::InitializationLock;
 
 use super::constant_pool::ConstantPool;
 use super::field::Field;
 use super::method::Method;
-use super::vtable::VTable;
 use crate::classpath::loader::ClassLoader;
 use crate::error::RuntimeError;
 use crate::modules::{Module, Package};
@@ -18,6 +19,7 @@ use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
+use vtable::VTable;
 
 use std::cell::{Cell, UnsafeCell};
 use std::fmt::{Debug, Formatter};

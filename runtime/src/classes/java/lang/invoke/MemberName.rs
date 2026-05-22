@@ -72,7 +72,7 @@ pub fn set_method(instance: ClassInstanceRef, value: Reference) {
 ///
 /// **NOTE**: For [`Method`]s, this is an index into the [`VTable`]. For [`Field`]s, this is the [**byte offset**].
 ///
-/// [`VTable`]: crate::objects::vtable::VTable
+/// [`VTable`]: crate::objects::class::vtable::VTable
 /// [`Field`]: crate::objects::field::Field
 /// [**byte offset**]: crate::objects::field::Field::offset
 pub fn vmindex(instance: ClassInstanceRef) -> jlong {

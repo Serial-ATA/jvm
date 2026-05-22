@@ -2,9 +2,9 @@
 
 use super::type_system::VerificationType;
 use crate::classpath::loader::ClassLoader;
+use crate::objects::class::vtable::VTable;
 use crate::objects::class::{Class, ClassPtr};
 use crate::objects::method::Method;
-use crate::objects::vtable::VTable;
 use crate::symbols::{Symbol, sym};
 
 use classfile::MethodDescriptor;

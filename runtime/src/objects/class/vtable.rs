@@ -5,6 +5,12 @@ use std::ops::Index;
 
 use classfile::accessflags::MethodAccessFlags;
 
+/// The vtable for a [`Class`]
+///
+/// This includes *all* methods available in the class, both locally defined
+/// and inherited.
+///
+/// [`Class`]: crate::objects::class::Class
 #[derive(Debug)]
 pub struct VTable<'a> {
 	methods: Box<[&'a Method]>,
@@ -21,7 +27,7 @@ impl<'a> IntoIterator for &VTable<'a> {
 }
 
 impl<'a> VTable<'a> {
-	pub fn new(methods: Vec<&'a Method>, local_methods_end: usize) -> Self {
+	pub(super) fn new(methods: Vec<&'a Method>, local_methods_end: usize) -> Self {
 		Self {
 			methods: methods.into_boxed_slice(),
 			local_methods_end,
