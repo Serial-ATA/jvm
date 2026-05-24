@@ -3,12 +3,15 @@
 //! Vendors can deliver Java-enabled applications without having to link with the Java VM source code.
 
 use crate::initialization::InitializationError;
+use crate::native::jni::reference_from_jobject;
+use crate::thread::exceptions::Throws;
 use crate::thread::{JavaThread, JavaThreadBuilder};
 use crate::{classes, initialization};
 
 use core::ffi::c_void;
 use std::ffi::CStr;
 
+use common::unicode;
 use jni::error::JniError;
 use jni::java_vm::JavaVm;
 use jni::sys::{
@@ -179,20 +182,43 @@ fn attach_current_thread_impl(
 	let mut group = None;
 	if !args.is_null() {
 		let args = unsafe { &*args.cast::<jni::sys::JavaVMAttachArgs>() };
-		name = Some(unsafe { CStr::from_ptr(args.name) });
+
 		let Some(_version) = JniVersion::from_raw(args.version) else {
 			return JNI_EVERSION;
 		};
-		group = Some(args.group);
+
+		if !args.name.is_null() {
+			let Ok(name_utf8) = unicode::decode(unsafe { CStr::from_ptr(args.name) }.to_bytes())
+			else {
+				return JNI_EINVAL;
+			};
+
+			name = Some(name_utf8);
+		}
+
+		if !args.group.is_null() {
+			group = unsafe { reference_from_jobject(args.group) };
+		}
 	}
 
-	if group.is_none() {
-		group = Some(todo!("crate::globals::threads::main_thread_group()"));
+	let Throws::Ok(thread) = JavaThreadBuilder::new().finish(false) else {
+		return JNI_ERR;
+	};
+
+	thread.attach_thread_obj(
+		name.as_deref(),
+		group.unwrap_or_else(|| crate::globals::threads::main_thread_group()),
+		daemon,
+	);
+
+	unsafe {
+		JavaThread::set_current_thread(thread);
+		*penv = thread.env().raw().cast();
 	}
 
-	let thread = JavaThreadBuilder::new().finish();
+	thread.start();
 
-	todo!()
+	JNI_OK
 }
 
 #[allow(trivial_casts)]
