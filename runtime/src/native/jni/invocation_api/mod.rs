@@ -12,8 +12,8 @@ use std::ffi::CStr;
 use jni::error::JniError;
 use jni::java_vm::JavaVm;
 use jni::sys::{
-	JNI_EDETACHED, JNI_EINVAL, JNI_EVERSION, JNI_OK, JNIInvokeInterface_, JNINativeInterface_,
-	JavaVM, jint, jsize,
+	JNI_EDETACHED, JNI_EINVAL, JNI_ERR, JNI_EVERSION, JNI_OK, JNIInvokeInterface_,
+	JNINativeInterface_, JavaVM, jint, jsize,
 };
 use jni::version::JniVersion;
 
@@ -22,7 +22,7 @@ pub mod library;
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn DestroyJavaVM(vm: *mut JavaVM) -> jint {
 	{
-		JavaThread::current().exit(false)
+		JavaThread::current().exit(true)
 	}
 
 	// SAFETY: No active references to the thread exist now
@@ -42,7 +42,19 @@ pub unsafe extern "system" fn AttachCurrentThread(
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn DetachCurrentThread(vm: *mut JavaVM) -> jint {
-	unimplemented!("jni::DetachCurrentThread")
+    {
+        let thread = JavaThread::current();
+        if !thread.frame_stack().is_empty() {
+            return JNI_ERR;
+        }
+
+        thread.exit(false);
+    }
+
+	// SAFETY: No active references to the thread exist now
+	unsafe { JavaThread::unset_current_thread() };
+
+	JNI_OK
 }
 
 #[unsafe(no_mangle)]

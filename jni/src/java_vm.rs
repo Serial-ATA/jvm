@@ -195,8 +195,25 @@ impl JavaVm {
 		todo!("AttachCurrentThread")
 	}
 
+	/// Detaches the current thread from a [`JavaVM`].
+	///
+	/// All Java monitors held by this thread are released.
+	///
+	/// All Java threads waiting for this thread to die are notified.
+	///
+	/// The main thread can be detached from the VM.
 	pub fn detach_current_thread(&self) -> Result<()> {
-		todo!("DetachCurrentThread")
+		let ret;
+		unsafe {
+			let invoke_interface = self.as_invoke_interface();
+			ret = ((*invoke_interface).DetachCurrentThread)(self.inner.get());
+		}
+
+		if let Some(err) = JniError::from_jint(ret) {
+			return Err(err);
+		}
+
+		Ok(())
 	}
 
 	/// Get the [`JniEnv`] for the current thread

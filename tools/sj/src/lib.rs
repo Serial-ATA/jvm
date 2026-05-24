@@ -6,6 +6,7 @@ use crate::cli::{HelpFlag, VersionFlag};
 use crate::error::{Error, Result};
 
 use jni::error::JniError;
+use jni::java_vm::JavaVm;
 
 const USAGE: &str = r"java [OPTIONS] <MAIN_CLASS> [ARGS]...
    or  java [OPTIONS] -jar <JARFILE> [ARGS]...
@@ -57,15 +58,25 @@ pub fn launch() -> Result<i32> {
 }
 
 fn main(args: cli::Args) -> Result<i32> {
+	fn exit(vm: JavaVm) -> Result<i32> {
+		// Detaching the main thread also prints the uncaught exception message if there
+		// is one.
+		if vm.detach_current_thread().is_err() {
+			eprintln!("Error: Could not detach main thread.");
+			return Ok(1);
+		}
+		vm.destroy()?;
+		Ok(0)
+	}
 	macro_rules! handle_error {
-		(($vm:expr, $env:expr) $e:expr) => {
+		(($vm:expr) $e:expr) => {
 			match $e {
 				Err(Error::Jni(JniError::ExceptionThrown)) => {
-					$env.exception_describe();
-					// TODO: Detach thread
-					$vm.destroy()?;
+					let _ = exit($vm)?;
 					return Ok(1);
 				},
+				// TODO: Pretty messages?
+				// Some other JNI error
 				Err(e) => return Err(e),
 				Ok(val) => val,
 			}
@@ -97,19 +108,19 @@ fn main(args: cli::Args) -> Result<i32> {
 			},
 		}
 
-		handle_error!((vm, env) native::print_version(env, use_stderr));
+		handle_error!((vm) native::print_version(env, use_stderr));
 		if exit {
 			return Ok(0);
 		}
 	}
 
 	// Load the main class
-	let launcher_helper = handle_error!((vm, env) native::LauncherHelper::new(env));
+	let launcher_helper = handle_error!((vm) native::LauncherHelper::new(env));
 
 	let launch_target = args.launch_target.as_ref().expect("launch_target");
 	let launch_mode = launch_target.mode();
 
-	let main_class = handle_error!((vm, env) launcher_helper.check_and_load_main(
+	let main_class = handle_error!((vm) launcher_helper.check_and_load_main(
 		env,
 		true,
 		launch_mode,
@@ -120,5 +131,6 @@ fn main(args: cli::Args) -> Result<i32> {
 		return Ok(0);
 	}
 
-	handle_error!((vm, env) native::invoke_main_method(env, main_class, args.args).map(Ok))
+	handle_error!((vm) native::invoke_main_method(env, main_class, args.args));
+	exit(vm)
 }

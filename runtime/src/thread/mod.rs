@@ -667,13 +667,20 @@ impl JavaThread {
 		unsafe { *self.control_flow.get() = control_flow }
 	}
 
-	pub fn exit(&'static self, exception_check: bool) {
+	pub fn exit(&'static self, destroy_vm: bool) {
+		if destroy_vm {
+			// Nothing special to do in the case of VM destruction for now
+			return;
+		}
+
 		let obj = self.obj().expect("thread object should exist");
 
-		if exception_check && self.has_pending_exception() {
-			let exception = self.take_pending_exception().unwrap();
+		if let Some(exception) = self.take_pending_exception() {
 			let dispatch_uncaught_exception_method = globals::classes::java_lang_Thread()
-				.resolve_method(sym!(dispatchUncaughtException), sym!(void_method_signature))
+				.resolve_method(
+					sym!(dispatchUncaughtException),
+					sym!(Throwable_void_signature),
+				)
 				.expect("dispatchUncaughtException method should exist");
 
 			java_call!(
