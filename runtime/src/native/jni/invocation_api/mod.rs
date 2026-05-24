@@ -24,6 +24,22 @@ pub mod library;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn DestroyJavaVM(vm: *mut JavaVM) -> jint {
+	// The `main` thread should already be detached at this point, so we have to attach a new thread
+	// solely for destroying the VM
+	let mut args = jni::sys::JavaVMAttachArgs {
+		version: JniVersion::LATEST as jint,
+		// Safe cast, we only ever read it
+		name: c"DestroyJavaVM".as_ptr().cast_mut(),
+		group: std::ptr::null_mut(),
+	};
+
+	let mut env = std::ptr::null_mut();
+	let ret = attach_current_thread_impl(vm, &raw mut env, (&raw mut args).cast(), false);
+	if ret != JNI_OK {
+		return ret;
+	}
+
+	// TODO: Also need to cleanup daemon threads when supported
 	{
 		JavaThread::current().exit(true)
 	}
