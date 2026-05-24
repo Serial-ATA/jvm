@@ -56,15 +56,22 @@ native: native-debug
 dist *ARGS:
     PYTHONPATH={{ PROJECT_ROOT }} python3 {{ BUILD_DIR }}/entry.py {{ ARGS }}
 
-venv:
+_venv:
     python -m venv {{ PYTHON_VENV }}
     {{ PYTHON_VENV }}/bin/python -m pip install --upgrade pip
     {{ PYTHON_VENV }}/bin/python -m pip install -r {{ PROJECT_ROOT }}/scripts/requirements.txt
 
-script name *ARGS: venv
+script name *ARGS: _venv
     {{ PYTHON_VENV }}/bin/python {{ PROJECT_ROOT }}/scripts/{{ name }}.py {{ ARGS }}
 
 # Build and run the java binary with the provided arguments
-java +ARGS: debug
-    just dist --profile debug
+java +ARGS: release
+    just _do_java release {{ ARGS }}
+
+# Build and run the java binary in debug mode with the provided arguments
+java-debug +ARGS: debug
+    just _do_java debug {{ ARGS }}
+
+_do_java PROFILE +ARGS:
+    just dist --profile {{ PROFILE }}
     JAVA_HOME={{ DIST_DIR }} {{ DIST_DIR / "bin" / "java" }} -Djava.home={{ DIST_DIR }} {{ ARGS }}
