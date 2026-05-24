@@ -1,30 +1,39 @@
 use crate::objects::reference::Reference;
 
-use std::cell::SyncUnsafeCell;
-use std::mem::MaybeUninit;
+use std::sync::OnceLock;
 
-static THREAD_GROUP: SyncUnsafeCell<MaybeUninit<Reference>> =
-	SyncUnsafeCell::new(MaybeUninit::uninit());
+static SYSTEM_THREAD_GROUP: OnceLock<Reference> = OnceLock::new();
+static MAIN_THREAD_GROUP: OnceLock<Reference> = OnceLock::new();
+
+/// Set the system thread group
+///
+/// # Panics
+///
+/// Panics if called more than once
+pub fn set_system_thread_group(reference: Reference) {
+	SYSTEM_THREAD_GROUP
+		.set(reference)
+		.expect("attempted to set system thread group more than once")
+}
 
 /// Get the main thread group
 ///
-/// # Safety
+/// # Panics
 ///
-/// This assumes that `set_thread_group` has been called prior. Otherwise, the reference will
-/// point to uninitialized memory.
-pub unsafe fn main_thread_group() -> Reference {
-	unsafe { (*THREAD_GROUP.get()).assume_init() }
+/// Panics if [`set_main_thread_group()`] hasn't been called prior.
+pub fn main_thread_group() -> Reference {
+	*MAIN_THREAD_GROUP
+		.get()
+		.expect("main thread group not initialized")
 }
 
 /// Set the main thread group
 ///
-/// **THIS MUST ONLY BE CALLED ONCE**
+/// # Panics
 ///
-/// # Safety
-///
-/// All responsibility is placed on the caller to ensure this is called once.
-pub unsafe fn set_main_thread_group(reference: Reference) {
-	unsafe {
-		THREAD_GROUP.get().write(MaybeUninit::new(reference));
-	}
+/// Panics if called more than once
+pub fn set_main_thread_group(reference: Reference) {
+	MAIN_THREAD_GROUP
+		.set(reference)
+		.expect("attempted to set main thread group more than once")
 }

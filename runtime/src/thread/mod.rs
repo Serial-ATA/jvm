@@ -198,13 +198,20 @@ impl JavaThread {
 		thread_group: Reference,
 		daemon: bool,
 	) {
-		assert!(self.obj().is_none());
-
 		let thread_class = crate::globals::classes::java_lang_Thread();
-		let thread_instance = ClassInstance::new(thread_class);
+		let thread_instance = Reference::class(ClassInstance::new(thread_class));
+
+		// Set the obj early, since the java.lang.Thread constructor calls Thread#current.
+		self.set_obj(thread_instance);
+		let obj = self.obj().unwrap();
+
+		classes::java::lang::Thread::set_eetop(
+			obj.extract_class(),
+			JavaThread::current_ptr() as jni::sys::jlong,
+		);
 
 		if let Some(name) = name {
-			let string_object = StringInterner::intern(name);
+			let name_obj = StringInterner::intern(name);
 			let init_method = thread_class
 				.vtable()
 				.find(
@@ -217,8 +224,9 @@ impl JavaThread {
 			java_call!(
 				self,
 				init_method,
+				Operand::Reference(thread_instance),
 				Operand::Reference(thread_group),
-				Operand::Reference(Reference::class(string_object)),
+				Operand::Reference(Reference::class(name_obj)),
 			);
 		} else {
 			let init_method = thread_class
@@ -233,6 +241,7 @@ impl JavaThread {
 			java_call!(
 				self,
 				init_method,
+				Operand::Reference(thread_instance),
 				Operand::Reference(thread_group),
 				Operand::Reference(Reference::null())
 			);
@@ -241,41 +250,6 @@ impl JavaThread {
 		if daemon {
 			unimplemented!("jni::AttachCurrentThreadAsDaemon");
 		}
-
-		self.set_obj(Reference::class(thread_instance));
-	}
-
-	pub fn init_obj(&'static self, thread_group: Reference) {
-		let thread_class = crate::globals::classes::java_lang_Thread();
-		let thread_instance = ClassInstance::new(thread_class);
-
-		// Set the obj early, since the java.lang.Thread constructor calls Thread#current.
-		self.set_obj(Reference::class(ClassInstanceRef::clone(&thread_instance)));
-		let obj = self.obj().unwrap();
-
-		classes::java::lang::Thread::set_eetop(
-			obj.extract_class(),
-			JavaThread::current_ptr() as jni::sys::jlong,
-		);
-
-		let init_method = thread_class
-			.vtable()
-			.find(
-				sym!(object_initializer_name),
-				sym!(ThreadGroup_String_void_signature),
-				MethodAccessFlags::NONE,
-			)
-			.expect("method should exist");
-
-		let thread_name = StringInterner::intern("main");
-
-		java_call!(
-			self,
-			init_method,
-			Operand::Reference(Reference::class(ClassInstanceRef::clone(&thread_instance))),
-			Operand::Reference(thread_group),
-			Operand::Reference(Reference::class(thread_name)),
-		);
 
 		let holder = classes::java::lang::Thread::holder(obj.extract_class());
 		classes::java::lang::Thread::holder::set_threadStatus(

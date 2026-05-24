@@ -323,9 +323,10 @@ fn initialize_global_classes(thread: &'static JavaThread) -> Throws<()> {
 
 fn create_thread_object(thread: &'static JavaThread) -> bool {
 	let thread_group_class = crate::globals::classes::java_lang_ThreadGroup();
-	let system_thread_group_instance = Reference::class(ClassInstance::new(thread_group_class));
 
-	let init_method = thread_group_class
+	// Top-level system group
+	let system_thread_group_instance = Reference::class(ClassInstance::new(thread_group_class));
+	let system_init_method = thread_group_class
 		.vtable()
 		.find(
 			sym!(object_initializer_name),
@@ -333,23 +334,39 @@ fn create_thread_object(thread: &'static JavaThread) -> bool {
 			MethodAccessFlags::NONE,
 		)
 		.expect("java.lang.ThreadGroup should have an initializer");
+	java_call!(
+		thread,
+		system_init_method,
+		Operand::Reference(system_thread_group_instance)
+	);
 
+	// `main` group
+	let main_thread_group_instance = Reference::class(ClassInstance::new(thread_group_class));
+	let init_method = thread_group_class
+		.vtable()
+		.find(
+			sym!(object_initializer_name),
+			sym!(ThreadGroup_String_void_signature),
+			MethodAccessFlags::NONE,
+		)
+		.expect("java.lang.ThreadGroup should have an initializer");
 	let name = StringInterner::intern("main");
 	java_call!(
 		thread,
 		init_method,
-		Operand::Reference(system_thread_group_instance)
+		Operand::Reference(main_thread_group_instance),
+		Operand::Reference(system_thread_group_instance),
+		Operand::Reference(Reference::class(name)),
 	);
 
 	if thread.has_pending_exception() {
 		return false;
 	}
 
-	unsafe {
-		crate::globals::threads::set_main_thread_group(system_thread_group_instance);
-	}
+	crate::globals::threads::set_system_thread_group(system_thread_group_instance);
+	crate::globals::threads::set_main_thread_group(main_thread_group_instance);
 
-	thread.init_obj(system_thread_group_instance);
+	thread.attach_thread_obj(Some("main"), main_thread_group_instance, false);
 	true
 }
 
