@@ -1,2 +1,2 @@
 clang==21.1.7
-requests==2.32.5
+requests==2.34.2
