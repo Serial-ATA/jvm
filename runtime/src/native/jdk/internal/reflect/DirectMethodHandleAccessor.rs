@@ -4,14 +4,14 @@ use crate::objects::instance::array::{Array, ObjectArrayInstanceRef};
 use crate::objects::instance::mirror::MirrorInstanceRef;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
-use crate::stack::local_stack::LocalStack;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{handle_exception, throw_and_return_null};
 use crate::{classes, java_call};
 
 use classfile::FieldType;
-use instructions::Operand;
+use instructions::StackLike;
 use jni::env::JniEnv;
+use jni::sys::jint;
 
 pub mod NativeAccessor {
 	include_generated!("native/jdk/internal/reflect/def/DirectMethodHandleAccessor.definitions.rs");
@@ -75,31 +75,35 @@ pub(super) fn do_invoke(
 		);
 	}
 
-	// + 1 to account for the `this` argument
-	let mut call_args = LocalStack::new(expected_arg_count + 1);
-	call_args[0] = Operand::Reference(receiver);
+	let stack = thread.stack();
+	if !target_method.is_static() {
+		stack.push_reference(receiver);
+	}
 
-	for (index, (arg, parameter_mirror)) in args
-		.as_slice()
-		.iter()
-		.zip(parameter_types.as_slice())
-		.enumerate()
-	{
+	for (arg, parameter_mirror) in args.as_slice().iter().zip(parameter_types.as_slice()) {
 		let parameter_mirror: MirrorInstanceRef = parameter_mirror.extract_mirror();
 
 		if parameter_mirror.is_primitive() {
 			let instance = arg.extract_class();
-			let value = match parameter_mirror.primitive_target() {
-				FieldType::Byte => Operand::from(classes::java::lang::Byte::value(instance)),
-				FieldType::Character => {
-					Operand::from(classes::java::lang::Character::value(instance))
+			match parameter_mirror.primitive_target() {
+				FieldType::Byte => {
+					stack.push_int(classes::java::lang::Byte::value(instance) as jint)
 				},
-				FieldType::Double => Operand::from(classes::java::lang::Double::value(instance)),
-				FieldType::Float => Operand::from(classes::java::lang::Float::value(instance)),
-				FieldType::Integer => Operand::from(classes::java::lang::Integer::value(instance)),
-				FieldType::Long => Operand::from(classes::java::lang::Long::value(instance)),
-				FieldType::Short => Operand::from(classes::java::lang::Short::value(instance)),
-				FieldType::Boolean => Operand::from(classes::java::lang::Boolean::value(instance)),
+				FieldType::Character => {
+					stack.push_int(classes::java::lang::Character::value(instance) as jint);
+				},
+				FieldType::Double => {
+					stack.push_double(classes::java::lang::Double::value(instance))
+				},
+				FieldType::Float => stack.push_float(classes::java::lang::Float::value(instance)),
+				FieldType::Integer => stack.push_int(classes::java::lang::Integer::value(instance)),
+				FieldType::Long => stack.push_long(classes::java::lang::Long::value(instance)),
+				FieldType::Short => {
+					stack.push_int(classes::java::lang::Short::value(instance) as jint)
+				},
+				FieldType::Boolean => {
+					stack.push_int(classes::java::lang::Boolean::value(instance) as jint)
+				},
 				_ => throw_and_return_null!(
 					thread,
 					IllegalArgumentException,
@@ -107,7 +111,6 @@ pub(super) fn do_invoke(
 				),
 			};
 
-			call_args[index + 1] = value;
 			continue;
 		}
 
@@ -116,10 +119,10 @@ pub(super) fn do_invoke(
 			throw_and_return_null!(thread, IllegalArgumentException, "argument type mismatch")
 		}
 
-		call_args[index + 1] = Operand::Reference(*arg);
+		stack.push_reference(*arg);
 	}
 
-	let ret = java_call!(@WITH_ARGS_LIST thread, target_method, call_args);
+	let ret = java_call!(thread, target_method);
 	if thread.has_pending_exception() {
 		return Reference::null();
 	}

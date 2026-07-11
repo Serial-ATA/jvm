@@ -3,7 +3,7 @@
 use crate::classes;
 use crate::classes::java::lang::Thread::ThreadStatus;
 use crate::native::jni::{IntoJni, reference_from_jobject};
-use crate::thread::exceptions::throw;
+use crate::thread::exceptions::{Throws, throw};
 use crate::thread::pool::ThreadPool;
 use crate::thread::{JavaThread, JavaThreadBuilder};
 
@@ -30,23 +30,24 @@ pub extern "C" fn JVM_StartThread(_env: JniEnv, this: JObject) {
 	let holder = classes::java::lang::Thread::holder(this.extract_class());
 	let stack_size_raw = classes::java::lang::Thread::holder::stackSize(holder.extract_class());
 
-	let mut thread_builder = JavaThreadBuilder::new()
-		.obj(this)
-		.entry_point(JavaThread::default_entry_point);
+	let mut thread_builder = JavaThreadBuilder::new().obj(this);
 
 	if stack_size_raw > 0 {
 		let stack_size = cmp::min(stack_size_raw as usize, u32::MAX as usize);
 		thread_builder = thread_builder.stack_size(stack_size);
 	}
 
-	let thread = thread_builder.finish();
-
-	let obj = thread.obj().expect("current thread object should exist");
-	let holder = classes::java::lang::Thread::holder(obj.extract_class());
-	classes::java::lang::Thread::holder::set_threadStatus(
-		holder.extract_class(),
-		ThreadStatus::Runnable,
-	);
+	match thread_builder.finish(true) {
+		Throws::Ok(thread) => {
+			let obj = thread.obj().expect("current thread object should exist");
+			let holder = classes::java::lang::Thread::holder(obj.extract_class());
+			classes::java::lang::Thread::holder::set_threadStatus(
+				holder.extract_class(),
+				ThreadStatus::Runnable,
+			);
+		},
+		Throws::Exception(e) => e.throw(JavaThread::current()),
+	}
 }
 
 #[jni_call]

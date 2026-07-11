@@ -1,7 +1,6 @@
 #![allow(unused_imports)] // Intellij-Rust doesn't like this file much, the imports used in macros are not recognized
 
 use crate::dynamic::var_handle;
-use crate::method_invoker::MethodInvoker;
 use crate::native::java::lang::String::StringInterner;
 use crate::native::java::lang::invoke::MethodHandle;
 use crate::objects::class::{Class, ClassInitializationState};
@@ -77,20 +76,18 @@ macro_rules! define_instructions {
 macro_rules! push_const {
 	($frame:ident, $opcode:ident, $value:literal, $const_value:ident) => {{
 		paste::paste! {
-			{ $frame.stack_mut().push_op(Operand::$const_value($value)); }
+			{ $frame.push_op(Operand::$const_value($value)); }
 		};
 	}};
 }
 
 macro_rules! local_variable_load {
 	($frame:ident, $opcode:ident, $ty:ident) => {{
-		let index = $frame.read_byte() as usize;
+		let index = $frame.read_byte();
 		local_variable_load!($frame, $opcode, $ty, index)
 	}};
 	($frame:ident, $opcode:ident, $ty:ident, $index:expr) => {{
-		let local_stack = $frame.local_stack();
-
-		let local_variable = &local_stack[$index];
+		let local_variable = $frame.local($index);
 		paste::paste! {
 			assert!(
 				local_variable.[<is_ $ty:lower>](),
@@ -101,19 +98,17 @@ macro_rules! local_variable_load {
 			);
 		}
 
-		let local_variable = local_variable.clone();
 		paste::paste! {
-			{ $frame.stack_mut().push_op(local_variable); }
+			{ $frame.push_op(local_variable); }
 		}
 	}};
 }
 
 macro_rules! load_from_array {
 	($frame:ident, $opcode:ident) => {{
-		let stack = $frame.stack_mut();
-		let index = stack.pop_int();
+		let index = $frame.pop_int();
 
-		let object_ref = stack.pop_reference();
+		let object_ref = $frame.pop_reference();
 		let array_ref = object_ref.extract_primitive_array();
 
 		// TODO: Validate the type, right now the output is just trusted
@@ -128,18 +123,17 @@ macro_rules! load_from_array {
 			},
 		}
 
-		stack.push_op(op);
+		$frame.push_op(op);
 	}};
 }
 
 macro_rules! local_variable_store {
 	($frame:ident, $opcode:ident, $ty:ident) => {{
-		let index = $frame.read_byte() as usize;
+		let index = $frame.read_byte();
 		local_variable_store!($frame, $opcode, $ty, index)
 	}};
 	($frame:ident, $opcode:ident, $ty:ident, $index:expr) => {{
-		let stack = $frame.stack_mut();
-		let value = stack.pop();
+		let value = $frame.pop();
 		paste::paste! {
 			assert!(
 				value.[<is_ $ty:lower>](),
@@ -149,18 +143,16 @@ macro_rules! local_variable_store {
 			);
 		}
 
-		let local_stack = $frame.local_stack_mut();
-		local_stack[$index] = value;
+		$frame.set_local($index, value);
 	}};
 }
 
 macro_rules! store_into_array {
 	($frame:ident, $opcode:ident) => {{
-		let stack = $frame.stack_mut();
-		let value = stack.pop();
-		let index = stack.pop_int();
+		let value = $frame.pop();
+		let index = $frame.pop_int();
 
-		let object_ref = stack.pop_reference();
+		let object_ref = $frame.pop_reference();
 		let array_ref = object_ref.extract_primitive_array();
 
 		if let Throws::Exception(e) = array_ref.store(index, value) {
@@ -171,7 +163,7 @@ macro_rules! store_into_array {
 
 macro_rules! stack_operations {
 	($frame:ident, $opcode:ident) => {{
-		$frame.stack_mut().$opcode();
+		$frame.$opcode();
 	}};
 }
 
@@ -179,12 +171,11 @@ macro_rules! arithmetic {
 	($frame:ident, $opcode:ident, $instruction:ident) => {{
 		paste::paste! {
 			{
-				let stack = $frame.stack_mut();
-				let rhs = stack.pop();
-				let mut val = stack.pop();
+				let rhs = $frame.pop();
+				let mut val = $frame.pop();
 
 				val.$instruction(rhs);
-				stack.push_op(val);
+				$frame.push_op(val);
 			}
 		}
 	}};
@@ -192,19 +183,17 @@ macro_rules! arithmetic {
 
 macro_rules! conversions {
 	($frame:ident, $instruction:ident) => {{
-		let stack = $frame.stack_mut();
-		let mut val = stack.pop();
+		let mut val = $frame.pop();
 
 		val.$instruction();
-		stack.push_op(val);
+		$frame.push_op(val);
 	}};
 }
 
 macro_rules! comparisons {
     ($frame:ident, $instruction:ident, $operator:tt) => {{
-        let stack = $frame.stack_mut();
-        let rhs = stack.pop_int();
-        let lhs = stack.pop_int();
+        let rhs = $frame.pop_int();
+        let lhs = $frame.pop_int();
 
         let branch = $frame.read_byte2_signed() as isize;
         if lhs $operator rhs {
@@ -213,8 +202,7 @@ macro_rules! comparisons {
         }
     }};
     ($frame:ident, $instruction:ident, $operator:tt, $rhs:literal) => {{
-        let stack = $frame.stack_mut();
-        let lhs = stack.pop_int();
+        let lhs = $frame.pop_int();
 
         let branch = $frame.read_byte2_signed() as isize;
         if lhs $operator $rhs {
@@ -223,10 +211,9 @@ macro_rules! comparisons {
         }
     }};
     ($frame:ident, $instruction:ident, $operator:tt, $ty:ident) => {{
-        let stack = $frame.stack_mut();
         paste::paste! {
-            let rhs = stack.[<pop_ $ty>]();
-            let lhs = stack.[<pop_ $ty>]();
+            let rhs = $frame.[<pop_ $ty>]();
+            let lhs = $frame.[<pop_ $ty>]();
         }
 
         let branch = $frame.read_byte2_signed() as isize;
@@ -240,17 +227,11 @@ macro_rules! comparisons {
 macro_rules! control_return {
 	($frame:ident, $instruction:ident) => {{
 		let thread = $frame.thread();
-		if !$frame.in_tail_call() {
-			thread.drop_to_previous_frame(None);
-			return;
-		}
-
-		thread.set_control_flow(ControlFlow::Break);
+		thread.drop_to_previous_frame(None, true);
 		return;
 	}};
 	($frame:ident, $instruction:ident, $return_ty:ident) => {{
-		let stack = $frame.stack_mut();
-		let value = stack.pop();
+		let value = $frame.pop();
 
 		paste::paste! {
 			assert!(
@@ -262,12 +243,7 @@ macro_rules! control_return {
 		}
 
 		let thread = $frame.thread();
-		if !$frame.in_tail_call() {
-			thread.drop_to_previous_frame(Some(value));
-			return;
-		}
-
-		thread.set_control_flow(ControlFlow::Break);
+		thread.drop_to_previous_frame(Some(value), true);
 		return;
 	}};
 }
@@ -296,10 +272,10 @@ impl Interpreter {
                 CATEGORY: constants
                 OpCode::nop => {},
                 OpCode::aconst_null => {
-                    frame.stack_mut().push_reference(Reference::null());
+                    frame.push_reference(Reference::null());
                 },
                 OpCode::iconst_m1 => {
-                    frame.stack_mut().push_int(-1);
+                    frame.push_int(-1);
                 },
                 @GROUP {
                     [
@@ -323,11 +299,11 @@ impl Interpreter {
                 } => push_const,
                 OpCode::bipush => {
                     let byte = frame.read_byte_signed();
-                    frame.stack_mut().push_op(Operand::Int(s4::from(byte)));
+                    frame.push_op(Operand::Int(s4::from(byte)));
                 },
                 OpCode::sipush => {
                     let short = frame.read_byte2_signed();
-                    frame.stack_mut().push_op(Operand::Int(s4::from(short)));
+                    frame.push_op(Operand::Int(s4::from(short)));
                 },
                 OpCode::ldc => {
                     Interpreter::ldc(frame, false);
@@ -375,10 +351,9 @@ impl Interpreter {
                     ]
                 } => local_variable_load,
                 OpCode::aaload => {
-                    let stack = frame.stack_mut();
-                    let index = stack.pop_int();
+                    let index = frame.pop_int();
             
-                    let object_ref = stack.pop_reference();
+                    let object_ref = frame.pop_reference();
                     let array_ref = object_ref.extract_object_array();
         
                     let op = match array_ref.array_get(index) {
@@ -388,7 +363,7 @@ impl Interpreter {
                             return;
                         }
                     };
-                    stack.push_reference(op);
+                    frame.push_reference(op);
                 },
                 @GROUP {
                     [
@@ -438,11 +413,10 @@ impl Interpreter {
                     ]
                 } => local_variable_store,
                 OpCode::aastore => {
-                    let stack = frame.stack_mut();
-                    let value = stack.pop_reference();
-                    let index = stack.pop_int();
+                    let value = frame.pop_reference();
+                    let index = frame.pop_int();
             
-                    let object_ref = stack.pop_reference();
+                    let object_ref = frame.pop_reference();
                     let array_ref = object_ref.extract_object_array();
             
                     if let Throws::Exception(e) = array_ref.store(index, value) {
@@ -522,16 +496,19 @@ impl Interpreter {
                 | OpCode::lneg
                 | OpCode::fneg
                 | OpCode::dneg => {
-                    let mut val = frame.stack_mut().pop();
+                    let mut val = frame.pop();
                     
                     val.neg();
-                    frame.stack_mut().push_op(val);
+                    frame.push_op(val);
                 },
                 OpCode::iinc => {
                     let index = frame.read_byte();
                     let const_ = frame.read_byte_signed();
 
-                    frame.local_stack_mut()[index as usize].add(Operand::Int(s4::from(const_)));
+                    let mut op = frame.local(index);
+                    op.add(Operand::Int(s4::from(const_)));
+
+                    frame.set_local(index, op);
                 };
                 
                 // ========= Conversions =========
@@ -563,14 +540,13 @@ impl Interpreter {
                 // ========= Comparisons =========
                 CATEGORY: comparisons
                 OpCode::lcmp => {
-                    let stack = frame.stack_mut();
-                    let value2 = stack.pop_long();
-                    let value1 = stack.pop_long();
+                    let value2 = frame.pop_long();
+                    let value1 = frame.pop_long();
                     
                     match value1.cmp(&value2) {
-                        Ordering::Greater => stack.push_int(1),
-                        Ordering::Equal => stack.push_int(0),
-                        Ordering::Less => stack.push_int(-1)
+                        Ordering::Greater => frame.push_int(1),
+                        Ordering::Equal => frame.push_int(0),
+                        Ordering::Less => frame.push_int(-1)
                     }
                 },
                 OpCode::fcmpl => {
@@ -610,13 +586,13 @@ impl Interpreter {
                     let Some(field) = Self::fetch_field(frame, true) else {
                         return;
                     };
-                    frame.stack_mut().push_op(field.get_static_value());
+                    frame.push_op(field.get_static_value());
                 },
                 OpCode::putstatic => {
                     let Some(field) = Self::fetch_field(frame, true) else {
                         return;
                     };
-                    let value = frame.stack_mut().pop();
+                    let value = frame.pop();
 
                     field.set_static_value(value);
                 },
@@ -629,12 +605,10 @@ impl Interpreter {
                         return;
                     }
 
-                    let stack = frame.stack_mut();
-
-                    let object_ref = stack.pop_reference();
+                    let object_ref = frame.pop_reference();
 
                     let field_value = object_ref.get_field_value(field);
-                    stack.push_op(field_value);
+                    frame.push_op(field_value);
                 },
                 OpCode::putfield => {
                     let Some(field) = Self::fetch_field(frame, false) else {
@@ -649,10 +623,8 @@ impl Interpreter {
                     //       and the instruction must occur in an instance initialization method of the current class.
                     //       Otherwise, an IllegalAccessError is thrown.
 
-                    let stack = frame.stack_mut();
-
-                    let value = stack.pop();
-                    let object_ref = stack.pop_reference();
+                    let value = frame.pop();
+                    let object_ref = frame.pop_reference();
 
                     object_ref.put_field_value(field, value);
                 },
@@ -669,7 +641,7 @@ impl Interpreter {
                         return;
                     };
 
-                    MethodInvoker::invoke(frame, entry.method);
+                    frame.thread().invoke_method(entry.method);
                     retain_depth = true;
                 },
                 OpCode::invokestatic => {
@@ -688,19 +660,18 @@ impl Interpreter {
                     // The value of the fourth operand byte must always be zero.
                     assert_eq!(frame.read_byte(), 0);
 
-                    MethodInvoker::invoke_interface(frame, entry.method);
+                    Self::resolve_and_invoke_method(frame, entry);
                     retain_depth = true;
                 },
                 OpCode::new => {
                     if let Some(new_class_instance) = Self::new(frame) {
-                        frame.stack_mut().push_reference(Reference::class(new_class_instance));
+                        frame.push_reference(Reference::class(new_class_instance));
                     }
                 },
                 OpCode::newarray => {
                     let type_code = frame.read_byte();
 
-                    let stack = frame.stack_mut();
-                    let count = stack.pop_int();
+                    let count = frame.pop_int();
                     
                     let array_ref;
                     match PrimitiveArrayInstance::new_from_type(type_code, count) {
@@ -710,7 +681,7 @@ impl Interpreter {
                             return;
                         }
                     }
-                    stack.push_reference(Reference::array(array_ref));
+                    frame.push_reference(Reference::array(array_ref));
                 },
                 OpCode::anewarray => {
                     let index = frame.read_byte2();
@@ -725,8 +696,7 @@ impl Interpreter {
                         }
                     }
 
-                    let stack = frame.stack_mut();
-                    let count = stack.pop_int();
+                    let count = frame.pop_int();
         
                     let array_ref;
                     match ObjectArrayInstance::new(count, array_class) {
@@ -736,11 +706,10 @@ impl Interpreter {
                             return;
                         }
                     }
-                    stack.push_reference(Reference::object_array(array_ref));
+                    frame.push_reference(Reference::object_array(array_ref));
                 },
                 OpCode::arraylength => {
-                    let stack = frame.stack_mut();
-                    let object_ref = stack.pop_reference();
+                    let object_ref = frame.pop_reference();
                     let array_len = match object_ref.array_length() {
                         Throws::Ok(len) => len,
                         Throws::Exception(e) => {
@@ -748,10 +717,10 @@ impl Interpreter {
                             return;
                         }
                     };
-                    stack.push_int(array_len as s4);
+                    frame.push_int(array_len as s4);
                 },
                 OpCode::athrow => {
-                    let object_ref = frame.stack_mut().pop_reference();
+                    let object_ref = frame.pop_reference();
                     let thread = frame.thread();
                     if object_ref.is_null() {
                         Exception::new(ExceptionKind::NullPointerException).throw(thread);
@@ -765,11 +734,11 @@ impl Interpreter {
                 OpCode::instanceof => { Self::instanceof_checkcast(frame, opcode) },
                 OpCode::checkcast => { Self::instanceof_checkcast(frame, opcode) },
                 OpCode::monitorenter => {
-                    let object_ref = frame.stack_mut().pop_reference();
+                    let object_ref = frame.pop_reference();
                     object_ref.monitor_enter(frame.thread())
                 },
                 OpCode::monitorexit => {
-                    let object_ref = frame.stack_mut().pop_reference();
+                    let object_ref = frame.pop_reference();
                     object_ref.monitor_exit(frame.thread())
                 };
 
@@ -809,7 +778,7 @@ impl Interpreter {
                     Self::multianewarray(frame);
                 },
                 OpCode::ifnull => {
-                    let reference = frame.stack_mut().pop_reference();
+                    let reference = frame.pop_reference();
 
                     let branch = frame.read_byte2_signed() as isize;
                     if reference.is_null() {
@@ -818,7 +787,7 @@ impl Interpreter {
                     }
                 },
                 OpCode::ifnonnull => {
-                    let reference = frame.stack_mut().pop_reference();
+                    let reference = frame.pop_reference();
 
                     let branch = frame.read_byte2_signed() as isize;
                     if !reference.is_null() {
@@ -874,21 +843,21 @@ impl Interpreter {
 
             // If the run-time constant pool entry is a numeric constant of type int or float,
             // then the value of that numeric constant is pushed onto the operand stack as an int or float, respectively.
-            Entry::Integer(int) => frame.stack_mut().push_int(int),
-            Entry::Float(float) => frame.stack_mut().push_float(float),
+            Entry::Integer(int) => frame.push_int(int),
+            Entry::Float(float) => frame.push_float(float),
 
             // Otherwise, if the run-time constant pool entry is a string constant, that is,
             // a reference to an instance of class String, then value, a reference to that instance, is pushed onto the operand stack.
             Entry::String(string) => {
                 let interned_string = StringInterner::intern(string);
-                frame.stack_mut().push_reference(Reference::class(interned_string));
+                frame.push_reference(Reference::class(interned_string));
             },
 
             // Otherwise, if the run-time constant pool entry is a symbolic reference to a class or interface,
             // then the named class or interface is resolved (§5.4.3.1) and value, a reference to the Class object
             // representing that class or interface, is pushed onto the operand stack.
             Entry::Class(class) => {
-                frame.stack_mut().push_reference(Reference::mirror(class.mirror()));
+                frame.push_reference(Reference::mirror(class.mirror()));
             },
 
             // Otherwise, the run-time constant pool entry is a symbolic reference to a method type, a method handle,
@@ -918,10 +887,10 @@ impl Interpreter {
         match constant {
             // and in particular one of the following: 
             Entry::Long(long) => {
-                frame.stack_mut().push_long(long)
+                frame.push_long(long)
             },
             Entry::Double(double) => {
-                frame.stack_mut().push_double(double)
+                frame.push_double(double)
             },
 
             _ => panic!("ldc2_w called with index to non long/double constant")
@@ -930,26 +899,24 @@ impl Interpreter {
 
     // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.fcmp_op
     fn fcmp(frame: &mut Frame, ordering: Ordering) {
-        let operand_stack = frame.stack_mut();
-
         // Both value1 and value2 must be of type float.
         // The values are popped from the operand stack and a floating-point comparison is performed:
-        let value2 = operand_stack.pop_float();
-        let value1 = operand_stack.pop_float();
+        let value2 = frame.pop_float();
+        let value1 = frame.pop_float();
 
         match value1.partial_cmp(&value2) {
             // If value1 is greater than value2, the int value 1 is pushed onto the operand stack.
-            Some(Ordering::Greater) => operand_stack.push_int(1),
+            Some(Ordering::Greater) => frame.push_int(1),
             // Otherwise, if value1 is equal to value2, the int value 0 is pushed onto the operand stack.
-            Some(Ordering::Equal) => operand_stack.push_int(0),
+            Some(Ordering::Equal) => frame.push_int(0),
             // Otherwise, if value1 is less than value2, the int value -1 is pushed onto the operand stack.
-            Some(Ordering::Less) => operand_stack.push_int(-1),
+            Some(Ordering::Less) => frame.push_int(-1),
             // Otherwise, at least one of value1 or value2 is NaN.
             // The fcmpg instruction pushes the int value 1 onto the operand stack and the fcmpl instruction pushes the int value -1 onto the operand stack.
             _ => {
                 match ordering {
-                    Ordering::Greater => operand_stack.push_int(1),
-                    Ordering::Less => operand_stack.push_int(-1),
+                    Ordering::Greater => frame.push_int(1),
+                    Ordering::Less => frame.push_int(-1),
                     _ => unreachable!()
                 }
             },
@@ -958,26 +925,24 @@ impl Interpreter {
 
     // https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-6.html#jvms-6.5.dcmp_op
     fn dcmp(frame: &mut Frame, ordering: Ordering) {
-        let operand_stack = frame.stack_mut();
-
         // Both value1 and value2 must be of type double.
         // The values are popped from the operand stack and a floating-point comparison is performed:
-        let value2 = operand_stack.pop_double();
-        let value1 = operand_stack.pop_double();
+        let value2 = frame.pop_double();
+        let value1 = frame.pop_double();
 
         match value1.partial_cmp(&value2) {
             // If value1 is greater than value2, the int value 1 is pushed onto the operand stack.
-            Some(Ordering::Greater) => operand_stack.push_int(1),
+            Some(Ordering::Greater) => frame.push_int(1),
             // Otherwise, if value1 is equal to value2, the int value 0 is pushed onto the operand stack.
-            Some(Ordering::Equal) => operand_stack.push_int(0),
+            Some(Ordering::Equal) => frame.push_int(0),
             // Otherwise, if value1 is less than value2, the int value -1 is pushed onto the operand stack.
-            Some(Ordering::Less) => operand_stack.push_int(-1),
+            Some(Ordering::Less) => frame.push_int(-1),
             // Otherwise, at least one of value1 or value2 is NaN.
             // The dcmpg instruction pushes the int value 1 onto the operand stack and the dcmpl instruction pushes the int value -1 onto the operand stack.
             _ => {
                 match ordering {
-                    Ordering::Greater => operand_stack.push_int(1),
-                    Ordering::Less => operand_stack.push_int(-1),
+                    Ordering::Greater => frame.push_int(1),
+                    Ordering::Less => frame.push_int(-1),
                     _ => unreachable!()
                 }
             },
@@ -989,15 +954,14 @@ impl Interpreter {
 
         let objectref;
         {
-            let stack = frame.stack_mut();
-            objectref = stack.pop_reference();
+            objectref = frame.pop_reference();
 
             if objectref.is_null() {
                 match opcode {
                     // If objectref is null, the instanceof instruction pushes an int result of 0 as an int onto the operand stack.
-                    OpCode::instanceof => stack.push_int(0),
+                    OpCode::instanceof => frame.push_int(0),
                     // If objectref is null, then the operand stack is unchanged.
-                    OpCode::checkcast => stack.push_reference(objectref),
+                    OpCode::checkcast => frame.push_reference(objectref),
                     _ => unreachable!()
                 }
 
@@ -1015,14 +979,13 @@ impl Interpreter {
             },
         }
 
-        let stack = frame.stack_mut();
         if objectref.is_instance_of(target_class) {
             match opcode {
                 // If objectref is an instance of the resolved class or array type, or implements the resolved interface,
                 // the instanceof instruction pushes an int result of 1 as an int onto the operand stack
-                OpCode::instanceof => stack.push_int(1),
+                OpCode::instanceof => frame.push_int(1),
                 // If objectref can be cast to the resolved class, array, or interface type, the operand stack is unchanged
-                OpCode::checkcast => stack.push_reference(objectref),
+                OpCode::checkcast => frame.push_reference(objectref),
                 _ => unreachable!()
             }
 
@@ -1030,7 +993,7 @@ impl Interpreter {
         }
         
         match opcode {
-            OpCode::instanceof => stack.push_int(0),
+            OpCode::instanceof => frame.push_int(0),
             OpCode::checkcast => {
                 let from_class = objectref.extract_instance_class();
                 let message = exceptions::class_cast_exception_message(from_class, target_class);
@@ -1057,20 +1020,13 @@ impl Interpreter {
             },
         }
 
-        // TODO: Sending this through the traditional method invoker is super inefficient, ends up
-        //       causing duplicate work on the native method end. *Especially* since the args
-        //       are all already on the stack.
         let parameter_count = entry.method.parameter_count() as usize;
-
-        let mut call_args = Vec::with_capacity(parameter_count);
         if let Some(appendix) = entry.appendix {
             assert!(parameter_count >= 1);
-            frame.stack_mut().push_reference(appendix);
+            frame.push_reference(appendix);
         }
         
-        call_args.extend(frame.stack_mut().popn(parameter_count));
-
-        MethodInvoker::invoke_with_args(frame.thread(), entry.method, call_args);
+        frame.thread().invoke_method(entry.method)
     }
     
     // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.invokestatic
@@ -1081,12 +1037,11 @@ impl Interpreter {
         };
 
         if let Some(MethodEntryPoint::MethodHandleLinker(mh)) = entry.method.entry_point() {
-            mh(frame);
+            mh(frame, entry);
             return;
         }
 
-        let call_args = frame.stack_mut().popn(entry.parameter_count as usize);
-        MethodInvoker::invoke_with_args(frame.thread(), entry.method, call_args);
+        frame.thread().invoke_method(entry.method)
     }
 
     // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-6.html#jvms-6.5.invokevirtual
@@ -1098,7 +1053,7 @@ impl Interpreter {
 
         // Nothing special to do if the method isn't signature polymorphic
         if !entry.method.is_signature_polymorphic() {
-            MethodInvoker::invoke_virtual(frame, entry.method);
+            Self::resolve_and_invoke_method(frame, entry);
             return;
         }
 
@@ -1172,6 +1127,21 @@ impl Interpreter {
         Some(entry)
     }
 
+    fn resolve_and_invoke_method(frame: &mut Frame, entry: MethodEntry) {
+        let this = frame.at(entry.parameters_stack_size).expect_reference();
+
+        if this.is_null() {
+            Exception::new(ExceptionKind::NullPointerException).throw(frame.thread());
+            return;
+        }
+
+        let mut method = entry.method;
+        let class = this.extract_instance_class();
+        method = class.select_method(method);
+
+        frame.thread().invoke_method(method);
+    }
+
     fn new(frame: &mut Frame) -> Option<ClassInstanceRef> {
         let index = frame.read_byte2();
 
@@ -1214,13 +1184,13 @@ impl Interpreter {
         }
         
         let offset;
-        let index = frame.stack_mut().pop_int() as isize;
+        let index = frame.pop_int() as isize;
         if index < low || index > high {
             offset = default;
         } else {
             offset = jump_offsets[(index - low) as usize] as isize;
         }
-        
+
         offset
     }
 
@@ -1237,7 +1207,7 @@ impl Interpreter {
             *offset = frame.read_byte4_signed();
         }
 
-        let key = frame.stack_mut().pop_int();
+        let key = frame.pop_int();
         let offset;
         
         if let Some((_, matched_offset)) = match_offset_pairs.iter().find(|(match_, _)| *match_ == key) {
@@ -1270,7 +1240,7 @@ impl Interpreter {
             return;
         }
 		
-		let counts = frame.stack_mut().popn(dimensions as usize).into_iter().map(|op| op.expect_int());
+		let counts = frame.popn(dimensions as usize).into_iter().map(|op| op.expect_int());
 		
         let array_ref;
         match ObjectArrayInstance::new_multidimensional(counts, class) {
@@ -1281,6 +1251,6 @@ impl Interpreter {
             }
         }
         
-        frame.stack_mut().push_reference(Reference::object_array(array_ref));
+        frame.push_reference(Reference::object_array(array_ref));
 	}
 }

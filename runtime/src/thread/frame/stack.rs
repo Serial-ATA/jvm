@@ -19,7 +19,7 @@ impl Debug for StackFrame {
 				"(Real) {:?} (code len: {}, cached pc: {})",
 				frame.method(),
 				frame.method().code.code.len(),
-				frame.cached_pc.load(std::sync::atomic::Ordering::Acquire)
+				frame.stash.pc.load(std::sync::atomic::Ordering::Acquire)
 			),
 			StackFrame::Native(frame) => write!(f, "(Native) {:?}", frame.method()),
 			StackFrame::Fake => write!(f, "Fake"),
@@ -139,9 +139,14 @@ impl FrameStack {
 		}
 	}
 
+	/// Try to pop a dummy frame if one exists
+	///
+	/// # Panics
+	///
+	/// This will panic if a non-dummy frame was popped.
 	pub fn pop_dummy(&self) {
 		match self.__inner_mut().pop() {
-			Some(StackFrame::Fake) => return,
+			Some(StackFrame::Fake) | None => return,
 			_ => panic!("Expected a dummy frame!"),
 		}
 	}

@@ -87,17 +87,17 @@ pub fn init_entry_points() {
 }
 
 mod _dynamic {
-	use crate::method_invoker::MethodInvoker;
+	use crate::classes;
 	use crate::objects::boxing::Boxable;
 	use crate::objects::constant_pool::cp_types::MethodEntry;
 	use crate::objects::instance::class::ClassInstanceRef;
 	use crate::objects::method::Method;
 	use crate::objects::reference::Reference;
-	use crate::stack::local_stack::LocalStack;
 	use crate::thread::exceptions::{Throws, throw};
 	use crate::thread::frame::Frame;
-	use crate::{classes, java_call};
+	use classfile::FieldType;
 
+	use common::int_types::u2;
 	use instructions::{Operand, StackLike};
 
 	fn get_target_method(frame: &Frame, handle: ClassInstanceRef) -> Option<&'static Method> {
@@ -119,12 +119,12 @@ mod _dynamic {
 
 		// A void return from a method handle target gets converted to `null`
 		let Some(ret) = ret else {
-			frame.stack_mut().push_reference(Reference::null());
+			// frame.stack_mut().push_reference(Reference::null());
 			return;
 		};
 
 		match ret.into_box(frame.thread()) {
-			Throws::Ok(ret) => frame.stack_mut().push_reference(ret),
+			Throws::Ok(ret) => frame.push_reference(ret),
 			Throws::Exception(e) => {
 				e.throw(frame.thread());
 				return;
@@ -132,33 +132,39 @@ mod _dynamic {
 		}
 	}
 
-	fn invoke_target(frame: &mut Frame, method: &'static Method) {
-		let mut parameters_count = method.parameter_count() as usize;
-		if !method.is_static() {
-			parameters_count += 1;
+	fn do_invoke(
+		frame: &mut Frame,
+		expected_return_type: &FieldType,
+		target_method: &'static Method,
+	) {
+		let ret = frame.thread().invoke_method_scoped(target_method);
+		if frame.thread().has_pending_exception() {
+			return;
 		}
 
-		unsafe {
-			frame.thread().tail_call(method);
-			frame.stack_mut().seek_stack_pointer(1);
-		}
+		let Some(ret) = ret else {
+			if expected_return_type == &FieldType::Void {
+				return;
+			}
+
+			throw!(frame.thread(), InternalError);
+		};
+
+		frame.push_op(ret);
 	}
 
 	pub fn invoke_basic(frame: &mut Frame, entry: MethodEntry) {
-		// Add 1 to the parameters size, since it doesn't account for `this`
-		let parameters_count = (entry.parameters_stack_size as usize) + 1;
-		debug_assert!(frame.stack().len() >= parameters_count);
-
-		let receiver = frame.stack().at(parameters_count).expect_reference();
+		let receiver = frame.at(entry.parameters_stack_size).expect_reference();
 		if receiver.is_null() {
 			throw!(frame.thread(), NullPointerException);
 		}
 
 		let Some(target_method) = get_target_method(frame, receiver.extract_class()) else {
+			// Exception thrown
 			return;
 		};
 
-		invoke_target(frame, target_method);
+		do_invoke(frame, &entry.method.descriptor.return_type, target_method);
 	}
 
 	pub fn invoke_exact(frame: &mut Frame, entry: MethodEntry) {
@@ -172,7 +178,7 @@ mod _dynamic {
 	fn appendix_and_target_method(
 		frame: &mut Frame,
 	) -> Option<(ClassInstanceRef, &'static Method)> {
-		let appendix = frame.stack_mut().pop_reference().extract_class();
+		let appendix = frame.pop_reference().extract_class();
 		match classes::java::lang::invoke::MemberName::target_method(appendix) {
 			Throws::Ok(method) => Some((appendix, method)),
 			Throws::Exception(e) => {
@@ -182,32 +188,31 @@ mod _dynamic {
 		}
 	}
 
-	pub fn link_to_static(frame: &mut Frame) {
+	pub fn link_to_static(frame: &mut Frame, entry: MethodEntry) {
 		let Some((_appendix, target_method)) = appendix_and_target_method(frame) else {
 			return;
 		};
-		invoke_target(frame, target_method);
+		do_invoke(frame, &entry.method.descriptor.return_type, target_method)
 	}
 
-	pub fn link_to_special(frame: &mut Frame) {
-		link_to_static(frame);
+	pub fn link_to_special(frame: &mut Frame, entry: MethodEntry) {
+		link_to_static(frame, entry);
 	}
 
-	pub fn link_to_interface(frame: &mut Frame) {
+	pub fn link_to_interface(frame: &mut Frame, _entry: MethodEntry) {
 		let Some((_appendix, _target_method)) = appendix_and_target_method(frame) else {
 			return;
 		};
 		unimplemented!("link_to_interface");
 	}
 
-	pub fn link_to_virtual(frame: &mut Frame) {
+	pub fn link_to_virtual(frame: &mut Frame, _entry: MethodEntry) {
 		let Some((appendix, target_method)) = appendix_and_target_method(frame) else {
 			return;
 		};
 
 		let receiver = frame
-			.stack()
-			.at(target_method.parameter_stack_size())
+			.at(target_method.parameter_stack_size() as u2)
 			.expect_reference();
 		if receiver.is_null() {
 			throw!(frame.thread(), NullPointerException);
@@ -215,6 +220,7 @@ mod _dynamic {
 
 		let vmindex = classes::java::lang::invoke::MemberName::vmindex(appendix);
 		let target_method = &receiver.extract_target_class().vtable()[vmindex as usize];
-		MethodInvoker::invoke_virtual(frame, target_method);
+
+		frame.tail(target_method);
 	}
 }

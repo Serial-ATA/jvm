@@ -384,7 +384,9 @@ macro_rules! field_module {
 use crate::objects::instance::class::ClassInstanceRef;
 use crate::objects::instance::mirror::MirrorInstanceRef;
 use crate::objects::reference::Reference;
-pub(self) use {
-	field_constructor, field_module, get_sym, injected_field_count, injected_field_definition,
-	instance_field_count,
-};
+pub(self) use field_constructor;
+pub(self) use field_module;
+pub(self) use get_sym;
+pub(self) use injected_field_count;
+pub(self) use injected_field_definition;
+pub(self) use instance_field_count;

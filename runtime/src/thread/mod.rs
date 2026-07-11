@@ -5,6 +5,7 @@ mod builder;
 pub use builder::JavaThreadBuilder;
 mod hash;
 pub mod pool;
+pub mod stack;
 
 use crate::classes::java::lang::Thread::ThreadStatus;
 use crate::interpreter::Interpreter;
@@ -18,24 +19,43 @@ use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::stack::local_stack::LocalStack;
 use crate::symbols::sym;
-use crate::thread::exceptions::Throws;
+use crate::thread::exceptions::{Exception, ExceptionKind, Throws};
 use crate::thread::frame::Frame;
 use crate::thread::frame::native::NativeFrame;
+use crate::thread::stack::{ThreadStack, ThreadStackHandle};
 use crate::{classes, globals, java_call};
 
 use std::cell::{Cell, SyncUnsafeCell, UnsafeCell};
 use std::mem::MaybeUninit;
-use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU8, Ordering};
 use std::thread::JoinHandle;
 
+use crate::objects::constant_pool::cp_types::{InvokeDynamicEntry, MethodEntry};
 use classfile::FieldType;
 use classfile::accessflags::MethodAccessFlags;
+use common::int_types::u1;
 use instructions::{Operand, StackLike};
 use jni::env::JniEnv;
 use jni::sys::JNIEnv;
 
 #[thread_local]
 static CURRENT_JAVA_THREAD: Cell<Option<&'static JavaThread>> = Cell::new(None);
+
+/// The state of a [`JavaThread`]
+///
+/// This is distinct from [`ThreadStatus`], which is the status on the `java.lang.Thread` instance.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum JavaThreadState {
+	/// Executing Java code
+	Running = 0,
+	/// Unwinding the frame stack to find an exception handler
+	///
+	/// See [`JavaThread::handle_pending_exception()`]
+	Unwinding = 1,
+	/// In the process of exiting, see [`JavaThread::exit()`]
+	Exiting = 2,
+}
 
 #[derive(Copy, Clone, Debug)]
 pub enum ControlFlow {
@@ -58,12 +78,13 @@ pub struct JavaThread {
 	// Each Java Virtual Machine thread has its own pc (program counter) register [...]
 	// the pc register contains the address of the Java Virtual Machine instruction currently being executed
 	pub pc: AtomicIsize,
+	operand_stack: UnsafeCell<ThreadStack>,
 	frame_stack: FrameStack,
 
 	remaining_operand: UnsafeCell<Option<Operand<Reference>>>,
 
 	pending_exception: UnsafeCell<Option<Reference>>,
-	exiting: AtomicBool,
+	state: AtomicU8,
 
 	/// Used in tests to prevent this thread from actually running any Java code
 	#[cfg(test)]
@@ -83,9 +104,11 @@ impl PartialEq for JavaThread {
 /// Global accessors
 impl JavaThread {
 	// Used in `JavaThreadBuilder::finish`
-	fn new(obj: Option<Reference>) -> Self {
+	fn new(obj: Option<Reference>, stack_size: usize) -> Throws<Self> {
 		let seed = 1;
-		JavaThread {
+		let operand_stack = UnsafeCell::new(ThreadStack::new(stack_size)?);
+
+		Throws::Ok(JavaThread {
 			env: unsafe { new_env() },
 			obj: UnsafeCell::new(obj),
 			os_thread: UnsafeCell::new(None),
@@ -95,15 +118,16 @@ impl JavaThread {
 			control_flow: UnsafeCell::new(ControlFlow::Continue),
 
 			pc: AtomicIsize::new(0),
+			operand_stack,
 			frame_stack: FrameStack::new(),
 			remaining_operand: UnsafeCell::new(None),
 
 			pending_exception: UnsafeCell::new(None),
-			exiting: AtomicBool::new(false),
+			state: AtomicU8::new(JavaThreadState::Running as u8),
 
 			#[cfg(test)]
 			sealed: AtomicBool::new(false),
-		}
+		})
 	}
 
 	/// Get the `JavaThread` associated with `env`
@@ -173,20 +197,26 @@ impl JavaThread {
 
 // Actions for the related `java.lang.Thread` instance
 impl JavaThread {
-	/// The default entrypoint for a `java.lang.Thread`
+	/// Spawn the thread and begin executing its Java code
 	///
-	/// This simply calls `java.lang.Thread#run` with the [`obj`] associated with this `JavaThread`.
-	///
-	/// [`obj`]: JavaThread::obj
-	pub fn default_entry_point(&'static self) {
-		let obj = self.obj().expect("entrypoint should exist");
+	/// This is used in [`JavaThreadBuilder::finish()`], which is called from the
+	/// JNI `AttachCurrentThread`. The `main` thread does NOT ever call this.
+	pub(crate) fn start(&'static self) {
+		let os_thread_ptr = self.os_thread.get();
+		let handle = std::thread::spawn(move || {
+			// Call `java.lang.Thread#run` with the obj associated with this `JavaThread`.
+			let obj = self.obj().expect("obj should exist");
 
-		let thread_class = crate::globals::classes::java_lang_Thread();
-		let run_method = thread_class
-			.resolve_method_step_two(sym!(run_name), sym!(void_method_signature))
-			.unwrap();
+			let thread_class = crate::globals::classes::java_lang_Thread();
+			let run_method = thread_class
+				.resolve_method_step_two(sym!(run_name), sym!(void_method_signature))
+				.unwrap();
 
-		java_call!(self, run_method, Operand::Reference(obj));
+			java_call!(self, run_method, Operand::Reference(obj));
+		});
+		unsafe {
+			*os_thread_ptr = Some(handle);
+		}
 	}
 
 	/// Allocates a new `java.lang.Thread` for this `JavaThread`
@@ -303,8 +333,27 @@ impl JavaThread {
 	}
 
 	/// Get the frame stack for this thread
+	#[inline]
 	pub fn frame_stack(&self) -> &FrameStack {
 		&self.frame_stack
+	}
+
+	/// Get the operand stack for this thread
+	#[inline]
+	pub fn stack(&self) -> ThreadStackHandle {
+		ThreadStackHandle::new(self.operand_stack.get())
+	}
+
+	/// Get the current state of this thread
+	pub fn state(&self) -> JavaThreadState {
+		// SAFETY: The state is only ever set by `set_state`, which restrict the values to valid
+		//         variants
+		unsafe { std::mem::transmute(self.state.load(Ordering::Relaxed)) }
+	}
+
+	/// Set the state of this thread
+	pub fn set_state(&self, state: JavaThreadState) {
+		self.state.store(state as u8, Ordering::Relaxed);
 	}
 
 	pub fn set_remaining_operand(&self, operand: Option<Operand<Reference>>) {
@@ -331,7 +380,6 @@ impl JavaThread {
 	pub fn invoke_method_scoped(
 		&'static self,
 		method: &'static Method,
-		locals: LocalStack,
 	) -> Option<Operand<Reference>> {
 		#[cfg(test)]
 		{
@@ -345,7 +393,7 @@ impl JavaThread {
 		self.stash_and_reset_pc();
 
 		self.frame_stack.push(StackFrame::Fake);
-		self.invoke_method_with_local_stack(method, locals);
+		self.invoke_method(method);
 
 		loop {
 			match self.control_flow() {
@@ -367,32 +415,35 @@ impl JavaThread {
 
 		let ret = self.take_remaining_operand();
 		// Will pop the dummy frame for us
-		self.drop_to_previous_frame(None);
+		self.drop_to_previous_frame(None, true);
+
+		if self.frame_stack.current().is_none() {
+			// End of invocation
+			self.stash_and_reset_pc();
+		}
 
 		ret
 	}
 
-	pub fn invoke_method_with_local_stack(
-		&'static self,
-		method: &'static Method,
-		locals: LocalStack,
-	) {
+	pub fn invoke_method(&'static self, method: &'static Method) {
 		#[cfg(test)]
 		{
 			self.assert_not_sealed();
 		}
 
-		if method.is_native() {
-			self.invoke_native(method, locals);
-			tracing::debug!(target: "JavaThread", "Native method `{method:?}` finished");
+		if method.is_abstract() {
+			Exception::new(ExceptionKind::AbstractMethodError).throw(self);
 			return;
 		}
 
-		let max_stack = method.code.max_stack;
+		if method.is_native() {
+			self.invoke_native(method);
+			return;
+		}
 
-		match Frame::new(self, locals, max_stack, method) {
+		self.stash_and_reset_pc();
+		match Frame::new(self, method) {
 			Throws::Ok(frame) => {
-				self.stash_and_reset_pc();
 				self.frame_stack.push(StackFrame::Real(frame));
 			},
 			Throws::Exception(exception) => {
@@ -401,63 +452,7 @@ impl JavaThread {
 		}
 	}
 
-	/// Practically the same as [`Self::invoke_method_scoped()`], but reuses the current frame
-	///
-	/// # Safety
-	///
-	/// The stack pointer needs to be setup properly beforehand
-	pub unsafe fn tail_call(&'static self, method: &'static Method) {
-		#[cfg(test)]
-		{
-			self.assert_not_sealed();
-		}
-
-		assert!(!method.is_native());
-
-		self.stash_and_reset_pc();
-
-		let previous_method;
-		let old_locals;
-		{
-			let current_frame = self
-				.frame_stack
-				.current()
-				.expect("can't reach this point without a caller");
-
-			previous_method = current_frame.method();
-			old_locals = unsafe { current_frame.swap_for_tail_call(method) }
-		}
-
-		loop {
-			match self.control_flow() {
-				ControlFlow::Continue => {
-					if let Some(current_frame) = self.frame_stack.current() {
-						Interpreter::instruction(current_frame);
-						continue;
-					}
-
-					unreachable!("Frame consumed during tail call");
-				},
-				ControlFlow::ExceptionThrown => self.on_exception(),
-				ControlFlow::Break => break,
-			}
-		}
-
-		if self.has_pending_exception() {
-			return;
-		}
-
-		// Continue executing the caller
-		self.set_control_flow(ControlFlow::Continue);
-
-		self.restore_pc();
-		self.frame_stack
-			.current()
-			.expect("can't reach this point without a caller")
-			.reset_from_tail_call(old_locals, previous_method);
-	}
-
-	fn invoke_native(&'static self, method: &'static Method, locals: LocalStack) {
+	fn invoke_native(&'static self, method: &'static Method) {
 		// Try to lookup and set the method prior to calling
 		let fn_ptr;
 		match crate::native::lookup::lookup_native_method(method, self) {
@@ -467,6 +462,14 @@ impl JavaThread {
 				return;
 			},
 		}
+
+		// TODO: remove LocalStack entirely
+		// + 1 for receiver
+		let parameter_count =
+			method.parameter_count() as usize + if method.is_static() { 0 } else { 1 };
+
+		let params = self.stack().popn(parameter_count);
+		let locals = unsafe { LocalStack::new_with_args(params, method.parameter_stack_size()) };
 
 		self.stash_and_reset_pc();
 
@@ -582,54 +585,42 @@ impl JavaThread {
 
 		assert!(popped_native_frame, "native frame consumed",);
 
-		// Push the return value onto the previous frame's stack
-		if let Some(ret) = ret {
-			self.frame_stack.current().unwrap().stack_mut().push_op(ret);
-		}
-
-		self.restore_pc();
+		self.drop_to_previous_frame(ret, false);
 	}
 
 	fn stash_and_reset_pc(&self) {
 		if let Some(current_frame) = self.frame_stack.current() {
-			current_frame.stash_pc()
+			current_frame.stash()
 		}
 
 		self.pc.store(0, Ordering::Relaxed);
 	}
 
-	fn restore_pc(&self) {
-		if let Some(current_frame) = self.frame_stack.current() {
-			let pc = current_frame.stashed_pc();
-			let cached_depth = current_frame.take_cached_depth();
-			self.pc.store(pc + cached_depth, Ordering::Relaxed);
-		}
-	}
-
 	/// Return from the current frame and drop to the previous one
-	pub fn drop_to_previous_frame(&self, return_value: Option<Operand<Reference>>) {
-		let _ = self.frame_stack.pop();
+	pub fn drop_to_previous_frame(&self, return_value: Option<Operand<Reference>>, do_pop: bool) {
+		if do_pop {
+			let _ = self.frame_stack.pop();
+		}
 
-		let Some(current_frame) = self.frame_stack.current() else {
-			// If there's no current frame it either means:
+		match self.frame_stack.current() {
+			Some(current_frame) => {
+				unsafe { current_frame.apply_stash() }
+
+				// Push the return value of the previous frame if there is one
+				if let Some(return_value) = return_value {
+					current_frame.push_op(return_value);
+				}
+			},
+			// If there's no current frame, it either means:
 			//
-			// 1. We've reached the end of a manual method invocation, and need to pop the dummy frame
+			// 1. We've reached the end of a manual method invocation and need to pop the dummy frame
 			// 2. We've reached the end of the program
 			//
 			// Either way, the remaining operand ends up in the hands of the caller.
-			self.set_remaining_operand(return_value);
-
-			return;
-		};
-
-		tracing::debug!(target: "JavaThread", "Dropping back to frame for method `{:?}`", current_frame.method());
-
-		// Restore the pc of the frame
-		self.restore_pc();
-
-		// Push the return value of the previous frame if there is one
-		if let Some(return_value) = return_value {
-			current_frame.stack_mut().push_op(return_value);
+			None => {
+				self.set_remaining_operand(return_value);
+				return;
+			},
 		}
 	}
 
@@ -646,6 +637,8 @@ impl JavaThread {
 			// Nothing special to do in the case of VM destruction for now
 			return;
 		}
+
+		self.set_state(JavaThreadState::Exiting);
 
 		let obj = self.obj().expect("thread object should exist");
 
@@ -678,6 +671,12 @@ impl JavaThread {
 			.resolve_method(sym!(exit_name), sym!(void_method_signature))
 			.expect("exit method should exist");
 		let _result = java_call!(&self, exit_method, Operand::Reference(obj));
+
+		let holder = classes::java::lang::Thread::holder(obj.extract_class());
+		classes::java::lang::Thread::holder::set_threadStatus(
+			holder.extract_class(),
+			ThreadStatus::Terminated,
+		);
 	}
 }
 
@@ -705,21 +704,19 @@ impl JavaThread {
 		let _ = self.take_pending_exception();
 	}
 
-	fn set_exiting(&self) {
-		self.exiting.store(true, Ordering::Relaxed);
+	/// Wipe everything from the thread
+	///
+	/// Likely means we'll be exiting soon...
+	fn nuke(&self) {
 		self.frame_stack.clear();
 		self.pc.store(0, Ordering::Relaxed);
-	}
-
-	pub fn is_exiting(&self) -> bool {
-		self.exiting.load(Ordering::Relaxed)
 	}
 
 	fn on_exception(&self) {
 		self.handle_pending_exception();
 		if self.has_pending_exception() {
 			// Uncaught exception, nothing further we can do
-			self.set_exiting();
+			self.nuke();
 			self.set_control_flow(ControlFlow::Break);
 			return;
 		}
@@ -730,11 +727,11 @@ impl JavaThread {
 
 	/// Handle the pending exception on this thread
 	pub fn handle_pending_exception(&self) {
-		let pending_exception = self.take_pending_exception();
-		let Some(exception) = pending_exception else {
+		let Some(exception) = self.take_pending_exception() else {
 			return;
 		};
 
+		self.set_state(JavaThreadState::Unwinding);
 		assert!(!exception.is_null(), "failed to construct exception?");
 
 		// https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-6.html#jvms-6.5.athrow
@@ -763,9 +760,10 @@ impl JavaThread {
 				self.pc.store(handler_pc, Ordering::Relaxed);
 				let _ = current_frame.take_cached_depth();
 
-				let stack = current_frame.stack_mut();
-				stack.clear();
-				stack.push_reference(exception);
+				current_frame.clear();
+				current_frame.push_reference(exception);
+
+				self.set_state(JavaThreadState::Running);
 
 				// The exception was caught
 				return;

@@ -14,6 +14,9 @@ use classfile::FieldType;
 use instructions::Operand;
 use jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 
+/// An instance of an [`Object`]
+///
+/// [`Object`]: object::Object
 pub trait Instance: object::Object {
 	fn get_field_value(&self, field: &Field) -> Operand<Reference> {
 		assert!(!field.is_static());

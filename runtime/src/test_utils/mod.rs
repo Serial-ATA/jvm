@@ -34,7 +34,9 @@ pub fn init_basic_shared_runtime() -> &'static JavaThread {
 
 		crate::classpath::jimage::lookup_vm_options();
 
-		let thread = JavaThreadBuilder::new().finish();
+		let thread = JavaThreadBuilder::new()
+			.finish()
+			.expect("failed to allocate thread");
 
 		unsafe {
 			JavaThread::set_current_thread(thread);

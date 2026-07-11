@@ -364,6 +364,10 @@ pub fn init(
 		let slot = classes::java::lang::reflect::Method::slot(target);
 
 		let method = &class.target_class().vtable()[slot as usize];
+		if method.is_signature_polymorphic() {
+			return;
+		}
+
 		init_member_name(self_.extract_class(), FieldOrMethod::Method(method))
 	}
 

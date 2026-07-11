@@ -1,10 +1,10 @@
 use super::{IntoJni, method_ref_from_jmethodid, reference_from_jobject};
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
-use crate::stack::local_stack::LocalStack;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::Throws;
+use common::int_types::u1;
 
 use core::ffi::c_char;
 use std::ffi::CStr;
@@ -1065,8 +1065,10 @@ pub(super) unsafe fn call_with_c_array_args(
 		return None; // TODO: Exception?
 	};
 
-	// SAFETY: `Method::args_for_c_args` ensures that the arguments are constructed correctly
-	let call_args =
-		unsafe { LocalStack::new_with_args(arguments, method.code.max_locals as usize) };
-	thread.invoke_method_scoped(method, call_args)
+	let stack = thread.stack();
+	for arg in arguments {
+		stack.push_op(arg);
+	}
+
+	thread.invoke_method_scoped(method)
 }

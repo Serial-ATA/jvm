@@ -62,6 +62,9 @@ impl Field {
 }
 
 impl Field {
+	/// The field's index within a [`Class`]
+	///
+	/// [`Class`]: crate::objects::class::Class
 	pub fn index(&self) -> usize {
 		unsafe { *self.idx.get() }
 	}
@@ -70,6 +73,12 @@ impl Field {
 		unsafe { *self.idx.get() = index };
 	}
 
+	/// The field's byte offset within a [`ClassInstance`]
+	///
+	/// This is used when reading/writing fields within [`Instance`].
+	///
+	/// [`ClassInstance`]: crate::objects::instance::class::ClassInstance
+	/// [`Instance`]: crate::objects::instance::Instance
 	pub fn offset(&self) -> usize {
 		unsafe { *self.offset.get() }
 	}

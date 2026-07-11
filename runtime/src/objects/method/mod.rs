@@ -81,7 +81,7 @@ impl PartialEq for ExtraFields {
 
 #[derive(Copy, Clone)]
 pub enum MethodEntryPoint {
-	MethodHandleLinker(fn(&mut Frame)),
+	MethodHandleLinker(fn(&mut Frame, MethodEntry)),
 	MethodHandleInvoker(fn(&mut Frame, MethodEntry)),
 	NativeMethod(NativeMethodPtr),
 }
@@ -242,11 +242,13 @@ impl Method {
 	}
 
 	/// Get the method descriptor as a `Symbol`
+	#[inline]
 	pub fn descriptor_sym(&self) -> Symbol {
 		self.extra_fields.descriptor_sym
 	}
 
 	/// The number of parameters this method takes
+	#[inline]
 	pub fn parameter_count(&self) -> u1 {
 		self.extra_fields.parameter_count
 	}
@@ -256,6 +258,7 @@ impl Method {
 	/// This is necessary, as `long`s and `double`s take up two slots
 	///
 	/// NOTE: This includes `this` for non-static methods
+	#[inline]
 	pub fn parameter_stack_size(&self) -> usize {
 		self.extra_fields.parameter_stack_size
 	}

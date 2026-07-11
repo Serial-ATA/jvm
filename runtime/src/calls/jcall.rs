@@ -26,32 +26,17 @@ macro_rules! java_call {
 	(
         $thread:expr,
         $method:expr,
-		$($arg:expr),+ $(,)?
+		$($arg:expr),* $(,)?
     ) => {{
-		let max_locals = $method.code.max_locals;
-		// TODO
-		let local_stack = unsafe { $crate::stack::local_stack::LocalStack::new_with_args(vec![$(::instructions::Operand::from($arg)),+], max_locals as usize) };
-		java_call!(@WITH_ARGS_LIST $thread, $method, local_stack)
-	}};
-	// No arguments path, still needs to allocate a LocalStack for stores
+        let stack = $thread.stack();
+        $(stack.push_op(::instructions::Operand::from($arg));)*
+        java_call!($thread, $method)
+    }};
+	// No arguments path
 	(
         $thread:expr,
         $method:expr $(,)?
     ) => {{
-		let max_locals = $method.code.max_locals;
-		let local_stack = $crate::stack::local_stack::LocalStack::new(max_locals as usize);
-		java_call!(@WITH_ARGS_LIST $thread, $method, local_stack)
-	}};
-	(
-		@WITH_ARGS_LIST
-        $thread:expr,
-        $method:expr,
-		$args_list:ident $(,)?
-    ) => {{
-		tracing::debug!(target: "java_call", "Invoking manual Java call for method `{:?}`", $method);
-		let __thread = $thread;
-		let __ret = __thread.invoke_method_scoped($method, $args_list);
-		tracing::debug!(target: "java_call", "Manual Java call finished for method `{:?}`", $method);
-		__ret
+        $thread.invoke_method_scoped($method)
 	}};
 }

@@ -159,6 +159,8 @@ pub enum ExceptionKind {
 	IllegalMonitorStateException,
 	/// java.lang.OutOfMemoryError
 	OutOfMemoryError,
+	/// java.lang.StackOverflowError
+	StackOverflowError,
 
 	/// java.io.IOException
 	IOException,
@@ -219,6 +221,7 @@ impl ExceptionKind {
 				sym!(java_lang_IllegalMonitorStateException)
 			},
 			ExceptionKind::OutOfMemoryError => sym!(java_lang_OutOfMemoryError),
+			ExceptionKind::StackOverflowError => sym!(java_lang_StackOverflowError),
 
 			ExceptionKind::IOException => sym!(java_io_IOException),
 
@@ -388,7 +391,10 @@ macro_rules! handle_exception {
 	}};
 }
 
-pub(crate) use {handle_exception, throw, throw_and_return_null, throw_with_ret};
+pub(crate) use handle_exception;
+pub(crate) use throw;
+pub(crate) use throw_and_return_null;
+pub(crate) use throw_with_ret;
 
 pub fn class_cast_exception_message(from: ClassPtr, to: ClassPtr) -> String {
 	let from_class_description;

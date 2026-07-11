@@ -61,14 +61,14 @@ pub unsafe extern "system" fn AttachCurrentThread(
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn DetachCurrentThread(vm: *mut JavaVM) -> jint {
-    {
-        let thread = JavaThread::current();
-        if !thread.frame_stack().is_empty() {
-            return JNI_ERR;
-        }
+	{
+		let thread = JavaThread::current();
+		if !thread.frame_stack().is_empty() {
+			return JNI_ERR;
+		}
 
-        thread.exit(false);
-    }
+		thread.exit(false);
+	}
 
 	// SAFETY: No active references to the thread exist now
 	unsafe { JavaThread::unset_current_thread() };

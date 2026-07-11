@@ -1,8 +1,7 @@
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
+use crate::thread::exceptions::Throws;
 use crate::thread::pool::ThreadPool;
-
-use std::thread;
 
 /// A builder for a `JavaThread`
 ///
@@ -11,7 +10,6 @@ use std::thread;
 #[derive(Default)]
 pub struct JavaThreadBuilder {
 	obj: Option<Reference>,
-	entry_point: Option<Box<dyn Fn(&'static JavaThread) + Send + Sync + 'static>>,
 	stack_size: usize,
 }
 
@@ -22,8 +20,7 @@ impl JavaThreadBuilder {
 	pub fn new() -> JavaThreadBuilder {
 		Self {
 			obj: None,
-			entry_point: None,
-			stack_size: 0, // TODO: Default -Xss
+			stack_size: 1024, // TODO: Default -Xss
 		}
 	}
 
@@ -36,25 +33,7 @@ impl JavaThreadBuilder {
 		self
 	}
 
-	/// Set the entrypoint of this `JavaThread`
-	///
-	/// Setting this will spawn an OS thread to run `entry`. This is really only used with [`JavaThread::default_entry_point`],
-	/// which calls `java.lang.Thread#run` on the associated [`obj`].
-	///
-	/// [`obj`]: Self::obj
-	pub fn entry_point(
-		mut self,
-		entry: impl Fn(&'static JavaThread) + Send + Sync + 'static,
-	) -> Self {
-		self.entry_point = Some(Box::new(entry));
-		self
-	}
-
-	/// Set the stack size of the associated OS thread
-	///
-	/// This will have no effect if there is no [`entry_point`] set.
-	///
-	/// [`entry_point`]: Self::entry_point
+	/// Set the stack size of the thread
 	pub fn stack_size(mut self, size: usize) -> Self {
 		self.stack_size = size;
 		self
@@ -65,25 +44,14 @@ impl JavaThreadBuilder {
 	/// This will also spawn an OS thread if applicable.
 	///
 	/// [`entry_point`]: Self::entry_point
-	pub fn finish(self) -> &'static JavaThread {
-		let thread = JavaThread::new(self.obj);
+	pub fn finish(self, start: bool) -> Throws<&'static JavaThread> {
+		let thread = JavaThread::new(self.obj, self.stack_size)?;
 
 		let thread = ThreadPool::push(thread);
-		if let Some(entry_point) = self.entry_point {
-			let mut os_thread = thread::Builder::new();
-			if self.stack_size > 0 {
-				os_thread = os_thread.stack_size(self.stack_size);
-			}
-
-			let os_thread_ptr = thread.os_thread.get();
-
-			// TODO: Error handling
-			let handle = os_thread.spawn(move || entry_point(thread)).unwrap();
-			unsafe {
-				*os_thread_ptr = Some(handle);
-			}
+		if start {
+			thread.start();
 		}
 
-		thread
+		Throws::Ok(thread)
 	}
 }

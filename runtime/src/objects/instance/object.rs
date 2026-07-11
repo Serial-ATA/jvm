@@ -44,29 +44,24 @@ pub trait Object: Sized {
 	/// In the event that another thread is already generating a hash, this thread will spin until it finishes.
 	fn hash(&self, thread: &'static JavaThread) -> jint;
 
-	#[doc(hidden)] // Shouldn't ever need to be accessed directly
-	fn monitor(&self, thread: &'static JavaThread) -> &'static Monitor {
-		MonitorMap::find_or_add(self, thread)
-	}
-
 	fn monitor_enter(&self, thread: &'static JavaThread) {
-		self.monitor(thread).enter(thread);
+		MonitorMap::find_or_add(self, thread).enter(thread);
 	}
 
 	fn monitor_exit(&self, thread: &'static JavaThread) {
-		self.monitor(thread).exit(thread);
+		MonitorMap::find_or_add(self, thread).exit(thread);
 	}
 
 	fn notify(&self, thread: &'static JavaThread) -> Throws<()> {
-		self.monitor(thread).notify(thread)
+		MonitorMap::find_or_add(self, thread).notify(thread)
 	}
 
 	fn notify_all(&self, thread: &'static JavaThread) -> Throws<()> {
-		self.monitor(thread).notify_all(thread)
+		MonitorMap::find_or_add(self, thread).notify_all(thread)
 	}
 
 	fn wait(&self, thread: &'static JavaThread, timeout: Option<Duration>) -> Throws<()> {
-		self.monitor(thread).wait(thread, timeout)
+		MonitorMap::find_or_add(self, thread).wait(thread, timeout)
 	}
 
 	/// The class backing the object
@@ -162,8 +157,9 @@ pub trait Object: Sized {
 				debug_assert!(
 					offset <= field_allocation_size
 						&& (offset + element_size) <= field_allocation_size,
-					"offset out of bounds (offset: {offset}, size_of(T): {element_size}, \
-					 allocation_size: {field_allocation_size})",
+					"offset out of bounds (class: {class}, offset: {offset}, size_of(T): \
+					 {element_size}, allocation_size: {field_allocation_size})",
+					class = self.class().name().as_str(),
 				);
 			}
 		}

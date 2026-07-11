@@ -15,6 +15,7 @@
 #![feature(custom_inner_attributes)]
 #![feature(proc_macro_hygiene)]
 #![feature(try_trait_v2_residual)]
+#![feature(int_roundings)]
 
 pub mod calls;
 pub mod classes;
@@ -24,7 +25,6 @@ pub mod error;
 pub mod globals;
 mod initialization;
 mod interpreter;
-mod method_invoker;
 pub mod modules;
 pub mod native;
 pub mod objects;
