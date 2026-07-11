@@ -385,9 +385,9 @@ impl ClassLoader {
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.3.2
 	fn load_user_defined(&'static self, name: Symbol) -> Throws<ClassPtr> {
-		// First, the Java Virtual Machine determines whether the bootstrap class loader has
-		// already been recorded as an initiating loader of a class or interface denoted by N.
-		// If so, this class or interface is C, and no class loading or creation is necessary.
+		// First, the Java Virtual Machine determines whether L has already been recorded as an initiating loader
+		// of a class or interface denoted by N. If so, this class or interface is C, and no class loading or
+		// creation is necessary.
 		if let Some(ret) = self.lookup_class(name) {
 			return Throws::Ok(ret);
 		}
@@ -630,53 +630,64 @@ impl ClassLoader {
 		// Otherwise, the following steps are performed to create C:
 		//
 		//     If the component type is a reference type, the algorithm of this section (§5.3) is applied recursively using L in order to load and thereby create the component type of C.
-		let mut descriptor_str = descriptor.as_str();
-		// TODO: Could also just skip the parsing entirely and count the number of '[' and strip, since we only need the number of dimensions
-		let array = FieldType::parse(&mut descriptor_str.as_bytes()).unwrap(); // TODO: Error handling
-		let FieldType::Array(mut component) = array else {
-			unreachable!("The descriptor was validated as an array prior");
-		};
+		let mut descriptor_bytes = descriptor.as_bytes();
 
-		loop {
-			if let FieldType::Object(obj) = &*component {
-				self.load(Symbol::intern(obj))?;
-				break;
-			}
-
-			if let FieldType::Array(array_component) = *component {
-				// Just strip '[' until we finally reach the component type.
-				//
-				// Note that for multidimensional arrays, the component classes are **not** preemptively
-				// loaded.
-				//
-				// So, in the case of `[[Ljava/lang/String;`, only *that* class will be loaded. Not
-				// `[Ljava/lang/String;`, unless it is explicitly needed later on.
-				component = array_component;
-				continue;
-			}
-
-			break;
-		}
+		// Just strip '[' until we finally reach the component type.
+		//
+		// Note that for multidimensional arrays, the component classes are **not** preemptively
+		// loaded.
+		//
+		// So, in the case of `[[Ljava/lang/String;`, only *that* class will be loaded. Not
+		// `[Ljava/lang/String;`, unless it is explicitly loaded later on.
+		let dimensions = descriptor_bytes
+			.iter()
+			.copied()
+			.take_while(|c| *c == b'[')
+			.count();
+		assert!(
+			dimensions > 0,
+			"The descriptor was validated as an array prior"
+		);
 
 		//     The Java Virtual Machine creates a new array class with the indicated component type and number of dimensions.
-		let array_class = unsafe { Class::new_array(descriptor, *component, self)? };
+
+		// (Handled below)
 
 		//     If the component type is a reference type, the Java Virtual Machine marks C to have the defining loader of the component type as its defining loader.
 		//     Otherwise, the Java Virtual Machine marks C to have the bootstrap class loader as its defining loader.
 
-		// (Already handled)
+		let component_type = FieldType::parse(&mut &descriptor_bytes[dimensions..]).unwrap(); // TODO: Error handling
+		let mut array_class = None; // Might need to defer to other loaders
+		if component_type.is_primitive() {
+			// Only the bootstrap loader can load primitive array classes, defer.
+			if !self.is_bootstrap() {
+				array_class = Some(Self::bootstrap().load(descriptor)?);
+			}
+		} else {
+			let component_class_name = Symbol::intern(component_type.as_java_type(false));
+			let component_class = self.load(component_class_name)?;
+			if component_class.loader() != self {
+				array_class = Some(component_class.loader().load(descriptor)?);
+			}
+		}
+
+		let array_class = match array_class {
+			Some(class) => class,
+			None => {
+				let array_class = unsafe { Class::new_array(descriptor, component_type, self)? };
+				init_mirror(array_class);
+				array_class
+			},
+		};
 
 		//     In any case, the Java Virtual Machine then records that L is an initiating loader for C (§5.3.4).
 
-		// (Already handled)
+		self.add_class(array_class)?;
 
 		// TODO:
 		//     If the component type is a reference type, the accessibility of the array class is determined by the accessibility of its component type (§5.4.4).
 		//     Otherwise, the array class is accessible to all classes and interfaces.
 
-		init_mirror(array_class);
-
-		self.add_class(array_class)?;
 		Throws::Ok(array_class)
 	}
 

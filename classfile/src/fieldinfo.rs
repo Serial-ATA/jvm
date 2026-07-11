@@ -165,7 +165,11 @@ impl FieldType {
 		}
 	}
 
-	pub fn as_java_type(&self) -> Cow<'static, str> {
+	/// Get the `FieldType` as a Java type name
+	///
+	/// If `external_class_names` is true, classes will be in their "external name" forms (with path
+	/// segments separated with '.' rather than '/')
+	pub fn as_java_type(&self, external_class_names: bool) -> Cow<'static, str> {
 		match self {
 			Self::Byte => "byte".into(),
 			Self::Character => "char".into(),
@@ -176,8 +180,17 @@ impl FieldType {
 			Self::Short => "short".into(),
 			Self::Boolean => "boolean".into(),
 			Self::Void => "void".into(),
-			Self::Object(name) => String::from_utf8_lossy(name).replace('/', ".").into(),
-			Self::Array(component) => format!("[{}", component.as_java_type()).into(),
+			Self::Object(name) => {
+				let ret = String::from_utf8_lossy(name);
+				if external_class_names {
+					ret.replace('/', ".").into()
+				} else {
+					ret.into_owned().into()
+				}
+			},
+			Self::Array(component) => {
+				format!("[{}", component.as_java_type(external_class_names)).into()
+			},
 		}
 	}
 

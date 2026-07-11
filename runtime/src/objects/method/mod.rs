@@ -291,12 +291,12 @@ impl Method {
 	pub fn external_name(&self) -> String {
 		let mut external_name = format!(
 			"{} {}.{}(",
-			self.descriptor.return_type.as_java_type(),
+			self.descriptor.return_type.as_java_type(true),
 			self.class.external_name(),
 			self.name
 		);
 		for param in &self.descriptor.parameters {
-			external_name.push_str(&param.as_java_type());
+			external_name.push_str(&param.as_java_type(true));
 		}
 		external_name.push(')');
 
@@ -306,7 +306,7 @@ impl Method {
 	pub fn external_signature(&self, pretty: bool) -> String {
 		let mut external_signature = String::new();
 		for param in &self.descriptor.parameters {
-			external_signature.push_str(&param.as_java_type());
+			external_signature.push_str(&param.as_java_type(true));
 		}
 
 		if pretty {
