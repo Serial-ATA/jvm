@@ -236,32 +236,6 @@ pub fn findBootstrapClass(
 	Reference::null()
 }
 
-pub fn findLoadedClass0(
-	_env: JniEnv,
-	this: Reference, // java.lang.ClassLoader
-	name: Reference, // java.lang.String
-) -> Reference // java.lang.Class
-{
-	if name.is_null() {
-		return Reference::null();
-	}
-
-	let name_str = classes::java::lang::String::extract(name.extract_class());
-	let internal_name = name_str.replace('.', "/");
-
-	let internal_name_sym = Symbol::intern(internal_name);
-
-	let Some(loader) = ClassLoaderSet::find(this, false) else {
-		// Unknown loader
-		return Reference::null();
-	};
-
-	match loader.lookup_class(internal_name_sym) {
-		None => Reference::null(),
-		Some(class) => Reference::mirror(class.mirror()),
-	}
-}
-
 pub fn retrieveDirectives(_env: JniEnv, _class: ClassPtr) -> Reference // AssertionStatusDirectives
 {
 	unimplemented!("java.lang.ClassLoader#retrieveDirectives")

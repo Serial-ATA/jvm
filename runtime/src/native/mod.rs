@@ -1,9 +1,13 @@
 #![allow(non_snake_case)]
 
+use crate::symbols::Symbol;
+
 use std::cell::SyncUnsafeCell;
+use std::ffi::{CStr, c_char};
 use std::sync::Once;
 
 use common::sync::ForceSendSync;
+use common::unicode;
 use platform::env::SystemPaths;
 use platform::libs::Library;
 
@@ -51,6 +55,22 @@ pub(crate) fn lib_java() -> &'static Library {
 		.expect("Should be set at this point")
 }
 
+trait RawSymbolExt {
+	/// Intern a modified UTF-8 encoded C string into a `Symbol`
+	unsafe fn intern_mutf_c_str(s: *const c_char) -> Symbol;
+}
+
+impl RawSymbolExt for Symbol {
+	unsafe fn intern_mutf_c_str(s: *const c_char) -> Symbol {
+		assert!(!s.is_null());
+
+		let c = unsafe { CStr::from_ptr(s) };
+		let decoded =
+			unicode::decode(c.to_bytes()).expect("expected a valid modified UTF-8 string");
+		Symbol::intern(decoded)
+	}
+}
+
 // Module marker, do not remove
 
 pub(crate) mod java {
@@ -78,7 +98,6 @@ pub(crate) mod java {
 		pub(crate) mod Runtime;
 		pub(crate) mod StringUTF16;
 		pub(crate) mod Module;
-		pub(crate) mod ClassLoader;
 		pub(crate) mod Throwable;
 		pub(crate) mod Thread;
 		pub(crate) mod String;

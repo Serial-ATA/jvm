@@ -10,15 +10,24 @@ mod references;
 mod reflection;
 mod register;
 pub use register::*;
+
 mod string;
 mod version;
 mod vm;
 mod weak;
 
+use std::fmt::Debug;
+
 /// Safer wrapper around `jni_sys::JNIEnv`
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct JniEnv(*mut jni_sys::JNIEnv);
+
+impl Debug for JniEnv {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("JniEnv").finish_non_exhaustive()
+	}
+}
 
 impl JniEnv {
 	pub fn raw(&self) -> *mut jni_sys::JNIEnv {

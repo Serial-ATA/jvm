@@ -212,6 +212,7 @@ vm_symbols::define_symbols! {
 	java_lang_Void: "java/lang/Void",
 
 	java_lang_Class: "java/lang/Class",
+	java_lang_ClassLoader: "java/lang/ClassLoader",
 	java_lang_Object: "java/lang/Object",
 	java_lang_String: "java/lang/String",
 	java_lang_Module: "java/lang/Module",

@@ -91,7 +91,9 @@ impl ClassPtr {
 		}
 	}
 
-	/// Used for hidden classes
+	/// Mangle the class name
+	///
+	/// This is only used for hidden classes, whose names can potentially collide.
 	pub(super) fn mangle_name(self) {
 		let ptr = self.raw() as usize;
 		let new_name_str = format!("{}+{ptr}", self.name());
