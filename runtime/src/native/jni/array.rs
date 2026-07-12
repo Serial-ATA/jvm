@@ -4,7 +4,7 @@ use crate::objects::instance::array::{
 };
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
-use crate::thread::exceptions::Throws;
+use crate::thread::exceptions::{Throws, throw};
 
 use core::ffi::c_void;
 use std::ptr;
@@ -88,53 +88,95 @@ pub unsafe extern "system" fn SetObjectArrayElement(
 	}
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn NewBooleanArray(env: *mut JNIEnv, len: jsize) -> jbooleanArray {
-	unimplemented!("jni::NewBooleanArray");
+/// Generate all of the typed primitive array methods (`New<Type>Array`, `{Get,Set}<Type>ArrayRegion`).
+macro_rules! define_primitive_array_methods {
+    ($([$java_type:ident, $jni_type:ty, $rust_component_type:ty, $type_code:expr]),* $(,)?) => {
+        $(
+        paste::paste! {
+            #[unsafe(no_mangle)]
+            pub unsafe extern "system" fn [<New $java_type:camel Array>](env: *mut JNIEnv, len: jsize) -> $jni_type {
+                let thread = JavaThread::current();
+                assert_eq!(thread.env().raw(), env);
+
+                match PrimitiveArrayInstance::new_from_type($type_code as u1, len) {
+                    Throws::Ok(array) => Reference::array(array).into_jni(),
+                    Throws::Exception(e) => {
+                        e.throw(thread);
+                        ptr::null_mut()
+                    },
+                }
+            }
+
+            #[unsafe(no_mangle)]
+            pub unsafe extern "system" fn [<Get $java_type:camel ArrayRegion>](
+                env: *mut JNIEnv,
+                array: $jni_type,
+                start: jsize,
+                l: jsize,
+                buf: *mut $rust_component_type,
+            ) {
+                let thread = JavaThread::current();
+                assert_eq!(thread.env().raw(), env);
+
+                let Some(array) = (unsafe { reference_from_jobject(array) }) else {
+                    panic!("Invalid arguments to `{}`", stringify!([<Get $java_type:camel ArrayRegion>]));
+                };
+
+                if start < 0 || l < 0 {
+                    throw!(thread, ArrayIndexOutOfBoundsException);
+                }
+
+                let start = start as usize;
+                let len = l as usize;
+
+                let buf = unsafe { std::slice::from_raw_parts_mut(buf, len) };
+                let array_ref = array.extract_primitive_array();
+                let slice = array_ref.as_slice::<$rust_component_type>();
+                if start > slice.len() || slice[start..].len() < len {
+                    throw!(thread, ArrayIndexOutOfBoundsException);
+                }
+
+                buf.copy_from_slice(&slice[start..len]);
+            }
+
+            #[unsafe(no_mangle)]
+            pub unsafe extern "system" fn [<Set $java_type:camel ArrayRegion>](
+                env: *mut JNIEnv,
+                array: $jni_type,
+                start: jsize,
+                len: jsize,
+                buf: *mut $rust_component_type,
+            ) {
+                let thread = JavaThread::current();
+                assert_eq!(thread.env().raw(), env);
+
+                let Some(array) = (unsafe { reference_from_jobject(array) }) else {
+                    panic!("Invalid arguments to `{}`", stringify!([<Set $java_type:camel ArrayRegion>]));
+                };
+
+                if start < 0 || len < 0 {
+                    throw!(thread, ArrayIndexOutOfBoundsException);
+                }
+
+                let buf = unsafe { std::slice::from_raw_parts_mut(buf, len as usize) };
+                if let Throws::Exception(e) = array.extract_primitive_array().write_region(start, buf) {
+                    e.throw(thread);
+                }
+            }
+        }
+        )*
+    }
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn NewByteArray(env: *mut JNIEnv, len: jsize) -> jbyteArray {
-	let thread = JavaThread::current();
-	assert_eq!(thread.env().raw(), env);
-
-	match PrimitiveArrayInstance::new_from_type(TypeCode::Byte as u1, len) {
-		Throws::Ok(array) => Reference::array(array).into_jni(),
-		Throws::Exception(e) => {
-			e.throw(thread);
-			ptr::null_mut()
-		},
-	}
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn NewCharArray(env: *mut JNIEnv, len: jsize) -> jcharArray {
-	unimplemented!("jni::NewCharArray");
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn NewShortArray(env: *mut JNIEnv, len: jsize) -> jshortArray {
-	unimplemented!("jni::NewShortArray");
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn NewIntArray(env: *mut JNIEnv, len: jsize) -> jintArray {
-	unimplemented!("jni::NewIntArray");
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn NewLongArray(env: *mut JNIEnv, len: jsize) -> jlongArray {
-	unimplemented!("jni::NewLongArray");
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn NewFloatArray(env: *mut JNIEnv, len: jsize) -> jfloatArray {
-	unimplemented!("jni::NewFloatArray");
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn NewDoubleArray(env: *mut JNIEnv, len: jsize) -> jdoubleArray {
-	unimplemented!("jni::NewDoubleArray");
+define_primitive_array_methods! {
+	[boolean, jbooleanArray, jboolean, TypeCode::Boolean],
+	[byte, jbyteArray, jbyte, TypeCode::Byte],
+	[char, jcharArray, jchar, TypeCode::Char],
+	[short, jshortArray, jshort, TypeCode::Short],
+	[int, jintArray, jint, TypeCode::Int],
+	[long, jlongArray, jlong, TypeCode::Long],
+	[float, jfloatArray, jfloat, TypeCode::Float],
+	[double, jdoubleArray, jdouble, TypeCode::Double],
 }
 
 #[unsafe(no_mangle)]
@@ -287,192 +329,6 @@ pub unsafe extern "system" fn ReleaseDoubleArrayElements(
 	mode: jint,
 ) {
 	unimplemented!("jni::ReleaseDoubleArrayElements")
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn GetBooleanArrayRegion(
-	env: *mut JNIEnv,
-	array: jbooleanArray,
-	start: jsize,
-	l: jsize,
-	buf: *mut jboolean,
-) {
-	unimplemented!("jni::GetBooleanArrayRegion")
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn GetByteArrayRegion(
-	env: *mut JNIEnv,
-	array: jbyteArray,
-	start: jsize,
-	len: jsize,
-	buf: *mut jbyte,
-) {
-	unimplemented!("jni::GetByteArrayRegion")
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn GetCharArrayRegion(
-	env: *mut JNIEnv,
-	array: jcharArray,
-	start: jsize,
-	len: jsize,
-	buf: *mut jchar,
-) {
-	unimplemented!("jni::GetCharArrayRegion")
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn GetShortArrayRegion(
-	env: *mut JNIEnv,
-	array: jshortArray,
-	start: jsize,
-	len: jsize,
-	buf: *mut jshort,
-) {
-	unimplemented!("jni::GetShortArrayRegion")
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn GetIntArrayRegion(
-	env: *mut JNIEnv,
-	array: jintArray,
-	start: jsize,
-	len: jsize,
-	buf: *mut jint,
-) {
-	unimplemented!("jni::GetIntArrayRegion")
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn GetLongArrayRegion(
-	env: *mut JNIEnv,
-	array: jlongArray,
-	start: jsize,
-	len: jsize,
-	buf: *mut jlong,
-) {
-	unimplemented!("jni::GetLongArrayRegion")
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn GetFloatArrayRegion(
-	env: *mut JNIEnv,
-	array: jfloatArray,
-	start: jsize,
-	len: jsize,
-	buf: *mut jfloat,
-) {
-	unimplemented!("jni::GetFloatArrayRegion")
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn GetDoubleArrayRegion(
-	env: *mut JNIEnv,
-	array: jdoubleArray,
-	start: jsize,
-	len: jsize,
-	buf: *mut jdouble,
-) {
-	unimplemented!("jni::GetDoubleArrayRegion")
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn SetBooleanArrayRegion(
-	env: *mut JNIEnv,
-	array: jbooleanArray,
-	start: jsize,
-	l: jsize,
-	buf: *mut jboolean,
-) {
-	unimplemented!("jni::SetBooleanArrayRegion")
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn SetByteArrayRegion(
-	env: *mut JNIEnv,
-	array: jbyteArray,
-	start: jsize,
-	len: jsize,
-	buf: *mut jbyte,
-) {
-	let thread = JavaThread::current();
-	assert_eq!(thread.env().raw(), env);
-
-	let Some(array) = (unsafe { reference_from_jobject(array) }) else {
-		panic!("Invalid arguments to `SetByteArrayRegion`");
-	};
-
-	let buf = unsafe { std::slice::from_raw_parts_mut(buf, len as usize - 1) };
-	if let Throws::Exception(e) = array.extract_primitive_array().write_region(start, buf) {
-		e.throw(thread);
-	}
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn SetCharArrayRegion(
-	env: *mut JNIEnv,
-	array: jcharArray,
-	start: jsize,
-	len: jsize,
-	buf: *mut jchar,
-) {
-	unimplemented!("jni::SetCharArrayRegion")
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn SetShortArrayRegion(
-	env: *mut JNIEnv,
-	array: jshortArray,
-	start: jsize,
-	len: jsize,
-	buf: *mut jshort,
-) {
-	unimplemented!("jni::SetShortArrayRegion")
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn SetIntArrayRegion(
-	env: *mut JNIEnv,
-	array: jintArray,
-	start: jsize,
-	len: jsize,
-	buf: *mut jint,
-) {
-	unimplemented!("jni::SetIntArrayRegion")
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn SetLongArrayRegion(
-	env: *mut JNIEnv,
-	array: jlongArray,
-	start: jsize,
-	len: jsize,
-	buf: *mut jlong,
-) {
-	unimplemented!("jni::SetLongArrayRegion")
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn SetFloatArrayRegion(
-	env: *mut JNIEnv,
-	array: jfloatArray,
-	start: jsize,
-	len: jsize,
-	buf: *mut jfloat,
-) {
-	unimplemented!("jni::SetFloatArrayRegion")
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn SetDoubleArrayRegion(
-	env: *mut JNIEnv,
-	array: jdoubleArray,
-	start: jsize,
-	len: jsize,
-	buf: *mut jdouble,
-) {
-	unimplemented!("jni::SetDoubleArrayRegion")
 }
 
 #[unsafe(no_mangle)]

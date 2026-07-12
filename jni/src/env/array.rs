@@ -1,7 +1,105 @@
 use crate::error::{JniError, Result};
-use crate::objects::{JByteArray, JClass, JObject, JObjectArray};
+use crate::objects::{
+	JBooleanArray, JByteArray, JCharArray, JClass, JDoubleArray, JFloatArray, JIntArray,
+	JLongArray, JObject, JObjectArray, JShortArray,
+};
 use crate::sys::jsize;
-use jni_sys::jbyte;
+
+use jni_sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
+
+/// Generate all of the typed primitive array methods (`New<Type>Array`, `{Get,Set}<Type>ArrayRegion`).
+macro_rules! define_primitive_array_methods {
+    ($([$java_type:ident, $jni_wrapper_type:ty, $rust_component_type:ty]),* $(,)?) => {
+        $(
+        paste::paste! {
+            pub fn [<new_ $java_type:lower _array>](&self, len: jsize) -> Result<$jni_wrapper_type> {
+                let ret;
+                unsafe {
+                    let invoke_interface = self.as_native_interface();
+                    ret = ((*invoke_interface).[<New $java_type:camel Array>])(self.0.cast::<jni_sys::JNIEnv>(), len);
+                }
+
+                if self.exception_check() {
+                    return Err(JniError::ExceptionThrown);
+                }
+
+                if ret.is_null() {
+                    return Err(JniError::Unknown);
+                }
+
+                Ok(unsafe { $jni_wrapper_type::from_raw(ret) })
+            }
+
+            /// Copy a region of a
+            #[doc = " [`" $jni_wrapper_type "`] "]
+            /// into `buf`.
+            ///
+            /// The size of the region is determined by the length of `buf`.
+            ///
+            /// # Parameters
+            ///
+            /// `array`: The array to slice.
+            /// `start`: The starting index, must be greater than or equal to zero, and less than the array length (see [`Self::get_array_length()`]).
+            /// `buf`: The destination buffer.
+            ///
+            /// # Errors
+            ///
+            /// This will error if an exception is thrown.
+            ///
+            /// Possible exceptions:
+            ///
+            /// * `ArrayIndexOutOfBoundsException`: The start index and/or buffer length is out of bounds.
+            pub fn [<get_ $java_type:lower _array_region>](
+                &self,
+                array: $jni_wrapper_type,
+                start: jsize,
+                buf: &mut [$rust_component_type],
+            ) -> Result<()> {
+                unsafe {
+                    let invoke_interface = self.as_native_interface();
+                    ((*invoke_interface).[<Get $java_type:camel ArrayRegion>])(
+                        self.0.cast::<jni_sys::JNIEnv>(),
+                        array.raw(),
+                        start,
+                        buf.len() as jsize,
+                        buf.as_mut_ptr(),
+                    );
+                }
+
+                if self.exception_check() {
+                    return Err(JniError::ExceptionThrown);
+                }
+
+                Ok(())
+            }
+
+            pub fn [<set_ $java_type:lower _array_region>](
+                &self,
+                array: $jni_wrapper_type,
+                start: jsize,
+                buf: &mut [$rust_component_type],
+            ) -> Result<()> {
+                unsafe {
+                    let invoke_interface = self.as_native_interface();
+                    ((*invoke_interface).[<Set $java_type:camel ArrayRegion>])(
+                        self.0.cast::<jni_sys::JNIEnv>(),
+                        array.raw(),
+                        start,
+                        buf.len() as jsize,
+                        buf.as_mut_ptr(),
+                    );
+                }
+
+                if self.exception_check() {
+                    return Err(JniError::ExceptionThrown);
+                }
+
+                Ok(())
+            }
+        }
+        )*
+    }
+}
 
 impl super::JniEnv {
 	// TODO: GetArrayLength
@@ -88,30 +186,6 @@ impl super::JniEnv {
 		Ok(())
 	}
 
-	// TODO: NewBooleanArray
-	pub fn new_byte_array(&self, len: jsize) -> Result<JByteArray> {
-		let ret;
-		unsafe {
-			let invoke_interface = self.as_native_interface();
-			ret = ((*invoke_interface).NewByteArray)(self.0.cast::<jni_sys::JNIEnv>(), len);
-		}
-
-		if self.exception_check() {
-			return Err(JniError::ExceptionThrown);
-		}
-
-		if ret.is_null() {
-			return Err(JniError::Unknown);
-		}
-
-		Ok(unsafe { JByteArray::from_raw(ret) })
-	}
-	// TODO: NewCharArray
-	// TODO: NewShortArray
-	// TODO: NewIntArray
-	// TODO: NewLongArray
-	// TODO: NewFloatArray
-	// TODO: NewDoubleArray
 	// TODO: GetBooleanArrayElements
 	// TODO: GetByteArrayElements
 	// TODO: GetCharArrayElements
@@ -128,44 +202,17 @@ impl super::JniEnv {
 	// TODO: ReleaseLongArrayElements
 	// TODO: ReleaseFloatArrayElements
 	// TODO: ReleaseDoubleArrayElements
-	// TODO: GetBooleanArrayRegion
-	// TODO: GetByteArrayRegion
-	// TODO: GetCharArrayRegion
-	// TODO: GetShortArrayRegion
-	// TODO: GetIntArrayRegion
-	// TODO: GetLongArrayRegion
-	// TODO: GetFloatArrayRegion
-	// TODO: GetDoubleArrayRegion
-	// TODO: SetBooleanArrayRegion
-	pub fn set_byte_array_region(
-		&self,
-		array: JByteArray,
-		start: jsize,
-		buf: &mut [jbyte],
-	) -> Result<()> {
-		unsafe {
-			let invoke_interface = self.as_native_interface();
-			((*invoke_interface).SetByteArrayRegion)(
-				self.0.cast::<jni_sys::JNIEnv>(),
-				array.raw(),
-				start,
-				buf.len() as jsize,
-				buf.as_mut_ptr(),
-			);
-		}
-
-		if self.exception_check() {
-			return Err(JniError::ExceptionThrown);
-		}
-
-		Ok(())
-	}
-	// TODO: SetCharArrayRegion
-	// TODO: SetShortArrayRegion
-	// TODO: SetIntArrayRegion
-	// TODO: SetLongArrayRegion
-	// TODO: SetFloatArrayRegion
-	// TODO: SetDoubleArrayRegion
 	// TODO: GetPrimitiveArrayCritical
 	// TODO: ReleasePrimitiveArrayCritical
+
+	define_primitive_array_methods! {
+		[boolean, JBooleanArray, jboolean],
+		[byte, JByteArray, jbyte],
+		[char, JCharArray, jchar],
+		[short, JShortArray, jshort],
+		[int, JIntArray, jint],
+		[long, JLongArray, jlong],
+		[float, JFloatArray, jfloat],
+		[double, JDoubleArray, jdouble]
+	}
 }

@@ -13,5 +13,7 @@ jni_sys.workspace = true
 platform.workspace = true
 common.workspace = true
 
+paste.workspace = true
+
 [lints]
 workspace = true
