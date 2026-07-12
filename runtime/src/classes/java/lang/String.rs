@@ -5,6 +5,7 @@ use crate::objects::instance::class::{ClassInstance, ClassInstanceRef};
 use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
+use crate::thread::exceptions::{Throws, throw};
 use crate::{globals, native};
 
 use std::borrow::Cow;
@@ -14,7 +15,7 @@ use byte_slice_cast::AsSliceOf;
 use classfile::FieldType;
 use common::int_types::u2;
 use instructions::Operand;
-use jni::sys::{jboolean, jbyte, jint};
+use jni::sys::{jboolean, jbyte, jint, jsize};
 
 pub trait IntoJavaStringInternable: sealed::Sealed {
 	const IS_UTF8: bool;
@@ -156,21 +157,61 @@ fn str_is_latin1(string: &[u8]) -> bool {
 
 /// Extract a [`String`] from the contents of a `java.lang.String` instance
 pub fn extract(instance: ClassInstanceRef) -> String {
+	slice(instance, 0, None).expect("a full slice should never fail")
+}
+
+/// Extract a portion of a [`String`] from the contents of a `java.lang.String` instance
+///
+/// This takes the contents of the range `start..len` in **characters** and converts them
+/// to a [`String`].
+///
+/// If `len` is `None`, the range is `start..`.
+pub fn slice(instance: ClassInstanceRef, start: usize, len: Option<usize>) -> Throws<String> {
 	let value = value(instance);
 	let value = value.as_slice::<jbyte>();
+	if value.is_empty() && start == 0 && len.is_none_or(|len| len == 0) {
+		return Throws::Ok(String::new());
+	}
 
 	let coder = coder(instance);
+	if start >= value.len() {
+		throw!(@DEFER StringIndexOutOfBoundsException);
+	}
 
 	// SAFETY: &[i8] and &[u8] have the same layout
 	let unsigned_chars =
 		unsafe { &*slice_from_raw_parts(value.as_ptr().cast::<u8>(), value.len()) };
-	match coder {
-		native::java::lang::String::LATIN1 => String::from_utf8_lossy(unsigned_chars).into_owned(),
+	let ret = match coder {
+		native::java::lang::String::LATIN1 => {
+			let chars = &unsigned_chars[start..];
+			match len {
+				Some(len) => {
+					if len > chars.len() {
+						throw!(@DEFER StringIndexOutOfBoundsException);
+					}
+
+					String::from_utf8_lossy(&chars[..len]).into_owned()
+				},
+				None => String::from_utf8_lossy(&chars).into_owned(),
+			}
+		},
 		native::java::lang::String::UTF16 => {
-			String::from_utf16_lossy(unsigned_chars.as_slice_of::<u2>().unwrap())
+			let chars = unsigned_chars[start..].as_slice_of::<u2>().unwrap();
+			match len {
+				Some(len) => {
+					if len > chars.len() {
+						throw!(@DEFER StringIndexOutOfBoundsException);
+					}
+
+					String::from_utf16_lossy(&chars[..len])
+				},
+				None => String::from_utf16_lossy(chars),
+			}
 		},
 		_ => panic!("Invalid string coder `{coder}`"),
-	}
+	};
+
+	Throws::Ok(ret)
 }
 
 /// Get the length of a `java.lang.String` **in characters**

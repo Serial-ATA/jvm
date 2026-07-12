@@ -3,7 +3,7 @@ use crate::native::java::lang::String::LATIN1;
 use crate::native::jni::{IntoJni, ReferenceJniExt, reference_from_jobject};
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
-use crate::thread::exceptions::throw;
+use crate::thread::exceptions::{Throws, throw};
 
 use core::ffi::c_char;
 use std::{ptr, slice};
@@ -74,7 +74,12 @@ pub unsafe extern "system" fn NewStringUTF(env: *mut JNIEnv, utf: *const c_char)
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn GetStringUTFLength(env: *mut JNIEnv, str: jstring) -> jsize {
-	unimplemented!("jni::GetStringUTFLength");
+	let Some(str) = (unsafe { reference_from_jobject(str) }) else {
+		panic!("GetStringUTFLength called on null object");
+	};
+
+	let string = classes::java::lang::String::extract(str.extract_class());
+	string.len() as jsize
 }
 
 #[unsafe(no_mangle)]
@@ -149,7 +154,42 @@ pub unsafe extern "system" fn GetStringUTFRegion(
 	len: jsize,
 	buf: *mut c_char,
 ) {
-	unimplemented!("jni::GetStringUTFRegion")
+	let Some(str) = (unsafe { reference_from_jobject(str) }) else {
+		panic!("GetStringUTFRegion called on null object");
+	};
+	if len == 0 {
+		// This method null terminates regardless
+		unsafe {
+			*buf = 0;
+		}
+		return;
+	}
+
+	if start < 0 || len < 0 {
+		throw!(JavaThread::current(), StringIndexOutOfBoundsException);
+	}
+
+	match classes::java::lang::String::slice(
+		str.extract_class(),
+		start as usize,
+		Some(len as usize),
+	) {
+		Throws::Ok(value) => {
+			let mut i = 0;
+			for (index, b) in unicode::encode(&value).iter().enumerate() {
+				// SAFETY: Assuming the caller passed in a valid buffer >= value.len()
+				unsafe { buf.add(index).write(*b as c_char) };
+				i = index;
+			}
+
+			// null terminated
+			unsafe { buf.add(i + 1).write(0) };
+		},
+		Throws::Exception(e) => {
+			e.throw(JavaThread::current());
+			return;
+		},
+	}
 }
 
 #[unsafe(no_mangle)]
