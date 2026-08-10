@@ -24,14 +24,18 @@ impl JImage {
 	}
 }
 
+/// A resource in a [`JImage`]
 pub struct Resource<'a> {
-	module: &'a str,
-	version: &'a str,
-	parent: Option<&'a str>,
-	base: Option<&'a str>,
-	extension: Option<&'a str>,
+	pub module: &'a str,
+	pub version: &'a str,
+	pub parent: Option<&'a str>,
+	pub base: Option<&'a str>,
+	pub extension: Option<&'a str>,
 }
 
+/// An iterator over the resources in a [`JImage`]
+///
+/// Created with [`JImage::resources()`]
 pub struct ResourceIter<'a> {
 	image: &'a JImage,
 	max: u4,

@@ -6,7 +6,8 @@ use std::io::Write;
 use common::endian::Endian;
 use common::int_types::{u1, u4, u8};
 
-pub struct ResourceHeader {
+#[expect(dead_code, reason = "decompression isn't implemented yet")]
+struct ResourceHeader {
 	pub(crate) __magic: u4,
 	pub size: u8,
 	pub uncompressed_size: u8,
@@ -105,7 +106,7 @@ fn decompress_zip(
 	_header: &ResourceHeader,
 	_strings: ImageStrings<'_>,
 ) -> Box<[u1]> {
-	unimplemented!("zip decompression")
+	todo!("zip decompression")
 }
 
 fn decompress_string(
@@ -113,5 +114,5 @@ fn decompress_string(
 	_header: &ResourceHeader,
 	_strings: ImageStrings<'_>,
 ) -> Box<[u1]> {
-	unimplemented!("string decompression")
+	todo!("string decompression")
 }
