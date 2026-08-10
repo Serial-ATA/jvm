@@ -4,6 +4,9 @@
 
 #![allow(non_snake_case)]
 
+mod force_early_return;
+mod heap;
 mod memory_management;
+mod stack_frame;
 mod thread;
 mod thread_group;
