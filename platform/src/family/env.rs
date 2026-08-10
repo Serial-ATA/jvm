@@ -13,13 +13,13 @@ pub use super::windows::env::*;
 // We can just share the paths, they'll never change during runtime
 static SYSTEM_PATHS: OnceLock<Option<SystemPaths>> = OnceLock::new();
 
+#[non_exhaustive]
 pub struct SystemPaths {
 	pub libjvm_path: PathBuf,
 	pub boot_library_path: PathBuf,
 	pub boot_class_path: PathBuf,
 	pub java_home: PathBuf,
 	pub extensions_dirs: String,
-	pub(crate) _priv: (),
 }
 
 impl SystemPaths {

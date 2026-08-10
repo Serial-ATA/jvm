@@ -1,18 +1,15 @@
 use std::borrow::Cow;
+use std::ffi::{c_int, c_void};
 use std::mem::MaybeUninit;
 
-extern "C" fn default_handler(
-	sig: libc::c_int,
-	info: *mut libc::siginfo_t,
-	context: *mut libc::c_void,
-) {
+extern "C" fn default_handler(sig: c_int, info: *mut libc::siginfo_t, context: *mut c_void) {
 	todo!()
 }
 
-type HandlerFn = extern "C" fn(libc::c_int);
-type SigActionFn = extern "C" fn(libc::c_int, *mut libc::siginfo_t, *mut libc::c_void);
+type HandlerFn = extern "C" fn(c_int);
+type SigActionFn = extern "C" fn(c_int, *mut libc::siginfo_t, *mut c_void);
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone)]
 pub enum SignalHandlerT {
 	Handler(HandlerFn),
 	SigAction(SigActionFn),
@@ -27,6 +24,16 @@ impl SignalHandlerT {
 			Self::Handler(handler) => *handler as HandlerFn as usize,
 			Self::SigAction(action) => *action as SigActionFn as usize,
 			Self::Indiscriminate(indiscriminate) => *indiscriminate,
+		}
+	}
+
+	pub fn raw(self) -> *mut c_void {
+		match self {
+			Self::Handler(handler) => handler as *mut c_void,
+			Self::SigAction(action) => action as *mut c_void,
+			Self::Indiscriminate(indiscriminate) => unsafe {
+				std::ptr::with_exposed_provenance_mut::<c_void>(indiscriminate)
+			},
 		}
 	}
 

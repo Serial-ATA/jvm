@@ -69,13 +69,12 @@ fn collect_jvm_h() {
 
 	println!("cargo:rerun-if-changed={}", vm_functions.display());
 	println!("cargo:rerun-if-changed={}", jvm_h_py.display());
-	if !vm_functions.exists() {
-		panic!(
-			"Expected VM function list at `{}`. Regenerate it with `{}`",
-			vm_functions.display(),
-			jvm_h_py.canonicalize().unwrap().display()
-		);
-	}
+	assert!(
+		vm_functions.exists(),
+		"Expected VM function list at `{}`. Regenerate it with `{}`",
+		vm_functions.display(),
+		jvm_h_py.canonicalize().unwrap().display()
+	);
 
 	let expected_vm_functions =
 		std::fs::read_to_string(&vm_functions).expect("failed to read VM functions");
@@ -129,7 +128,7 @@ fn collect_jvm_h() {
 			let name = item_fn.sig.ident.to_string();
 			let mut parameters = Vec::new();
 
-			for input in item_fn.sig.inputs.iter() {
+			for input in &item_fn.sig.inputs {
 				if let syn::FnArg::Typed(pat_type) = input {
 					parameters.push(encode_type(&pat_type.ty));
 				}
@@ -175,8 +174,8 @@ fn collect_jvm_h() {
 			return_type,
 		};
 
-		let Some(defined) = defined_jvm_functions.remove(&*name) else {
-			println!("cargo::warning=JVM function {name} not found",);
+		let Some(defined) = defined_jvm_functions.remove(name) else {
+			println!("cargo::warning=JVM function {name} not found");
 			continue;
 		};
 

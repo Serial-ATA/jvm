@@ -79,7 +79,6 @@ impl SystemPaths {
 			boot_class_path: crate::env::boot_class_path(&java_home)?,
 			java_home,
 			extensions_dirs,
-			_priv: (),
 		})
 	}
 }

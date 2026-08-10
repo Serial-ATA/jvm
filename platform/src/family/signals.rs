@@ -1,9 +1,10 @@
 use std::borrow::Cow;
+use std::ffi::c_void;
 
 /// A generic signal handler implementation
 ///
 /// All methods simply defer to their platform-specific implementations
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone)]
 pub struct SignalHandler(super::SignalHandlerT);
 
 impl SignalHandler {
@@ -15,6 +16,10 @@ impl SignalHandler {
 		self.0.as_usize()
 	}
 
+	pub fn raw(self) -> *mut c_void {
+		self.0.raw()
+	}
+
 	/// Construct a `SignalHandler` from a raw pointer to a platform-specific handler
 	///
 	/// # Safety
@@ -23,6 +28,12 @@ impl SignalHandler {
 	pub unsafe fn from_raw(handler: usize) -> Self {
 		let imp = unsafe { super::SignalHandlerT::from_raw(handler) };
 		Self(imp)
+	}
+}
+
+impl PartialEq<SignalHandler> for SignalHandler {
+	fn eq(&self, other: &SignalHandler) -> bool {
+		self.raw() == other.raw()
 	}
 }
 
