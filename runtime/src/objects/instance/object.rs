@@ -1,5 +1,5 @@
 use crate::objects::class::ClassPtr;
-use crate::objects::monitor::{Monitor, MonitorMap};
+use crate::objects::monitor::MonitorMap;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::Throws;
 
@@ -170,6 +170,11 @@ pub trait Object: Sized {
 		}
 	}
 
+	/// Stores `new` into an atomic field if the current value is equal to `current`
+	///
+	/// # Safety
+	///
+	/// * See [`Self::atomic_store()`]
 	unsafe fn compare_exchange<T: AtomicCounterpart + Copy>(
 		&self,
 		offset: usize,
@@ -192,6 +197,12 @@ pub trait Object: Sized {
 		}
 	}
 
+	/// Load a value from an atomic field
+	///
+	/// # Safety
+	///
+	/// * The field **must** be valid for atomic operations
+	/// * See [`Self::get_raw()`]
 	unsafe fn atomic_get<T: AtomicCounterpart + Copy>(&self, offset: usize) -> T {
 		unsafe {
 			let raw = self.get_raw::<T>(offset);
@@ -204,6 +215,12 @@ pub trait Object: Sized {
 		}
 	}
 
+	/// Store a value into an atomic field
+	///
+	/// # Safety
+	///
+	/// * The field **must** be valid for atomic operations
+	/// * See [`Self::get_raw()`]
 	unsafe fn atomic_store<T: AtomicCounterpart + Copy>(&self, new: T, offset: usize) {
 		unsafe {
 			let raw = self.get_raw::<T>(offset);

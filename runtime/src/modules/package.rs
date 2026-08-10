@@ -68,7 +68,7 @@ impl Package {
 impl Package {
 	// When we receive a list of packages in `defineModule0`, they will be in form "java.lang".
 	// We need to convert them to an internal path form "java/lang".
-	pub(crate) fn name_to_internal(name: String) -> String {
+	pub(crate) fn name_to_internal(name: &str) -> String {
 		name.replace('.', "/")
 	}
 

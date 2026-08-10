@@ -94,7 +94,11 @@ impl<T> From<Throws<T>> for Result<T, Exception> {
 // Roundabout impl, since the impl for Result does a decent amount of work and uses private types/methods
 impl<A, V: FromIterator<A>> FromIterator<Throws<A>> for Throws<V> {
 	fn from_iter<I: IntoIterator<Item = Throws<A>>>(iter: I) -> Self {
-		match Result::<V, Exception>::from_iter(iter.into_iter().map(Into::<Result<A, _>>::into)) {
+		match iter
+			.into_iter()
+			.map(Into::<Result<A, _>>::into)
+			.collect::<Result<V, Exception>>()
+		{
 			Ok(val) => Throws::Ok(val),
 			Err(exception) => Throws::Exception(exception),
 		}

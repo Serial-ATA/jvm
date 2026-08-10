@@ -76,9 +76,7 @@ impl BackTrace {
 	}
 
 	fn into_obj(self) -> Reference {
-		let content = self.inner.into_boxed_slice();
-
-		let array = PrimitiveArrayInstance::new::<jlong>(content);
+		let array = PrimitiveArrayInstance::new::<jlong>(&self.inner);
 		Reference::array(array)
 	}
 }

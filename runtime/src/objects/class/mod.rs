@@ -107,13 +107,13 @@ impl FieldContainer {
 
 	fn get_static_field(&self, index: usize) -> Operand<Reference> {
 		let field = self.static_field_slots[index].get();
-		unsafe { (*field).clone() }
+		unsafe { *field }
 	}
 
 	fn get_static_field_volatile(&self, index: usize) -> Operand<Reference> {
 		let field = self.static_field_slots[index].get();
 		let ptr = AtomicPtr::new(field);
-		unsafe { (&*ptr.load(Ordering::Acquire)).clone() }
+		unsafe { *ptr.load(Ordering::Acquire) }
 	}
 
 	fn instance_field_count(&self) -> u4 {
@@ -399,7 +399,7 @@ impl Class {
 			"Package name is an empty string"
 		);
 
-		let ret = Symbol::intern(name_str[start_index..end].as_bytes());
+		let ret = Symbol::intern(&name_str.as_bytes()[start_index..end]);
 		unsafe {
 			(*self.misc_cache.get()).package_name = Some(Some(ret));
 		}
@@ -678,10 +678,12 @@ impl Class {
 
 	/// Inject a set of fields into this class
 	///
-	/// This can only ever be called once, and is **NEVER** to be used outside of initialization.
-	///
 	/// This allows us to store extra information in objects as necessary, such as a [`Module`] pointer
 	/// in a `java.lang.Module` object.
+	///
+	/// # Safety
+	///
+	/// This can only ever be called once, and is **NEVER** to be used outside of initialization.
 	pub unsafe fn inject_fields(
 		&self,
 		fields: impl IntoIterator<Item = &'static Field>,
@@ -695,7 +697,7 @@ impl Class {
 			old_fields.assume_init()
 		};
 
-		let has_instance_fields = old_fields.len() > 0;
+		let has_instance_fields = !old_fields.is_empty();
 
 		let max_instance_index = old_fields
 			.iter()

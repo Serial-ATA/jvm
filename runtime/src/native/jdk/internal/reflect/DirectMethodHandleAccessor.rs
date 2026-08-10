@@ -9,7 +9,6 @@ use crate::thread::exceptions::{handle_exception, throw_and_return_null};
 use crate::{classes, java_call};
 
 use classfile::FieldType;
-use instructions::StackLike;
 use jni::env::JniEnv;
 use jni::sys::jint;
 
@@ -109,7 +108,7 @@ pub(super) fn do_invoke(
 					IllegalArgumentException,
 					"argument type mismatch"
 				),
-			};
+			}
 
 			continue;
 		}

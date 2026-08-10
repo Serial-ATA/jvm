@@ -42,7 +42,7 @@ impl JavaThread {
 	}
 
 	pub fn current() -> &'static JavaThread {
-		Self::current_opt().unwrap_or_else(|| unsafe {
+		Self::current_opt().unwrap_or_else(|| {
 			let shared_thread = Self::shared();
 			JavaThread::set_current_thread(shared_thread);
 			shared_thread

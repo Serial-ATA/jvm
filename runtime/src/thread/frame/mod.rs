@@ -352,14 +352,14 @@ impl Frame {
 
 	/// Get the operand at `index`
 	pub fn local(&self, index: u1) -> Operand<Reference> {
-		self.verify_local_index(index as u2);
+		self.verify_local_index(u2::from(index));
 		let offset = self.locals_base + index as usize;
 		self.thread().stack().absolute(offset)
 	}
 
 	/// Set the operand at `index` to `op`
 	pub fn set_local(&self, index: u1, op: Operand<Reference>) {
-		self.verify_local_index(index as u2);
+		self.verify_local_index(u2::from(index));
 		let offset = self.locals_base + index as usize;
 		self.thread().stack().set_absolute(offset, op)
 	}

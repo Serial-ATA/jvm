@@ -60,7 +60,7 @@ impl Drop for OperandStack {
 		let layout = Layout::array::<Operand<Reference>>(capacity + 1).expect("valid layout");
 
 		unsafe {
-			alloc::dealloc(self.base as *mut u8, layout);
+			alloc::dealloc(self.base.cast::<u8>(), layout);
 		}
 	}
 }
@@ -177,7 +177,7 @@ impl OperandStack {
 		unsafe {
 			// `base` is always an unoccupied slot
 			let ptr = self.base.add(offset_from_base + 1);
-			(&*ptr).clone()
+			*ptr
 		}
 	}
 }
@@ -272,9 +272,7 @@ impl StackLike<Reference> for OperandStack {
 			}
 		}
 
-		if operands_encountered != count {
-			panic!("stack underflow");
-		}
+		assert_eq!(operands_encountered, count, "stack underflow");
 
 		// SAFETY: `current` will always be <= `self.cur`
 		let total_slots = unsafe { self.cur.offset_from_unsigned(current) };
@@ -332,7 +330,7 @@ impl StackLike<Reference> for OperandStack {
 		// The dup instruction must not be used unless value is a value of a category 1 computational type (§2.11.1).
 		assert!(!matches!(value, Operand::Long(_) | Operand::Double(_)));
 
-		self.push(value.clone());
+		self.push(value);
 		self.push(value);
 	}
 
@@ -343,7 +341,7 @@ impl StackLike<Reference> for OperandStack {
 		assert!(!matches!(value1, Operand::Long(_) | Operand::Double(_)));
 		assert!(!matches!(value2, Operand::Long(_) | Operand::Double(_)));
 
-		self.push(value1.clone());
+		self.push(value1);
 		self.push(value2);
 		self.push(value1);
 	}
@@ -363,7 +361,7 @@ impl StackLike<Reference> for OperandStack {
 			&& !matches!(value2, Operand::Long(_) | Operand::Double(_))
 		{
 			let value3 = self.pop();
-			self.push(value1.clone());
+			self.push(value1);
 			self.push(value3);
 			self.push(value2);
 			self.push(value1);
@@ -380,7 +378,7 @@ impl StackLike<Reference> for OperandStack {
 		assert!(!matches!(value1, Operand::Long(_) | Operand::Double(_)));
 		assert!(matches!(value2, Operand::Long(_) | Operand::Double(_)));
 
-		self.push(value1.clone());
+		self.push(value1);
 		self.push(value2);
 		self.push(value1);
 	}
@@ -396,7 +394,7 @@ impl StackLike<Reference> for OperandStack {
 		//
 		// where value is a value of a category 2 computational type (§2.11.1).
 		if matches!(value1, Operand::Long(_) | Operand::Double(_)) {
-			self.push(value1.clone());
+			self.push(value1);
 			self.push(value1);
 			return;
 		}
@@ -411,8 +409,8 @@ impl StackLike<Reference> for OperandStack {
 		// ..., value2, value1, value2, value1
 		//
 		// where both value1 and value2 are values of a category 1 computational type (§2.11.1).
-		self.push(value2.clone());
-		self.push(value1.clone());
+		self.push(value2);
+		self.push(value1);
 		self.push(value2);
 		self.push(value1);
 	}

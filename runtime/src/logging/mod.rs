@@ -4,7 +4,6 @@ mod write;
 pub(crate) use write::__write; // For the `log!` macro
 
 use std::fmt::{Debug, Display, Formatter};
-use std::io::Write;
 use std::str::FromStr;
 use std::sync::atomic::Atomic;
 

@@ -2,8 +2,6 @@
 
 use std::ffi::{c_char, c_void};
 
-use jni::env::JniEnv;
-use jni::objects::{JObject, JObjectArray, JString};
 use jni::sys::jboolean;
 use native_macros::jni_call;
 

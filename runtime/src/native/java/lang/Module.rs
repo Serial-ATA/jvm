@@ -44,7 +44,7 @@ pub fn defineModule0(
 			}
 
 			let package_name = classes::java::lang::String::extract(package_name.extract_class());
-			package_names.push(Package::name_to_internal(package_name));
+			package_names.push(Package::name_to_internal(&package_name));
 		}
 	}
 
@@ -125,7 +125,7 @@ pub fn addExports0(
 	};
 
 	let package_name = classes::java::lang::String::extract(pn.extract_class());
-	let package_name = Package::name_to_internal(package_name);
+	let package_name = Package::name_to_internal(&package_name);
 
 	let from_module = unsafe { &*from_ptr };
 	let to_module = unsafe { &*to_ptr };
@@ -153,7 +153,7 @@ pub fn addExportsToAll0(
 	};
 
 	let package_name = classes::java::lang::String::extract(pn.extract_class());
-	let package_name = Package::name_to_internal(package_name);
+	let package_name = Package::name_to_internal(&package_name);
 
 	let from_module = unsafe { &*from_ptr };
 	from_module.add_exports(None, package_name);

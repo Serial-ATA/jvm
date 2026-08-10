@@ -36,12 +36,12 @@ fn find_field(
 
 	let ret = class.resolve_field(name_sym, sig_sym);
 	if let Throws::Ok(ret) = &ret {
-		if !(ret.is_static() == is_static) {
+		if ret.is_static() != is_static {
 			throw!(@DEFER NoSuchFieldError, "{name_sym}");
 		}
 	}
 
-	ret.map(|field| field.into_jni())
+	ret.map(IntoJni::into_jni)
 }
 
 // --------------
@@ -277,7 +277,7 @@ pub extern "system" fn GetStaticDoubleField(
 	unimplemented!("jni::GetStaticDoubleField");
 }
 
-pub extern "system" fn SetStaticObjectField(
+pub unsafe extern "system" fn SetStaticObjectField(
 	env: *mut JNIEnv,
 	_clazz: jclass,
 	fieldID: jfieldID,

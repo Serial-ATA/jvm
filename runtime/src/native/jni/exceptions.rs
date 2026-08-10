@@ -15,7 +15,7 @@ use instructions::Operand;
 use libc::strlen;
 
 #[unsafe(no_mangle)]
-pub extern "system" fn Throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
+pub unsafe extern "system" fn Throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
 
@@ -33,7 +33,11 @@ pub extern "system" fn Throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn ThrowNew(env: *mut JNIEnv, clazz: jclass, msg: *const c_char) -> jint {
+pub unsafe extern "system" fn ThrowNew(
+	env: *mut JNIEnv,
+	clazz: jclass,
+	msg: *const c_char,
+) -> jint {
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
 
@@ -51,7 +55,7 @@ pub extern "system" fn ThrowNew(env: *mut JNIEnv, clazz: jclass, msg: *const c_c
 
 		if let Ok(utf_8) = unicode::decode(utf) {
 			message = Some(utf_8);
-		};
+		}
 	}
 
 	let throwable_class = mirror.extract_target_class();

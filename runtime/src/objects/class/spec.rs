@@ -236,7 +236,7 @@ impl Class {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.3.3
-	pub fn resolve_method<'a>(&self, name: Symbol, descriptor: Symbol) -> Throws<&'static Method> {
+	pub fn resolve_method(&self, name: Symbol, descriptor: Symbol) -> Throws<&'static Method> {
 		// When resolving a method reference:
 
 		//  1. If C is an interface, method resolution throws an IncompatibleClassChangeError.

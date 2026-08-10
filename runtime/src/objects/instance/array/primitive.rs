@@ -233,7 +233,7 @@ impl PrimitiveType for jlong {
 impl PrimitiveArrayInstance {
 	// TODO: Should throw on OOM
 	/// Convenience constructor for allocating an array and copying `elements` into it
-	pub fn new<T>(elements: Box<[T]>) -> PrimitiveArrayInstanceRef
+	pub fn new<T>(elements: &[T]) -> PrimitiveArrayInstanceRef
 	where
 		T: PrimitiveType,
 	{

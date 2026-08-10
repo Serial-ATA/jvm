@@ -51,7 +51,7 @@ pub mod types {
 		};
 	}
 
-	#[cfg_attr(rustfmt, rustfmt_skip)]
+	#[rustfmt::skip]
 	make_types!(
 		OneWord,
 			// == Not real verification types, needed for array types ==

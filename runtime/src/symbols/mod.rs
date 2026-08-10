@@ -47,7 +47,7 @@ impl SymbolInterner {
 		// We extend the lifetime of the string to `'static`, which is safe,
 		// as we only use the strings while the arena is alive
 		let string: &'static [u8] =
-			unsafe { &*(self.arena.alloc_slice_copy(bytes) as *const [u8]) };
+			unsafe { &*std::ptr::from_ref::<[u8]>(self.arena.alloc_slice_copy(bytes)) };
 		self.intern_static(string)
 	}
 
@@ -120,25 +120,25 @@ impl Internable for String {
 
 impl Internable for Cow<'_, str> {
 	fn as_bytes(&self) -> &[u8] {
-		str::as_bytes(&*self)
+		str::as_bytes(self)
 	}
 }
 
 impl Internable for Box<[u8]> {
 	fn as_bytes(&self) -> &[u8] {
-		&*self
+		self
 	}
 }
 
 impl Internable for Vec<u8> {
 	fn as_bytes(&self) -> &[u8] {
-		&*self
+		self
 	}
 }
 
 impl Internable for Cow<'_, [u8]> {
 	fn as_bytes(&self) -> &[u8] {
-		&*self
+		self
 	}
 }
 

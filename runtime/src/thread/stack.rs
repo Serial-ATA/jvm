@@ -187,7 +187,7 @@ impl Drop for ThreadStack {
 
 		// SAFETY: Allocation came from `Self::new()`
 		unsafe {
-			alloc::dealloc(self.base as *mut u8, layout);
+			alloc::dealloc(self.base.cast::<u8>(), layout);
 		}
 	}
 }
@@ -386,7 +386,7 @@ impl ThreadStack {
 	/// assert_eq!(stack.at(-3), Operand::Int(1));
 	/// ```
 	pub fn at(&self, offset: isize) -> Operand<Reference> {
-		unsafe { (&*self.raw(offset)).clone() }
+		unsafe { *self.raw(offset) }
 	}
 
 	/// Get the operand at `index` from the bottom of the stack
@@ -408,7 +408,7 @@ impl ThreadStack {
 	/// ```
 	pub fn absolute(&self, index: usize) -> Operand<Reference> {
 		assert!(index < self.len());
-		unsafe { (&*self.base.add(index + 1)).clone() }
+		unsafe { *self.base.add(index + 1) }
 	}
 
 	/// Set the value of the slot `index` slots down from the top of the stack
@@ -588,9 +588,7 @@ impl StackLike<Reference> for ThreadStack {
 			}
 		}
 
-		if operands_encountered != count {
-			panic!("stack underflow");
-		}
+		assert!(operands_encountered == count, "stack underflow");
 
 		// SAFETY: `current` will always be <= `self.cur`
 		let total_slots = unsafe { self.cur.offset_from_unsigned(current) };
@@ -647,7 +645,7 @@ impl StackLike<Reference> for ThreadStack {
 		// The dup instruction must not be used unless value is a value of a category 1 computational type (§2.11.1).
 		assert!(!matches!(value, Operand::Long(_) | Operand::Double(_)));
 
-		self.push_op(value.clone());
+		self.push_op(value);
 		self.push_op(value);
 	}
 
@@ -658,7 +656,7 @@ impl StackLike<Reference> for ThreadStack {
 		assert!(!matches!(value1, Operand::Long(_) | Operand::Double(_)));
 		assert!(!matches!(value2, Operand::Long(_) | Operand::Double(_)));
 
-		self.push_op(value1.clone());
+		self.push_op(value1);
 		self.push_op(value2);
 		self.push_op(value1);
 	}
@@ -678,7 +676,7 @@ impl StackLike<Reference> for ThreadStack {
 			&& !matches!(value2, Operand::Long(_) | Operand::Double(_))
 		{
 			let value3 = self.pop();
-			self.push_op(value1.clone());
+			self.push_op(value1);
 			self.push_op(value3);
 			self.push_op(value2);
 			self.push_op(value1);
@@ -695,7 +693,7 @@ impl StackLike<Reference> for ThreadStack {
 		assert!(!matches!(value1, Operand::Long(_) | Operand::Double(_)));
 		assert!(matches!(value2, Operand::Long(_) | Operand::Double(_)));
 
-		self.push_op(value1.clone());
+		self.push_op(value1);
 		self.push_op(value2);
 		self.push_op(value1);
 	}
@@ -711,7 +709,7 @@ impl StackLike<Reference> for ThreadStack {
 		//
 		// where value is a value of a category 2 computational type (§2.11.1).
 		if matches!(value1, Operand::Long(_) | Operand::Double(_)) {
-			self.push_op(value1.clone());
+			self.push_op(value1);
 			self.push_op(value1);
 			return;
 		}
@@ -726,8 +724,8 @@ impl StackLike<Reference> for ThreadStack {
 		// ..., value2, value1, value2, value1
 		//
 		// where both value1 and value2 are values of a category 1 computational type (§2.11.1).
-		self.push_op(value2.clone());
-		self.push_op(value1.clone());
+		self.push_op(value2);
+		self.push_op(value1);
 		self.push_op(value2);
 		self.push_op(value1);
 	}

@@ -53,7 +53,7 @@ pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> Result<JavaVm, Initializ
 	}
 
 	match JavaThreadBuilder::new().finish(false) {
-		Throws::Ok(thread) => unsafe {
+		Throws::Ok(thread) => {
 			JavaThread::set_current_thread(thread);
 		},
 		Throws::Exception(e) => {

@@ -59,7 +59,7 @@ impl NativeMethodPtr {
 	}
 
 	pub unsafe fn from_raw(ptr: *const ()) -> Self {
-		Self::External(ptr as *const c_void)
+		Self::External(ptr.cast::<c_void>())
 	}
 
 	pub unsafe fn as_static(self) -> NativeStaticMethodPtr {

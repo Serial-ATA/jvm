@@ -11,7 +11,7 @@ use ::jni::sys::{JNI_ERR, JNI_OK, JNIEnv, JNINativeMethod, jclass, jint};
 use common::unicode;
 
 #[unsafe(no_mangle)]
-pub extern "system" fn RegisterNatives(
+pub unsafe extern "system" fn RegisterNatives(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methods: *const JNINativeMethod,

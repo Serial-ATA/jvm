@@ -15,7 +15,7 @@ macro_rules! log {
             $crate::logging::__write(
                 level,
                 tags,
-                message,
+                &message,
             );
         }
     }};

@@ -92,20 +92,18 @@ where
 		let encoded_str;
 		if is_latin1 {
 			let byte_slice: &[jbyte] = bytemuck::cast_slice(string);
-			encoded_str = byte_slice.to_vec().into_boxed_slice();
+			encoded_str = Cow::Borrowed(byte_slice);
 		} else if is_utf8 {
 			// SAFETY: &[u8] and &str have the same layout
 			let string: &str = unsafe { std::mem::transmute(string) };
 			// TODO: More efficient conversion
 			let utf16_encoded_bytes = string.encode_utf16().collect::<Box<[u16]>>();
-			encoded_str = bytemuck::cast_slice(&utf16_encoded_bytes)
-				.to_vec()
-				.into_boxed_slice()
+			encoded_str = Cow::Owned(bytemuck::cast_slice(&utf16_encoded_bytes).to_vec())
 		} else {
 			// Otherwise, the source is a UTF-16 encoded string (hopefully)
 			assert_eq!(string.len() % 2, 0);
 			let byte_slice: &[jbyte] = bytemuck::cast_slice(string);
-			encoded_str = byte_slice.to_vec().into_boxed_slice();
+			encoded_str = Cow::Borrowed(byte_slice);
 		}
 
 		let new_java_string_instance = ClassInstance::new(globals::classes::java_lang_String());
@@ -113,7 +111,7 @@ where
 		// Set `private byte[] value`
 		set_value(
 			new_java_string_instance,
-			Reference::array(PrimitiveArrayInstance::new::<jbyte>(encoded_str)),
+			Reference::array(PrimitiveArrayInstance::new::<jbyte>(&*encoded_str)),
 		);
 
 		// Set `private final byte coder`
@@ -192,7 +190,7 @@ pub fn slice(instance: ClassInstanceRef, start: usize, len: Option<usize>) -> Th
 
 					String::from_utf8_lossy(&chars[..len]).into_owned()
 				},
-				None => String::from_utf8_lossy(&chars).into_owned(),
+				None => String::from_utf8_lossy(chars).into_owned(),
 			}
 		},
 		native::java::lang::String::UTF16 => {

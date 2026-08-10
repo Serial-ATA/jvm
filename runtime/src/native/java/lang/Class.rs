@@ -490,16 +490,12 @@ pub fn getDeclaredConstructors0(
 	let constructors = target
 		.vtable()
 		.iter_local()
-		.filter_map(|method| {
+		.filter(|method| {
 			if !method.is_public() && public_only {
-				return None;
+				return false;
 			}
 
-			if method.name == sym!(object_initializer_name) {
-				Some(method)
-			} else {
-				None
-			}
+			method.name == sym!(object_initializer_name)
 		})
 		.collect::<Vec<&'static Method>>();
 

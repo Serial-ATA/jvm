@@ -282,9 +282,7 @@ impl Reference {
 	}
 
 	pub fn extract_primitive_array(&self) -> PrimitiveArrayInstanceRef {
-		if self.is_null() {
-			panic!("NullPointerException")
-		}
+		assert!(!self.is_null());
 
 		if self.is_primitive_array() {
 			return unsafe { self.as_primitive_array_unchecked() };
@@ -294,9 +292,7 @@ impl Reference {
 	}
 
 	pub fn extract_object_array(&self) -> ObjectArrayInstanceRef {
-		if self.is_null() {
-			panic!("NullPointerException")
-		}
+		assert!(!self.is_null());
 
 		if self.is_object_array() {
 			return unsafe { self.as_object_array_unchecked() };
@@ -306,9 +302,7 @@ impl Reference {
 	}
 
 	pub fn extract_class(&self) -> ClassInstanceRef {
-		if self.is_null() {
-			panic!("NullPointerException")
-		}
+		assert!(!self.is_null());
 
 		if self.is_class() {
 			return unsafe { self.as_class_unchecked() };
@@ -355,9 +349,7 @@ impl Reference {
 	}
 
 	pub fn extract_mirror(&self) -> MirrorInstanceRef {
-		if self.is_null() {
-			panic!("NullPointerException")
-		}
+		assert!(!self.is_null());
 
 		if self.is_mirror() {
 			return unsafe { self.as_mirror_unchecked() };
@@ -368,13 +360,8 @@ impl Reference {
 
 	/// Extract a mirror instance from a `Class` or `Array` instance, this is NOT the same as `Reference::extract_mirror`
 	pub fn extract_class_mirror(&self) -> MirrorInstanceRef {
-		if self.is_null() {
-			panic!("NullPointerException")
-		}
-
-		if self.is_mirror() {
-			panic!("Expected a class/array reference!");
-		}
+		assert!(!self.is_null());
+		assert!(!self.is_mirror(), "Expected a class/array reference!");
 
 		self.class().mirror()
 	}

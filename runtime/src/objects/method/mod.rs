@@ -356,28 +356,28 @@ impl Method {
 		self.attributes
 			.iter()
 			.find_map(Attribute::runtime_visible_annotations)
-			.map(|attr| PrimitiveArrayInstance::new(attr.as_bytes().into_jbyte_array()))
+			.map(|attr| PrimitiveArrayInstance::new(&*attr.as_bytes().into_jbyte_array()))
 	}
 
 	pub fn parameter_annotations_array(&self) -> Option<PrimitiveArrayInstanceRef> {
 		self.attributes
 			.iter()
 			.find_map(Attribute::runtime_visible_parameter_annotations)
-			.map(|attr| PrimitiveArrayInstance::new(attr.as_bytes().into_jbyte_array()))
+			.map(|attr| PrimitiveArrayInstance::new(&*attr.as_bytes().into_jbyte_array()))
 	}
 
 	pub fn type_annotations_array(&self) -> Option<PrimitiveArrayInstanceRef> {
 		self.attributes
 			.iter()
 			.find_map(Attribute::runtime_visible_type_annotations)
-			.map(|attr| PrimitiveArrayInstance::new(attr.as_bytes().into_jbyte_array()))
+			.map(|attr| PrimitiveArrayInstance::new(&*attr.as_bytes().into_jbyte_array()))
 	}
 
 	pub fn annotation_default(&self) -> Option<PrimitiveArrayInstanceRef> {
 		self.attributes
 			.iter()
 			.find_map(Attribute::annotation_default)
-			.map(|attr| PrimitiveArrayInstance::new(attr.as_bytes().into_jbyte_array()))
+			.map(|attr| PrimitiveArrayInstance::new(&*attr.as_bytes().into_jbyte_array()))
 	}
 }
 
@@ -556,6 +556,11 @@ fn field_type_mirror(class: ClassPtr, ty: &FieldType) -> Throws<MirrorInstanceRe
 
 // JNI stuff
 impl Method {
+	/// Convert a C-style array of values into a vector of [`Operand`]s
+	///
+	/// # Safety
+	///
+	/// See [`Self::args_for_va_list()`]
 	pub unsafe fn args_for_c_array(
 		&self,
 		mut args: *const jvalue,
@@ -620,6 +625,15 @@ impl Method {
 		Some(parameters)
 	}
 
+	/// Convert a C [`VaList`] into a vector of [`Operand`]s
+	///
+	/// # Safety
+	///
+	/// The caller must verify that `args` is well-formed for the given method signature.
+	///
+	/// * It must contain the correct number of arguments
+	/// * All arguments must be of the correct type
+	/// * All object references must be valid
 	pub unsafe fn args_for_va_list(&self, mut args: VaList<'_>) -> Option<Vec<Operand<Reference>>> {
 		let mut parameters = Vec::with_capacity(self.parameter_count() as usize);
 		for parameter in &self.descriptor.parameters {

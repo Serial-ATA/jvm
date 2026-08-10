@@ -138,7 +138,7 @@ impl IntoJni for &'static Field {
 
 	#[allow(trivial_casts)]
 	fn into_jni(self) -> Self::RawJniTy {
-		self as *const _ as jfieldID
+		std::ptr::from_ref(self) as jfieldID
 	}
 
 	fn into_jni_safe(self) -> Self::SafeJniTy {

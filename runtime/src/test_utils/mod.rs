@@ -38,8 +38,8 @@ pub fn init_basic_shared_runtime() -> &'static JavaThread {
 			.finish(true)
 			.expect("failed to allocate thread");
 
+		JavaThread::set_current_thread(thread);
 		unsafe {
-			JavaThread::set_current_thread(thread);
 			JavaThread::set_shared_thread(thread);
 		}
 

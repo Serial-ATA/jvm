@@ -223,12 +223,12 @@ fn attach_current_thread_impl(
 
 	thread.attach_thread_obj(
 		name.as_deref(),
-		group.unwrap_or_else(|| crate::globals::threads::main_thread_group()),
+		group.unwrap_or_else(crate::globals::threads::main_thread_group),
 		daemon,
 	);
 
+	JavaThread::set_current_thread(thread);
 	unsafe {
-		JavaThread::set_current_thread(thread);
 		*penv = thread.env().raw().cast();
 	}
 
@@ -240,7 +240,7 @@ fn attach_current_thread_impl(
 #[allow(trivial_casts)]
 pub unsafe fn main_java_vm() -> JavaVm {
 	let raw: jni::sys::JavaVM = &raw const RAW_INVOKE_INTERFACE.0;
-	unsafe { JavaVm::from_raw(raw as *mut _) }
+	unsafe { JavaVm::from_raw(raw.cast_mut()) }
 }
 
 struct InvokeInterface(jni::sys::JNIInvokeInterface_);

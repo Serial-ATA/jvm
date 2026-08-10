@@ -4,7 +4,6 @@ use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::Throws;
-use common::int_types::u1;
 
 use core::ffi::c_char;
 use std::ffi::CStr;

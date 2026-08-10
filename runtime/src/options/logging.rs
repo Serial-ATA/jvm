@@ -137,7 +137,7 @@ impl Display for LogOutputOptionsParseError {
 				write!(f, "Invalid option '{}' for log output", option)
 			},
 			LogOutputOptionsParseError::BadBool(field) => {
-				write!(f, "{field} must be 'true' or 'false'",)
+				write!(f, "{field} must be 'true' or 'false'")
 			},
 			LogOutputOptionsParseError::BadInt(field) => write!(
 				f,
@@ -305,7 +305,7 @@ impl FromStr for LogOption {
 		let _empty = sections
 			.next()
 			.expect("split should always return something");
-		if _empty != "" {
+		if !_empty.is_empty() {
 			// There shouldn't be anything between "-Xlog" and the first colon
 			todo!("Some error")
 		}

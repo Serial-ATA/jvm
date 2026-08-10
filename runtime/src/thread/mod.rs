@@ -28,7 +28,7 @@ use crate::{classes, enabled, globals, java_call};
 
 use std::cell::{Cell, UnsafeCell};
 use std::mem::MaybeUninit;
-use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicIsize, AtomicU8, Ordering};
 use std::thread::JoinHandle;
 
 use classfile::FieldType;
@@ -173,7 +173,7 @@ impl JavaThread {
 	/// # Panics
 	///
 	/// This will panic if there is already a current thread set
-	pub unsafe fn set_current_thread(thread: &'static JavaThread) {
+	pub fn set_current_thread(thread: &'static JavaThread) {
 		CURRENT_JAVA_THREAD.update(|current| {
 			assert!(
 				current.is_none(),
@@ -183,6 +183,14 @@ impl JavaThread {
 		});
 	}
 
+	/// Remove the current [`JavaThread`] for this thread
+	///
+	/// # Safety
+	///
+	/// This must only be called when no active references to the thread exist.
+	/// This is only to be used in [`DetachCurrentThread`].
+	///
+	/// [`DetachCurrentThread`]: crate::native::jni::invocation_api::DetachCurrentThread
 	pub unsafe fn unset_current_thread() {
 		CURRENT_JAVA_THREAD.update(|current| {
 			assert!(
@@ -519,52 +527,44 @@ impl JavaThread {
 					match method.descriptor.return_type {
 						FieldType::Byte => Some(Operand::Int(
 							cfi.cfi
-								.call::<jbyte>(CodePtr::from_ptr(func), &*cfi.args)
+								.call::<jbyte>(CodePtr::from_ptr(func), &cfi.args)
 								.into(),
 						)),
 						FieldType::Character => Some(Operand::Int(
 							cfi.cfi
-								.call::<jchar>(CodePtr::from_ptr(func), &*cfi.args)
+								.call::<jchar>(CodePtr::from_ptr(func), &cfi.args)
 								.into(),
 						)),
 						FieldType::Double => Some(Operand::Double(
-							cfi.cfi
-								.call::<jdouble>(CodePtr::from_ptr(func), &*cfi.args)
-								.into(),
+							cfi.cfi.call::<jdouble>(CodePtr::from_ptr(func), &cfi.args),
 						)),
 						FieldType::Float => Some(Operand::Float(
-							cfi.cfi
-								.call::<jfloat>(CodePtr::from_ptr(func), &*cfi.args)
-								.into(),
+							cfi.cfi.call::<jfloat>(CodePtr::from_ptr(func), &cfi.args),
 						)),
 						FieldType::Integer => Some(Operand::Int(
-							cfi.cfi
-								.call::<jint>(CodePtr::from_ptr(func), &*cfi.args)
-								.into(),
+							cfi.cfi.call::<jint>(CodePtr::from_ptr(func), &cfi.args),
 						)),
 						FieldType::Long => Some(Operand::Long(
-							cfi.cfi
-								.call::<jlong>(CodePtr::from_ptr(func), &*cfi.args)
-								.into(),
+							cfi.cfi.call::<jlong>(CodePtr::from_ptr(func), &cfi.args),
 						)),
 						FieldType::Short => Some(Operand::Int(
 							cfi.cfi
-								.call::<jshort>(CodePtr::from_ptr(func), &*cfi.args)
+								.call::<jshort>(CodePtr::from_ptr(func), &cfi.args)
 								.into(),
 						)),
 						FieldType::Boolean => Some(Operand::Int(
 							cfi.cfi
-								.call::<jboolean>(CodePtr::from_ptr(func), &*cfi.args)
+								.call::<jboolean>(CodePtr::from_ptr(func), &cfi.args)
 								.into(),
 						)),
 						FieldType::Void => {
-							cfi.cfi.call::<()>(CodePtr::from_ptr(func), &*cfi.args);
+							cfi.cfi.call::<()>(CodePtr::from_ptr(func), &cfi.args);
 							None
 						},
 						FieldType::Object(_) | FieldType::Array(_) => {
 							Some(Operand::Reference(Reference::from_raw(
 								cfi.cfi
-									.call::<jobject>(CodePtr::from_ptr(func), &*cfi.args)
+									.call::<jobject>(CodePtr::from_ptr(func), &cfi.args)
 									.cast(),
 							)))
 						},
@@ -582,7 +582,7 @@ impl JavaThread {
 			return;
 		}
 
-		assert!(popped_native_frame, "native frame consumed",);
+		assert!(popped_native_frame, "native frame consumed");
 
 		self.drop_to_previous_frame(ret, false);
 	}

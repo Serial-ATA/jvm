@@ -94,7 +94,7 @@ pub unsafe extern "system" fn GetStringUTFChars(
 	};
 
 	if !isCopy.is_null() {
-		*isCopy = true;
+		unsafe { *isCopy = true };
 	}
 
 	let str_instance = str.extract_class();
@@ -103,7 +103,7 @@ pub unsafe extern "system" fn GetStringUTFChars(
 	// TODO: Optimization opportunity, when/if `encode` takes a `&[u8]` rather than a &str
 	//       we can avoid the allocation here and work directly on the string's `value`.
 	let mut value = classes::java::lang::String::extract(str_instance);
-	match unicode::encode(&*value) {
+	match unicode::encode(&value) {
 		Cow::Borrowed(_) => {
 			value.push('\0');
 			let ptr = Box::into_raw(value.into_boxed_str());
@@ -178,7 +178,7 @@ pub unsafe extern "system" fn GetStringRegion(
 			.enumerate()
 		{
 			// SAFETY: Assuming the caller passed in a valid buffer >= value.len()
-			unsafe { buf.add(index).write(b as jchar) };
+			unsafe { buf.add(index).write(jchar::from(b)) };
 		}
 		return;
 	}

@@ -68,6 +68,14 @@ impl Default for JvmOptions {
 }
 
 impl JvmOptions {
+	/// Parse the `JvmOptions` from the user-provided [`JavaVMInitArgs`]
+	///
+	/// # Safety
+	///
+	/// The caller must ensure that:
+	///
+	/// * All provided C strings are valid
+	/// * All provided function pointers are valid
 	pub unsafe fn load(init: &JavaVMInitArgs) -> Result<Self, OptionsError> {
 		let mut hooks = Hooks::default();
 		let mut verbosity = None;

@@ -41,7 +41,7 @@ impl DecoratorWriter<'_> {
 
 			// - 2 for the brackets already written
 			let decorator_width = tracking_writer.written - 2;
-			assert!(decorator_width <= u8::MAX as usize);
+			assert!(u8::try_from(decorator_width).is_ok());
 
 			// Decorators grow as needed during execution.
 			//
@@ -65,7 +65,7 @@ impl DecoratorWriter<'_> {
 }
 
 #[doc(hidden)]
-pub fn __write(level: LogLevel, tags: TagSet, message: String) {
+pub fn __write(level: LogLevel, tags: TagSet, message: &str) {
 	let options = LogOptions::get();
 
 	// TODO: Actually handle write failures
@@ -73,12 +73,12 @@ pub fn __write(level: LogLevel, tags: TagSet, message: String) {
 		match &output.name {
 			LogOutputName::Stdout => {
 				let writer =
-					WriteImpl::new(std::io::stdout(), output, level, tags, &message, options);
+					WriteImpl::new(std::io::stdout(), output, level, tags, message, options);
 				writer.write().unwrap();
 			},
 			LogOutputName::Stderr => {
 				let writer =
-					WriteImpl::new(std::io::stderr(), output, level, tags, &message, options);
+					WriteImpl::new(std::io::stderr(), output, level, tags, message, options);
 				writer.write().unwrap();
 			},
 			LogOutputName::File(_file) => {
@@ -162,12 +162,10 @@ impl<W: Write> WriteImpl<'_, W> {
 			if self.output.output_options.fold_multilines {
 				// TODO: This leaves a trailing newline
 				write!(self.writer, "{}\\n", line)?;
+			} else if decoration_padding > 0 && idx > 0 {
+				writeln!(self.writer, "[{}] {line}", " ".repeat(decoration_padding))?;
 			} else {
-				if decoration_padding > 0 && idx > 0 {
-					writeln!(self.writer, "[{}] {line}", " ".repeat(decoration_padding))?;
-				} else {
-					writeln!(self.writer, "{line}")?;
-				}
+				writeln!(self.writer, "{line}")?;
 			}
 		}
 
