@@ -324,11 +324,7 @@ fn generate_modules(native_directory: &Path, modules: &[Module]) -> Result<()> {
 		return Ok(());
 	}
 
-	write!(
-		&mut root_mod_file_content_bytes,
-		"\n{}\n",
-		&generated_modules
-	)?;
+	write!(&mut root_mod_file_content_bytes, "\n{generated_modules}\n")?;
 	std::fs::write(&root_module_path, &root_mod_file_content_bytes)
 		.expect("Failed to write modules to native/mod.rs");
 
@@ -380,7 +376,7 @@ fn create_modules_string(modules: &[Module]) -> Result<String> {
 					modules_str,
 					"{}pub(crate) mod {};",
 					"\t".repeat(current_depth),
-					&class.class_name
+					class.class_name
 				)
 				.unwrap();
 			}
