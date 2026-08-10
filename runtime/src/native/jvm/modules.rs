@@ -1,5 +1,11 @@
 #![native_macros::jni_fn_module]
 
+use crate::classes;
+use crate::classpath::loader::ClassLoader;
+use crate::modules::Module;
+use crate::native::jni::reference_from_jobject;
+use crate::thread::JavaThread;
+use crate::thread::exceptions::{handle_exception, throw};
 use jni::env::JniEnv;
 use jni::objects::{JClass, JObject, JObjectArray, JString};
 use jni::sys::jboolean;
@@ -18,8 +24,26 @@ pub extern "C" fn JVM_DefineModule(
 }
 
 #[jni_call]
-pub extern "C" fn JVM_SetBootLoaderUnnamedModule(_env: JniEnv, _module: JObject) {
-	todo!()
+pub extern "C" fn JVM_SetBootLoaderUnnamedModule(env: JniEnv, module: JObject) {
+	let Some(module) = (unsafe { reference_from_jobject(module.raw()) }) else {
+		panic!("Attempting to SetBootLoaderUnnamedModule with a null reference");
+	};
+
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let module_entry_result = Module::unnamed(module);
+	let module_entry = handle_exception!(thread, module_entry_result);
+
+	let loader = classes::java::lang::Module::loader(module);
+	if !loader.is_null() {
+		throw!(
+			thread,
+			IllegalArgumentException,
+			"Class loader must be the boot class loader"
+		);
+	}
+
+	ClassLoader::set_bootloader_unnamed_module(module_entry);
 }
 
 #[jni_call]
