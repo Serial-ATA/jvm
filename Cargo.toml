@@ -90,6 +90,7 @@ new_without_default = "allow" # Doesn't matter, not building a public API
 cast_ptr_alignment = "allow"
 transmute_bytes_to_str = "allow" # This is only done on guaranteed UTF-8 inputs
 too_many_arguments = "allow" # Rarely in our control
+enum_variant_names = "allow"
 
 [workspace.dependencies]
 runtime = { path = "runtime" }

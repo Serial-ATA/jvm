@@ -5,12 +5,13 @@ use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 
-use core::ffi::c_char;
-use std::{ptr, slice};
-
 use ::jni::sys::{JNIEnv, jboolean, jchar, jsize, jstring};
 use common::unicode;
+use core::ffi::c_char;
 use libc::strlen;
+use std::alloc::Layout;
+use std::borrow::Cow;
+use std::{ptr, slice};
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn NewString(
@@ -88,7 +89,32 @@ pub unsafe extern "system" fn GetStringUTFChars(
 	str: jstring,
 	isCopy: *mut jboolean,
 ) -> *const c_char {
-	unimplemented!("jni::GetStringUTFChars")
+	let Some(str) = (unsafe { reference_from_jobject(str) }) else {
+		panic!("GetStringUTFChars called on null object");
+	};
+
+	if !isCopy.is_null() {
+		*isCopy = true;
+	}
+
+	let str_instance = str.extract_class();
+	let coder = classes::java::lang::String::coder(str_instance);
+
+	// TODO: Optimization opportunity, when/if `encode` takes a `&[u8]` rather than a &str
+	//       we can avoid the allocation here and work directly on the string's `value`.
+	let mut value = classes::java::lang::String::extract(str_instance);
+	match unicode::encode(&*value) {
+		Cow::Borrowed(_) => {
+			value.push('\0');
+			let ptr = Box::into_raw(value.into_boxed_str());
+			ptr.cast::<c_char>()
+		},
+		Cow::Owned(mut new_str) => {
+			new_str.push(0);
+			let ptr = Box::into_raw(new_str.into_boxed_slice());
+			ptr.cast::<c_char>()
+		},
+	}
 }
 
 #[unsafe(no_mangle)]
@@ -97,7 +123,24 @@ pub unsafe extern "system" fn ReleaseStringUTFChars(
 	str: jstring,
 	chars: *const c_char,
 ) {
-	unimplemented!("jni::ReleaseStringUTFChars");
+	if chars.is_null() {
+		return;
+	}
+
+	let mut len = 0;
+	while unsafe { *chars.add(len) } != 0 {
+		len += 1;
+	}
+
+	// For the terminator
+	len += 1;
+
+	unsafe {
+		std::alloc::dealloc(
+			chars.cast::<u8>().cast_mut(),
+			Layout::array::<c_char>(len).unwrap(),
+		);
+	}
 }
 
 #[unsafe(no_mangle)]
