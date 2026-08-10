@@ -1,14 +1,18 @@
 mod error;
+pub mod logging;
+#[cfg(test)]
+mod tests;
 
 use crate::classpath::{ClassPathEntry, add_classpath_entry};
 use crate::native::jdk::internal::util::SystemProps::Raw::SYSTEM_PROPERTIES;
 use crate::options::error::OptionsError;
-
-use std::ffi::{CStr, c_char, c_int, c_void};
-use std::mem;
+use crate::options::logging::{LogOptions, LogOptionsBuilder};
 
 use jni::java_vm::{AbortHookFn, ExitHookFn, VFPrintFHookFn};
 use jni::sys::JavaVMInitArgs;
+use std::ffi::{CStr, c_char, c_int, c_void};
+use std::mem;
+use std::str::FromStr;
 
 unsafe extern "C" fn vfprintf_default(_stream: *mut c_void, _format: *const c_char, _: ...) {
 	todo!("vfprintf")
@@ -47,21 +51,39 @@ pub enum Verbosity {
 	Jni,
 }
 
-#[derive(Default)]
 pub struct JvmOptions {
 	hooks: Hooks,
 	verbosity: Option<Verbosity>,
+	pub logs: LogOptions,
+}
+
+impl Default for JvmOptions {
+	fn default() -> Self {
+		Self {
+			hooks: Hooks::default(),
+			verbosity: None,
+			logs: LogOptionsBuilder::default().build(),
+		}
+	}
 }
 
 impl JvmOptions {
 	pub unsafe fn load(init: &JavaVMInitArgs) -> Result<Self, OptionsError> {
-		let mut options = JvmOptions::default();
+		let mut hooks = Hooks::default();
+		let mut verbosity = None;
+		let mut logs = LogOptionsBuilder::default();
 
 		let mut system_props_guard = SYSTEM_PROPERTIES.lock().unwrap();
 		for pos in 0..init.nOptions as usize {
 			let option = unsafe { *init.options.add(pos) };
 			let option_string_c = unsafe { CStr::from_ptr(option.optionString) };
 			let option_string = option_string_c.to_str()?;
+
+			// Special case for the crazy log syntax
+			if let Some(log_options) = option_string.strip_prefix("-Xlog") {
+				logs.apply_option(logging::LogOption::from_str(log_options)?);
+				continue;
+			}
 
 			let mut opt_split = option_string.splitn(2, '=');
 
@@ -70,19 +92,19 @@ impl JvmOptions {
 			// Special cases, no value
 			match key {
 				"vfprintf" => {
-					options.hooks.vfprintf =
+					hooks.vfprintf =
 						unsafe { mem::transmute::<*mut c_void, VFPrintFHookFn>(option.extraInfo) }
 				},
 				"exit" => {
-					options.hooks.exit =
+					hooks.exit =
 						unsafe { mem::transmute::<*mut c_void, ExitHookFn>(option.extraInfo) }
 				},
 				"abort" => {
-					options.hooks.abort =
+					hooks.abort =
 						unsafe { mem::transmute::<*mut c_void, AbortHookFn>(option.extraInfo) }
 				},
-				_ if let Some(verbosity) = key.strip_prefix("-verbose") => {
-					options.verbosity = Some(match verbosity.split_once(':') {
+				_ if let Some(verbosity_str) = key.strip_prefix("-verbose") => {
+					verbosity = Some(match verbosity_str.split_once(':') {
 						Some((_, target)) => match target {
 							"class" => Verbosity::Class,
 							"module" => Verbosity::Module,
@@ -120,8 +142,11 @@ impl JvmOptions {
 		}
 
 		system_props_guard.insert(String::from("java.vm.info"), vm_info_str());
-
-		Ok(options)
+		Ok(Self {
+			hooks,
+			verbosity,
+			logs: logs.build(),
+		})
 	}
 }
 

@@ -62,17 +62,21 @@ pub fn detail_message<I: AsClassInstanceRef>(instance: I) -> Reference {
 		.expect_reference()
 }
 
-pub fn print(this: ClassInstanceRef) {
-	eprint!("{}", this.class().external_name());
-	let detail_message = detail_message(this);
+pub fn detail_message_str<I: AsClassInstanceRef>(instance: I) -> Option<String> {
+	let detail_message = detail_message(instance);
 	if detail_message.is_null() {
-		return;
+		return None;
 	}
 
 	let detail_message_string = detail_message.extract_class();
-	let detail_message = super::String::extract(detail_message_string);
+	Some(super::String::extract(detail_message_string))
+}
 
-	eprint!(": {detail_message}");
+pub fn print(this: ClassInstanceRef) {
+	eprint!("{}", this.class().external_name());
+	if let Some(detail_message) = detail_message_str(this) {
+		eprint!(": {detail_message}");
+	}
 }
 
 pub fn print_stack_trace(this: Reference, thread: &'static JavaThread) {

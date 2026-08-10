@@ -1,13 +1,10 @@
 #![feature(c_variadic)]
-#![feature(box_into_inner)]
 #![feature(thread_local)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(macro_metavar_expr)]
 #![feature(specialization)]
 #![feature(sync_unsafe_cell)]
-#![feature(try_with_capacity)]
 #![feature(try_trait_v2)]
-#![feature(associated_type_defaults)]
 #![feature(iter_next_chunk)]
 #![feature(reentrant_lock)]
 #![feature(std_internals)]
@@ -16,6 +13,8 @@
 #![feature(proc_macro_hygiene)]
 #![feature(try_trait_v2_residual)]
 #![feature(int_roundings)]
+#![feature(transmute_prefix)]
+#![feature(generic_atomic)]
 
 pub mod calls;
 pub mod classes;
@@ -25,6 +24,7 @@ pub mod error;
 pub mod globals;
 mod initialization;
 mod interpreter;
+pub mod logging;
 pub mod modules;
 pub mod native;
 pub mod objects;

@@ -1,3 +1,4 @@
+use crate::logging::warn;
 use crate::objects::class::ClassPtr;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
@@ -27,7 +28,8 @@ pub fn getCallerClass(env: JniEnv, _class: ClassPtr) -> Reference {
 		if n == 0 || n == 1 {
 			if n == 0 {
 				// TODO
-				tracing::warn!(
+				warn!(
+					TARGETS: (Class),
 					"(!!!) UNIMPLEMENTED `getCallerClass` not verifying call from Reflection"
 				);
 			}

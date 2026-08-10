@@ -25,8 +25,6 @@ use error::{Error, Result};
 pub fn class_is_type_safe(class: ClassPtr) -> Result<()> {
 	let name = class.class_name();
 
-	tracing::debug!("Verifying class `{}`", name.as_str());
-
 	if name == sym!(java_lang_Object) {
 		return object_class_is_type_safe(class);
 	}

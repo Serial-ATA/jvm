@@ -8,24 +8,6 @@ use std::fmt::Debug;
 use common::int_types::{s4, s8};
 use instructions::{Operand, StackLike};
 
-macro_rules! trace_stack {
-	($operation:ident, $value:ident) => {{
-		{
-			tracing::trace!(
-				target: "stack",
-				value = ?$value,
-				"{}",
-				stringify!($operation),
-			);
-		}
-	}};
-	($operation:ident) => {{
-		{
-			tracing::trace!(target: "stack", "{}", stringify!($operation));
-		}
-	}};
-}
-
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.6.2
 #[derive(Clone, PartialEq)]
 pub struct OperandStack {
@@ -206,7 +188,6 @@ impl StackLike<Reference> for OperandStack {
 	}
 
 	fn push_op(&mut self, op: Operand<Reference>) {
-		trace_stack!(push_op, op);
 		let needs_empty = matches!(op, Operand::Long(_) | Operand::Double(_));
 		self.push(op);
 		if needs_empty {
@@ -215,29 +196,24 @@ impl StackLike<Reference> for OperandStack {
 	}
 
 	fn push_int(&mut self, int: s4) {
-		trace_stack!(push_int, int);
 		self.push(Operand::Int(int));
 	}
 
 	fn push_float(&mut self, float: f32) {
-		trace_stack!(push_float, float);
 		self.push(Operand::Float(float));
 	}
 
 	fn push_double(&mut self, double: f64) {
-		trace_stack!(push_double, double);
 		self.push(Operand::Double(double));
 		self.push(Operand::Empty);
 	}
 
 	fn push_long(&mut self, long: s8) {
-		trace_stack!(push_long, long);
 		self.push(Operand::Long(long));
 		self.push(Operand::Empty);
 	}
 
 	fn push_reference(&mut self, reference: Reference) {
-		trace_stack!(push_reference, reference);
 		self.push(Operand::Reference(reference))
 	}
 
@@ -250,9 +226,7 @@ impl StackLike<Reference> for OperandStack {
 		};
 
 		if op == Operand::Empty {
-			trace_stack!(pop, op);
 			let op = self.pop();
-			trace_stack!(pop, op);
 			match op {
 				op if op.is_long() || op.is_double() => return op,
 				_ => {
@@ -261,18 +235,15 @@ impl StackLike<Reference> for OperandStack {
 			}
 		}
 
-		trace_stack!(pop, op);
 		op
 	}
 
 	fn pop2(&mut self) {
-		trace_stack!(pop2);
 		self.pop();
 		self.pop();
 	}
 
 	fn popn(&mut self, count: usize) -> Vec<Operand<Reference>> {
-		trace_stack!(popn, count);
 		if count == 0 {
 			return Vec::new();
 		}
@@ -316,7 +287,6 @@ impl StackLike<Reference> for OperandStack {
 	}
 
 	fn pop_int(&mut self) -> s4 {
-		trace_stack!(pop_int);
 		let op = self.pop();
 		match op {
 			Operand::Int(int) => int,
@@ -325,7 +295,6 @@ impl StackLike<Reference> for OperandStack {
 	}
 
 	fn pop_float(&mut self) -> f32 {
-		trace_stack!(pop_float);
 		let op = self.pop();
 		match op {
 			Operand::Float(float) => float,
@@ -334,7 +303,6 @@ impl StackLike<Reference> for OperandStack {
 	}
 
 	fn pop_double(&mut self) -> f64 {
-		trace_stack!(pop_double);
 		let op = self.pop();
 		match op {
 			Operand::Double(double) => double,
@@ -343,7 +311,6 @@ impl StackLike<Reference> for OperandStack {
 	}
 
 	fn pop_long(&mut self) -> s8 {
-		trace_stack!(pop_long);
 		let op = self.pop();
 		match op {
 			Operand::Long(long) => long,
@@ -352,7 +319,6 @@ impl StackLike<Reference> for OperandStack {
 	}
 
 	fn pop_reference(&mut self) -> Reference {
-		trace_stack!(pop_reference);
 		let op = self.pop();
 
 		match op {
@@ -362,7 +328,6 @@ impl StackLike<Reference> for OperandStack {
 	}
 
 	fn dup(&mut self) {
-		trace_stack!(dup);
 		let value = self.pop();
 		// The dup instruction must not be used unless value is a value of a category 1 computational type (§2.11.1).
 		assert!(!matches!(value, Operand::Long(_) | Operand::Double(_)));
@@ -372,7 +337,6 @@ impl StackLike<Reference> for OperandStack {
 	}
 
 	fn dup_x1(&mut self) {
-		trace_stack!(dup_x1);
 		let value1 = self.pop();
 		let value2 = self.pop();
 		// The dup_x1 instruction must not be used unless both value1 and value2 are values of a category 1 computational type (§2.11.1).
@@ -462,7 +426,6 @@ impl StackLike<Reference> for OperandStack {
 	}
 
 	fn swap(&mut self) {
-		trace_stack!(swap);
 		let val = self.pop();
 		let val2 = self.pop();
 		self.push(val);

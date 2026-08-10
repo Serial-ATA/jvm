@@ -3,6 +3,7 @@ mod options;
 use crate::error::Error;
 use crate::native::LaunchMode;
 
+use jni::version::JniVersion;
 use std::path::Path;
 
 const JAVA_OPTIONS_ENV: &str = "_JAVA_OPTIONS";
@@ -65,8 +66,6 @@ impl Args {
 			// TODO: Actually load _JAVA_OPTIONS env
 		}
 
-		let mut vm_args = Vec::new();
-
 		let mut args = Args::default();
 		loop {
 			let Some(arg) = cli_args.peek() else {
@@ -85,7 +84,7 @@ impl Args {
 			}
 
 			let Some(opt) = options::OPTIONS.find(&arg) else {
-				vm_args.push(arg);
+				args.options.extra_args.push(arg);
 				continue;
 			};
 
@@ -140,7 +139,8 @@ impl Args {
 #[derive(Debug, Default)]
 pub struct JVMOptions {
 	specified_classpath: bool,
-	pub system_properties: Option<Vec<String>>,
+	system_properties: Option<Vec<String>>,
+	extra_args: Vec<String>,
 }
 
 impl JVMOptions {
@@ -163,6 +163,11 @@ impl JVMOptions {
 
 impl Into<jni::java_vm::VmInitArgs> for JVMOptions {
 	fn into(self) -> jni::java_vm::VmInitArgs {
-		jni::java_vm::VmInitArgs::default().options(self.system_properties.unwrap_or_default())
+		jni::java_vm::VmInitArgs::new(JniVersion::LATEST).options(
+			self.system_properties
+				.unwrap_or_default()
+				.into_iter()
+				.chain(self.extra_args),
+		)
 	}
 }

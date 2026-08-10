@@ -1,5 +1,6 @@
 use crate::globals::PRIMITIVES;
 use crate::java_call;
+use crate::logging::info;
 use crate::native::java::lang::String::StringInterner;
 use crate::objects::class::{Class, ClassPtr};
 use crate::objects::constant_pool::cp_types;
@@ -200,7 +201,6 @@ impl Class {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.3.2
-	#[tracing::instrument(skip_all)]
 	pub fn resolve_field(&self, name: Symbol, descriptor: Symbol) -> Throws<&'static Field> {
 		fn inner(class: &Class, name: Symbol, descriptor: Symbol) -> Option<&'static Field> {
 			// When resolving a field reference, field resolution first attempts to look up
@@ -236,7 +236,6 @@ impl Class {
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.3.3
-	#[tracing::instrument(skip_all)]
 	pub fn resolve_method<'a>(&self, name: Symbol, descriptor: Symbol) -> Throws<&'static Method> {
 		// When resolving a method reference:
 
@@ -464,7 +463,7 @@ impl Class {
 
 		// 6. Otherwise, record the fact that initialization of the Class object for C is in progress
 		//    by the current thread, and release LC.
-		tracing::debug!(target: "class-init-start", "Starting initialization of class `{}`", self.name());
+		info!(TARGETS: (Class, Init), "Starting initialization of class `{}`", self.name());
 
 		guard.set_initialization_state(ClassInitializationState::InProgress);
 		guard.set_initializing_thread();
@@ -577,7 +576,7 @@ impl Class {
 			guard.set_initialization_state(ClassInitializationState::Init);
 			init.notify_all();
 
-			tracing::debug!(target: "class-init", "Finished initialization of class `{}`", self.name());
+			info!(TARGETS: (Class, Init), "Finished initialization of class `{}`", self.name());
 			return Throws::Ok(());
 		}
 
@@ -595,7 +594,6 @@ impl Class {
 	// Class initialization method
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.9.2
     #[rustfmt::skip]
-	#[tracing::instrument(skip_all)]
 	fn clinit(&self, thread: &'static JavaThread) -> bool {
 		// A class or interface has at most one class or interface initialization method and is initialized
 		// by the Java Virtual Machine invoking that method (§5.5).
@@ -620,7 +618,6 @@ impl Class {
 	/// This is used in both `invokeinterface` and `invokevirtual`
 	///
 	/// [method selection]: https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.4.6
-	#[tracing::instrument(skip_all)]
 	#[allow(non_snake_case)]
 	pub fn select_method(&self, method: &'static Method) -> &'static Method {
 		// During execution of an invokeinterface or invokevirtual instruction, a method is

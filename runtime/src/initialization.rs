@@ -38,14 +38,14 @@ pub enum InitializationError {
 ///
 /// See [`InitializationError`].
 pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> Result<JavaVm, InitializationError> {
-	let _span = tracing::debug_span!("initialization").entered();
-	tracing::debug!("Creating Java VM");
-
 	let options = match args {
 		Some(args) => unsafe { JvmOptions::load(args) }
 			.map_err(|_| InitializationError::Other(JniError::InvalidArguments))?,
 		None => JvmOptions::default(),
 	};
+
+	// Initializes the logging
+	options.logs.apply();
 
 	if let Some(_vm_options) = crate::classpath::jimage::lookup_vm_options() {
 		// TODO: Actually parse the options, for now this is just here to load the JImage

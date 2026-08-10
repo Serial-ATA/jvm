@@ -354,7 +354,6 @@ pub fn lookup_native_method(
 		return Throws::Ok(native_method);
 	}
 
-	tracing::debug!(target: "lookup", "Looking up native invoker for method `{:?}`", method);
 	let result = lookup_base(method, thread);
 	if let Throws::Ok(entry) = &result {
 		method.set_entry_point(MethodEntryPoint::NativeMethod(*entry));

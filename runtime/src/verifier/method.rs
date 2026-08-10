@@ -18,8 +18,6 @@ pub(super) trait MethodTypeCheckExt {
 
 impl MethodTypeCheckExt for Method {
 	fn is_type_safe(&'static self) -> Result<()> {
-		tracing::trace!("Verifying type safety of method {:?}", self);
-
 		// abstract methods and native methods are considered to be type safe if they do not override a final method.
 		//
 		// methodIsTypeSafe(Class, Method) :-

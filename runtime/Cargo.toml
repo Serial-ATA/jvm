@@ -22,7 +22,6 @@ native-macros.workspace = true
 bytemuck = "1.20.0"
 byte-slice-cast.workspace = true
 fxhash.workspace = true
-tracing.workspace = true
 libc.workspace = true
 libffi = { workspace = true, optional = true }
 num_cpus = "1.16.0"

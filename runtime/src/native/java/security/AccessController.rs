@@ -1,3 +1,4 @@
+use crate::logging::warn;
 use crate::objects::class::ClassPtr;
 use crate::objects::reference::Reference;
 
@@ -24,7 +25,7 @@ pub fn ensureMaterializedForStackWalk(
 pub fn getStackAccessControlContext(_env: JniEnv, _class: ClassPtr) -> Reference /* java.security.AccessControlContext */
 {
 	// TODO: Actually implement this
-	tracing::warn!(target: "java.security.AccessController#getStackAccessContext", "Assuming no privileged stack");
+	warn!(TARGETS: (Class), "java.security.AccessController#getStackAccessContext: Assuming no privileged stack");
 	Reference::null()
 }
 

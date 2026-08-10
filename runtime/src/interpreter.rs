@@ -30,23 +30,6 @@ use classfile::constant_pool::ConstantPoolValueInfo;
 use common::int_types::{s2, s4, s8, u2};
 use instructions::{OpCode, Operand, StackLike};
 
-macro_rules! trace_instruction {
-    (@START $instruction:tt, $category:ident) => {{
-		{ tracing::trace!(target: "instruction", "[{}] {} START", stringify!($category), stringify!($instruction)) }
-	}};
-    (@END $instruction:tt, $category:ident) => {{
-		{ tracing::trace!(target: "instruction", "[{}] {} SUCCEEDED", stringify!($category), stringify!($instruction)) }
-	}};
-    (@BLOCK $category:ident, $instruction:tt, $expr:expr) => {{
-        #[allow(unreachable_code)]
-        {
-            trace_instruction!(@START $instruction, $category);
-            { $expr };
-            trace_instruction!(@END $instruction, $category);
-        }
-    }};
-}
-
 // TODO: Document
 macro_rules! define_instructions {
     (
@@ -65,8 +48,8 @@ macro_rules! define_instructions {
         match $_ident {
             $(
                 $(
-                    $($(OpCode::$member_ident => trace_instruction!(@BLOCK $category, $member_ident, $expr!($frame, $member_ident $(, $($arg),+)?))),+)?
-                    $($pat => trace_instruction!(@BLOCK $category, $pat, $expr))?
+                    $($(OpCode::$member_ident => { $expr!($frame, $member_ident $(, $($arg),+)?) }),+)?
+                    $($pat => { $expr })?
                 ),+
             ),+
         }

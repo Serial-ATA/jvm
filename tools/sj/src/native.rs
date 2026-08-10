@@ -1,3 +1,4 @@
+use crate::cli::JVMOptions;
 use crate::error::{Error, Result};
 
 use std::ops::Deref;
@@ -7,14 +8,11 @@ use jni::error::JniError;
 use jni::java_vm::{JavaVm, VmInitArgs};
 use jni::objects::{JClass, JObjectArray, JValue};
 use jni::sys::{jint, jsize};
-use jni::version::JniVersion;
 
 const MAIN_METHOD_SIGNATURE: &str = "([Ljava/lang/String;)V";
 
-pub fn init_java_vm(
-	system_properties: impl IntoIterator<Item = String>,
-) -> Result<(JavaVm, JniEnv)> {
-	let init_args = VmInitArgs::new(JniVersion::LATEST).options(system_properties);
+pub fn init_java_vm(options: JVMOptions) -> Result<(JavaVm, JniEnv)> {
+	let init_args: VmInitArgs = options.into();
 	Ok(JavaVm::builder().args(init_args).build()?)
 }
 

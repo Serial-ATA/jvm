@@ -83,7 +83,7 @@ fn main(args: cli::Args) -> Result<i32> {
 		};
 	}
 
-	let (vm, env) = native::init_java_vm(args.options.system_properties.unwrap_or_default())?;
+	let (vm, env) = native::init_java_vm(args.options)?;
 
 	if let Some(version) = args.version {
 		let use_stderr;

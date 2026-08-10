@@ -9,11 +9,12 @@ pub mod stack;
 
 use crate::classes::java::lang::Thread::ThreadStatus;
 use crate::interpreter::Interpreter;
+use crate::logging::info;
 use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::IntoJni;
 use crate::native::jni::invocation_api::new_env;
 use crate::native::method::NativeMethodPtr;
-use crate::objects::instance::class::{ClassInstance, ClassInstanceRef};
+use crate::objects::instance::class::ClassInstance;
 use crate::objects::instance::object::Object;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
@@ -23,17 +24,15 @@ use crate::thread::exceptions::{Exception, ExceptionKind, Throws};
 use crate::thread::frame::Frame;
 use crate::thread::frame::native::NativeFrame;
 use crate::thread::stack::{ThreadStack, ThreadStackHandle};
-use crate::{classes, globals, java_call};
+use crate::{classes, enabled, globals, java_call};
 
-use std::cell::{Cell, SyncUnsafeCell, UnsafeCell};
+use std::cell::{Cell, UnsafeCell};
 use std::mem::MaybeUninit;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU8, Ordering};
 use std::thread::JoinHandle;
 
-use crate::objects::constant_pool::cp_types::{InvokeDynamicEntry, MethodEntry};
 use classfile::FieldType;
 use classfile::accessflags::MethodAccessFlags;
-use common::int_types::u1;
 use instructions::{Operand, StackLike};
 use jni::env::JniEnv;
 use jni::sys::JNIEnv;
@@ -744,6 +743,26 @@ impl JavaThread {
 			class_instance.class() == throwable_class
 				|| class_instance.is_subclass_of(throwable_class)
 		);
+
+		// TODO: Include the method name
+		if enabled!(TARGETS: (Exceptions), Info) {
+			match classes::java::lang::Throwable::detail_message_str(class_instance) {
+				Some(detail_message) => {
+					info!(
+						TARGETS: (Exceptions),
+						"Exception <{}: {detail_message}> thrown",
+						class_instance.class().name(),
+					);
+				},
+				None => {
+					info!(
+						TARGETS: (Exceptions),
+						"Exception <{}> thrown",
+						class_instance.class().name(),
+					);
+				},
+			}
+		}
 
 		// Search each frame for an exception handler
 		self.stash_and_reset_pc();
