@@ -83,7 +83,6 @@ impl VmAttachArgs {
 ///     jobject group; /* global ref of a ThreadGroup object, or NULL */
 /// } JavaVMAttachArgs
 /// ```
-#[expect(dead_code)]
 #[repr(C)]
 pub(super) struct FinalizedJavaVMAttachArgs {
 	version: jint,

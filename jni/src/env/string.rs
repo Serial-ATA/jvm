@@ -86,10 +86,10 @@ impl super::JniEnv {
 	///
 	/// * `StringIndexOutOfBoundsException`: On index overflow.
 	pub fn get_string_region(&self, str: JString, start: jsize, buf: &mut [jchar]) -> Result<()> {
-		let ret;
+		let _ret: ();
 		unsafe {
 			let invoke_interface = self.as_native_interface();
-			ret = ((*invoke_interface).GetStringRegion)(
+			_ret = ((*invoke_interface).GetStringRegion)(
 				self.0.cast::<jni_sys::JNIEnv>(),
 				str.raw(),
 				start,
@@ -121,10 +121,10 @@ impl super::JniEnv {
 		start: jsize,
 		buf: &mut [c_char],
 	) -> Result<()> {
-		let ret;
+		let _ret: ();
 		unsafe {
 			let invoke_interface = self.as_native_interface();
-			ret = ((*invoke_interface).GetStringUTFRegion)(
+			_ret = ((*invoke_interface).GetStringUTFRegion)(
 				self.0.cast::<jni_sys::JNIEnv>(),
 				str.raw(),
 				start,

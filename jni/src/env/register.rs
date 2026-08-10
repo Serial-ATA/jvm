@@ -132,7 +132,7 @@ impl<T> JniMethodReturnType for T where T: JniMethodParameter {}
 impl JniMethodReturnType for () {}
 
 mod sealed {
-	pub(super) trait Sealed {}
+	pub trait Sealed {}
 	impl Sealed for () {}
 }
 
