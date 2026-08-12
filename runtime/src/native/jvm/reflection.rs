@@ -33,14 +33,16 @@ pub extern "C" fn JVM_FindPrimitiveClass(_env: JniEnv, _utf: *const c_char) -> J
 	todo!()
 }
 
+/// Despite the name, this will actually *load* a class if necessary. We also discard any exceptions
+/// and just return `null`.
 #[jni_call(no_strict_types)]
 pub extern "C" fn JVM_FindClassFromBootLoader(_env: JniEnv, name: *const c_char) -> JClass {
 	let name_c = unsafe { CStr::from_ptr(name) };
 	let name = unicode::decode(name_c.to_bytes()).unwrap();
 
-	match ClassLoader::bootstrap().lookup_class(Symbol::intern(name)) {
-		Some(class) => unsafe { JClass::from_raw(class.into_jni()) },
-		None => JClass::null(),
+	match ClassLoader::bootstrap().load(Symbol::intern(name)) {
+		Throws::Ok(class) => unsafe { JClass::from_raw(class.into_jni()) },
+		Throws::Exception(_) => JClass::null(),
 	}
 }
 
