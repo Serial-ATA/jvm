@@ -5,13 +5,15 @@
 #![allow(unused_variables, non_snake_case)]
 #![allow(clippy::missing_safety_doc)]
 
+use crate::classes;
 use crate::objects::class::ClassPtr;
 use crate::objects::field::Field;
+use crate::objects::instance::array::ObjectArrayInstanceRef;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 
 use instructions::Operand;
-use jni::objects::{JClass, JFieldId, JMethodId, JObject, JString, JValue};
+use jni::objects::{JClass, JFieldId, JMethodId, JObject, JObjectArray, JString, JValue};
 use jni::sys::{jclass, jfieldID, jmethodID, jobject, jvalue};
 
 pub mod array;
@@ -222,4 +224,42 @@ pub unsafe fn reference_from_jobject_maybe_null(obj: jobject) -> Reference {
 	}
 
 	unsafe { Reference::from_raw(obj.cast()) }
+}
+
+pub trait JniStringExt {
+	/// Call [`java::lang::String::extract()`] on this string
+	///
+	/// # Safety
+	///
+	/// The `JString` is assumed to point to a valid `java/lang/String` object.
+	///
+	/// [`java::lang::String::extract()`]: crate::java::lang::String::extract
+	unsafe fn extract(&self) -> String;
+}
+
+impl JniStringExt for JString {
+	unsafe fn extract(&self) -> String {
+		let Some(string_ref) = (unsafe { reference_from_jobject(self.raw()) }) else {
+			panic!("`JString` is null")
+		};
+		classes::java::lang::String::extract(string_ref.extract_class())
+	}
+}
+
+pub trait JniObjectArrayExt {
+	/// Shorthand for [`Reference::extract_object_array()`] for JNI object arrays
+	///
+	/// # Safety
+	///
+	/// The `JObjectArray` is assumed to point to a valid object array.
+	unsafe fn extract_object_array(&self) -> ObjectArrayInstanceRef;
+}
+
+impl JniObjectArrayExt for JObjectArray {
+	unsafe fn extract_object_array(&self) -> ObjectArrayInstanceRef {
+		let Some(obj) = (unsafe { reference_from_jobject(self.raw()) }) else {
+			panic!("`JObjectArray` is null")
+		};
+		obj.extract_object_array()
+	}
 }
