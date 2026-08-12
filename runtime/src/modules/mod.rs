@@ -17,10 +17,10 @@ pub struct ModuleLockGuard(MutexGuard<'static, ()>);
 /// Run the provided function while holding the [`ModuleLockGuard`]
 ///
 /// This is the only way to interact with the module system.
-pub fn with_module_lock<F>(f: F)
+pub fn with_module_lock<F, T>(f: F) -> T
 where
-	F: FnOnce(&ModuleLockGuard),
+	F: FnOnce(&ModuleLockGuard) -> T,
 {
 	let _guard = MODULE_LOCK.lock().unwrap();
-	f(&ModuleLockGuard(_guard));
+	f(&ModuleLockGuard(_guard))
 }

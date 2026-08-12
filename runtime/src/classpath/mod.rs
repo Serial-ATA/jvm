@@ -2,7 +2,9 @@ pub mod jar;
 pub mod jimage;
 pub mod loader;
 
-use crate::symbols::Symbol;
+use crate::classpath::loader::ClassLoader;
+use crate::modules::with_module_lock;
+use crate::symbols::{Symbol, sym};
 
 use std::fs::File;
 use std::io::Read;
@@ -18,12 +20,19 @@ pub fn add_classpath_entry(entry: ClassPathEntry) {
 	CLASSPATH.write().unwrap().entries.push(entry);
 }
 
-pub fn find_classpath_entry(name: Symbol) -> Option<Vec<u1>> {
+pub fn find_classpath_entry(loader: &ClassLoader, name: Symbol) -> Option<Vec<u1>> {
 	let mut name = name.as_str().replace('.', "/");
 	name.push_str(".class");
 
+	let package_name = name.rfind('/').map(|i| &name[..i])?;
+	let package =
+		with_module_lock(|guard| loader.lookup_package(guard, Symbol::intern(package_name)));
+	let module_name = package
+		.and_then(|pkg| pkg.module().name())
+		.unwrap_or(sym!(java_base));
+
 	if jimage::initialized()
-		&& let Some(resource) = jimage::lookup_vm_resource(&name)
+		&& let Some(resource) = jimage::lookup_vm_resource(module_name.as_str(), &name)
 	{
 		return Some(resource.into_vec());
 	}

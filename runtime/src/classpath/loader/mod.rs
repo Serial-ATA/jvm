@@ -430,7 +430,10 @@ impl ClassLoader {
 			throw!(@DEFER InternalError, "Unexpected return value from Classloader#loadClass");
 		};
 
-		Throws::Ok(ret.extract_target_class())
+		let class = ret.extract_target_class();
+		self.add_class(class)?;
+
+		Throws::Ok(class)
 	}
 
 	// Deriving a Class from a class File Representation
@@ -452,12 +455,22 @@ impl ClassLoader {
 				self.derive_class_inner(name, name_str, classfile_bytes, is_hidden)
 			},
 			None => {
-				let Some(classfile_bytes) = super::find_classpath_entry(name) else {
-					throw!(@DEFER ClassNotFoundException, "{name}");
-				};
-
+				let classfile_bytes = self.search_for_class(name)?;
 				self.derive_class_inner(name, name_str, &classfile_bytes, is_hidden)
 			},
+		}
+	}
+
+	/// Attempt to find the class on disk.
+	fn search_for_class(&self, name: Symbol) -> Throws<Vec<u1>> {
+		assert!(
+			self.is_bootstrap(),
+			"search is restricted to the bootloader"
+		);
+
+		match super::find_classpath_entry(self, name) {
+			Some(bytes) => Throws::Ok(bytes),
+			None => throw!(@DEFER ClassNotFoundException, "{name}"),
 		}
 	}
 

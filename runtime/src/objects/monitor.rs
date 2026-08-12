@@ -36,15 +36,26 @@ impl MonitorMap {
 		monitor
 	}
 
-	fn find(hash: jint) -> Option<&'static Monitor> {
+	fn find_by_hash(hash: jint) -> Option<&'static Monitor> {
 		let list = unsafe { &*MONITOR_MAP.list.get() };
 		list.get(&hash).map(|x| &**x)
 	}
 
+	/// Find a monitor for the given object
+	///
+	/// See also: [`MonitorMap::find_or_add()`]
+	pub fn find<O: Object>(obj: &O, thread: &'static JavaThread) -> Option<&'static Monitor> {
+		let hash = obj.hash(thread);
+		Self::find_by_hash(hash)
+	}
+
+	/// Find a monitor for the given object or create one if it doesn't exist
+	///
+	/// See also: [`MonitorMap::find()`]
 	pub fn find_or_add<O: Object>(obj: &O, thread: &'static JavaThread) -> &'static Monitor {
 		let hash = obj.hash(thread);
 
-		match Self::find(hash) {
+		match Self::find_by_hash(hash) {
 			Some(cl) => cl,
 			None => Self::add(hash),
 		}
@@ -98,6 +109,11 @@ impl Monitor {
 			_notify_lock: Mutex::new(()),
 			_cond: Condvar::new(),
 		}
+	}
+
+	/// Get the current owner of this monitor, if there is one
+	pub fn owner(&self) -> Option<&'static JavaThread> {
+		self.owner.lock().get()
 	}
 
 	/// Enter a monitor

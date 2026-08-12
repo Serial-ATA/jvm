@@ -3,9 +3,10 @@
 use crate::classes;
 use crate::classes::java::lang::Thread::ThreadStatus;
 use crate::native::jni::{IntoJni, reference_from_jobject};
-use crate::thread::exceptions::{Throws, throw};
+use crate::thread::exceptions::{Throws, throw, throw_with_ret};
 use crate::thread::pool::ThreadPool;
 use crate::thread::{JavaThread, JavaThreadBuilder};
+use crate::objects::monitor::MonitorMap;
 
 use std::cmp;
 use std::sync::atomic::AtomicUsize;
@@ -111,9 +112,19 @@ pub extern "C" fn JVM_Interrupt(_env: JniEnv, _thread: JObject) {
 	todo!()
 }
 
+/// Whether the current thread holds the lock for the given object
 #[jni_call]
-pub extern "C" fn JVM_HoldsLock(_env: JniEnv, _class: JClass, _thread: JObject) -> jboolean {
-	todo!()
+pub extern "C" fn JVM_HoldsLock(env: JniEnv, _class: JClass, obj: JObject) -> jboolean {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let Some(obj) = (unsafe { reference_from_jobject(obj.raw()) }) else {
+		throw_with_ret!(false, thread, NullPointerException);
+	};
+
+	match MonitorMap::find(&obj, thread) {
+		Some(monitor) => monitor.owner() == Some(thread),
+		None => false,
+	}
 }
 
 #[jni_call]

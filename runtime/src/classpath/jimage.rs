@@ -13,9 +13,9 @@ pub fn initialized() -> bool {
 	unsafe { (*JIMAGE_FILE.get()).is_some() }
 }
 
-pub fn lookup_vm_resource(path: &str) -> Option<Box<[u1]>> {
+pub fn lookup_vm_resource(module_name: &str, path: &str) -> Option<Box<[u1]>> {
 	if let Some(file) = unsafe { &*JIMAGE_FILE.get() }
-		&& let Some((location_offset, size)) = file.find_resource("java.base", path)
+		&& let Some((location_offset, size)) = file.find_resource(module_name, path)
 	{
 		let uncompressed_data = file.get_resource(location_offset).unwrap(); // TODO: Error handling
 		return Some(uncompressed_data);
@@ -58,5 +58,5 @@ pub fn lookup_vm_options() -> Option<Box<[u1]>> {
 		*JIMAGE_FILE.get() = Some(jimage);
 	}
 
-	lookup_vm_resource("jdk/internal/vm/options")
+	lookup_vm_resource("java.base", "jdk/internal/vm/options")
 }

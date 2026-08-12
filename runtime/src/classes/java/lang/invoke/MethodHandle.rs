@@ -132,25 +132,15 @@ mod _dynamic {
 		}
 	}
 
-	fn do_invoke(
-		frame: &mut Frame,
-		expected_return_type: &FieldType,
-		target_method: &'static Method,
-	) {
+	fn do_invoke(frame: &mut Frame, target_method: &'static Method) {
 		let ret = frame.thread().invoke_method_scoped(target_method);
 		if frame.thread().has_pending_exception() {
 			return;
 		}
 
-		let Some(ret) = ret else {
-			if expected_return_type == &FieldType::Void {
-				return;
-			}
-
-			throw!(frame.thread(), InternalError);
-		};
-
-		frame.push_op(ret);
+		if let Some(ret) = ret {
+			frame.push_op(ret);
+		}
 	}
 
 	pub fn invoke_basic(frame: &mut Frame, entry: MethodEntry) {
@@ -164,7 +154,7 @@ mod _dynamic {
 			return;
 		};
 
-		do_invoke(frame, &entry.method.descriptor.return_type, target_method);
+		do_invoke(frame, target_method);
 	}
 
 	pub fn invoke_exact(frame: &mut Frame, entry: MethodEntry) {
@@ -192,7 +182,7 @@ mod _dynamic {
 		let Some((_appendix, target_method)) = appendix_and_target_method(frame) else {
 			return;
 		};
-		do_invoke(frame, &entry.method.descriptor.return_type, target_method)
+		do_invoke(frame, target_method)
 	}
 
 	pub fn link_to_special(frame: &mut Frame, entry: MethodEntry) {
