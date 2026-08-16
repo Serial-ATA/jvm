@@ -15,18 +15,17 @@ crate::classes::field_module! {
 	@FIELD fd: ty @ FieldType::Object(_) if ty.is_class(b"java/io/FileDescriptor"),
 }
 
-fn fd_field(this: Reference) -> Reference {
+fn get_fd(this: Reference) -> Reference {
 	// `fd` is a reference to a `java.io.FileDescriptor`
-	let fd_field_offset = fd_field_index();
-	this.get_field_value0(fd_field_offset).expect_reference()
+	this.get_field_value(fd_field()).expect_reference()
 }
 
 pub fn fd(this: Reference) -> jint {
-	let file_descriptor_ref = fd_field(this);
+	let file_descriptor_ref = get_fd(this);
 	FileDescriptor::fd(file_descriptor_ref)
 }
 
 pub fn set_fd(this: Reference, fd: jint) {
-	let file_descriptor_ref = fd_field(this);
+	let file_descriptor_ref = get_fd(this);
 	FileDescriptor::set_fd(file_descriptor_ref, fd);
 }

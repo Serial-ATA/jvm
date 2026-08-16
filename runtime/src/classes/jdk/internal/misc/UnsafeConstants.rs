@@ -1,3 +1,5 @@
+use crate::objects::instance::Instance;
+
 use classfile::FieldType;
 use instructions::Operand;
 use jni::sys::jint;
@@ -37,19 +39,20 @@ crate::classes::field_module! {
 /// * all field offsets have been initialized
 pub unsafe fn init() {
 	let class = crate::globals::classes::jdk_internal_misc_UnsafeConstants();
+	let mirror = class.mirror();
 
 	// NOTE: The fields are already default initialized to 0
 	unsafe {
-		class.set_static_field(
-			ADDRESS_SIZE0_field_index(),
+		mirror.put_field_value(
+			ADDRESS_SIZE0_field(),
 			Operand::from(size_of::<usize>() as jint),
 		);
-		class.set_static_field(
-			PAGE_SIZE_field_index(),
+		mirror.put_field_value(
+			PAGE_SIZE_field(),
 			Operand::from(platform::mem::get_page_size() as jint),
 		);
-		class.set_static_field(
-			BIG_ENDIAN_field_index(),
+		mirror.put_field_value(
+			BIG_ENDIAN_field(),
 			Operand::from(jint::from(cfg!(target_endian = "big"))),
 		);
 	}

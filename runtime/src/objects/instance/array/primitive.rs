@@ -145,6 +145,10 @@ impl Object for PrimitiveArrayInstanceRef {
 		true
 	}
 
+	fn field_allocation_size(&self) -> usize {
+		self.len() * self.scale()
+	}
+
 	unsafe fn raw(&self) -> *mut () {
 		self.0.cast()
 	}

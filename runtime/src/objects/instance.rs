@@ -19,85 +19,17 @@ use jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 /// [`Object`]: object::Object
 pub trait Instance: object::Object {
 	fn get_field_value(&self, field: &Field) -> Operand<Reference> {
-		assert!(!field.is_static());
-
-		unsafe {
-			match field.descriptor {
-				FieldType::Byte => Operand::Int({
-					if field.is_volatile() {
-						jint::from(self.atomic_get::<jbyte>(field.offset()))
-					} else {
-						jint::from(self.get::<jbyte>(field.offset()))
-					}
-				}),
-				FieldType::Character => Operand::Int({
-					if field.is_volatile() {
-						jint::from(self.atomic_get::<jchar>(field.offset()))
-					} else {
-						jint::from(self.get::<jchar>(field.offset()))
-					}
-				}),
-				FieldType::Integer => Operand::Int({
-					if field.is_volatile() {
-						self.atomic_get::<jint>(field.offset())
-					} else {
-						self.get::<jint>(field.offset())
-					}
-				}),
-				FieldType::Short => Operand::Int({
-					if field.is_volatile() {
-						jint::from(self.atomic_get::<jshort>(field.offset()))
-					} else {
-						jint::from(self.get::<jshort>(field.offset()))
-					}
-				}),
-				FieldType::Boolean => Operand::Int({
-					if field.is_volatile() {
-						jint::from(self.atomic_get::<jboolean>(field.offset()))
-					} else {
-						jint::from(self.get::<jboolean>(field.offset()))
-					}
-				}),
-
-				FieldType::Double => Operand::Double({
-					if field.is_volatile() {
-						self.atomic_get::<jdouble>(field.offset())
-					} else {
-						self.get::<jdouble>(field.offset())
-					}
-				}),
-				FieldType::Float => Operand::Float({
-					if field.is_volatile() {
-						self.atomic_get::<jfloat>(field.offset())
-					} else {
-						self.get::<jfloat>(field.offset())
-					}
-				}),
-
-				FieldType::Long => Operand::Long({
-					if field.is_volatile() {
-						self.atomic_get::<jlong>(field.offset())
-					} else {
-						self.get::<jlong>(field.offset())
-					}
-				}),
-
-				FieldType::Object(_) | FieldType::Array(_) => Operand::Reference({
-					if field.is_volatile() {
-						Reference::from_raw(self.atomic_get::<usize>(field.offset()) as *mut ())
-					} else {
-						Reference::from_raw(self.get::<usize>(field.offset()) as *mut ())
-					}
-				}),
-
-				FieldType::Void => unreachable!(),
-			}
+		// Only mirrors can hold static fields
+		if field.is_static() && !self.is_mirror() {
+			return self.class().mirror().get_field_value(field);
 		}
+
+		unsafe { get_field_value_impl(self, &field, field.offset()) }
 	}
 
-	/// Read the value of a field by its index
+	/// Get the value of a field by its index
 	fn get_field_value0(&self, field_idx: usize) -> Operand<Reference> {
-		let Some(field) = self.class().instance_fields().nth(field_idx) else {
+		let Some(field) = self.class().fields().nth(field_idx) else {
 			panic!(
 				"Failed to resolve field index: {:?}, in class: {:?}",
 				field_idx,
@@ -109,95 +41,17 @@ pub trait Instance: object::Object {
 	}
 
 	fn put_field_value(&self, field: &Field, value: Operand<Reference>) {
-		fn incompatible(field: &Field, value: Operand<Reference>) -> ! {
-			panic!(
-				"Expected type compatible with: {:?}, found: {value:?} (class: {}, field index: \
-				 {})",
-				field.descriptor,
-				field.class.name(),
-				field.index(),
-			)
+		// Only mirrors can hold static fields
+		if field.is_static() && !self.is_mirror() {
+			return self.class().mirror().put_field_value(field, value);
 		}
 
-		assert!(!field.is_static());
-
-		unsafe {
-			match value {
-				Operand::Int(int) => match field.descriptor {
-					FieldType::Byte => {
-						if field.is_volatile() {
-							self.atomic_store::<jbyte>(int as jbyte, field.offset())
-						} else {
-							self.put::<jbyte>(int as jbyte, field.offset())
-						}
-					},
-					FieldType::Character => {
-						if field.is_volatile() {
-							self.atomic_store::<jchar>(int as jchar, field.offset())
-						} else {
-							self.put::<jchar>(int as jchar, field.offset())
-						}
-					},
-					FieldType::Integer => {
-						if field.is_volatile() {
-							self.atomic_store::<jint>(int, field.offset())
-						} else {
-							self.put::<jint>(int, field.offset())
-						}
-					},
-					FieldType::Short => {
-						if field.is_volatile() {
-							self.atomic_store::<jshort>(int as jshort, field.offset())
-						} else {
-							self.put::<jshort>(int as jshort, field.offset())
-						}
-					},
-					FieldType::Boolean => {
-						if field.is_volatile() {
-							self.atomic_store::<jboolean>(int != 0, field.offset())
-						} else {
-							self.put::<jboolean>(int != 0, field.offset())
-						}
-					},
-					_ => incompatible(field, value),
-				},
-				Operand::Float(float) if field.descriptor == FieldType::Float => {
-					if field.is_volatile() {
-						self.atomic_store::<jfloat>(float, field.offset())
-					} else {
-						self.put::<jfloat>(float, field.offset())
-					}
-				},
-				Operand::Double(double) if field.descriptor == FieldType::Double => {
-					if field.is_volatile() {
-						self.atomic_store::<jdouble>(double, field.offset())
-					} else {
-						self.put::<jdouble>(double, field.offset())
-					}
-				},
-				Operand::Long(long) if field.descriptor == FieldType::Long => {
-					if field.is_volatile() {
-						self.atomic_store::<jlong>(long, field.offset())
-					} else {
-						self.put::<jlong>(long, field.offset())
-					}
-				},
-				// TODO: Verify the reference type?
-				Operand::Reference(reference) => {
-					if field.is_volatile() {
-						self.atomic_store::<usize>(reference.raw_tagged() as usize, field.offset())
-					} else {
-						self.put::<usize>(reference.raw_tagged() as usize, field.offset())
-					}
-				},
-				_ => incompatible(field, value),
-			}
-		}
+		unsafe { put_field_value_impl(self, &field, field.offset(), value) }
 	}
 
 	/// Set the value of a field by its index
 	fn put_field_value0(&self, field_idx: usize, value: Operand<Reference>) {
-		let Some(field) = self.class().instance_fields().nth(field_idx) else {
+		let Some(field) = self.class().fields().nth(field_idx) else {
 			panic!(
 				"Failed to resolve field index: {:?}, in class: {:?}",
 				field_idx,
@@ -206,6 +60,190 @@ pub trait Instance: object::Object {
 		};
 
 		self.put_field_value(field, value);
+	}
+}
+
+/// Get the current value of a field for this object
+///
+/// This allows specifying a custom offset to interpret as the provided field.
+/// See `MirrorInstanceRef::get_static_field_value()`.
+///
+/// # Safety
+///
+/// The caller must verify that the provided `offset` is within the current object's allocation
+unsafe fn get_field_value_impl(
+	obj: &impl object::Object,
+	field: &Field,
+	offset: usize,
+) -> Operand<Reference> {
+	unsafe {
+		match field.descriptor {
+			FieldType::Byte => Operand::Int({
+				if field.is_volatile() {
+					jint::from(obj.atomic_get::<jbyte>(offset))
+				} else {
+					jint::from(obj.get::<jbyte>(offset))
+				}
+			}),
+			FieldType::Character => Operand::Int({
+				if field.is_volatile() {
+					jint::from(obj.atomic_get::<jchar>(offset))
+				} else {
+					jint::from(obj.get::<jchar>(offset))
+				}
+			}),
+			FieldType::Integer => Operand::Int({
+				if field.is_volatile() {
+					obj.atomic_get::<jint>(offset)
+				} else {
+					obj.get::<jint>(offset)
+				}
+			}),
+			FieldType::Short => Operand::Int({
+				if field.is_volatile() {
+					jint::from(obj.atomic_get::<jshort>(offset))
+				} else {
+					jint::from(obj.get::<jshort>(offset))
+				}
+			}),
+			FieldType::Boolean => Operand::Int({
+				if field.is_volatile() {
+					jint::from(obj.atomic_get::<jboolean>(offset))
+				} else {
+					jint::from(obj.get::<jboolean>(offset))
+				}
+			}),
+
+			FieldType::Double => Operand::Double({
+				if field.is_volatile() {
+					obj.atomic_get::<jdouble>(offset)
+				} else {
+					obj.get::<jdouble>(offset)
+				}
+			}),
+			FieldType::Float => Operand::Float({
+				if field.is_volatile() {
+					obj.atomic_get::<jfloat>(offset)
+				} else {
+					obj.get::<jfloat>(offset)
+				}
+			}),
+
+			FieldType::Long => Operand::Long({
+				if field.is_volatile() {
+					obj.atomic_get::<jlong>(offset)
+				} else {
+					obj.get::<jlong>(offset)
+				}
+			}),
+
+			FieldType::Object(_) | FieldType::Array(_) => Operand::Reference({
+				if field.is_volatile() {
+					Reference::from_raw(obj.atomic_get::<usize>(offset) as *mut ())
+				} else {
+					Reference::from_raw(obj.get::<usize>(offset) as *mut ())
+				}
+			}),
+
+			FieldType::Void => unreachable!(),
+		}
+	}
+}
+
+/// Put a value into a field of an object
+///
+/// This allows specifying a custom offset to interpret as the provided field.
+/// See `MirrorInstanceRef::put_static_field_value()`.
+///
+/// # Safety
+///
+/// See [`get_field_value_impl()`]
+unsafe fn put_field_value_impl(
+	obj: &impl object::Object,
+	field: &Field,
+	offset: usize,
+	value: Operand<Reference>,
+) {
+	fn incompatible(field: &Field, value: Operand<Reference>) -> ! {
+		panic!(
+			"Expected type compatible with: {:?}, found: {value:?} (class: {}, field index: {})",
+			field.descriptor,
+			field.class.name(),
+			field.index(),
+		)
+	}
+
+	unsafe {
+		match value {
+			Operand::Int(int) => match field.descriptor {
+				FieldType::Byte => {
+					if field.is_volatile() {
+						obj.atomic_store::<jbyte>(int as jbyte, offset)
+					} else {
+						obj.put::<jbyte>(int as jbyte, offset)
+					}
+				},
+				FieldType::Character => {
+					if field.is_volatile() {
+						obj.atomic_store::<jchar>(int as jchar, offset)
+					} else {
+						obj.put::<jchar>(int as jchar, offset)
+					}
+				},
+				FieldType::Integer => {
+					if field.is_volatile() {
+						obj.atomic_store::<jint>(int, offset)
+					} else {
+						obj.put::<jint>(int, offset)
+					}
+				},
+				FieldType::Short => {
+					if field.is_volatile() {
+						obj.atomic_store::<jshort>(int as jshort, offset)
+					} else {
+						obj.put::<jshort>(int as jshort, offset)
+					}
+				},
+				FieldType::Boolean => {
+					if field.is_volatile() {
+						obj.atomic_store::<jboolean>(int != 0, offset)
+					} else {
+						obj.put::<jboolean>(int != 0, offset)
+					}
+				},
+				_ => incompatible(field, value),
+			},
+			Operand::Float(float) if field.descriptor == FieldType::Float => {
+				if field.is_volatile() {
+					obj.atomic_store::<jfloat>(float, offset)
+				} else {
+					obj.put::<jfloat>(float, offset)
+				}
+			},
+			Operand::Double(double) if field.descriptor == FieldType::Double => {
+				if field.is_volatile() {
+					obj.atomic_store::<jdouble>(double, offset)
+				} else {
+					obj.put::<jdouble>(double, offset)
+				}
+			},
+			Operand::Long(long) if field.descriptor == FieldType::Long => {
+				if field.is_volatile() {
+					obj.atomic_store::<jlong>(long, offset)
+				} else {
+					obj.put::<jlong>(long, offset)
+				}
+			},
+			// TODO: Verify the reference type?
+			Operand::Reference(reference) => {
+				if field.is_volatile() {
+					obj.atomic_store::<usize>(reference.raw_tagged() as usize, offset)
+				} else {
+					obj.put::<usize>(reference.raw_tagged() as usize, offset)
+				}
+			},
+			_ => incompatible(field, value),
+		}
 	}
 }
 

@@ -51,83 +51,6 @@ struct MiscCache {
 	is_hidden: bool,
 }
 
-struct FieldContainer {
-	/// A list of all fields, including static. Only ever uninit during field injection.
-	fields: UnsafeCell<MaybeUninit<Box<[&'static Field]>>>,
-	/// All static field slots
-	///
-	/// This needs to be scaled to the `fields` field, in that index 0 of this array relates
-	/// to the index of the first static field in `fields`.
-	static_field_slots: Box<[UnsafeCell<Operand<Reference>>]>,
-	/// The number of dynamic fields in a class instance
-	///
-	/// This is `fields.len() - static_field_slots.len()`, provided here for convenience.
-	instance_field_count: UnsafeCell<u4>,
-}
-
-impl FieldContainer {
-	/// Used as the field container for arrays, as they have no instance fields.
-	fn null() -> Self {
-		Self {
-			fields: UnsafeCell::new(MaybeUninit::new(box_slice![])),
-			static_field_slots: box_slice![],
-			instance_field_count: UnsafeCell::new(0),
-		}
-	}
-
-	fn new(static_field_slots: Box<[UnsafeCell<Operand<Reference>>]>) -> Self {
-		Self {
-			fields: UnsafeCell::new(MaybeUninit::new(box_slice![])),
-			static_field_slots,
-			instance_field_count: UnsafeCell::new(0),
-		}
-	}
-
-	fn fields(&self) -> impl Iterator<Item = &'static Field> {
-		let fields = unsafe { (&*self.fields.get()).assume_init_ref() };
-		fields.iter().copied()
-	}
-
-	// This is only ever used in class loading
-	fn set_fields(&self, new: Vec<&'static Field>) {
-		let fields = self.fields.get();
-		let _ = std::mem::replace(
-			unsafe { &mut *fields },
-			MaybeUninit::new(new.into_boxed_slice()),
-		);
-	}
-
-	/// # SAFETY
-	///
-	/// See [`Class::set_static_field`]
-	unsafe fn set_static_field(&self, index: usize, value: Operand<Reference>) {
-		let field = &self.static_field_slots[index];
-		let _ = std::mem::replace(unsafe { &mut *field.get() }, value);
-	}
-
-	fn get_static_field(&self, index: usize) -> Operand<Reference> {
-		let field = self.static_field_slots[index].get();
-		unsafe { *field }
-	}
-
-	fn get_static_field_volatile(&self, index: usize) -> Operand<Reference> {
-		let field = self.static_field_slots[index].get();
-		let ptr = AtomicPtr::new(field);
-		unsafe { *ptr.load(Ordering::Acquire) }
-	}
-
-	fn instance_field_count(&self) -> u4 {
-		unsafe { *self.instance_field_count.get() }
-	}
-
-	// This is only ever used in class loading and field injection
-	fn set_instance_field_count(&self, value: u4) {
-		unsafe {
-			*self.instance_field_count.get() = value;
-		}
-	}
-}
-
 // TODO: Make more fields private
 #[repr(C, align(256))]
 pub struct Class {
@@ -140,7 +63,8 @@ pub struct Class {
 	interfaces: Vec<ClassPtr>,
 	misc_cache: UnsafeCell<MiscCache>,
 	mirror: UnsafeCell<MaybeUninit<MirrorInstanceRef>>,
-	field_container: FieldContainer,
+	/// A list of all fields, including static. Only ever uninit during field injection.
+	fields: UnsafeCell<MaybeUninit<Box<[&'static Field]>>>,
 	vtable: UnsafeCell<MaybeUninit<VTable<'static>>>,
 
 	nest_members: Option<Box<[Symbol]>>,
@@ -295,7 +219,8 @@ impl Class {
 	///
 	/// This is the only way to access the class fields externally.
 	pub fn fields(&self) -> impl Iterator<Item = &'static Field> {
-		self.field_container.fields()
+		let fields = unsafe { (&*self.fields.get()).assume_init_ref() };
+		fields.iter().copied()
 	}
 
 	/// Get the instance fields for this class
@@ -310,22 +235,12 @@ impl Class {
 		self.fields().filter(|field| field.is_static())
 	}
 
-	/// Get the value of the static field at `index`
-	///
-	/// # Panics
-	///
-	/// This will panic if the index is out of bounds.
-	pub fn static_field_value(&self, index: usize) -> Operand<Reference> {
-		self.field_container.get_static_field(index)
-	}
-
-	pub fn static_field_value_volatile(&self, index: usize) -> Operand<Reference> {
-		self.field_container.get_static_field_volatile(index)
-	}
-
-	/// The number of non-static fields
-	pub fn instance_field_count(&self) -> usize {
-		self.field_container.instance_field_count() as usize
+	/// The total in-memory size of the static fields
+	pub fn size_of_static_fields(&self) -> usize {
+		// Every field tracks its offset, so we can just grab the last one
+		self.static_fields()
+			.last()
+			.map_or(0, |field| field.offset() + field.descriptor.size())
 	}
 
 	/// The total in-memory size of the non-static fields
@@ -651,31 +566,6 @@ impl Class {
 
 // Setters
 impl Class {
-	/// Set the value of the static field at `index`
-	///
-	/// NOTE: This will drop the previous value (if any).
-	///
-	/// # Safety
-	///
-	/// This method is unsafe in that it will mutate fields that other threads may be reading. However,
-	/// that behavior is acceptable, as synchronization is a requirement of the Java code, not the VM.
-	///
-	/// # Panics
-	///
-	/// This will panic if the index is out of bounds.
-	pub unsafe fn set_static_field(&self, index: usize, value: Operand<Reference>) {
-		unsafe {
-			self.field_container.set_static_field(index, value);
-		}
-	}
-
-	pub fn set_static_field_volatile(&self, index: usize, value: Operand<Reference>) {
-		// TODO: Actually do this right
-		unsafe {
-			self.field_container.set_static_field(index, value);
-		}
-	}
-
 	/// Inject a set of fields into this class
 	///
 	/// This allows us to store extra information in objects as necessary, such as a [`Module`] pointer
@@ -684,32 +574,28 @@ impl Class {
 	/// # Safety
 	///
 	/// This can only ever be called once, and is **NEVER** to be used outside of initialization.
-	pub unsafe fn inject_fields(
-		&self,
-		fields: impl IntoIterator<Item = &'static Field>,
-		field_count: usize,
-	) {
-		assert!(field_count > 0, "field injection requires at least 1 field");
+	pub unsafe fn inject_fields(&self, fields: impl ExactSizeIterator<Item = &'static Field>) {
+		assert!(
+			fields.len() > 0,
+			"field injection requires at least 1 field"
+		);
 
-		let old_fields_ptr = self.field_container.fields.get();
+		let old_fields_ptr = self.fields.get();
 		let old_fields = unsafe {
 			let old_fields = std::ptr::replace(old_fields_ptr, MaybeUninit::uninit());
 			old_fields.assume_init()
 		};
 
-		let has_instance_fields = !old_fields.is_empty();
-
-		let max_instance_index = old_fields
-			.iter()
-			.fold(0, |a, b| if b.is_static() { a } else { a.max(b.index()) });
-
-		let mut offset = old_fields
-			.last()
-			.map_or(0, |f| f.offset() + f.descriptor.size());
-
-		let expected_len = old_fields.len() + field_count;
+		let new_fields_len = fields.len();
+		let expected_len = old_fields.len() + new_fields_len;
 		let mut new_fields = Vec::with_capacity(expected_len);
-		new_fields.extend(old_fields);
+
+		// Copy in the instance fields first. Statics are added back at the end to keep the field
+		// list sorted.
+		new_fields.extend(old_fields.iter().copied().filter(|f| !f.is_static()));
+
+		let has_instance_fields = !new_fields.is_empty();
+		let max_instance_index = new_fields.last().map_or(0, |f| f.index());
 
 		let injected_field_start_index;
 		if has_instance_fields {
@@ -719,6 +605,10 @@ impl Class {
 		} else {
 			injected_field_start_index = 0;
 		}
+
+		let mut offset = new_fields
+			.last()
+			.map_or(0, |f| f.offset() + f.descriptor.size());
 
 		for (idx, field) in fields.into_iter().enumerate() {
 			assert!(!field.is_static());
@@ -731,15 +621,25 @@ impl Class {
 			new_fields.push(field);
 		}
 
+		// Now copy the statics back in
+		new_fields.extend(old_fields.iter().copied().filter_map(|f| {
+			if f.is_static() {
+				// SAFETY: None of the fields are actually in use yet
+				unsafe {
+					f.set_index(f.index() + new_fields_len);
+				}
+
+				Some(f)
+			} else {
+				None
+			}
+		}));
 		assert_eq!(new_fields.len(), expected_len);
 
 		let new_fields = MaybeUninit::new(new_fields.into_boxed_slice());
 		unsafe {
 			std::ptr::write(old_fields_ptr, new_fields);
 		}
-
-		self.field_container
-			.set_instance_field_count((injected_field_start_index + field_count) as u32);
 	}
 
 	/// Set the nest host for this class
@@ -974,18 +874,10 @@ impl Class {
 			.iter()
 			.any(|attr| attr.record().is_some());
 
-		let static_field_count = parsed_file
-			.fields
-			.iter()
-			.filter(|field| field.access_flags.is_static())
-			.count();
-
 		let mut super_instance_field_count = 0;
 		if let Some(ref super_class) = super_class {
-			super_instance_field_count = super_class.field_container.instance_field_count();
+			super_instance_field_count = super_class.instance_fields().count();
 		}
-
-		let static_field_slots = box_slice![UnsafeCell::new(Operand::Empty); static_field_count];
 
 		let class = Self {
 			name: UnsafeCell::new(name),
@@ -1000,7 +892,7 @@ impl Class {
 				..MiscCache::default()
 			}),
 			mirror: UnsafeCell::new(MaybeUninit::uninit()), // Set later
-			field_container: FieldContainer::new(static_field_slots),
+			fields: UnsafeCell::new(MaybeUninit::new(box_slice![])),
 			vtable: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			nest_members,
 			bootstrap_methods,
@@ -1038,8 +930,7 @@ impl Class {
 		}
 
 		// Then the fields...
-		let mut fields =
-			Vec::with_capacity(super_instance_field_count as usize + parsed_file.fields.len());
+		let mut fields = Vec::with_capacity(super_instance_field_count + parsed_file.fields.len());
 		if let Some(super_class) = class_ptr.super_class {
 			// First we have to inherit the super classes' fields
 			for field in super_class.instance_fields() {
@@ -1047,42 +938,46 @@ impl Class {
 			}
 		}
 
-		// Now the fields defined in our class
-		let mut static_idx = 0;
 		// Continue the index from our existing instance fields
-		let mut instance_field_idx = core::cmp::max(0, super_instance_field_count) as usize;
+		let mut field_idx = core::cmp::max(0, super_instance_field_count);
 		let constant_pool = class_ptr
 			.constant_pool()
 			.expect("we just set the constant pool");
 
-		let mut next_offset = fields
+		// Instance and static fields are not contiguous. See `Field::offset()`
+		let mut next_instance_offset = fields
 			.last()
 			.map_or(0, |f| f.offset() + f.descriptor.size());
-		for field in parsed_file.fields {
-			let field_idx = if field.access_flags.is_static() {
-				&mut static_idx
+		let mut next_static_offset = 0;
+
+		let instance_fields = parsed_file
+			.fields
+			.iter()
+			.filter(|f| !f.access_flags.is_static());
+		let static_fields = parsed_file
+			.fields
+			.iter()
+			.filter(|f| f.access_flags.is_static());
+		for field in instance_fields.chain(static_fields) {
+			let next_offset = if field.access_flags.is_static() {
+				&mut next_static_offset
 			} else {
-				&mut instance_field_idx
+				&mut next_instance_offset
 			};
 
-			let field = Field::new(*field_idx, next_offset, class_ptr, &field, constant_pool);
-			if !field.access_flags.is_static() {
-				next_offset = field.offset() + field.descriptor.size();
-			}
+			let field = Field::new(field_idx, *next_offset, class_ptr, &field, constant_pool);
+			*next_offset = field.offset() + field.descriptor.size();
 
 			fields.push(field);
 
-			*field_idx += 1;
+			field_idx += 1;
 		}
 
-		class_ptr.field_container.set_fields(fields);
-
-		// Update the instance field count if we encountered any new ones
-		if instance_field_idx > 0 {
-			class_ptr
-				.field_container
-				.set_instance_field_count(instance_field_idx as u4);
-		}
+		let current_fields_ptr = class_ptr.fields.get();
+		let _ = std::mem::replace(
+			unsafe { &mut *current_fields_ptr },
+			MaybeUninit::new(fields.into_boxed_slice()),
+		);
 
 		Throws::Ok(class_ptr)
 	}
@@ -1121,7 +1016,7 @@ impl Class {
 			],
 			misc_cache: UnsafeCell::new(MiscCache::default()),
 			mirror: UnsafeCell::new(MaybeUninit::uninit()), // Set later
-			field_container: FieldContainer::null(),
+			fields: UnsafeCell::new(MaybeUninit::new(box_slice![])),
 			vtable: UnsafeCell::new(MaybeUninit::uninit()), // Set later
 			nest_members: None,
 			bootstrap_methods: None,
@@ -1141,6 +1036,7 @@ impl Class {
 		Throws::Ok(class_ptr)
 	}
 
+	/// Create an iterator over the class's parents
 	pub fn parent_iter(&self) -> ClassParentIterator {
 		ClassParentIterator {
 			current_class: self.super_class,
@@ -1192,6 +1088,7 @@ impl Class {
 		this_pkg.unwrap() == other_pkg.unwrap()
 	}
 
+	/// Whether this class implements the given interface
 	pub fn implements(&self, target_interface: ClassPtr) -> bool {
 		if !target_interface.is_interface() {
 			// TODO: Assertion maybe?

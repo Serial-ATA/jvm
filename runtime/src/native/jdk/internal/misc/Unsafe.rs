@@ -535,14 +535,16 @@ pub fn knownObjectFieldOffset0(
 	let name_str = classes::java::lang::String::extract(name.extract_class());
 	let classref = class.target_class();
 
-	for field in classref.instance_fields() {
-		if field.name.as_str() == name_str {
-			if field.is_static() {
-				return IS_STATIC;
-			}
-
-			return field.offset() as jlong;
+	for field in classref.fields() {
+		if field.name.as_str() != name_str {
+			continue;
 		}
+
+		if field.is_static() {
+			return IS_STATIC;
+		}
+
+		return field.offset() as jlong;
 	}
 
 	NOT_FOUND

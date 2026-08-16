@@ -5,6 +5,7 @@ use crate::native::java::lang::String::StringInterner;
 use crate::objects::class::{Class, ClassPtr};
 use crate::objects::constant_pool::cp_types;
 use crate::objects::field::Field;
+use crate::objects::instance::Instance;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
@@ -179,11 +180,10 @@ impl Class {
 		// Preparation involves creating the static fields for a class or interface and initializing such fields
 		// to their default values (§2.3, §2.4). This does not require the execution of any Java Virtual Machine code;
 		// explicit initializers for static fields are executed as part of initialization (§5.5), not preparation.
+		let mirror = self.mirror();
 		for field in self.static_fields() {
 			let value = Field::default_value_for_ty(&field.descriptor);
-			unsafe {
-				self.set_static_field(field.index(), value);
-			}
+			mirror.put_field_value(field, value);
 		}
 
 		// During preparation of a class or interface C, the Java Virtual Machine also imposes loading constraints (§5.3.4):
@@ -477,6 +477,7 @@ impl Class {
 			};
 
 			let class_instance = field.class.unwrap_class_instance();
+			let mirror = field.class.mirror();
 
 			match field.descriptor {
 				FieldType::Byte
@@ -489,9 +490,7 @@ impl Class {
 						.get::<cp_types::Integer>(constant_value_index)
 						.expect("numeric constants should always resolve");
 					let value = Operand::from(constant_value);
-					unsafe {
-						self.set_static_field(field.index(), value);
-					}
+					mirror.put_field_value(field, value);
 				},
 				FieldType::Double => {
 					let constant_value = class_instance
@@ -499,9 +498,7 @@ impl Class {
 						.get::<cp_types::Double>(constant_value_index)
 						.expect("numeric constants should always resolve");
 					let value = Operand::from(constant_value);
-					unsafe {
-						self.set_static_field(field.index(), value);
-					}
+					mirror.put_field_value(field, value);
 				},
 				FieldType::Float => {
 					let constant_value = class_instance
@@ -509,9 +506,7 @@ impl Class {
 						.get::<cp_types::Float>(constant_value_index)
 						.expect("numeric constants should always resolve");
 					let value = Operand::from(constant_value);
-					unsafe {
-						self.set_static_field(field.index(), value);
-					}
+					mirror.put_field_value(field, value);
 				},
 				FieldType::Long => {
 					let constant_value = class_instance
@@ -519,9 +514,7 @@ impl Class {
 						.get::<cp_types::Long>(constant_value_index)
 						.expect("numeric constants should always resolve");
 					let value = Operand::from(constant_value);
-					unsafe {
-						self.set_static_field(field.index(), value);
-					}
+					mirror.put_field_value(field, value);
 				},
 				FieldType::Object(ref obj) if &**obj == b"java/lang/String" => {
 					let string = class_instance
@@ -530,9 +523,7 @@ impl Class {
 						.expect("string constants should always resolve");
 					let string_instance = StringInterner::intern(string);
 					let value = Operand::Reference(Reference::class(string_instance));
-					unsafe {
-						self.set_static_field(field.index(), value);
-					}
+					mirror.put_field_value(field, value);
 				},
 				_ => unreachable!(),
 			}

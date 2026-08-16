@@ -159,7 +159,7 @@ fn load_global_classes() -> Throws<()> {
 	}
 
 	// Fixup mirrors, as we have classes that were loaded before java.lang.Class
-	ClassLoader::fixup_mirrors();
+	ClassLoader::fixup_mirrors()?;
 
 	load!(
 		jdk_internal_misc_UnsafeConstants,

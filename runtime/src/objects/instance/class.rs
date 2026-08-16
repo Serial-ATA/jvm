@@ -36,6 +36,10 @@ impl Object for ClassInstanceRef {
 		true
 	}
 
+	fn field_allocation_size(&self) -> usize {
+		self.class().size_of_instance_fields()
+	}
+
 	unsafe fn raw(&self) -> *mut () {
 		self.0.cast()
 	}

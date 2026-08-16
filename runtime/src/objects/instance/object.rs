@@ -110,6 +110,9 @@ pub trait Object: Sized {
 	/// Returns a pointer to the start of the object's fields
 	unsafe fn field_base(&self) -> *mut u8;
 
+	/// The size of the object's fields
+	fn field_allocation_size(&self) -> usize;
+
 	/// Write `value` to `offset`
 	///
 	/// NOTE: `offset` is the **byte offset** from the base of the object's fields, **NOT** the start of the object.
@@ -152,7 +155,7 @@ pub trait Object: Sized {
 		#[cfg(debug_assertions)]
 		{
 			if !self.is_array() {
-				let field_allocation_size = self.class().size_of_instance_fields();
+				let field_allocation_size = self.field_allocation_size();
 				let element_size = size_of::<T>();
 				debug_assert!(
 					offset <= field_allocation_size

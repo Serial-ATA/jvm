@@ -200,6 +200,20 @@ impl Object for Reference {
 		self.tag() == Self::MIRROR_TAG
 	}
 
+	fn field_allocation_size(&self) -> usize {
+		match self.tag() {
+			Self::CLASS_TAG => unsafe { self.as_class_unchecked() }.field_allocation_size(),
+			Self::MIRROR_TAG => unsafe { self.as_mirror_unchecked() }.field_allocation_size(),
+			Self::PRIMITIVE_ARRAY_TAG => {
+				unsafe { self.as_primitive_array_unchecked() }.field_allocation_size()
+			},
+			Self::OBJECT_ARRAY_TAG => {
+				unsafe { self.as_object_array_unchecked() }.field_allocation_size()
+			},
+			_ => panic!("NullPointerException"),
+		}
+	}
+
 	unsafe fn raw(&self) -> *mut () {
 		panic!(
 			"The raw address of `References` can't be fetched. See `Reference::raw_tagged()` \

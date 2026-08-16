@@ -569,15 +569,19 @@ impl Interpreter {
                     let Some(field) = Self::fetch_field(frame, true) else {
                         return;
                     };
-                    frame.push_op(field.get_static_value());
+
+                    // Same as `getfield`, except statics are stored in the mirror
+                    let mirror = field.class.mirror();
+                    frame.push_op(mirror.get_field_value(field));
                 },
                 OpCode::putstatic => {
                     let Some(field) = Self::fetch_field(frame, true) else {
                         return;
                     };
-                    let value = frame.pop();
 
-                    field.set_static_value(value);
+                    let value = frame.pop();
+                    let mirror = field.class.mirror();
+                    mirror.put_field_value(field, value);
                 },
                 OpCode::getfield => {
                     let Some(field) = Self::fetch_field(frame, false) else {

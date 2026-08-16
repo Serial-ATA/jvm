@@ -122,7 +122,7 @@ macro_rules! injected_field_definition {
 
 macro_rules! field_constructor {
 	($class_name:ident $($sub_class_name:ident)? @FIELDSTART $($field_tt:tt)*) => {
-		crate::classes::field_constructor!(@METHODS $($field_tt)*);
+		crate::classes::field_constructor!(@METHODS $class_name $($field_tt)*);
 
 		/// Initialize the field offsets
         ///
@@ -147,8 +147,7 @@ macro_rules! field_constructor {
 			if INJECTED_FIELD_COUNT > 0 {
 				unsafe {
 					class.inject_fields(
-						crate::classes::injected_field_definition!(class, $($field_tt)*),
-						INJECTED_FIELD_COUNT
+						crate::classes::injected_field_definition!(class, $($field_tt)*).iter().copied(),
 					);
 				}
 			}
@@ -163,7 +162,8 @@ macro_rules! field_constructor {
 
 			if field_set != EXPECTED_FIELD_SET {
 				let missing = FieldNames::find_missing(field_set).into_iter().flatten().collect::<Vec<_>>();
-				panic!("Not all fields found in {}, missing {missing:?}", stringify!($class_name))
+				let present_fields: Vec<_> = class.fields().map(|f| f.name.as_str()).collect();
+				panic!("Not all fields found in {}, missing {missing:?}, present fields: {present_fields:?}", stringify!($class_name))
 			}
 
 			$(
@@ -273,18 +273,21 @@ macro_rules! field_constructor {
 	};
 
 	(@METHODS
+        $class_name:ident
 		$(#[$meta:meta])*
 		$([sym: $specified_sym_name:ident])?
 		@INJECTED $field_name:ident: $_descriptor:expr => $field_ty:ty, $($rest:tt)*
 	) => {
 		// Treat this field as a normal field
 		crate::classes::field_constructor!(@METHODS
+			$class_name
 			$(#[$meta])*
 			$([sym: $specified_sym_name])?
 			@FIELD $field_name: _, $($rest)*
 		);
 	};
 	(@METHODS
+        $class_name:ident
 		$(#[$meta:meta])*
 		$([sym: $specified_sym_name:ident])?
 		@FIELD $field_name:ident: $matcher:pat $(if $guard:expr)?, $($rest:tt)*
@@ -312,11 +315,17 @@ macro_rules! field_constructor {
 			unsafe fn [<set_ $field_name _field_index>](value: usize) {
 				unsafe { [<__ $field_name:snake:upper _FIELD_INDEX>] = value; }
 			}
+
+            #[doc = "Get the `" $field_name "` field"]
+            pub fn [<$field_name _field>]() -> &'static crate::objects::field::Field {
+                let class = crate::globals::classes::$class_name();
+                class.fields().nth([<$field_name _field_index>]()).expect("field should exist")
+            }
 		}
 
-		crate::classes::field_constructor!(@METHODS $($rest)*);
+		crate::classes::field_constructor!(@METHODS $class_name $($rest)*);
 	};
-	(@METHODS) => {};
+	(@METHODS $class_name:ident) => {};
 
 	(
 		@CHECKS

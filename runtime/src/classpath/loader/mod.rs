@@ -566,7 +566,9 @@ impl ClassLoader {
 
 		// Finally, prepare the class (§5.4.2)
 		// "Preparation may occur at any time following creation but must be completed prior to initialization."
-		class.prepare()?;
+		if crate::globals::classes::java_lang_Class_opt().is_some() {
+			class.prepare()?;
+		}
 
 		Throws::Ok(class)
 	}
@@ -737,7 +739,7 @@ impl ClassLoader {
 	}
 
 	/// Recreate mirrors for all loaded classes
-	pub fn fixup_mirrors() {
+	pub fn fixup_mirrors() -> Throws<()> {
 		let bootstrap_loader = ClassLoader::bootstrap();
 		let ClassLoaderType::Normal {
 			classes,
@@ -753,6 +755,9 @@ impl ClassLoader {
 			unsafe {
 				class.set_mirror(None);
 			}
+
+			// None of these classes have been prepared yet
+			class.prepare()?;
 		}
 
 		// SAFETY: Very early in initialization, the value of this field is not depended on yet,
@@ -760,6 +765,8 @@ impl ClassLoader {
 		unsafe {
 			*mirrors_available.get() = true;
 		}
+
+		Throws::Ok(())
 	}
 
 	/// Sets all currently loaded classes to be members of `java.base`

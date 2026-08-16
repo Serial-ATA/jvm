@@ -2,6 +2,7 @@ use crate::native::jni::{
 	IntoJni, field_ref_from_jfieldid, reference_from_jobject, reference_from_jobject_maybe_null,
 };
 use crate::objects::class::ClassPtr;
+use crate::objects::instance::Instance;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
@@ -288,14 +289,11 @@ pub unsafe extern "system" fn SetStaticObjectField(
 	};
 
 	let value = unsafe { reference_from_jobject_maybe_null(value) };
+	let mirror = field.class.mirror();
 
 	// SAFETY: Assuming that `fieldID` points to a valid field, then its index is guaranteed to be valid
 	//         by the class loader.
-	unsafe {
-		field
-			.class
-			.set_static_field(field.index(), Operand::Reference(value))
-	}
+	unsafe { mirror.put_field_value(field, Operand::Reference(value)) }
 }
 
 pub extern "system" fn SetStaticBooleanField(

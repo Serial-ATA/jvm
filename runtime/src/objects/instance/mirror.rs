@@ -1,6 +1,7 @@
 use crate::classes;
 use crate::globals::{BASE_TYPES_TO_FIELD_TYPES, PRIMITIVES};
 use crate::objects::class::ClassPtr;
+use crate::objects::field::Field;
 use crate::objects::instance::object::Object;
 use crate::objects::instance::{Header, Instance};
 use crate::objects::reference::Reference;
@@ -56,6 +57,10 @@ impl Object for MirrorInstanceRef {
 		let base = self.0.cast::<u8>();
 		unsafe { base.add(Self::FIELD_BASE) }
 	}
+
+	fn field_allocation_size(&self) -> usize {
+		self.class().size_of_instance_fields() + self.target_class().size_of_static_fields()
+	}
 }
 
 impl MirrorInstanceRef {
@@ -85,6 +90,18 @@ impl MirrorInstanceRef {
 		);
 
 		ret
+	}
+
+	fn get_static_field_value(&self, field: &Field) -> Operand<Reference> {
+		debug_assert!(field.is_static());
+		let offset = self.static_field_offset + field.offset();
+		unsafe { super::get_field_value_impl(self, &field, offset) }
+	}
+
+	fn put_static_field_value(&self, field: &Field, value: Operand<Reference>) {
+		debug_assert!(field.is_static());
+		let offset = self.static_field_offset + field.offset();
+		unsafe { super::put_field_value_impl(self, &field, offset, value) }
 	}
 
 	pub fn set_module(&self, module: Reference) {
@@ -150,6 +167,8 @@ impl Debug for MirrorInstanceRef {
 /// `c` is a mirror instance, with a target of `java.lang.String`.
 pub struct MirrorInstance {
 	header: Header,
+	/// The offset from the `FIELD_BASE` where static fields start
+	static_field_offset: usize,
 	target: MirrorTarget,
 }
 
@@ -158,19 +177,20 @@ impl Debug for MirrorInstance {
 		f.debug_struct("MirrorInstance")
 			.field("header", &self.header)
 			.field("target", &self.target)
-			.finish()
+			.finish_non_exhaustive()
 	}
 }
 
 impl MirrorInstance {
 	pub fn new(target: ClassPtr) -> MirrorInstanceRef {
+		let mirror_class = crate::globals::classes::java_lang_Class();
 		let descriptor = MirrorInstance {
 			header: Header::new(),
+			static_field_offset: mirror_class.size_of_instance_fields(),
 			target: MirrorTarget::Class(target),
 		};
 
-		let mirror_class = crate::globals::classes::java_lang_Class();
-		let fields_size = mirror_class.size_of_instance_fields();
+		let fields_size = descriptor.static_field_offset + target.size_of_static_fields();
 		let instance_ptr = unsafe { MirrorInstanceRef::allocate(descriptor, fields_size) };
 
 		MirrorInstanceRef::new(instance_ptr, target, target.access_flags().as_u2(), false)
@@ -179,6 +199,7 @@ impl MirrorInstance {
 	pub fn new_array(target: ClassPtr) -> MirrorInstanceRef {
 		let descriptor = MirrorInstance {
 			header: Header::new(),
+			static_field_offset: 0, // Arrays have no static fields
 			target: MirrorTarget::Class(target),
 		};
 
@@ -227,6 +248,7 @@ impl MirrorInstance {
 		let target_class = Self::target_for_primitive(&target);
 		let descriptor = MirrorInstance {
 			header: Header::new(),
+			static_field_offset: 0, // Primitive mirrors have no static fields
 			target: MirrorTarget::Primitive(target),
 		};
 
@@ -287,4 +309,20 @@ impl MirrorInstance {
 	}
 }
 
-impl Instance for MirrorInstanceRef {}
+impl Instance for MirrorInstanceRef {
+	fn get_field_value(&self, field: &Field) -> Operand<Reference> {
+		if field.is_static() {
+			self.get_static_field_value(field)
+		} else {
+			unsafe { super::get_field_value_impl(self, &field, field.offset()) }
+		}
+	}
+
+	fn put_field_value(&self, field: &Field, value: Operand<Reference>) {
+		if field.is_static() {
+			self.put_static_field_value(field, value)
+		} else {
+			unsafe { super::put_field_value_impl(self, field, field.offset(), value) }
+		}
+	}
+}

@@ -77,8 +77,13 @@ impl Field {
 	///
 	/// This is used when reading/writing fields within [`Instance`].
 	///
+	/// NOTE: Unlike [indices], `static` and instance field offsets are **not** contiguous.
+	///       See [`MirrorInstance`] for details on static field handling.
+	///
 	/// [`ClassInstance`]: crate::objects::instance::class::ClassInstance
 	/// [`Instance`]: crate::objects::instance::Instance
+	/// [indices]: Self::index
+	/// [`MirrorInstance`]: crate::objects::instance::MirrorInstance
 	pub fn offset(&self) -> usize {
 		unsafe { *self.offset.get() }
 	}
@@ -148,6 +153,11 @@ impl Field {
 		}))
 	}
 
+	/// Create an empty field used for injection
+	///
+	/// See [`Class::inject_fields()`]
+	///
+	/// [`Class::inject_fields()`]: crate::objects::class::Class::inject_fields
 	pub fn new_injected(class: ClassPtr, name: Symbol, descriptor: FieldType) -> &'static Field {
 		let descriptor_sym = Symbol::intern(descriptor.as_signature());
 
@@ -163,24 +173,9 @@ impl Field {
 		}))
 	}
 
-	pub fn get_static_value(&self) -> Operand<Reference> {
-		if self.is_volatile() {
-			self.class.static_field_value_volatile(self.index())
-		} else {
-			self.class.static_field_value(self.index())
-		}
-	}
-
-	pub fn set_static_value(&self, value: Operand<Reference>) {
-		if self.is_volatile() {
-			unsafe { self.class.set_static_field_volatile(self.index(), value) }
-		} else {
-			unsafe {
-				self.class.set_static_field(self.index(), value);
-			}
-		}
-	}
-
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.3
+	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.4
+	/// Get the default value for a field of the given type
 	pub fn default_value_for_ty(ty: &FieldType) -> Operand<Reference> {
 		match ty {
 			FieldType::Byte
