@@ -413,7 +413,12 @@ impl JavaThread {
 					// Thread finished execution normally
 					break;
 				},
-				ControlFlow::ExceptionThrown => self.on_exception(),
+				ControlFlow::ExceptionThrown => {
+					self.on_exception();
+					if self.has_pending_exception() {
+						break; // Pass it back up to the caller
+					}
+				},
 				ControlFlow::Break => {
 					break;
 				},
@@ -714,9 +719,8 @@ impl JavaThread {
 	fn on_exception(&self) {
 		self.handle_pending_exception();
 		if self.has_pending_exception() {
-			// Uncaught exception, nothing further we can do
-			self.nuke();
-			self.set_control_flow(ControlFlow::Break);
+			// Uncaught, leave it pending to throw back up to the outer scope
+			self.set_control_flow(ControlFlow::ExceptionThrown);
 			return;
 		}
 
