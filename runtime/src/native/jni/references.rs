@@ -1,4 +1,4 @@
-use jni::sys::{JNIEnv, jint, jobject};
+use jni::sys::{JNI_ERR, JNI_OK, JNIEnv, jint, jobject};
 
 #[unsafe(no_mangle)]
 pub extern "system" fn PushLocalFrame(env: *mut JNIEnv, capacity: jint) -> jint {
@@ -32,5 +32,10 @@ pub extern "system" fn NewLocalRef(env: *mut JNIEnv, ref_: jobject) -> jobject {
 
 #[unsafe(no_mangle)]
 pub extern "system" fn EnsureLocalCapacity(env: *mut JNIEnv, capacity: jint) -> jint {
-	unimplemented!("jni::EnsureLocalCapacity");
+	if capacity < 0 {
+		return JNI_ERR;
+	}
+
+	// TODO: -Djdk.internal.MaxJNILocalCapacity
+	JNI_OK
 }
