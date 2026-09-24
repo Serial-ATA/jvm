@@ -285,6 +285,11 @@ impl MirrorInstance {
 		}
 	}
 
+	/// The offset of the target class' static fields, from the start of the mirror
+	pub fn static_field_offset(&self) -> usize {
+		self.static_field_offset
+	}
+
 	/// The primitive type that this mirror is targeting
 	pub fn primitive_target(&self) -> &FieldType {
 		match &self.target {

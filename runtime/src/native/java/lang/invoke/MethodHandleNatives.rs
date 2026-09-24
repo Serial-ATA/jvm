@@ -490,8 +490,8 @@ pub fn staticFieldOffset(
 	self_: Reference, // java.lang.invoke.MemberName
 ) -> jlong {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	let (index, _) = handle_exception!(0, thread, find_member_offset(self_, true));
-	index
+	let (index, clazz) = handle_exception!(0, thread, find_member_offset(self_, true));
+	(clazz.static_field_offset() as jlong) + index
 }
 
 pub fn staticFieldBase(
