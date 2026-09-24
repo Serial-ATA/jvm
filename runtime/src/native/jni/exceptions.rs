@@ -1,5 +1,6 @@
 use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::reference_from_jobject;
+use crate::objects::instance::class::ClassInstance;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
 use crate::thread::JavaThread;
@@ -60,6 +61,8 @@ pub unsafe extern "system" fn ThrowNew(
 
 	let throwable_class = mirror.extract_target_class();
 
+	let exception_obj = ClassInstance::new(throwable_class);
+
 	let constructor;
 	if message.is_none() {
 		constructor = throwable_class
@@ -76,11 +79,16 @@ pub unsafe extern "system" fn ThrowNew(
 				java_call!(
 					thread,
 					constructor,
+					Operand::Reference(Reference::class(exception_obj)),
 					Operand::Reference(Reference::class(string))
 				);
 			},
 			None => {
-				java_call!(thread, constructor);
+				java_call!(
+					thread,
+					constructor,
+					Operand::Reference(Reference::class(exception_obj))
+				);
 			},
 		},
 		Throws::Exception(e) => {
@@ -88,6 +96,8 @@ pub unsafe extern "system" fn ThrowNew(
 			return JNI_ERR;
 		},
 	}
+
+	thread.set_pending_exception(Reference::class(exception_obj));
 
 	JNI_OK
 }
