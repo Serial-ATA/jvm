@@ -293,26 +293,26 @@ fn init_member_name(member_name: ClassInstanceRef, member: FieldOrMethod) {
 			todo!()
 		},
 		FieldOrMethod::Method(method) => {
-			flags |= MethodHandleNatives::MN_IS_METHOD;
+			if method.is_constructor() {
+				flags |= MethodHandleNatives::MN_IS_CONSTRUCTOR;
+				flags |= (ReferenceKind::NewInvokeSpecial as jint)
+					<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
+			} else {
+				flags |= MethodHandleNatives::MN_IS_METHOD;
 
-			if method.is_final() {
 				if method.is_static() {
 					flags |= (ReferenceKind::InvokeStatic as jint)
 						<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
-				} else if method.is_constructor() {
-					flags |= MethodHandleNatives::MN_IS_CONSTRUCTOR;
+				} else if method.is_final() || method.is_private() {
 					flags |= (ReferenceKind::InvokeSpecial as jint)
+						<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
+				} else if method.class().is_interface() {
+					flags |= (ReferenceKind::InvokeInterface as jint)
 						<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
 				} else {
-					flags |= (ReferenceKind::InvokeSpecial as jint)
+					flags |= (ReferenceKind::InvokeVirtual as jint)
 						<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
 				}
-			} else if method.class().is_interface() {
-				flags |= (ReferenceKind::InvokeInterface as jint)
-					<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
-			} else {
-				flags |= (ReferenceKind::InvokeVirtual as jint)
-					<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
 			}
 
 			if method.is_caller_sensitive() {
