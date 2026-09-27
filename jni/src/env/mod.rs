@@ -1,4 +1,5 @@
 mod array;
+pub use array::*;
 mod class;
 mod exceptions;
 mod field;

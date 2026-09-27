@@ -11,9 +11,9 @@ use core::ffi::c_void;
 use std::ptr;
 
 use ::jni::sys::{
-	JNIEnv, jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jclass, jdouble,
-	jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, jobject, jobjectArray,
-	jshort, jshortArray, jsize,
+	JNI_ABORT, JNI_COMMIT, JNIEnv, jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar,
+	jcharArray, jclass, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong,
+	jlongArray, jobject, jobjectArray, jshort, jshortArray, jsize,
 };
 use common::int_types::u1;
 
@@ -348,7 +348,20 @@ pub unsafe extern "system" fn GetPrimitiveArrayCritical(
 	array: jarray,
 	isCopy: *mut jboolean,
 ) -> *mut c_void {
-	unimplemented!("jni::GetPrimitiveArrayCritical")
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(array) = (unsafe { array.to_reference() }) else {
+		panic!("null object passed to `GetPrimitiveArrayCritical`");
+	};
+	let array = array.extract_primitive_array();
+
+	if !isCopy.is_null() {
+		unsafe { *isCopy = false }
+	}
+
+	// Nothing to do, we don't support pinning
+	unsafe { array.field_base().cast() }
 }
 
 #[unsafe(no_mangle)]
@@ -358,5 +371,19 @@ pub unsafe extern "system" fn ReleasePrimitiveArrayCritical(
 	carray: *mut c_void,
 	mode: jint,
 ) {
-	unimplemented!("jni::ReleasePrimitiveArrayCritical");
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	// Unused, we never produce copies
+	match mode {
+		0 | JNI_COMMIT | JNI_ABORT => {},
+		_ => panic!("invalid mode `{mode}` for `ReleasePrimitiveArrayCritical`"),
+	};
+
+	let Some(array) = (unsafe { array.to_reference() }) else {
+		panic!("null object passed to `ReleasePrimitiveArrayCritical`");
+	};
+	assert!(array.is_primitive_array());
+
+	// Nothing to do, we don't support pinning
 }

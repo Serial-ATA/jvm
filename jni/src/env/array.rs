@@ -5,7 +5,18 @@ use crate::objects::{
 };
 use crate::sys::jsize;
 
-use jni_sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
+use jni_sys::{
+	JNI_ABORT, JNI_COMMIT, jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort,
+};
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(i32)]
+pub enum ArrayReleaseMode {
+	/// Copy back the content but do not free the element buffer
+	Commit = JNI_COMMIT,
+	/// Free the buffer without copying back the possible changes
+	Abort = JNI_ABORT,
+}
 
 /// Generate all of the typed primitive array methods (`New<Type>Array`, `{Get,Set}<Type>ArrayRegion`).
 macro_rules! define_primitive_array_methods {
