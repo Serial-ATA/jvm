@@ -115,9 +115,6 @@ pub(crate) mod jdk {
 			pub(crate) mod VM;
 			pub(crate) mod Unsafe;
 		}
-		pub(crate) mod util {
-			pub(crate) mod SystemProps;
-		}
 		pub(crate) mod reflect {
 			pub(crate) mod DirectConstructorHandleAccessor;
 			pub(crate) mod DirectMethodHandleAccessor;

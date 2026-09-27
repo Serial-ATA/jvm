@@ -6,6 +6,8 @@ use crate::objects::instance::object::Object;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 
+use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ::jni::env::JniEnv;
@@ -146,9 +148,81 @@ pub extern "C" fn JVM_ArrayCopy(
 	}
 }
 
+const JAVA_VERSION: &str = env!("JAVA_VERSION");
+const VM_SPECIFICATION_NAME: &str = env!("SYSTEM_PROPS_VM_SPECIFICATION_NAME");
+const VM_NAME: &str = env!("SYSTEM_PROPS_VM_NAME");
+const VM_VERSION: &str = env!("CARGO_PKG_VERSION");
+const VM_VENDOR: &str = env!("SYSTEM_PROPS_VM_VENDOR");
+
+/// All of the VM and CLI properties
+///
+/// See also: [`JvmOptions::load()`]
+///
+/// [`JvmOptions::load()`]: crate::options::JvmOptions::load
+pub static SYSTEM_PROPERTIES: LazyLock<Mutex<HashMap<String, String>>> = LazyLock::new(|| {
+	let mut m = HashMap::new();
+
+	m.insert(String::from("java.version"), String::from(JAVA_VERSION));
+	m.insert(
+		String::from("java.vm.specification.name"),
+		String::from(VM_SPECIFICATION_NAME),
+	);
+	m.insert(String::from("java.vm.name"), String::from(VM_NAME));
+	m.insert(String::from("java.vm.version"), String::from(VM_VERSION));
+	m.insert(String::from("java.vm.vendor"), String::from(VM_VENDOR));
+
+	Mutex::new(m)
+});
+
 #[jni_call]
-pub extern "C" fn JVM_GetProperties(_env: JniEnv) -> JObjectArray {
-	todo!()
+pub extern "C" fn JVM_GetProperties(env: JniEnv) -> JObjectArray {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+	let props = SYSTEM_PROPERTIES.lock().unwrap();
+	let len = props
+		.len()
+		.try_into()
+		.expect("length should be verified beforehand");
+
+	let string_array_class = crate::globals::classes::string_array();
+	let prop_array;
+	match ObjectArrayInstance::new(len, string_array_class) {
+		Throws::Ok(array) => prop_array = array,
+		Throws::Exception(e) => {
+			e.throw(thread);
+
+			// Doesn't matter what we return, this value will never be used.
+			return JObjectArray::null();
+		},
+	}
+
+	let mut index = 0;
+	for (key, val) in props.iter() {
+		let interned_key_string = StringInterner::intern(&**key);
+		let interned_value_string = StringInterner::intern(&**val);
+		if let Throws::Exception(e) = prop_array.store(index, Reference::class(interned_key_string))
+		{
+			e.throw(thread);
+			return JObjectArray::null();
+		}
+
+		index += 1;
+		if let Throws::Exception(e) =
+			prop_array.store(index, Reference::class(interned_value_string))
+		{
+			e.throw(thread);
+			return JObjectArray::null();
+		}
+
+		index += 1;
+	}
+
+	// TODO: Nicer way to convert `Reference` -> `JObjectArray`
+	let raw = thread
+		.jni_refs()
+		.allocate(Reference::object_array(prop_array));
+	unsafe { JObjectArray::from_raw(raw) }
 }
 
 #[jni_call]

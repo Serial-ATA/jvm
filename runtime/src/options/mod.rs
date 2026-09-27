@@ -4,7 +4,7 @@ pub mod logging;
 mod tests;
 
 use crate::classpath::{ClassPathEntry, add_classpath_entry};
-use crate::native::jdk::internal::util::SystemProps::Raw::SYSTEM_PROPERTIES;
+use crate::native::jvm::system::SYSTEM_PROPERTIES;
 use crate::options::error::OptionsError;
 use crate::options::logging::{LogOptions, LogOptionsBuilder};
 
