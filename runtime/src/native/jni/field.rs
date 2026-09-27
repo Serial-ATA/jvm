@@ -1,6 +1,7 @@
 use super::references::{JObjectExt, field_ref_from_jfieldid};
 use crate::objects::class::ClassPtr;
 use crate::objects::instance::Instance;
+use crate::objects::instance::object::Object;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
@@ -70,53 +71,44 @@ pub extern "system" fn GetFieldID(
 	}
 }
 
-pub extern "system" fn GetObjectField(
-	env: *mut JNIEnv,
-	obj: jobject,
-	fieldID: jfieldID,
-) -> jobject {
-	unimplemented!("jni::GetObjectField");
+macro_rules! impl_get_field {
+    ($($name:ident |$thread:ident, $operand:ident| $transformer:block => $ret_ty:ty),* $(,)?) => {
+        $(
+            #[allow(trivial_numeric_casts)]
+            pub extern "system" fn $name(
+                env: *mut JNIEnv,
+                obj: jobject,
+                fieldID: jfieldID,
+            ) -> $ret_ty {
+                let $thread = JavaThread::current();
+                assert_eq!($thread.env().raw(), env);
+
+                let Some(obj) = (unsafe { obj.to_reference() }) else {
+                    panic!("null object passed to `{}`", stringify!($name));
+                };
+
+                let Some(field) = (unsafe { field_ref_from_jfieldid(fieldID) }) else {
+                    panic!("bad field ID");
+                };
+
+                let $operand = obj.get_field_value(field);
+                $transformer
+            }
+        )*
+    }
 }
 
-pub extern "system" fn GetBooleanField(
-	env: *mut JNIEnv,
-	obj: jobject,
-	fieldID: jfieldID,
-) -> jboolean {
-	unimplemented!("jni::GetBooleanField");
-}
-
-pub extern "system" fn GetByteField(env: *mut JNIEnv, obj: jobject, fieldID: jfieldID) -> jbyte {
-	unimplemented!("jni::GetByteField");
-}
-
-pub extern "system" fn GetCharField(env: *mut JNIEnv, obj: jobject, fieldID: jfieldID) -> jchar {
-	unimplemented!("jni::GetCharField");
-}
-
-pub extern "system" fn GetShortField(env: *mut JNIEnv, obj: jobject, fieldID: jfieldID) -> jshort {
-	unimplemented!("jni::GetShortField");
-}
-
-pub extern "system" fn GetIntField(env: *mut JNIEnv, obj: jobject, fieldID: jfieldID) -> jint {
-	unimplemented!("jni::GetIntField");
-}
-
-pub extern "system" fn GetLongField(env: *mut JNIEnv, obj: jobject, fieldID: jfieldID) -> jlong {
-	unimplemented!("jni::GetLongField");
-}
-
-pub extern "system" fn GetFloatField(env: *mut JNIEnv, obj: jobject, fieldID: jfieldID) -> jfloat {
-	unimplemented!("jni::GetFloatField");
-}
-
-pub extern "system" fn GetDoubleField(
-	env: *mut JNIEnv,
-	obj: jobject,
-	fieldID: jfieldID,
-) -> jdouble {
-	unimplemented!("jni::GetDoubleField");
-}
+impl_get_field!(
+	GetObjectField  |thread, op| { thread.jni_refs().allocate(op.expect_reference()) } => jobject,
+	GetBooleanField |thread, op| { op.expect_int() != 0                              } => jboolean,
+	GetByteField    |thread, op| { op.expect_int() as _                              } => jbyte,
+	GetCharField    |thread, op| { op.expect_int() as _                              } => jchar,
+	GetShortField   |thread, op| { op.expect_int() as _                              } => jshort,
+	GetIntField     |thread, op| { op.expect_int() as _                              } => jint,
+	GetLongField    |thread, op| { op.expect_long()                                  } => jlong,
+	GetFloatField   |thread, op| { op.expect_float()                                 } => jfloat,
+	GetDoubleField  |thread, op| { op.expect_double()                                } => jdouble,
+);
 
 pub extern "system" fn SetObjectField(
 	env: *mut JNIEnv,
