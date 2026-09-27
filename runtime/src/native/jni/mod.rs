@@ -10,6 +10,8 @@ use crate::objects::instance::array::ObjectArrayInstanceRef;
 use crate::objects::reference::Reference;
 
 use ::jni::objects::{JObjectArray, JString};
+use ::jni::sys::jvalue;
+use instructions::Operand;
 
 pub mod array;
 pub mod class;
@@ -21,6 +23,7 @@ pub mod monitor;
 pub mod nio;
 pub mod object;
 pub mod references;
+use crate::thread::JavaThread;
 use references::JObjectExt;
 
 pub mod reflection;
@@ -29,6 +32,21 @@ pub mod string;
 pub mod version;
 pub mod vm;
 pub mod weak;
+
+fn convert_operand(thread: &'static JavaThread, op: Operand<Reference>) -> jvalue {
+	match op {
+		// Integers cover all over types (boolean, short, etc)
+		Operand::Int(v) => jvalue { i: v },
+		Operand::Float(v) => jvalue { f: v },
+		Operand::Double(v) => jvalue { d: v },
+		Operand::Long(v) => jvalue { j: v },
+		Operand::Reference(v) => {
+			let obj_ref = thread.jni_refs().allocate(v);
+			jvalue { l: obj_ref }
+		},
+		Operand::Empty => unreachable!(),
+	}
+}
 
 pub trait JniStringExt {
 	/// Call [`java::lang::String::extract()`] on this string

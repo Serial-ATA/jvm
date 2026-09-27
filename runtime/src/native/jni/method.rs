@@ -1,3 +1,4 @@
+use super::convert_operand;
 use super::references::{JObjectExt, method_ref_from_jmethodid};
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
@@ -14,21 +15,6 @@ use jni::sys::{
 	JNIEnv, jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, jobject,
 	jshort, jvalue, va_list,
 };
-
-fn convert_operand(thread: &'static JavaThread, op: Operand<Reference>) -> jvalue {
-	match op {
-		// Integers cover all over types (boolean, short, etc)
-		Operand::Int(v) => jvalue { i: v },
-		Operand::Float(v) => jvalue { f: v },
-		Operand::Double(v) => jvalue { d: v },
-		Operand::Long(v) => jvalue { j: v },
-		Operand::Reference(v) => {
-			let obj_ref = thread.jni_refs().allocate(v);
-			jvalue { l: obj_ref }
-		},
-		Operand::Empty => unreachable!(),
-	}
-}
 
 // --------------
 //   NON-STATIC

@@ -1,3 +1,4 @@
+use super::convert_operand;
 use super::references::{JObjectExt, field_ref_from_jfieldid};
 use crate::objects::class::ClassPtr;
 use crate::objects::instance::Instance;
@@ -72,7 +73,7 @@ pub extern "system" fn GetFieldID(
 }
 
 macro_rules! impl_get_field {
-    ($($name:ident |$thread:ident, $operand:ident| $transformer:block => $ret_ty:ty),* $(,)?) => {
+    ($($name:ident |$value:ident| $transformer:block => $ret_ty:ty),* $(,)?) => {
         $(
             #[allow(trivial_numeric_casts)]
             pub extern "system" fn $name(
@@ -80,8 +81,8 @@ macro_rules! impl_get_field {
                 obj: jobject,
                 fieldID: jfieldID,
             ) -> $ret_ty {
-                let $thread = JavaThread::current();
-                assert_eq!($thread.env().raw(), env);
+                let thread = JavaThread::current();
+                assert_eq!(thread.env().raw(), env);
 
                 let Some(obj) = (unsafe { obj.to_reference() }) else {
                     panic!("null object passed to `{}`", stringify!($name));
@@ -91,85 +92,67 @@ macro_rules! impl_get_field {
                     panic!("bad field ID");
                 };
 
-                let $operand = obj.get_field_value(field);
+                let $value = convert_operand(thread, obj.get_field_value(field));
                 $transformer
             }
         )*
     }
 }
 
+#[rustfmt::skip]
 impl_get_field!(
-	GetObjectField  |thread, op| { thread.jni_refs().allocate(op.expect_reference()) } => jobject,
-	GetBooleanField |thread, op| { op.expect_int() != 0                              } => jboolean,
-	GetByteField    |thread, op| { op.expect_int() as _                              } => jbyte,
-	GetCharField    |thread, op| { op.expect_int() as _                              } => jchar,
-	GetShortField   |thread, op| { op.expect_int() as _                              } => jshort,
-	GetIntField     |thread, op| { op.expect_int() as _                              } => jint,
-	GetLongField    |thread, op| { op.expect_long()                                  } => jlong,
-	GetFloatField   |thread, op| { op.expect_float()                                 } => jfloat,
-	GetDoubleField  |thread, op| { op.expect_double()                                } => jdouble,
+	GetObjectField  |value| { unsafe { value.l           } } => jobject,
+	GetBooleanField |value| { unsafe { value.i != 0      } } => jboolean,
+	GetByteField    |value| { unsafe { value.i as jbyte  } } => jbyte,
+	GetCharField    |value| { unsafe { value.i as jchar  } } => jchar,
+	GetShortField   |value| { unsafe { value.i as jshort } } => jshort,
+	GetIntField     |value| { unsafe { value.i           } } => jint,
+	GetLongField    |value| { unsafe { value.j           } } => jlong,
+	GetFloatField   |value| { unsafe { value.f           } } => jfloat,
+	GetDoubleField  |value| { unsafe { value.d           } } => jdouble,
 );
 
-pub extern "system" fn SetObjectField(
-	env: *mut JNIEnv,
-	obj: jobject,
-	fieldID: jfieldID,
-	val: jobject,
-) {
-	unimplemented!("jni::SetObjectField");
+macro_rules! impl_set_field {
+    (
+        $($name:ident($jni_ty:ty) |$value:ident| $transformer:block),* $(,)?
+    ) => {
+        $(
+            #[allow(trivial_numeric_casts)]
+            pub extern "system" fn $name(
+                env: *mut JNIEnv,
+                obj: jobject,
+                fieldID: jfieldID,
+                $value: $jni_ty,
+            ) {
+                let thread = JavaThread::current();
+                assert_eq!(thread.env().raw(), env);
+
+                let Some(obj) = (unsafe { obj.to_reference() }) else {
+                    panic!("null object passed to `{}`", stringify!($name));
+                };
+
+                let Some(field) = (unsafe { field_ref_from_jfieldid(fieldID) }) else {
+                    panic!("bad field ID");
+                };
+
+                obj.put_field_value(field, $transformer)
+            }
+        )*
+    }
 }
 
-pub extern "system" fn SetBooleanField(
-	env: *mut JNIEnv,
-	obj: jobject,
-	fieldID: jfieldID,
-	val: jboolean,
-) {
-	unimplemented!("jni::SetBooleanField");
-}
-
-pub extern "system" fn SetByteField(env: *mut JNIEnv, obj: jobject, fieldID: jfieldID, val: jbyte) {
-	unimplemented!("jni::SetByteField");
-}
-
-pub extern "system" fn SetCharField(env: *mut JNIEnv, obj: jobject, fieldID: jfieldID, val: jchar) {
-	unimplemented!("jni::SetCharField");
-}
-
-pub extern "system" fn SetShortField(
-	env: *mut JNIEnv,
-	obj: jobject,
-	fieldID: jfieldID,
-	val: jshort,
-) {
-	unimplemented!("jni::SetShortField");
-}
-
-pub extern "system" fn SetIntField(env: *mut JNIEnv, obj: jobject, fieldID: jfieldID, val: jint) {
-	unimplemented!("jni::SetIntField");
-}
-
-pub extern "system" fn SetLongField(env: *mut JNIEnv, obj: jobject, fieldID: jfieldID, val: jlong) {
-	unimplemented!("jni::SetLongField");
-}
-
-pub extern "system" fn SetFloatField(
-	env: *mut JNIEnv,
-	obj: jobject,
-	fieldID: jfieldID,
-	val: jfloat,
-) {
-	unimplemented!("jni::SetFloatField");
-}
-
-pub extern "system" fn SetDoubleField(
-	env: *mut JNIEnv,
-	obj: jobject,
-	fieldID: jfieldID,
-	val: jdouble,
-) {
-	unimplemented!("jni::SetDoubleField");
-}
+#[rustfmt::skip]
+impl_set_field!(
+	SetObjectField(jobject)   |val| { Operand::Reference(unsafe { val.to_reference_maybe_null() }) },
+	SetBooleanField(jboolean) |val| { Operand::Int(val as jint)                                    },
+	SetByteField(jbyte)       |val| { Operand::Int(val as jint)                                    },
+	SetCharField(jchar)       |val| { Operand::Int(val as jint)                                    },
+	SetShortField(jshort)     |val| { Operand::Int(val as jint)                                    },
+	SetIntField(jint)         |val| { Operand::Int(val)                                            },
+	SetLongField(jlong)       |val| { Operand::Long(val)                                           },
+	SetFloatField(jfloat)     |val| { Operand::Float(val)                                          },
+	SetDoubleField(jdouble)   |val| { Operand::Double(val)                                         },
+);
 
 // --------------
 //     STATIC
