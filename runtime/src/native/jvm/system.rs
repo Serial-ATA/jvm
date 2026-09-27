@@ -171,6 +171,27 @@ pub static SYSTEM_PROPERTIES: LazyLock<Mutex<HashMap<String, String>>> = LazyLoc
 	m.insert(String::from("java.vm.name"), String::from(VM_NAME));
 	m.insert(String::from("java.vm.version"), String::from(VM_VERSION));
 	m.insert(String::from("java.vm.vendor"), String::from(VM_VENDOR));
+	m.insert(
+		String::from("java.library.path"),
+		platform::env::java_library_path(),
+	);
+	if let Some(system_paths) = platform::env::SystemPaths::init() {
+		m.insert(
+			String::from("sun.boot.library.path"),
+			system_paths
+				.boot_library_path
+				.to_string_lossy()
+				.into_owned(),
+		);
+		m.insert(
+			String::from("java.home"),
+			system_paths.java_home.to_string_lossy().into_owned(),
+		);
+		m.insert(
+			String::from("java.ext.dirs"),
+			system_paths.extensions_dirs.clone(),
+		);
+	}
 
 	Mutex::new(m)
 });
