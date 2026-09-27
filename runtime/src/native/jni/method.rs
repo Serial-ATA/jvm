@@ -730,13 +730,20 @@ pub unsafe extern "C" fn CallStaticObjectMethod(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn CallStaticObjectMethodV(
+pub unsafe extern "C" fn CallStaticObjectMethodV(
 	env: *mut JNIEnv,
 	clazz: jclass,
 	methodID: jmethodID,
-	args: va_list,
+	args: VaList<'_>,
 ) -> jobject {
-	unimplemented!("jni::CallStaticObjectMethodV")
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(ret) = (unsafe { call_with_va_list_args(thread, clazz, methodID, args) }) else {
+		return core::ptr::null_mut();
+	};
+
+	unsafe { convert_operand(thread, ret).l }
 }
 
 #[unsafe(no_mangle)]
@@ -1104,6 +1111,36 @@ pub(super) unsafe fn call_with_c_array_args(
 	};
 
 	let Some(arguments) = (unsafe { method.args_for_c_array(args) }) else {
+		return None; // TODO: Exception?
+	};
+
+	let stack = thread.stack();
+	for arg in arguments {
+		stack.push_op(arg);
+	}
+
+	thread.invoke_method_scoped(method)
+}
+
+unsafe fn call_with_va_list_args(
+	thread: &'static JavaThread,
+	cls: jclass,
+	methodID: jmethodID,
+	args: VaList<'_>,
+) -> Option<Operand<Reference>> {
+	let class_obj = unsafe { cls.to_reference() };
+	let Some(class_obj) = class_obj else {
+		return None; // TODO: Exception?
+	};
+
+	let class = class_obj.extract_target_class();
+
+	let method = unsafe { method_ref_from_jmethodid(methodID) };
+	let Some(method) = method else {
+		return None; // TODO: Exception?
+	};
+
+	let Some(arguments) = (unsafe { method.args_for_va_list(args) }) else {
 		return None; // TODO: Exception?
 	};
 

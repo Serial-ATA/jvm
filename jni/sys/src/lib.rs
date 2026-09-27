@@ -15,11 +15,12 @@
 //! | void      | void        | not applicable   |
 
 #![feature(extern_types)]
+#![feature(c_variadic)]
 #![no_std]
 #![allow(non_snake_case, non_camel_case_types)]
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
-use core::ffi::{c_void, c_char};
+use core::ffi::{c_void, c_char, VaList};
 pub type va_list = *mut c_void;
 
 pub type jint = i32;
@@ -1325,11 +1326,11 @@ pub struct JNINativeInterface_ {
 	
 	pub CallStaticObjectMethod: jni_c_fn!((env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, ...) -> jobject),
 	
-	pub CallStaticObjectMethodV: jni_system_fn!((
+	pub CallStaticObjectMethodV: jni_c_fn!((
 			env: *mut JNIEnv,
 			clazz: jclass,
 			methodID: jmethodID,
-			args: va_list,
+			args: VaList<'_>,
 		) -> jobject),
 	
 	pub CallStaticObjectMethodA: jni_system_fn!((
