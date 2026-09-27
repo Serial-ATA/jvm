@@ -1,8 +1,9 @@
 #![native_macros::jni_fn_module]
 
-use jni::env::JniEnv;
-use jni::objects::{JClass, JObject, JObjectArray};
-use jni::sys::{jboolean, jint, jlong};
+use ::jni::env::JniEnv;
+use ::jni::objects::{JClass, JObject, JObjectArray};
+use ::jni::sys::{jboolean, jint, jlong};
+use ::jni::version::JniVersion;
 use native_macros::jni_call;
 
 #[jni_call(no_env)]
@@ -31,8 +32,8 @@ pub extern "C" fn JVM_RegisterContinuationMethods(_env: JniEnv, _class: JClass) 
 }
 
 #[jni_call(no_env)]
-pub extern "C" fn JVM_IsSupportedJNIVersion(_version: jint) -> jboolean {
-	todo!()
+pub extern "C" fn JVM_IsSupportedJNIVersion(version: jint) -> jboolean {
+	JniVersion::from_raw(version).is_some()
 }
 
 #[jni_call(no_env)]
