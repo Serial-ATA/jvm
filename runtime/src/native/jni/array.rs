@@ -2,6 +2,7 @@ use super::references::JObjectExt;
 use crate::objects::instance::array::{
 	Array, ObjectArrayInstance, PrimitiveArrayInstance, TypeCode,
 };
+use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
@@ -18,7 +19,15 @@ use common::int_types::u1;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn GetArrayLength(env: *mut JNIEnv, array: jarray) -> jsize {
-	unimplemented!("jni::GetArrayLength");
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(obj) = (unsafe { array.to_reference() }) else {
+		panic!("null object passed to `GetArrayLength`");
+	};
+
+	let len = obj.array_length().expect("expected array reference");
+	len as jsize // Safe cast, array lengths are verified to be `<= jint::MAX`
 }
 
 #[unsafe(no_mangle)]
