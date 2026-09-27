@@ -104,7 +104,14 @@ pub unsafe extern "system" fn ThrowNew(
 
 #[unsafe(no_mangle)]
 pub extern "system" fn ExceptionOccurred(env: *mut JNIEnv) -> jthrowable {
-	unimplemented!("jni::ExceptionOccurred");
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(exception) = thread.pending_exception() else {
+		return std::ptr::null_mut();
+	};
+
+	thread.jni_refs().allocate(exception)
 }
 
 #[unsafe(no_mangle)]
