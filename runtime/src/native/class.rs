@@ -1,8 +1,8 @@
-use crate::native::jni::reference_from_jobject;
+use crate::native::jni::references::JObjectExt;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
-use jni::objects::JValue;
+use ::jni::objects::JValue;
 
 /// Construct a new instance of `class` with the given constructor signature
 ///
@@ -34,5 +34,5 @@ pub fn construct_class(
 		return None;
 	};
 
-	unsafe { reference_from_jobject(obj.raw()) }
+	unsafe { obj.to_reference() }
 }

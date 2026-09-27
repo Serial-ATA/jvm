@@ -2,8 +2,8 @@
 //!
 //! Vendors can deliver Java-enabled applications without having to link with the Java VM source code.
 
+use super::references::JObjectExt;
 use crate::initialization::InitializationError;
-use crate::native::jni::reference_from_jobject;
 use crate::thread::exceptions::Throws;
 use crate::thread::{JavaThread, JavaThreadBuilder};
 use crate::{classes, initialization};
@@ -11,14 +11,14 @@ use crate::{classes, initialization};
 use core::ffi::c_void;
 use std::ffi::CStr;
 
-use common::unicode;
-use jni::error::JniError;
-use jni::java_vm::JavaVm;
-use jni::sys::{
+use ::jni::error::JniError;
+use ::jni::java_vm::JavaVm;
+use ::jni::sys::{
 	JNI_EDETACHED, JNI_EINVAL, JNI_ERR, JNI_EVERSION, JNI_OK, JNIInvokeInterface_,
 	JNINativeInterface_, JavaVM, jint, jsize,
 };
-use jni::version::JniVersion;
+use ::jni::version::JniVersion;
+use common::unicode;
 
 pub mod library;
 
@@ -213,7 +213,7 @@ fn attach_current_thread_impl(
 		}
 
 		if !args.group.is_null() {
-			group = unsafe { reference_from_jobject(args.group) };
+			group = unsafe { args.group.to_reference() };
 		}
 	}
 

@@ -15,6 +15,7 @@
 #![feature(int_roundings)]
 #![feature(transmute_prefix)]
 #![feature(generic_atomic)]
+#![feature(adt_const_params)]
 
 pub mod calls;
 pub mod classes;

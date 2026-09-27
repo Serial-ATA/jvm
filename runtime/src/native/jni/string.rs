@@ -1,17 +1,18 @@
+use super::references::JObjectExt;
 use crate::classes;
 use crate::native::java::lang::String::LATIN1;
-use crate::native::jni::{IntoJni, ReferenceJniExt, reference_from_jobject};
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 
-use ::jni::sys::{JNIEnv, jboolean, jchar, jsize, jstring};
-use common::unicode;
 use core::ffi::c_char;
-use libc::strlen;
 use std::alloc::Layout;
 use std::borrow::Cow;
 use std::{ptr, slice};
+
+use ::jni::sys::{JNIEnv, jboolean, jchar, jsize, jstring};
+use common::unicode;
+use libc::strlen;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn NewString(
@@ -19,15 +20,20 @@ pub unsafe extern "system" fn NewString(
 	unicode: *const jchar,
 	len: jsize,
 ) -> jstring {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
 	// SAFETY: Have the trust that the caller gave us a valid buffer
 	let value = unsafe { slice::from_raw_parts(unicode, len as usize) };
 
-	Reference::class(classes::java::lang::String::new(value)).into_jstring()
+	thread
+		.jni_refs()
+		.allocate(Reference::class(classes::java::lang::String::new(value)))
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn GetStringLength(env: *mut JNIEnv, str: jstring) -> jsize {
-	let Some(str) = (unsafe { reference_from_jobject(str) }) else {
+	let Some(str) = (unsafe { str.to_reference() }) else {
 		panic!("GetStringLength called on null object");
 	};
 
@@ -54,6 +60,9 @@ pub unsafe extern "system" fn ReleaseStringChars(
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn NewStringUTF(env: *mut JNIEnv, utf: *const c_char) -> jstring {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
 	if utf.is_null() {
 		return ptr::null_mut();
 	}
@@ -70,12 +79,12 @@ pub unsafe extern "system" fn NewStringUTF(env: *mut JNIEnv, utf: *const c_char)
 	};
 
 	let new_string = classes::java::lang::String::new(utf_8);
-	Reference::class(new_string).into_jni() as _
+	thread.jni_refs().allocate(Reference::class(new_string))
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn GetStringUTFLength(env: *mut JNIEnv, str: jstring) -> jsize {
-	let Some(str) = (unsafe { reference_from_jobject(str) }) else {
+	let Some(str) = (unsafe { str.to_reference() }) else {
 		panic!("GetStringUTFLength called on null object");
 	};
 
@@ -89,7 +98,7 @@ pub unsafe extern "system" fn GetStringUTFChars(
 	str: jstring,
 	isCopy: *mut jboolean,
 ) -> *const c_char {
-	let Some(str) = (unsafe { reference_from_jobject(str) }) else {
+	let Some(str) = (unsafe { str.to_reference() }) else {
 		panic!("GetStringUTFChars called on null object");
 	};
 
@@ -151,7 +160,10 @@ pub unsafe extern "system" fn GetStringRegion(
 	len: jsize,
 	buf: *mut jchar,
 ) {
-	let Some(str) = (unsafe { reference_from_jobject(str) }) else {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(str) = (unsafe { str.to_reference() }) else {
 		panic!("GetStringRegion called on null object");
 	};
 
@@ -166,7 +178,7 @@ pub unsafe extern "system" fn GetStringRegion(
 	let str_length_in_chars = classes::java::lang::String::length(str_instance);
 
 	if start < 0 || len < 0 || start > str_length_in_chars as jsize - len {
-		throw!(JavaThread::current(), StringIndexOutOfBoundsException);
+		throw!(thread, StringIndexOutOfBoundsException);
 	}
 
 	if coder == LATIN1 {
@@ -197,7 +209,10 @@ pub unsafe extern "system" fn GetStringUTFRegion(
 	len: jsize,
 	buf: *mut c_char,
 ) {
-	let Some(str) = (unsafe { reference_from_jobject(str) }) else {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(str) = (unsafe { str.to_reference() }) else {
 		panic!("GetStringUTFRegion called on null object");
 	};
 	if len == 0 {
@@ -209,7 +224,7 @@ pub unsafe extern "system" fn GetStringUTFRegion(
 	}
 
 	if start < 0 || len < 0 {
-		throw!(JavaThread::current(), StringIndexOutOfBoundsException);
+		throw!(thread, StringIndexOutOfBoundsException);
 	}
 
 	match classes::java::lang::String::slice(
@@ -229,7 +244,7 @@ pub unsafe extern "system" fn GetStringUTFRegion(
 			unsafe { buf.add(i + 1).write(0) };
 		},
 		Throws::Exception(e) => {
-			e.throw(JavaThread::current());
+			e.throw(thread);
 			return;
 		},
 	}

@@ -54,7 +54,7 @@ fn args_as_jstring_array(env: JniEnv, args: Vec<String>) -> Result<JObjectArray>
 	for (i, arg) in args.iter().enumerate() {
 		let string_obj = env.new_string_utf(arg)?;
 		env.set_object_array_element(array, i as jsize, Some(string_obj))?;
-		// TODO: DeleteLocalRef
+		env.delete_local_ref(string_obj)?;
 	}
 
 	Ok(array)

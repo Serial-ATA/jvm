@@ -1,4 +1,4 @@
-use super::{IntoJni, reference_from_jobject};
+use super::references::JObjectExt;
 use crate::objects::instance::array::{
 	Array, ObjectArrayInstance, PrimitiveArrayInstance, TypeCode,
 };
@@ -9,12 +9,12 @@ use crate::thread::exceptions::{Throws, throw};
 use core::ffi::c_void;
 use std::ptr;
 
-use common::int_types::u1;
-use jni::sys::{
+use ::jni::sys::{
 	JNIEnv, jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jclass, jdouble,
 	jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, jobject, jobjectArray,
 	jshort, jshortArray, jsize,
 };
+use common::int_types::u1;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn GetArrayLength(env: *mut JNIEnv, array: jarray) -> jsize {
@@ -31,7 +31,7 @@ pub unsafe extern "system" fn NewObjectArray(
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
 
-	let obj = unsafe { reference_from_jobject(clazz as _) };
+	let obj = unsafe { clazz.to_reference() };
 	let Some(obj) = obj else {
 		return ptr::null_mut() as jobjectArray;
 	};
@@ -39,7 +39,7 @@ pub unsafe extern "system" fn NewObjectArray(
 	let class = obj.extract_target_class();
 	if init.is_null() {
 		return match ObjectArrayInstance::new(len, class) {
-			Throws::Ok(array) => Reference::object_array(array).into_jni(),
+			Throws::Ok(array) => thread.jni_refs().allocate(Reference::object_array(array)),
 			Throws::Exception(e) => {
 				e.throw(thread);
 				ptr::null_mut() as jobjectArray
@@ -66,14 +66,14 @@ pub unsafe extern "system" fn SetObjectArrayElement(
 	index: jsize,
 	val: jobject,
 ) {
-	let array = unsafe { reference_from_jobject(array as jobject) };
+	let array = unsafe { array.to_reference() };
 	let Some(array) = array else {
 		return; // TODO: NPE?
 	};
 
 	let array = array.extract_object_array();
 
-	let val = unsafe { reference_from_jobject(val) };
+	let val = unsafe { val.to_reference() };
 	let Some(val) = val else {
 		return; // TODO: ArrayStoreException?
 	};
@@ -99,7 +99,9 @@ macro_rules! define_primitive_array_methods {
                 assert_eq!(thread.env().raw(), env);
 
                 match PrimitiveArrayInstance::new_from_type($type_code as u1, len) {
-                    Throws::Ok(array) => Reference::array(array).into_jni(),
+                    Throws::Ok(array) => {
+                        thread.jni_refs().allocate(Reference::array(array))
+                    },
                     Throws::Exception(e) => {
                         e.throw(thread);
                         ptr::null_mut()
@@ -118,7 +120,7 @@ macro_rules! define_primitive_array_methods {
                 let thread = JavaThread::current();
                 assert_eq!(thread.env().raw(), env);
 
-                let Some(array) = (unsafe { reference_from_jobject(array) }) else {
+                let Some(array) = (unsafe { array.to_reference() }) else {
                     panic!("Invalid arguments to `{}`", stringify!([<Get $java_type:camel ArrayRegion>]));
                 };
 
@@ -150,7 +152,7 @@ macro_rules! define_primitive_array_methods {
                 let thread = JavaThread::current();
                 assert_eq!(thread.env().raw(), env);
 
-                let Some(array) = (unsafe { reference_from_jobject(array) }) else {
+                let Some(array) = (unsafe { array.to_reference() }) else {
                     panic!("Invalid arguments to `{}`", stringify!([<Set $java_type:camel ArrayRegion>]));
                 };
 

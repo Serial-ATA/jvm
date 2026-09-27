@@ -2,7 +2,7 @@
 
 use crate::classes;
 use crate::classes::java::lang::Thread::ThreadStatus;
-use crate::native::jni::{IntoJni, reference_from_jobject};
+use crate::native::jni::references::JObjectExt;
 use crate::objects::monitor::MonitorMap;
 use crate::thread::exceptions::{Throws, throw, throw_with_ret};
 use crate::thread::pool::ThreadPool;
@@ -18,7 +18,7 @@ use native_macros::jni_call;
 
 #[jni_call]
 pub extern "C" fn JVM_StartThread(_env: JniEnv, this: JObject) {
-	let Some(this) = (unsafe { reference_from_jobject(this.raw()) }) else {
+	let Some(this) = (unsafe { this.to_reference() }) else {
 		return; // TODO: Exception?
 	};
 
@@ -53,7 +53,7 @@ pub extern "C" fn JVM_StartThread(_env: JniEnv, this: JObject) {
 
 #[jni_call]
 pub extern "C" fn JVM_SetThreadPriority(_env: JniEnv, this: JObject, priority: jint) {
-	let Some(this) = (unsafe { reference_from_jobject(this.raw()) }) else {
+	let Some(this) = (unsafe { this.to_reference() }) else {
 		return; // TODO: Exception?
 	};
 
@@ -86,11 +86,12 @@ pub extern "C" fn JVM_CurrentCarrierThread(_env: JniEnv, _class: JClass) -> JObj
 
 #[jni_call]
 pub extern "C" fn JVM_CurrentThread(env: JniEnv, _class: JClass) -> JObject {
-	let thread = unsafe { &*JavaThread::for_env(env.raw().cast_const()) };
-	thread
-		.obj()
-		.expect("current thread should exist")
-		.into_jni_safe()
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+	let obj = thread.obj().expect("current thread should exist");
+
+	thread.jni_refs().allocate_wrapped(obj)
 }
 
 #[jni_call]
@@ -116,8 +117,9 @@ pub extern "C" fn JVM_Interrupt(_env: JniEnv, _thread: JObject) {
 #[jni_call]
 pub extern "C" fn JVM_HoldsLock(env: JniEnv, _class: JClass, obj: JObject) -> jboolean {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
 
-	let Some(obj) = (unsafe { reference_from_jobject(obj.raw()) }) else {
+	let Some(obj) = (unsafe { obj.to_reference() }) else {
 		throw_with_ret!(false, thread, NullPointerException);
 	};
 

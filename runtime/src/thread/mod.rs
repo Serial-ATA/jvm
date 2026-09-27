@@ -11,8 +11,8 @@ use crate::classes::java::lang::Thread::ThreadStatus;
 use crate::interpreter::Interpreter;
 use crate::logging::info;
 use crate::native::java::lang::String::StringInterner;
-use crate::native::jni::IntoJni;
 use crate::native::jni::invocation_api::new_env;
+use crate::native::jni::references::{JObjectExt, JniObjectStorage};
 use crate::native::method::NativeMethodPtr;
 use crate::objects::instance::class::ClassInstance;
 use crate::objects::instance::object::Object;
@@ -85,6 +85,11 @@ pub struct JavaThread {
 	pending_exception: UnsafeCell<Option<Reference>>,
 	state: AtomicU8,
 
+	/// Live JNI object references, local to this thread
+	///
+	/// See [`Self::jni_refs()`]
+	jni_refs: JniObjectStorage,
+
 	/// Used in tests to prevent this thread from actually running any Java code
 	#[cfg(test)]
 	pub sealed: AtomicBool,
@@ -123,6 +128,8 @@ impl JavaThread {
 
 			pending_exception: UnsafeCell::new(None),
 			state: AtomicU8::new(JavaThreadState::Running as u8),
+
+			jni_refs: JniObjectStorage::default(),
 
 			#[cfg(test)]
 			sealed: AtomicBool::new(false),
@@ -351,6 +358,13 @@ impl JavaThread {
 		ThreadStackHandle::new(self.operand_stack.get())
 	}
 
+	/// Get the live JNI object references for this thread
+	///
+	/// NOTE: [`JniObjectStorage`] can only be used in `native/jni/references.rs`
+	pub fn jni_refs(&self) -> &JniObjectStorage {
+		&self.jni_refs
+	}
+
 	/// Get the current state of this thread
 	pub fn state(&self) -> JavaThreadState {
 		// SAFETY: The state is only ever set by `set_state`, which restrict the values to valid
@@ -508,9 +522,10 @@ impl JavaThread {
 				use libffi::middle::Arg;
 
 				let env = self.env().raw();
-				let target_class = method.class().into_jni();
+				let target_class = self.jni_refs().allocate(method.class());
 
-				let mut locals = locals.iter();
+				let jni_locals = locals.into_jni(self);
+				let mut locals = jni_locals.iter();
 
 				// To keep the receiver live
 				let mut this = MaybeUninit::uninit();
@@ -523,7 +538,7 @@ impl JavaThread {
 						.next()
 						.expect("should have a receiver")
 						.expect_reference();
-					this.write(this_ref.raw_tagged());
+					this.write(this_ref);
 					receiver = Arg::new(&this);
 				}
 
@@ -567,11 +582,10 @@ impl JavaThread {
 							None
 						},
 						FieldType::Object(_) | FieldType::Array(_) => {
-							Some(Operand::Reference(Reference::from_raw(
-								cfi.cfi
-									.call::<jobject>(CodePtr::from_ptr(func), &cfi.args)
-									.cast(),
-							)))
+							let jobject =
+								cfi.cfi.call::<jobject>(CodePtr::from_ptr(func), &cfi.args);
+							let obj_ref = jobject.to_reference_maybe_null();
+							Some(Operand::Reference(obj_ref))
 						},
 					}
 				};

@@ -1,4 +1,4 @@
-use crate::native::jni::reference_from_jobject;
+use super::references::JObjectExt;
 use crate::native::method::NativeMethodPtr;
 use crate::objects::method::MethodEntryPoint;
 use crate::symbols::Symbol;
@@ -20,7 +20,7 @@ pub unsafe extern "system" fn RegisterNatives(
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
 
-	let Some(mirror) = (unsafe { reference_from_jobject(clazz) }) else {
+	let Some(mirror) = (unsafe { clazz.to_reference() }) else {
 		panic!("Invalid arguments to `GetSuperclass`");
 	};
 

@@ -1,6 +1,4 @@
-use crate::native::jni::{
-	IntoJni, field_ref_from_jfieldid, reference_from_jobject, reference_from_jobject_maybe_null,
-};
+use super::references::{JObjectExt, field_ref_from_jfieldid};
 use crate::objects::class::ClassPtr;
 use crate::objects::instance::Instance;
 use crate::symbols::Symbol;
@@ -17,6 +15,7 @@ use common::unicode;
 use instructions::Operand;
 
 fn find_field(
+	thread: &'static JavaThread,
 	class: ClassPtr,
 	name: *const c_char,
 	sig: *const c_char,
@@ -42,7 +41,7 @@ fn find_field(
 		}
 	}
 
-	ret.map(IntoJni::into_jni)
+	ret.map(|field| thread.jni_refs().allocate(field))
 }
 
 // --------------
@@ -58,11 +57,11 @@ pub extern "system" fn GetFieldID(
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
 
-	let Some(class) = (unsafe { reference_from_jobject(clazz) }) else {
+	let Some(class) = (unsafe { clazz.to_reference() }) else {
 		panic!("Invalid arguments to `GetFieldID`");
 	};
 
-	match find_field(class.extract_target_class(), name, sig, false) {
+	match find_field(thread, class.extract_target_class(), name, sig, false) {
 		Throws::Ok(f) => f,
 		Throws::Exception(e) => {
 			e.throw(thread);
@@ -193,11 +192,11 @@ pub extern "system" fn GetStaticFieldID(
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
 
-	let Some(class) = (unsafe { reference_from_jobject(clazz) }) else {
+	let Some(class) = (unsafe { clazz.to_reference() }) else {
 		panic!("Invalid arguments to `GetStaticFieldID`");
 	};
 
-	match find_field(class.extract_target_class(), name, sig, true) {
+	match find_field(thread, class.extract_target_class(), name, sig, true) {
 		Throws::Ok(f) => f,
 		Throws::Exception(e) => {
 			e.throw(thread);
@@ -288,7 +287,7 @@ pub unsafe extern "system" fn SetStaticObjectField(
 		panic!("Invalid field ID");
 	};
 
-	let value = unsafe { reference_from_jobject_maybe_null(value) };
+	let value = unsafe { value.to_reference_maybe_null() };
 	let mirror = field.class.mirror();
 
 	// SAFETY: Assuming that `fieldID` points to a valid field, then its index is guaranteed to be valid

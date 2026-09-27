@@ -3,7 +3,7 @@
 use crate::classes;
 use crate::classpath::loader::ClassLoader;
 use crate::native::java::lang::String::StringInterner;
-use crate::native::jni::{IntoJni, ReferenceJniExt, reference_from_jobject};
+use crate::native::jni::references::JObjectExt;
 use crate::objects::class::ClassPtr;
 use crate::objects::constant_pool::cp_types;
 use crate::objects::instance::array::Array;
@@ -29,7 +29,7 @@ pub extern "C" fn JVM_FillInStackTrace(_env: JniEnv, _receiver: JObject) {
 }
 
 #[jni_call]
-pub extern "C" fn JVM_GetExtendedNPEMessage(_env: JniEnv, throwable: JThrowable) -> JString {
+pub extern "C" fn JVM_GetExtendedNPEMessage(env: JniEnv, throwable: JThrowable) -> JString {
 	fn description(opcode: OpCode, method: &'static Method, operand_pos: usize) -> Option<String> {
 		match opcode {
 			OpCode::iaload => Some(String::from("Cannot load from int array")),
@@ -97,7 +97,9 @@ pub extern "C" fn JVM_GetExtendedNPEMessage(_env: JniEnv, throwable: JThrowable)
 		class.external_name()
 	}
 
-	let Some(throwable) = (unsafe { reference_from_jobject(throwable.raw()) }) else {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let Some(throwable) = (unsafe { throwable.to_reference() }) else {
 		return JString::null(); // TODO: Exception?
 	};
 
@@ -138,7 +140,12 @@ pub extern "C" fn JVM_GetExtendedNPEMessage(_env: JniEnv, throwable: JThrowable)
 		return JString::null();
 	};
 
-	Reference::class(StringInterner::intern(description.as_str())).into_jstring_safe()
+	let ptr = thread
+		.jni_refs()
+		.allocate(Reference::class(StringInterner::intern(
+			description.as_str(),
+		)));
+	unsafe { JString::from_raw(ptr) }
 }
 
 #[jni_call]
@@ -153,9 +160,7 @@ pub extern "C" fn JVM_InitStackTraceElementArray(
 	}
 
 	let (Some(backtrace), Some(elements)) =
-		(unsafe { reference_from_jobject(backtrace.raw()) }, unsafe {
-			reference_from_jobject(elements.raw())
-		})
+		(unsafe { (backtrace.to_reference(), elements.to_reference()) })
 	else {
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(thread, NullPointerException);

@@ -105,7 +105,7 @@ macro_rules! define_object_types {
         $(
         $(#[$meta])*
 		#[repr(transparent)]
-		#[derive(Copy, Clone, PartialEq, Eq)]
+		#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 		pub struct $name($ty);
 
 		impl $name {
@@ -169,7 +169,7 @@ define_object_types! {
 }
 
 #[repr(transparent)]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct JObject(jni_sys::jobject);
 
 impl JObject {

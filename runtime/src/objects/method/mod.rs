@@ -1,6 +1,6 @@
 pub mod spec;
 
-use crate::native::jni::reference_from_jobject;
+use crate::native::jni::references::JObjectExt;
 use crate::native::method::NativeMethodPtr;
 use crate::objects::class::ClassPtr;
 use crate::objects::constant_pool::cp_types;
@@ -21,6 +21,8 @@ use std::cell::SyncUnsafeCell;
 use std::ffi::VaList;
 use std::fmt::{Debug, Formatter};
 
+use ::jni::objects::JObject;
+use ::jni::sys::{jdouble, jint, jlong, jobject, jvalue};
 use classfile::accessflags::MethodAccessFlags;
 use classfile::attribute::resolved::ResolvedAnnotation;
 use classfile::attribute::{Attribute, Code, LineNumber};
@@ -29,7 +31,6 @@ use classfile::{FieldType, MethodDescriptor, MethodInfo};
 use common::array::IntoJByte;
 use common::int_types::{s4, u1};
 use instructions::Operand;
-use jni::sys::{jdouble, jint, jlong, jobject, jvalue};
 
 #[derive(Default, PartialEq, Eq, Debug)]
 struct ExtraFlags {
@@ -610,7 +611,7 @@ impl Method {
 
 				FieldType::Object(_) | FieldType::Array(_) => {
 					let val = unsafe { val.l };
-					let obj = unsafe { reference_from_jobject(val)? };
+					let obj = unsafe { val.to_reference()? };
 					parameters.push(Operand::Reference(obj))
 				},
 
@@ -655,13 +656,10 @@ impl Method {
 				FieldType::Float => todo!("float parameter"),
 
 				FieldType::Object(_) | FieldType::Array(_) => {
-					// TODO: Is this correct?
-					let obj;
-
-					unsafe {
+					let obj = unsafe {
 						let obj_raw = args.next_arg::<*mut ()>();
-						obj = reference_from_jobject(obj_raw as jobject)?;
-					}
+						(obj_raw as jobject).to_reference_maybe_null()
+					};
 
 					parameters.push(Operand::Reference(obj))
 				},
@@ -686,7 +684,7 @@ impl Method {
 		&'static self,
 		env: &'a *mut jni::sys::JNIEnv,
 		receiver: libffi::middle::Arg<'a>,
-		locals: &mut crate::stack::local_stack::LocalStackIter<'a>,
+		locals: &mut crate::stack::local_stack::LocalStackIter<'a, JObject>,
 	) -> PreparedCfi<'a> {
 		trait IntoFfiType {
 			fn into_ffi_type(&self) -> Type;
@@ -713,7 +711,7 @@ impl Method {
 			fn as_arg(&self) -> Arg<'_>;
 		}
 
-		impl OperandArgExt for Operand<Reference> {
+		impl OperandArgExt for Operand<JObject> {
 			fn as_arg(&self) -> Arg<'_> {
 				match self {
 					Operand::Int(val) => Arg::new(val),

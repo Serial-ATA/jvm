@@ -1,4 +1,4 @@
-use super::{IntoJni, reference_from_jobject};
+use super::references::JObjectExt;
 use crate::classpath::loader::ClassLoader;
 use crate::objects::class::Class;
 use crate::objects::reference::Reference;
@@ -38,7 +38,7 @@ pub unsafe extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -
 	}
 
 	match loader.load(Symbol::intern(name.to_bytes())) {
-		Throws::Ok(class) => return class.into_jni(),
+		Throws::Ok(class) => return thread.jni_refs().allocate(class),
 		Throws::Exception(e) => e.throw(thread),
 	}
 
@@ -54,9 +54,12 @@ pub unsafe extern "system" fn FindClass(env: *mut JNIEnv, name: *const c_char) -
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn GetSuperclass(env: *mut JNIEnv, sub: jclass) -> jclass {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
 	// Comments from https://github.com/openjdk/jdk/blob/6c59185475eeca83153f085eba27cc0b3acf9bb4/src/java.base/share/classes/java/lang/Class.java#L1034-L1044
 
-	let Some(sub_obj) = (unsafe { reference_from_jobject(sub) }) else {
+	let Some(sub_obj) = (unsafe { sub.to_reference() }) else {
 		panic!("Invalid arguments to `GetSuperclass`");
 	};
 
@@ -77,11 +80,13 @@ pub unsafe extern "system" fn GetSuperclass(env: *mut JNIEnv, sub: jclass) -> jc
 	// If this `Class` object represents an array class
 	if sub.is_array() {
 		// then the `Class` object representing the `Object` class is returned
-		return crate::globals::classes::java_lang_Object().into_jni();
+		return thread
+			.jni_refs()
+			.allocate(crate::globals::classes::java_lang_Object());
 	}
 
 	if let Some(super_class) = sub.super_class {
-		return super_class.into_jni();
+		return thread.jni_refs().allocate(super_class);
 	}
 
 	return core::ptr::null::<&'static Class>() as jclass;
@@ -93,8 +98,8 @@ pub unsafe extern "system" fn IsAssignableFrom(
 	sub: jclass,
 	sup: jclass,
 ) -> jboolean {
-	let sub_obj = unsafe { reference_from_jobject(sub) };
-	let sup_obj = unsafe { reference_from_jobject(sup) };
+	let sub_obj = unsafe { sub.to_reference() };
+	let sup_obj = unsafe { sup.to_reference() };
 
 	let (Some(sub), Some(sup)) = (sub_obj, sup_obj) else {
 		panic!("Invalid arguments to `IsAssignableFrom`");

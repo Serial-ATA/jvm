@@ -1,4 +1,4 @@
-use super::{IntoJni, method_ref_from_jmethodid, reference_from_jobject};
+use super::references::{JObjectExt, method_ref_from_jmethodid};
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
@@ -6,7 +6,7 @@ use crate::thread::JavaThread;
 use crate::thread::exceptions::Throws;
 
 use core::ffi::c_char;
-use std::ffi::CStr;
+use std::ffi::{CStr, VaList};
 
 use common::unicode;
 use instructions::Operand;
@@ -14,6 +14,21 @@ use jni::sys::{
 	JNIEnv, jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, jobject,
 	jshort, jvalue, va_list,
 };
+
+fn convert_operand(thread: &'static JavaThread, op: Operand<Reference>) -> jvalue {
+	match op {
+		// Integers cover all over types (boolean, short, etc)
+		Operand::Int(v) => jvalue { i: v },
+		Operand::Float(v) => jvalue { f: v },
+		Operand::Double(v) => jvalue { d: v },
+		Operand::Long(v) => jvalue { j: v },
+		Operand::Reference(v) => {
+			let obj_ref = thread.jni_refs().allocate(v);
+			jvalue { l: obj_ref }
+		},
+		Operand::Empty => unreachable!(),
+	}
+}
 
 // --------------
 //   NON-STATIC
@@ -26,6 +41,9 @@ pub unsafe extern "system" fn GetMethodID(
 	name: *const c_char,
 	sig: *const c_char,
 ) -> jmethodID {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
 	let name_c = unsafe { CStr::from_ptr(name) };
 	let sig_c = unsafe { CStr::from_ptr(sig) };
 
@@ -39,16 +57,14 @@ pub unsafe extern "system" fn GetMethodID(
 	let name_sym = Symbol::intern(name);
 	let sig_sym = Symbol::intern(sig);
 
-	let Some(class_obj) = (unsafe { reference_from_jobject(clazz) }) else {
+	let Some(class_obj) = (unsafe { clazz.to_reference() }) else {
 		return core::ptr::null::<Method>() as jmethodID;
 	};
 
 	let class = class_obj.extract_target_class();
 	match class.resolve_method(name_sym, sig_sym) {
-		Throws::Ok(method) => method.into_jni(),
+		Throws::Ok(method) => thread.jni_refs().allocate(method),
 		Throws::Exception(e) => {
-			let thread = JavaThread::current();
-			assert_eq!(thread.env().raw(), env);
 			e.throw(thread);
 
 			core::ptr::null::<Method>() as jmethodID
@@ -730,11 +746,14 @@ pub unsafe extern "system" fn CallStaticObjectMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jobject {
-	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(ret) = (unsafe { call_with_c_array_args(thread, clazz, methodID, args) }) else {
 		return core::ptr::null_mut();
 	};
 
-	unsafe { ret.into_jni().l }
+	unsafe { convert_operand(thread, ret).l }
 }
 
 #[unsafe(no_mangle)]
@@ -764,11 +783,14 @@ pub unsafe extern "system" fn CallStaticBooleanMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jboolean {
-	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(ret) = (unsafe { call_with_c_array_args(thread, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
-	unsafe { ret.into_jni().z }
+	unsafe { convert_operand(thread, ret).z }
 }
 
 #[unsafe(no_mangle)]
@@ -798,11 +820,14 @@ pub unsafe extern "system" fn CallStaticByteMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jbyte {
-	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(ret) = (unsafe { call_with_c_array_args(thread, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
-	unsafe { ret.into_jni().b }
+	unsafe { convert_operand(thread, ret).b }
 }
 
 #[unsafe(no_mangle)]
@@ -832,11 +857,14 @@ pub unsafe extern "system" fn CallStaticCharMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jchar {
-	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(ret) = (unsafe { call_with_c_array_args(thread, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
-	unsafe { ret.into_jni().c }
+	unsafe { convert_operand(thread, ret).c }
 }
 
 #[unsafe(no_mangle)]
@@ -866,11 +894,14 @@ pub unsafe extern "system" fn CallStaticShortMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jshort {
-	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(ret) = (unsafe { call_with_c_array_args(thread, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
-	unsafe { ret.into_jni().s }
+	unsafe { convert_operand(thread, ret).s }
 }
 
 #[unsafe(no_mangle)]
@@ -900,11 +931,14 @@ pub unsafe extern "system" fn CallStaticIntMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jint {
-	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(ret) = (unsafe { call_with_c_array_args(thread, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
-	unsafe { ret.into_jni().i }
+	unsafe { convert_operand(thread, ret).i }
 }
 
 #[unsafe(no_mangle)]
@@ -934,11 +968,14 @@ pub unsafe extern "system" fn CallStaticLongMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jlong {
-	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(ret) = (unsafe { call_with_c_array_args(thread, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
-	unsafe { ret.into_jni().j }
+	unsafe { convert_operand(thread, ret).j }
 }
 
 #[unsafe(no_mangle)]
@@ -968,11 +1005,14 @@ pub unsafe extern "system" fn CallStaticFloatMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jfloat {
-	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(ret) = (unsafe { call_with_c_array_args(thread, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
-	unsafe { ret.into_jni().f }
+	unsafe { convert_operand(thread, ret).f }
 }
 
 #[unsafe(no_mangle)]
@@ -1002,11 +1042,14 @@ pub unsafe extern "system" fn CallStaticDoubleMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jdouble {
-	let Some(ret) = (unsafe { call_with_c_array_args(env, clazz, methodID, args) }) else {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(ret) = (unsafe { call_with_c_array_args(thread, clazz, methodID, args) }) else {
 		return Default::default();
 	};
 
-	unsafe { ret.into_jni().d }
+	unsafe { convert_operand(thread, ret).d }
 }
 
 #[unsafe(no_mangle)]
@@ -1036,19 +1079,19 @@ pub unsafe extern "system" fn CallStaticVoidMethodA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) {
-	unsafe { call_with_c_array_args(env, cls, methodID, args) };
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	unsafe { call_with_c_array_args(thread, cls, methodID, args) };
 }
 
 pub(super) unsafe fn call_with_c_array_args(
-	env: *mut JNIEnv,
+	thread: &'static JavaThread,
 	cls: jclass,
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> Option<Operand<Reference>> {
-	let thread = JavaThread::current();
-	assert_eq!(thread.env().raw(), env);
-
-	let class_obj = unsafe { reference_from_jobject(cls) };
+	let class_obj = unsafe { cls.to_reference() };
 	let Some(class_obj) = class_obj else {
 		return None; // TODO: Exception?
 	};

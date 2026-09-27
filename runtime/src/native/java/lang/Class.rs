@@ -1,6 +1,6 @@
 use crate::classpath::loader::ClassLoaderSet;
 use crate::native::java::lang::String::StringInterner;
-use crate::native::jni::{IntoJni, reference_from_jobject};
+use crate::native::jni::references::JObjectExt;
 use crate::objects::class::ClassPtr;
 use crate::objects::instance::array::{Array, ObjectArrayInstance, ObjectArrayInstanceRef};
 use crate::objects::instance::class::ClassInstanceRef;
@@ -84,16 +84,20 @@ pub fn isAssignableFrom(
 	this: Reference, // java.lang.Class
 	cls: Reference,  // java.lang.Class
 ) -> jboolean {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
 	if cls.is_null() {
-		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw_with_ret!(false, thread, NullPointerException);
 	}
 
 	// For clarity
 	let sub = cls.extract_target_class();
-	let super_ = this.extract_target_class();
+	let sub_ref = thread.jni_refs().allocate_wrapped(sub);
 
-	env.is_assignable_from(sub.into_jni_safe(), super_.into_jni_safe())
+	let super_ = this.extract_target_class();
+	let super_ref = thread.jni_refs().allocate_wrapped(super_);
+
+	env.is_assignable_from(sub_ref, super_ref)
 }
 pub fn isInterface(_env: JniEnv, this: Reference /* java.lang.Class */) -> jboolean {
 	this.extract_target_class().is_interface()
@@ -125,13 +129,15 @@ pub fn getSuperclass(
 	this: Reference, // java.lang.Class
 ) -> Reference /* Class<? super T> */
 {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
 	let target_class = this.extract_target_class();
-	let Some(super_class_jni) = env.get_super_class(target_class.into_jni_safe()) else {
+	let target_class_ref = thread.jni_refs().allocate_wrapped(target_class);
+	let Some(super_class_jni) = env.get_super_class(target_class_ref) else {
 		return Reference::null();
 	};
 
-	let super_class_obj = unsafe { reference_from_jobject(super_class_jni.raw() as _) }
-		.expect("should never be null");
+	let super_class_obj = unsafe { super_class_jni.to_reference() }.expect("should never be null");
 	let super_class = super_class_obj.extract_target_class();
 
 	Reference::mirror(super_class.mirror())

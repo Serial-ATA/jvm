@@ -1,8 +1,10 @@
 #![native_macros::jni_fn_module]
 
-use crate::native::jni::reference_from_jobject;
-use crate::objects::instance::array::Array;
+use crate::native::java::lang::String::StringInterner;
+use crate::native::jni::references::JObjectExt;
+use crate::objects::instance::array::{Array, ObjectArrayInstance};
 use crate::objects::instance::object::Object;
+use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 
@@ -61,9 +63,8 @@ pub extern "C" fn JVM_ArrayCopy(
 		}
 	}
 
-	let (Some(src), Some(dst)) = (unsafe { reference_from_jobject(src.raw()) }, unsafe {
-		reference_from_jobject(dst.raw())
-	}) else {
+	let (Some(src), Some(dst)) = (unsafe { src.to_reference() }, unsafe { dst.to_reference() })
+	else {
 		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(thread, NullPointerException);
 	};
@@ -180,8 +181,7 @@ pub extern "C" fn JVM_GetProperties(env: JniEnv) -> JObjectArray {
 	assert_eq!(thread.env(), env);
 
 	let props = SYSTEM_PROPERTIES.lock().unwrap();
-	let len = props
-		.len()
+	let len = (props.len() * 2)
 		.try_into()
 		.expect("length should be verified beforehand");
 

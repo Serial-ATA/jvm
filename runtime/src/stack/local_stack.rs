@@ -1,24 +1,48 @@
 use crate::objects::reference::Reference;
+use crate::thread::JavaThread;
 
 use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
+use ::jni::objects::JObject;
 use common::box_slice;
 use instructions::Operand;
 
 // https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.6.1
 #[derive(Clone, PartialEq)]
-pub struct LocalStack {
-	inner: Box<[Operand<Reference>]>,
+pub struct LocalStack<REFERENCE = Reference> {
+	inner: Box<[Operand<REFERENCE>]>,
 }
 
-impl Debug for LocalStack {
+impl<REFERENCE: Debug> Debug for LocalStack<REFERENCE> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_list().entries(self.inner.iter()).finish()
 	}
 }
 
-impl LocalStack {
+impl LocalStack<Reference> {
+	/// Convert the `LocalStack` into a JNI-compatible stack
+	pub fn into_jni(self, thread: &'static JavaThread) -> LocalStack<JObject> {
+		LocalStack {
+			inner: self
+				.inner
+				.into_iter()
+				.map(|e| match e {
+					Operand::Int(v) => Operand::Int(v),
+					Operand::Float(v) => Operand::Float(v),
+					Operand::Double(v) => Operand::Double(v),
+					Operand::Long(v) => Operand::Long(v),
+					Operand::Reference(v) => {
+						Operand::Reference(thread.jni_refs().allocate_wrapped(v))
+					},
+					Operand::Empty => Operand::Empty,
+				})
+				.collect(),
+		}
+	}
+}
+
+impl<REFERENCE: Clone + PartialEq + Debug> LocalStack<REFERENCE> {
 	pub fn new(stack_size: usize) -> Self {
 		Self {
 			// The length of the local variable array of a frame is determined at compile-time
@@ -35,7 +59,7 @@ impl LocalStack {
 	/// # Panics
 	///
 	/// This will panic if the stack size doesn't fit the existing arguments.
-	pub unsafe fn new_with_args(mut args: Vec<Operand<Reference>>, stack_size: usize) -> Self {
+	pub unsafe fn new_with_args(mut args: Vec<Operand<REFERENCE>>, stack_size: usize) -> Self {
 		assert!(stack_size >= args.len());
 		args.extend(std::iter::repeat_n(Operand::Empty, stack_size - args.len()));
 		Self {
@@ -62,14 +86,14 @@ impl LocalStack {
 			.count()
 	}
 
-	pub fn iter(&self) -> LocalStackIter<'_> {
+	pub fn iter(&self) -> LocalStackIter<'_, REFERENCE> {
 		self.into_iter()
 	}
 }
 
-impl<'a> IntoIterator for &'a LocalStack {
-	type Item = &'a Operand<Reference>;
-	type IntoIter = LocalStackIter<'a>;
+impl<'a, REFERENCE: Clone + PartialEq + Debug> IntoIterator for &'a LocalStack<REFERENCE> {
+	type Item = &'a Operand<REFERENCE>;
+	type IntoIter = LocalStackIter<'a, REFERENCE>;
 
 	fn into_iter(self) -> Self::IntoIter {
 		LocalStackIter {
@@ -79,13 +103,13 @@ impl<'a> IntoIterator for &'a LocalStack {
 	}
 }
 
-pub struct LocalStackIter<'a> {
-	inner: std::slice::Iter<'a, Operand<Reference>>,
+pub struct LocalStackIter<'a, REFERENCE = Reference> {
+	inner: std::slice::Iter<'a, Operand<REFERENCE>>,
 	remaining: usize,
 }
 
-impl<'a> Iterator for LocalStackIter<'a> {
-	type Item = &'a Operand<Reference>;
+impl<'a, REFERENCE: PartialEq + Debug> Iterator for LocalStackIter<'a, REFERENCE> {
+	type Item = &'a Operand<REFERENCE>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		match self.inner.next() {
@@ -104,7 +128,7 @@ impl<'a> Iterator for LocalStackIter<'a> {
 	}
 }
 
-impl ExactSizeIterator for LocalStackIter<'_> {
+impl<REFERENCE: PartialEq + Debug> ExactSizeIterator for LocalStackIter<'_, REFERENCE> {
 	fn len(&self) -> usize {
 		self.remaining
 	}
@@ -113,15 +137,15 @@ impl ExactSizeIterator for LocalStackIter<'_> {
 // Local variables are addressed by indexing. The index of the first local variable is zero.
 // An integer is considered to be an index into the local variable array if and only if that integer
 // is between zero and one less than the size of the local variable array.
-impl Index<usize> for LocalStack {
-	type Output = Operand<Reference>;
+impl<REFERENCE> Index<usize> for LocalStack<REFERENCE> {
+	type Output = Operand<REFERENCE>;
 
 	fn index(&self, index: usize) -> &Self::Output {
 		&self.inner[index]
 	}
 }
 
-impl IndexMut<usize> for LocalStack {
+impl<REFERENCE> IndexMut<usize> for LocalStack<REFERENCE> {
 	fn index_mut(&mut self, index: usize) -> &mut Self::Output {
 		self.inner.index_mut(index)
 	}

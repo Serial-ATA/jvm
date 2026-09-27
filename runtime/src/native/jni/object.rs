@@ -1,8 +1,11 @@
-use crate::native::jni::{IntoJni, reference_from_jobject};
+use super::references::JObjectExt;
 use crate::objects::instance::class::ClassInstance;
 use crate::objects::reference::Reference;
-use jni::sys::{JNIEnv, jboolean, jclass, jmethodID, jobject, jobjectRefType, jvalue, va_list};
+use crate::thread::JavaThread;
+
 use std::ptr;
+
+use ::jni::sys::{JNIEnv, jboolean, jclass, jmethodID, jobject, jobjectRefType, jvalue, va_list};
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn AllocObject(env: *mut JNIEnv, clazz: jclass) -> jobject {
@@ -45,7 +48,10 @@ pub unsafe extern "system" fn NewObjectA(
 	methodID: jmethodID,
 	args: *const jvalue,
 ) -> jobject {
-	let class_obj = unsafe { reference_from_jobject(clazz) };
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let class_obj = unsafe { clazz.to_reference() };
 	let Some(class_obj) = class_obj else {
 		return ptr::null_mut();
 	};
@@ -53,7 +59,9 @@ pub unsafe extern "system" fn NewObjectA(
 	let class = class_obj.extract_target_class();
 	let obj = Reference::class(ClassInstance::new(class));
 
-	let mut args_with_receiver = vec![jvalue { l: obj.into_jni() }];
+	let obj_jni = thread.jni_refs().allocate(obj);
+
+	let mut args_with_receiver = vec![jvalue { l: obj_jni }];
 	for i in 0usize.. {
 		if unsafe { args.add(i) }.is_null() {
 			break;
@@ -63,18 +71,21 @@ pub unsafe extern "system" fn NewObjectA(
 	}
 
 	unsafe {
-		super::method::call_with_c_array_args(env, clazz, methodID, args_with_receiver.as_ptr())
+		super::method::call_with_c_array_args(thread, clazz, methodID, args_with_receiver.as_ptr())
 	};
-	obj.into_jni()
+	obj_jni
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn GetObjectClass(env: *mut JNIEnv, obj: jobject) -> jclass {
-	let Some(obj) = (unsafe { reference_from_jobject(obj) }) else {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	let Some(obj) = (unsafe { obj.to_reference() }) else {
 		panic!("Calling GetObjectClass with a null object");
 	};
 
-	obj.extract_instance_class().into_jni()
+	thread.jni_refs().allocate(obj.extract_instance_class())
 }
 
 #[unsafe(no_mangle)]
@@ -83,12 +94,12 @@ pub unsafe extern "system" fn IsInstanceOf(
 	obj: jobject,
 	clazz: jclass,
 ) -> jboolean {
-	let obj = unsafe { reference_from_jobject(obj) };
+	let obj = unsafe { clazz.to_reference() };
 	let Some(obj) = obj else {
 		return false;
 	};
 
-	let class_obj = unsafe { reference_from_jobject(clazz) };
+	let class_obj = unsafe { clazz.to_reference() };
 	let Some(class_obj) = class_obj else {
 		return false;
 	};

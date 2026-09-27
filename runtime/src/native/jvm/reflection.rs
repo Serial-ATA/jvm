@@ -3,19 +3,18 @@
 use crate::classes;
 use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
 use crate::native::RawSymbolExt;
-use crate::native::jni::{IntoJni, reference_from_jobject_maybe_null};
-use crate::objects::reference::Reference;
+use crate::native::jni::references::JObjectExt;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, handle_exception, throw_with_ret};
 
 use std::ffi::{CStr, c_char, c_int};
 
+use ::jni::env::JniEnv;
+use ::jni::objects::{JByteArray, JClass, JObject, JObjectArray, JString};
+use ::jni::sys::{jboolean, jbyte, jint, jsize};
 use common::int_types::s4;
 use common::unicode;
-use jni::env::JniEnv;
-use jni::objects::{JByteArray, JClass, JObject, JObjectArray, JString};
-use jni::sys::{jboolean, jbyte, jint, jsize};
 use native_macros::jni_call;
 
 const MN_NESTMATE_CLASS: s4 = 0x0000_0001;
@@ -36,12 +35,15 @@ pub extern "C" fn JVM_FindPrimitiveClass(_env: JniEnv, _utf: *const c_char) -> J
 /// Despite the name, this will actually *load* a class if necessary. We also discard any exceptions
 /// and just return `null`.
 #[jni_call(no_strict_types)]
-pub extern "C" fn JVM_FindClassFromBootLoader(_env: JniEnv, name: *const c_char) -> JClass {
+pub extern "C" fn JVM_FindClassFromBootLoader(env: JniEnv, name: *const c_char) -> JClass {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
 	let name_c = unsafe { CStr::from_ptr(name) };
 	let name = unicode::decode(name_c.to_bytes()).unwrap();
 
 	match ClassLoader::bootstrap().load(Symbol::intern(name)) {
-		Throws::Ok(class) => unsafe { JClass::from_raw(class.into_jni()) },
+		Throws::Ok(class) => thread.jni_refs().allocate_wrapped(class),
 		Throws::Exception(_) => JClass::null(),
 	}
 }
@@ -93,7 +95,7 @@ pub extern "C" fn JVM_LookupDefineClass(
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 	assert_eq!(thread.env(), env);
 
-	let lookup = unsafe { reference_from_jobject_maybe_null(lookup.raw()) };
+	let lookup = unsafe { lookup.to_reference_maybe_null() };
 	if lookup.is_null() {
 		throw_with_ret!(
 			JClass::null(),
@@ -195,7 +197,7 @@ pub extern "C" fn JVM_LookupDefineClass(
 	}
 
 	if is_hidden {
-		let class_data = unsafe { reference_from_jobject_maybe_null(class_data.raw()) };
+		let class_data = unsafe { class_data.to_reference_maybe_null() };
 		class.mirror().set_class_data(class_data);
 	}
 
@@ -205,7 +207,7 @@ pub extern "C" fn JVM_LookupDefineClass(
 	}
 
 	// TODO: Parallel class loaders
-	unsafe { JClass::from_raw(Reference::mirror(class.mirror()).into_jni()) }
+	thread.jni_refs().allocate_wrapped(class)
 }
 
 #[jni_call(no_strict_types)]
@@ -239,7 +241,7 @@ pub extern "C" fn JVM_DefineClassWithSource(
 		name_sym = Symbol::intern(internal_name);
 	}
 
-	let loader = unsafe { reference_from_jobject_maybe_null(loader.raw()) };
+	let loader = unsafe { loader.to_reference_maybe_null() };
 
 	let source_str;
 	if source.is_null() {
@@ -261,12 +263,15 @@ pub extern "C" fn JVM_DefineClassWithSource(
 		},
 	};
 
-	unsafe { JClass::from_raw(Reference::mirror(class.mirror()).into_jni()) }
+	thread.jni_refs().allocate_wrapped(class)
 }
 
 #[jni_call]
-pub extern "C" fn JVM_FindLoadedClass(_env: JniEnv, loader: JObject, name: JString) -> JClass {
-	let name = unsafe { reference_from_jobject_maybe_null(name.raw()) };
+pub extern "C" fn JVM_FindLoadedClass(env: JniEnv, loader: JObject, name: JString) -> JClass {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+	let name = unsafe { name.to_reference_maybe_null() };
 	if name.is_null() {
 		return JClass::null();
 	}
@@ -276,7 +281,7 @@ pub extern "C" fn JVM_FindLoadedClass(_env: JniEnv, loader: JObject, name: JStri
 
 	let internal_name_sym = Symbol::intern(internal_name);
 
-	let loader_obj = unsafe { reference_from_jobject_maybe_null(loader.raw()) };
+	let loader_obj = unsafe { loader.to_reference_maybe_null() };
 	let Some(loader) = ClassLoaderSet::find(loader_obj, false) else {
 		// Unknown loader
 		return JClass::null();
@@ -284,7 +289,7 @@ pub extern "C" fn JVM_FindLoadedClass(_env: JniEnv, loader: JObject, name: JStri
 
 	match loader.lookup_class(internal_name_sym) {
 		None => JClass::null(),
-		Some(class) => unsafe { JClass::from_raw(Reference::mirror(class.mirror()).into_jni()) },
+		Some(class) => thread.jni_refs().allocate_wrapped(class),
 	}
 }
 

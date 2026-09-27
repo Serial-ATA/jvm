@@ -44,12 +44,12 @@ unsafe impl Sync for Reference {}
 impl Debug for Reference {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		unsafe {
-			match self.tag() {
-				Self::CLASS_TAG => self.as_class_unchecked().fmt(f),
-				Self::MIRROR_TAG => self.as_mirror_unchecked().fmt(f),
-				Self::PRIMITIVE_ARRAY_TAG => self.as_primitive_array_unchecked().fmt(f),
-				Self::OBJECT_ARRAY_TAG => self.as_object_array_unchecked().fmt(f),
-				_ => f.write_str("Null"),
+			match self.ty() {
+				Some(ReferenceType::Class) => self.as_class_unchecked().fmt(f),
+				Some(ReferenceType::Mirror) => self.as_mirror_unchecked().fmt(f),
+				Some(ReferenceType::PrimitiveArray) => self.as_primitive_array_unchecked().fmt(f),
+				Some(ReferenceType::ObjectArray) => self.as_object_array_unchecked().fmt(f),
+				None => f.write_str("Null"),
 			}
 		}
 	}
@@ -65,11 +65,20 @@ impl PartialEq for Reference {
 	}
 }
 
+/// The object type that a [`Reference`] targets
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum ReferenceType {
+	/// A class instance ([`ClassInstanceRef`])
+	Class = 0b00,
+	/// A mirror instance ([`MirrorInstanceRef`])
+	Mirror = 0b01,
+	/// A primitive array instance ([`PrimitiveArrayInstanceRef`])
+	PrimitiveArray = 0b10,
+	/// An object array instance ([`ObjectArrayInstanceRef`])
+	ObjectArray = 0b11,
+}
+
 impl Reference {
-	const CLASS_TAG: usize = 0x00;
-	const MIRROR_TAG: usize = 0x01;
-	const PRIMITIVE_ARRAY_TAG: usize = 0x02;
-	const OBJECT_ARRAY_TAG: usize = 0x03;
 	const TAG_MASK: usize = 0b11;
 	const ADDRESS_MASK: usize = !Self::TAG_MASK;
 
@@ -86,7 +95,7 @@ impl Reference {
 	#[inline]
 	pub fn class(instance: ClassInstanceRef) -> Self {
 		let raw = unsafe { instance.raw() };
-		Self((raw as usize | Self::CLASS_TAG) as *mut ())
+		Self((raw as usize | ReferenceType::Class as usize) as *mut ())
 	}
 
 	#[inline]
@@ -97,7 +106,7 @@ impl Reference {
 	#[inline]
 	pub fn mirror(instance: MirrorInstanceRef) -> Self {
 		let raw = unsafe { instance.raw() };
-		Self((raw as usize | Self::MIRROR_TAG) as *mut ())
+		Self((raw as usize | ReferenceType::Mirror as usize) as *mut ())
 	}
 
 	#[inline]
@@ -108,7 +117,7 @@ impl Reference {
 	#[inline]
 	pub fn array(instance: PrimitiveArrayInstanceRef) -> Self {
 		let raw = unsafe { instance.raw() };
-		Self((raw as usize | Self::PRIMITIVE_ARRAY_TAG) as *mut ())
+		Self((raw as usize | ReferenceType::PrimitiveArray as usize) as *mut ())
 	}
 
 	#[inline]
@@ -119,7 +128,7 @@ impl Reference {
 	#[inline]
 	pub fn object_array(instance: ObjectArrayInstanceRef) -> Self {
 		let raw = unsafe { instance.raw() };
-		Self((raw as usize | Self::OBJECT_ARRAY_TAG) as *mut ())
+		Self((raw as usize | ReferenceType::ObjectArray as usize) as *mut ())
 	}
 
 	#[inline]
@@ -127,12 +136,21 @@ impl Reference {
 		unsafe { std::mem::transmute::<_, ObjectArrayInstanceRef>(self.addr()) }
 	}
 
-	fn tag(self) -> usize {
+	/// The type of object this references
+	///
+	/// For `null` references, this returns `None`
+	pub fn ty(self) -> Option<ReferenceType> {
 		if self.is_null() {
-			return usize::MAX;
+			return None;
 		}
 
-		self.0 as usize & Self::TAG_MASK
+		match self.0 as usize & Self::TAG_MASK {
+			0b00 => Some(ReferenceType::Class),
+			0b01 => Some(ReferenceType::Mirror),
+			0b10 => Some(ReferenceType::PrimitiveArray),
+			0b11 => Some(ReferenceType::ObjectArray),
+			_ => unreachable!(),
+		}
 	}
 
 	fn addr(self) -> *mut () {
@@ -158,59 +176,67 @@ impl Object for Reference {
 	type Descriptor = ();
 
 	fn hash(&self, thread: &'static JavaThread) -> jint {
-		match self.tag() {
-			Self::CLASS_TAG => unsafe { self.as_class_unchecked() }.hash(thread),
-			Self::MIRROR_TAG => unsafe { self.as_mirror_unchecked() }.hash(thread),
-			Self::PRIMITIVE_ARRAY_TAG => {
+		match self.ty() {
+			Some(ReferenceType::Class) => unsafe { self.as_class_unchecked() }.hash(thread),
+			Some(ReferenceType::Mirror) => unsafe { self.as_mirror_unchecked() }.hash(thread),
+			Some(ReferenceType::PrimitiveArray) => {
 				unsafe { self.as_primitive_array_unchecked() }.hash(thread)
 			},
-			Self::OBJECT_ARRAY_TAG => unsafe { self.as_object_array_unchecked() }.hash(thread),
+			Some(ReferenceType::ObjectArray) => {
+				unsafe { self.as_object_array_unchecked() }.hash(thread)
+			},
 			// Null references are always 0
-			_ => 0,
+			None => 0,
 		}
 	}
 
 	fn class(&self) -> ClassPtr {
-		match self.tag() {
-			Self::CLASS_TAG => unsafe { self.as_class_unchecked() }.class(),
-			Self::MIRROR_TAG => unsafe { self.as_mirror_unchecked() }.class(),
-			Self::PRIMITIVE_ARRAY_TAG => unsafe { self.as_primitive_array_unchecked() }.class(),
-			Self::OBJECT_ARRAY_TAG => unsafe { self.as_object_array_unchecked() }.class(),
-			_ => panic!("NullPointerException"),
+		match self.ty() {
+			Some(ReferenceType::Class) => unsafe { self.as_class_unchecked() }.class(),
+			Some(ReferenceType::Mirror) => unsafe { self.as_mirror_unchecked() }.class(),
+			Some(ReferenceType::PrimitiveArray) => {
+				unsafe { self.as_primitive_array_unchecked() }.class()
+			},
+			Some(ReferenceType::ObjectArray) => unsafe { self.as_object_array_unchecked() }.class(),
+			None => panic!("NullPointerException"),
 		}
 	}
 
 	#[inline]
 	fn is_object_array(&self) -> bool {
-		self.tag() == Self::OBJECT_ARRAY_TAG
+		self.ty() == Some(ReferenceType::ObjectArray)
 	}
 
 	#[inline]
 	fn is_primitive_array(&self) -> bool {
-		self.tag() == Self::PRIMITIVE_ARRAY_TAG
+		self.ty() == Some(ReferenceType::PrimitiveArray)
 	}
 
 	#[inline]
 	fn is_class(&self) -> bool {
-		self.tag() == Self::CLASS_TAG
+		self.ty() == Some(ReferenceType::Class)
 	}
 
 	#[inline]
 	fn is_mirror(&self) -> bool {
-		self.tag() == Self::MIRROR_TAG
+		self.ty() == Some(ReferenceType::Mirror)
 	}
 
 	fn field_allocation_size(&self) -> usize {
-		match self.tag() {
-			Self::CLASS_TAG => unsafe { self.as_class_unchecked() }.field_allocation_size(),
-			Self::MIRROR_TAG => unsafe { self.as_mirror_unchecked() }.field_allocation_size(),
-			Self::PRIMITIVE_ARRAY_TAG => {
+		match self.ty() {
+			Some(ReferenceType::Class) => {
+				unsafe { self.as_class_unchecked() }.field_allocation_size()
+			},
+			Some(ReferenceType::Mirror) => {
+				unsafe { self.as_mirror_unchecked() }.field_allocation_size()
+			},
+			Some(ReferenceType::PrimitiveArray) => {
 				unsafe { self.as_primitive_array_unchecked() }.field_allocation_size()
 			},
-			Self::OBJECT_ARRAY_TAG => {
+			Some(ReferenceType::ObjectArray) => {
 				unsafe { self.as_object_array_unchecked() }.field_allocation_size()
 			},
-			_ => panic!("NullPointerException"),
+			None => panic!("NullPointerException"),
 		}
 	}
 
@@ -223,11 +249,13 @@ impl Object for Reference {
 
 	unsafe fn field_base(&self) -> *mut u8 {
 		unsafe {
-			match self.tag() {
-				Self::CLASS_TAG => self.as_class_unchecked().field_base(),
-				Self::MIRROR_TAG => self.as_mirror_unchecked().field_base(),
-				Self::PRIMITIVE_ARRAY_TAG => self.as_primitive_array_unchecked().field_base(),
-				Self::OBJECT_ARRAY_TAG => self.as_object_array_unchecked().field_base(),
+			match self.ty() {
+				Some(ReferenceType::Class) => self.as_class_unchecked().field_base(),
+				Some(ReferenceType::Mirror) => self.as_mirror_unchecked().field_base(),
+				Some(ReferenceType::PrimitiveArray) => {
+					self.as_primitive_array_unchecked().field_base()
+				},
+				Some(ReferenceType::ObjectArray) => self.as_object_array_unchecked().field_base(),
 				_ => std::ptr::null_mut(),
 			}
 		}
@@ -235,38 +263,48 @@ impl Object for Reference {
 
 	unsafe fn put<T: Copy>(&self, value: T, offset: usize) {
 		unsafe {
-			match self.tag() {
-				Self::CLASS_TAG => self.as_class_unchecked().put(value, offset),
-				Self::MIRROR_TAG => self.as_mirror_unchecked().put(value, offset),
-				Self::PRIMITIVE_ARRAY_TAG => self.as_primitive_array_unchecked().put(value, offset),
-				Self::OBJECT_ARRAY_TAG => self.as_object_array_unchecked().put(value, offset),
-				_ => panic!("NullPointerException"),
+			match self.ty() {
+				Some(ReferenceType::Class) => self.as_class_unchecked().put(value, offset),
+				Some(ReferenceType::Mirror) => self.as_mirror_unchecked().put(value, offset),
+				Some(ReferenceType::PrimitiveArray) => {
+					self.as_primitive_array_unchecked().put(value, offset)
+				},
+				Some(ReferenceType::ObjectArray) => {
+					self.as_object_array_unchecked().put(value, offset)
+				},
+				None => panic!("NullPointerException"),
 			}
 		}
 	}
 
 	unsafe fn get<T: Copy>(&self, offset: usize) -> T {
 		unsafe {
-			match self.tag() {
-				Self::CLASS_TAG => self.as_class_unchecked().get(offset),
-				Self::MIRROR_TAG => self.as_mirror_unchecked().get(offset),
-				Self::PRIMITIVE_ARRAY_TAG => {
+			match self.ty() {
+				Some(ReferenceType::Class) => self.as_class_unchecked().get(offset),
+				Some(ReferenceType::Mirror) => self.as_mirror_unchecked().get(offset),
+				Some(ReferenceType::PrimitiveArray) => {
 					Object::get(&self.as_primitive_array_unchecked(), offset)
 				},
-				Self::OBJECT_ARRAY_TAG => Object::get(&self.as_object_array_unchecked(), offset),
-				_ => panic!("NullPointerException"),
+				Some(ReferenceType::ObjectArray) => {
+					Object::get(&self.as_object_array_unchecked(), offset)
+				},
+				None => panic!("NullPointerException"),
 			}
 		}
 	}
 
 	unsafe fn get_raw<T: Copy>(&self, offset: usize) -> *mut T {
 		unsafe {
-			match self.tag() {
-				Self::CLASS_TAG => self.as_class_unchecked().get_raw(offset),
-				Self::MIRROR_TAG => self.as_mirror_unchecked().get_raw(offset),
-				Self::PRIMITIVE_ARRAY_TAG => self.as_primitive_array_unchecked().get_raw(offset),
-				Self::OBJECT_ARRAY_TAG => self.as_object_array_unchecked().get_raw(offset),
-				_ => std::ptr::null_mut(),
+			match self.ty() {
+				Some(ReferenceType::Class) => self.as_class_unchecked().get_raw(offset),
+				Some(ReferenceType::Mirror) => self.as_mirror_unchecked().get_raw(offset),
+				Some(ReferenceType::PrimitiveArray) => {
+					self.as_primitive_array_unchecked().get_raw(offset)
+				},
+				Some(ReferenceType::ObjectArray) => {
+					self.as_object_array_unchecked().get_raw(offset)
+				},
+				None => std::ptr::null_mut(),
 			}
 		}
 	}
@@ -383,35 +421,47 @@ impl Reference {
 
 impl Instance for Reference {
 	fn get_field_value(&self, field: &Field) -> Operand<Reference> {
-		match self.tag() {
-			Self::CLASS_TAG => unsafe { self.as_class_unchecked() }.get_field_value(field),
-			Self::MIRROR_TAG => unsafe { self.as_mirror_unchecked() }.get_field_value(field),
+		match self.ty() {
+			Some(ReferenceType::Class) => {
+				unsafe { self.as_class_unchecked() }.get_field_value(field)
+			},
+			Some(ReferenceType::Mirror) => {
+				unsafe { self.as_mirror_unchecked() }.get_field_value(field)
+			},
 			_ => panic!("Expected a class/mirror reference!"),
 		}
 	}
 
 	fn get_field_value0(&self, field_idx: usize) -> Operand<Reference> {
-		match self.tag() {
-			Self::CLASS_TAG => unsafe { self.as_class_unchecked() }.get_field_value0(field_idx),
-			Self::MIRROR_TAG => unsafe { self.as_mirror_unchecked() }.get_field_value0(field_idx),
+		match self.ty() {
+			Some(ReferenceType::Class) => {
+				unsafe { self.as_class_unchecked() }.get_field_value0(field_idx)
+			},
+			Some(ReferenceType::Mirror) => {
+				unsafe { self.as_mirror_unchecked() }.get_field_value0(field_idx)
+			},
 			_ => panic!("Expected a class/mirror reference!"),
 		}
 	}
 
 	fn put_field_value(&self, field: &Field, value: Operand<Reference>) {
-		match self.tag() {
-			Self::CLASS_TAG => unsafe { self.as_class_unchecked() }.put_field_value(field, value),
-			Self::MIRROR_TAG => unsafe { self.as_mirror_unchecked() }.put_field_value(field, value),
+		match self.ty() {
+			Some(ReferenceType::Class) => {
+				unsafe { self.as_class_unchecked() }.put_field_value(field, value)
+			},
+			Some(ReferenceType::Mirror) => {
+				unsafe { self.as_mirror_unchecked() }.put_field_value(field, value)
+			},
 			_ => panic!("Expected a class/mirror reference!"),
 		}
 	}
 
 	fn put_field_value0(&self, field_idx: usize, value: Operand<Reference>) {
-		match self.tag() {
-			Self::CLASS_TAG => {
+		match self.ty() {
+			Some(ReferenceType::Class) => {
 				unsafe { self.as_class_unchecked() }.put_field_value0(field_idx, value)
 			},
-			Self::MIRROR_TAG => {
+			Some(ReferenceType::Mirror) => {
 				unsafe { self.as_mirror_unchecked() }.put_field_value0(field_idx, value)
 			},
 			_ => panic!("Expected a class/mirror reference!"),

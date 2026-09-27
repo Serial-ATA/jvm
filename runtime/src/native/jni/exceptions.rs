@@ -1,5 +1,5 @@
+use super::references::JObjectExt;
 use crate::native::java::lang::String::StringInterner;
-use crate::native::jni::reference_from_jobject;
 use crate::objects::instance::class::ClassInstance;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
@@ -20,7 +20,7 @@ pub unsafe extern "system" fn Throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
 
-	let Some(throwable) = (unsafe { reference_from_jobject(obj) }) else {
+	let Some(throwable) = (unsafe { obj.to_reference() }) else {
 		return JNI_ERR;
 	};
 
@@ -42,7 +42,7 @@ pub unsafe extern "system" fn ThrowNew(
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
 
-	let Some(mirror) = (unsafe { reference_from_jobject(clazz) }) else {
+	let Some(mirror) = (unsafe { clazz.to_reference() }) else {
 		return JNI_ERR;
 	};
 

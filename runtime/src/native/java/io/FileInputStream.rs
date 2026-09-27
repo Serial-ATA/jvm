@@ -1,7 +1,6 @@
 #![allow(non_upper_case_globals)]
 
 use crate::native::java::lang::String::StringInterner;
-use crate::native::jni::IntoJni;
 use crate::objects::class::ClassPtr;
 use crate::objects::instance::array::Array;
 use crate::objects::reference::Reference;
@@ -23,8 +22,10 @@ include_generated!("native/java/io/def/FileInputStream.definitions.rs");
 
 // throws FileNotFoundException
 pub fn open0(env: JniEnv, this: Reference, name: Reference /* java.lang.String */) {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
 	if name.is_null() {
-		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(thread, NullPointerException);
 	}
 
@@ -34,11 +35,9 @@ pub fn open0(env: JniEnv, this: Reference, name: Reference /* java.lang.String *
 	match fs::OpenOptions::new().read(true).open(path) {
 		Ok(f) => file = ManuallyDrop::new(f),
 		Err(e) => {
-			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-
-			let path_jstring = unsafe { JString::from_raw(name.into_jni()) };
+			let path_jstring = thread.jni_refs().allocate_wrapped(name);
 			let reason = Reference::class(StringInterner::intern(e.to_string()));
-			let reason_jstring = unsafe { JString::from_raw(reason.into_jni()) };
+			let reason_jstring = thread.jni_refs().allocate_wrapped(reason);
 
 			if let Some(exception) = native::class::construct_class(
 				thread,
@@ -69,14 +68,15 @@ pub fn readBytes(
 	off: jint,
 	len: jint,
 ) -> jint {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
 	if b.is_null() {
-		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw_with_ret!(0, thread, NullPointerException);
 	}
 
 	let b = b.extract_primitive_array();
 	if off < 0 || len < 0 || (off + len) as usize > b.len() {
-		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw_with_ret!(0, thread, IndexOutOfBoundsException);
 	}
 
@@ -99,7 +99,6 @@ pub fn readBytes(
 	match file.read(window) {
 		Ok(n) => n as jint,
 		Err(e) => {
-			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 			throw_with_ret!(-1, thread, IOException, "{e}");
 		},
 	}

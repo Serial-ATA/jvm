@@ -1,4 +1,4 @@
-use crate::native::jdk::internal::util::SystemProps::Raw::SYSTEM_PROPERTIES;
+use crate::native::jvm::system::SYSTEM_PROPERTIES;
 
 use common::int_types::u1;
 use jimage::JImage;

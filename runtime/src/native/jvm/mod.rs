@@ -18,6 +18,6 @@ mod references;
 mod reflection;
 mod stackwalker;
 mod strings;
-mod system;
+pub mod system;
 mod threads;
 mod vm;
