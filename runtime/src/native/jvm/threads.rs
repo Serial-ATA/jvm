@@ -130,7 +130,7 @@ pub extern "C" fn JVM_HoldsLock(env: JniEnv, _class: JClass, obj: JObject) -> jb
 }
 
 #[jni_call]
-pub extern "C" fn JVM_GetStackTrace(_env: JniEnv, _thread: JObject) -> JObject {
+pub extern "C" fn JVM_GetStackTrace(_env: JniEnv, _thread: JObject) -> JObjectArray {
 	todo!()
 }
 

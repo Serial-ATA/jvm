@@ -14,10 +14,11 @@ pub fn initialized() -> bool {
 }
 
 pub fn lookup_vm_resource(module_name: &str, path: &str) -> Option<Box<[u1]>> {
+	let preview_mode = false; // TODO
 	if let Some(file) = unsafe { &*JIMAGE_FILE.get() }
-		&& let Some((location_offset, size)) = file.find_resource(module_name, path)
+		&& let Some(descriptor) = file.find_resource(module_name, path, preview_mode)
 	{
-		let uncompressed_data = file.get_resource(location_offset).unwrap(); // TODO: Error handling
+		let uncompressed_data = file.get_resource(descriptor.offset).unwrap(); // TODO: Error handling
 		return Some(uncompressed_data);
 	}
 

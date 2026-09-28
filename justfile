@@ -3,8 +3,8 @@
 # VERSIONING:
 # -----------------------------------------------------------------------------
 
-export JAVA_VERSION := "27"
-export TARGET_OPENJDK_TAG := "jdk-27+0"
+export JAVA_VERSION := "28"
+export TARGET_OPENJDK_TAG := "jdk-28+17"
 
 # -----------------------------------------------------------------------------
 # TARGETS:

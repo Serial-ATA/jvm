@@ -5,6 +5,9 @@ use std::io::Read;
 
 use common::endian::Endian;
 
+const MAJOR_VERSION: u32 = 1;
+const MINOR_VERSION: u32 = 1;
+
 // The header contains information related to identification and description of
 // contents.
 //
@@ -56,12 +59,12 @@ where
 	let minor_version = version & 0xFFFF;
 
 	assert_eq!(
-		major_version, 1,
+		major_version, MAJOR_VERSION,
 		"Unsupported major version: {}",
 		major_version
 	);
 	assert_eq!(
-		minor_version, 0,
+		minor_version, MINOR_VERSION,
 		"Unsupported minor version: {}",
 		minor_version
 	);

@@ -2,6 +2,7 @@
 # Generated with ../scripts/jvm_h.py
 #
 # Format: <name><TAB>[PARAM_TYPE1,PARAM_TYPE2][<TAB>-> RETURN_TYPE]
+JVM_AOTEndRecording	JniEnv	-> jboolean
 JVM_ActiveProcessorCount		-> jint
 JVM_AddModuleExports	JniEnv,JObject,JString,JObject
 JVM_AddModuleExportsToAll	JniEnv,JObject,JString
@@ -31,6 +32,7 @@ JVM_ConstantPoolGetSize	JniEnv,JObject	-> jint
 JVM_ConstantPoolGetStringAt	JniEnv,JObject,jint	-> JString
 JVM_ConstantPoolGetTagAt	JniEnv,JObject,jint	-> jbyte
 JVM_ConstantPoolGetUTF8At	JniEnv,JObject,jint	-> JString
+JVM_CopyOfSpecialArray	JniEnv,JArray,jint,jint	-> JArray
 JVM_CreateThreadSnapshot	JniEnv,JObject	-> JObject
 JVM_CurrentCarrierThread	JniEnv,JClass	-> JObject
 JVM_CurrentThread	JniEnv,JClass	-> JObject
@@ -116,7 +118,7 @@ JVM_GetProperties	JniEnv	-> JObjectArray
 JVM_GetRandomSeedForDumping		-> jlong
 JVM_GetRecordComponents	JniEnv,JClass	-> JObjectArray
 JVM_GetSimpleBinaryName	JniEnv,JClass	-> JString
-JVM_GetStackTrace	JniEnv,JObject	-> JObject
+JVM_GetStackTrace	JniEnv,JObject	-> JObjectArray
 JVM_GetSystemPackage	JniEnv,JString	-> JString
 JVM_GetSystemPackages	JniEnv	-> JObjectArray
 JVM_GetTemporaryDirectory	JniEnv	-> JString
@@ -133,13 +135,16 @@ JVM_InitializeFromArchive	JniEnv,JClass
 JVM_InternString	JniEnv,JString	-> JString
 JVM_Interrupt	JniEnv,JObject
 JVM_InvokeMethod	JniEnv,JObject,JObject,JObjectArray	-> JObject
+JVM_IsAtomicArray	JniEnv,JArray	-> jboolean
 JVM_IsConstructorIx	JniEnv,JClass,c_int	-> jboolean
 JVM_IsContainerized		-> jboolean
 JVM_IsContinuationsSupported		-> jboolean
 JVM_IsFinalizationEnabled	JniEnv	-> jboolean
+JVM_IsFlatArray	JniEnv,JArray	-> jboolean
 JVM_IsForeignLinkerSupported		-> jboolean
 JVM_IsHiddenClass	JniEnv,JClass	-> jboolean
 JVM_IsInterface	JniEnv,JClass	-> jboolean
+JVM_IsNullRestrictedArray	JniEnv,JArray	-> jboolean
 JVM_IsPreviewEnabled		-> jboolean
 JVM_IsRecord	JniEnv,JClass	-> jboolean
 JVM_IsSameClassPackage	JniEnv,JClass,JClass	-> jboolean
@@ -165,6 +170,10 @@ JVM_NeedsClassInitBarrierForCDS	JniEnv,JClass	-> jboolean
 JVM_NewArray	JniEnv,JClass,jint	-> JObject
 JVM_NewInstanceFromConstructor	JniEnv,JObject,JObjectArray	-> JObject
 JVM_NewMultiArray	JniEnv,JClass,JIntArray	-> JObject
+JVM_NewNullRestrictedAtomicArray	JniEnv,JClass,jint,JObject	-> JArray
+JVM_NewNullRestrictedNonAtomicArray	JniEnv,JClass,jint,JObject	-> JArray
+JVM_NewNullableAtomicArray	JniEnv,JClass,jint	-> JArray
+JVM_NewReferenceArray	JniEnv,JClass,jint	-> JArray
 JVM_PhantomReferenceRefersTo	JniEnv,JObject,JObject	-> jboolean
 JVM_PrintWarningAtDynamicAgentLoad		-> jboolean
 JVM_RaiseSignal	jint	-> jboolean

@@ -5,6 +5,38 @@ use std::fmt::{Debug, Formatter};
 
 use common::int_types::{u1, u4, u8};
 
+/// Preview-mode availability flags for resources
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum PreviewFlag {
+	/// There is a preview version of this location available in the same module
+	HasPreviewVersion = 0x1,
+	/// This location is the preview version
+	PreviewVersion = 0x2,
+	/// This location is the preview version, and no non-preview version exists
+	PreviewOnly = 0x4,
+}
+
+/// The [`PreviewFlag`]s for a resource
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct PreviewFlagSet(u4);
+
+impl PreviewFlagSet {
+	fn new(raw: u8) -> Self {
+		assert!(raw <= u4::MAX as u8);
+		PreviewFlagSet(raw as u4)
+	}
+
+	/// Whether any preview flags are set
+	pub fn is_empty(self) -> bool {
+		self.0 == 0
+	}
+
+	/// Whether the set contains the given `flag`
+	pub fn contains(self, flag: PreviewFlag) -> bool {
+		(self.0 & flag as u4) > 0
+	}
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum AttributeKind {
 	/// End of attribute stream marker
@@ -23,10 +55,12 @@ pub enum AttributeKind {
 	Compressed = 6,
 	/// In memory byte size of the uncompressed resource
 	Uncompressed = 7,
+	/// The [`PreviewFlags`] of the resource
+	PreviewFlags = 8,
 }
 
 impl AttributeKind {
-	const VARIANTS_COUNT: usize = 8;
+	const VARIANTS_COUNT: usize = 9;
 }
 
 #[repr(transparent)]
@@ -44,6 +78,7 @@ impl Attribute {
 			5 => AttributeKind::Offset,
 			6 => AttributeKind::Compressed,
 			7 => AttributeKind::Uncompressed,
+			8 => AttributeKind::PreviewFlags,
 			kind => unreachable!("Invalid JImage attribute kind: {kind}"),
 		}
 	}
@@ -224,6 +259,11 @@ impl<'a> JImageLocation<'a> {
 	/// Retrieve the `ATTRIBUTE_UNCOMPRESSED`
 	pub fn uncompressed_size(&self) -> u8 {
 		self.attribute_value(AttributeKind::Uncompressed)
+	}
+
+	/// Retrieve the preview flags of the resource
+	pub fn preview_flags(&self) -> PreviewFlagSet {
+		PreviewFlagSet::new(self.attribute_value(AttributeKind::PreviewFlags))
 	}
 }
 

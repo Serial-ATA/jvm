@@ -1,10 +1,12 @@
 use crate::error::Result;
+use crate::location::PreviewFlag;
 use crate::{ImageStrings, JImageHeader, JImageLocation};
+
+use std::io::Read;
 
 use common::box_slice;
 use common::endian::Endian;
 use common::int_types::{u1, u4, u8};
-use std::io::Read;
 
 #[derive(Debug)]
 pub struct JImage {
@@ -72,6 +74,18 @@ impl<'a> Iterator for ResourceIter<'a> {
 	}
 }
 
+/// Basic information about a [`JImage`] resource
+///
+/// See [`JImage::find_resource()`]
+pub struct ResourceDescriptor {
+	/// The offset of the resource
+	///
+	/// This is used in [`JImage::get_resource()`]
+	pub offset: u4,
+	/// The uncompressed size of the resource
+	pub uncompressed_size: u8,
+}
+
 impl JImage {
 	pub fn read_from<R: Read>(reader: &mut R) -> Result<Self> {
 		crate::parse::parse(reader)
@@ -104,18 +118,55 @@ impl JImage {
 		None
 	}
 
-	// TODO: https://github.com/openjdk/jdk/blob/62a033ecd7058f4a4354ebdcd667b3d7991e1f3d/src/java.base/share/native/libjimage/jimage.cpp#L102
-	pub fn find_resource(&self, module_name: &str, name: &str) -> Option<(u4, u8)> {
-		// TBD: assert!(module_name.len() > 0, "module name must be non-empty");
-		if name.is_empty() {
+	/// Attempt to find a resource by `name` in the given `module`
+	///
+	/// `preview_mode` can be used to automatically promote lookups to their preview versions, if
+	/// one exists.
+	pub fn find_resource(
+		&self,
+		module: &str,
+		name: &str,
+		preview_mode: bool,
+	) -> Option<ResourceDescriptor> {
+		if module.is_empty() || name.is_empty() {
 			// `name` must be non-empty
 			//
 			// libjimage makes this an assertion, doesn't really seem necessary.
 			return None;
 		}
 
-		let fullpath = format!("/{}/{}", module_name, name);
-		self.find_location_index(&fullpath)
+		// Skip /modules or /packages lookups
+		if module == "modules" || module == "packages" {
+			return None;
+		}
+
+		let fullpath = format!("/{module}/{name}");
+		match self.find_location_index(&fullpath) {
+			Some(descriptor) => {
+				let data = self.get_location_offset_data(descriptor.offset);
+				let location = JImageLocation::new_opt_(self, data);
+
+				let preview_flags = location.preview_flags();
+				if preview_flags.is_empty() {
+					// No preview version available
+					return Some(descriptor);
+				}
+
+				if preview_flags.contains(PreviewFlag::PreviewVersion) {
+					// Preview resources can't be requested directly by path
+					return None;
+				}
+
+				if !preview_mode || !preview_flags.contains(PreviewFlag::HasPreviewVersion) {
+					return Some(descriptor);
+				}
+			},
+			None if !preview_mode => return None,
+			_ => {}, // Continue search for the preview version of the resource
+		}
+
+		let preview_path = format!("/{module}/META-INF/preview/{name}");
+		self.find_location_index(&preview_path)
 	}
 
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L523
@@ -232,7 +283,7 @@ impl JImage {
 	// https://github.com/openjdk/jdk/blob/f56285c3613bb127e22f544bd4b461a0584e9d2a/src/java.base/share/native/libjimage/imageFile.cpp#L464
 	/// Find the location index and size associated with the path.
 	/// Returns the location index and size if the location is found, `None` otherwise.
-	fn find_location_index(&self, path: &str) -> Option<(u4, u8)> {
+	fn find_location_index(&self, path: &str) -> Option<ResourceDescriptor> {
 		// Locate the entry in the index perfect hash table.
 		let index = ImageStrings::find(self.endian, path, self.index.redirects_table());
 
@@ -248,7 +299,10 @@ impl JImage {
 			// Make sure result is not a false positive.
 			if Self::verify_location(&location, path) {
 				let size = location.uncompressed_size();
-				return Some((offset, size));
+				return Some(ResourceDescriptor {
+					offset,
+					uncompressed_size: size,
+				});
 			}
 		}
 
