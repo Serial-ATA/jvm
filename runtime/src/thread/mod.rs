@@ -14,7 +14,7 @@ use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::invocation_api::new_env;
 use crate::native::jni::references::{JObjectExt, JniObjectStorage};
 use crate::native::method::NativeMethodPtr;
-use crate::objects::instance::class::ClassInstance;
+use crate::objects::instance::class::{ClassInstance, ClassInstanceRef};
 use crate::objects::instance::object::Object;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
@@ -698,26 +698,70 @@ impl JavaThread {
 	}
 }
 
+/// Verify the `exception` and extract its class instance
+fn unwrap_exception(exception: Reference) -> ClassInstanceRef {
+	// https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-6.html#jvms-6.5.athrow
+	// The objectref must be of type reference and must refer to an object that is an instance of class Throwable or of a subclass of Throwable.
+	assert!(!exception.is_null(), "failed to construct exception?");
+
+	let class_instance = exception.extract_class();
+
+	let throwable_class = globals::classes::java_lang_Throwable();
+	assert!(
+		class_instance.class() == throwable_class || class_instance.is_subclass_of(throwable_class)
+	);
+
+	class_instance
+}
+
 // Exceptions
 impl JavaThread {
+	/// Throw an exception on this thread
 	pub fn set_pending_exception(&self, exception: Reference) {
 		self.set_control_flow(ControlFlow::ExceptionThrown);
+
+		// TODO: Include the method name
+		if enabled!(TARGETS: (Exceptions), Info) {
+			let class_instance = unwrap_exception(exception);
+
+			match classes::java::lang::Throwable::detail_message_str(class_instance) {
+				Some(detail_message) => {
+					info!(
+						TARGETS: (Exceptions),
+						"Exception <{}: {detail_message}> thrown",
+						class_instance.class().name(),
+					);
+				},
+				None => {
+					info!(
+						TARGETS: (Exceptions),
+						"Exception <{}> thrown",
+						class_instance.class().name(),
+					);
+				},
+			}
+		}
+
 		unsafe { *self.pending_exception.get() = Some(exception) }
 	}
 
+	/// Whether the thread has a (currently) uncaught exception
 	pub fn has_pending_exception(&self) -> bool {
 		unsafe { (*self.pending_exception.get()).is_some() }
 	}
 
+	/// Get the pending exception for this thread, if one exists
 	pub fn pending_exception(&self) -> Option<Reference> {
 		unsafe { *self.pending_exception.get() }
 	}
 
+	/// Take the pending exception for this thread, and allow execution to continue as normal
 	pub fn take_pending_exception(&self) -> Option<Reference> {
 		self.set_control_flow(ControlFlow::Continue);
 		unsafe { std::ptr::replace(self.pending_exception.get(), None) }
 	}
 
+	/// Same as [`Self::take_pending_exception()`], but discards the result
 	pub fn discard_pending_exception(&self) {
 		let _ = self.take_pending_exception();
 	}
@@ -744,43 +788,13 @@ impl JavaThread {
 
 	/// Handle the pending exception on this thread
 	pub fn handle_pending_exception(&self) {
-		let Some(exception) = self.take_pending_exception() else {
+		let Some(exception) = self.pending_exception() else {
 			return;
 		};
 
 		self.set_state(JavaThreadState::Unwinding);
-		assert!(!exception.is_null(), "failed to construct exception?");
 
-		// https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-6.html#jvms-6.5.athrow
-		// The objectref must be of type reference and must refer to an object that is an instance of class Throwable or of a subclass of Throwable.
-
-		let class_instance = exception.extract_class();
-
-		let throwable_class = globals::classes::java_lang_Throwable();
-		assert!(
-			class_instance.class() == throwable_class
-				|| class_instance.is_subclass_of(throwable_class)
-		);
-
-		// TODO: Include the method name
-		if enabled!(TARGETS: (Exceptions), Info) {
-			match classes::java::lang::Throwable::detail_message_str(class_instance) {
-				Some(detail_message) => {
-					info!(
-						TARGETS: (Exceptions),
-						"Exception <{}: {detail_message}> thrown",
-						class_instance.class().name(),
-					);
-				},
-				None => {
-					info!(
-						TARGETS: (Exceptions),
-						"Exception <{}> thrown",
-						class_instance.class().name(),
-					);
-				},
-			}
-		}
+		let class_instance = unwrap_exception(exception);
 
 		// Search each frame for an exception handler
 		self.stash_and_reset_pc();
@@ -798,7 +812,8 @@ impl JavaThread {
 				let _ = current_frame.take_cached_depth();
 
 				current_frame.clear();
-				current_frame.push_reference(exception);
+				current_frame
+					.push_reference(self.take_pending_exception().expect("verified above"));
 
 				self.set_state(JavaThreadState::Running);
 
@@ -809,7 +824,6 @@ impl JavaThread {
 			let _ = self.frame_stack.pop();
 		}
 
-		// Wasn't caught, re-set the exception
-		self.set_pending_exception(exception);
+		// Wasn't caught...
 	}
 }
