@@ -4,7 +4,7 @@ use crate::classes;
 use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
 use crate::native::RawSymbolExt;
 use crate::native::jni::references::JObjectExt;
-use crate::symbols::Symbol;
+use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, handle_exception, throw_with_ret};
 
@@ -23,8 +23,50 @@ const MN_STRONG_LOADER_LINK: s4 = 0x0000_0004;
 const MN_ACCESS_VM_ANNOTATIONS: s4 = 0x0000_0008;
 
 #[jni_call]
-pub extern "C" fn JVM_GetCallerClass(_env: JniEnv) -> JClass {
-	todo!()
+pub extern "C" fn JVM_GetCallerClass(env: JniEnv) -> JClass {
+	let current_thread = unsafe { &*JavaThread::for_env(env.raw().cast_const()) };
+
+	// The call stack at this point looks something like this:
+	//
+	// [0] [ @CallerSensitive public jdk.internal.reflect.Reflection.getCallerClass ]
+	// [1] [ @CallerSensitive API.method                                            ]
+	// [.] [ (skipped intermediate frames)                                          ]
+	// [n] [ caller                                                                 ]
+	for (n, frame) in current_thread.frame_stack().iter().enumerate() {
+		let method = frame.method();
+
+		if n == 0 || n == 1 {
+			if n == 0 {
+				if !(method.class().name() == sym!(jdk_internal_reflect_Reflection)
+					&& method.name == sym!(getCallerClass))
+				{
+					throw_with_ret!(
+						JClass::null(),
+						current_thread,
+						InternalError,
+						"JVM_GetCallerClass must only be called from Reflection.getCallerClass"
+					);
+				}
+			}
+
+			if !method.is_caller_sensitive() {
+				throw_with_ret!(
+					JClass::null(),
+					current_thread,
+					InternalError,
+					"`getCallerClass` is not called from a @CallerSensitive method"
+				);
+			}
+
+			continue;
+		}
+
+		if !method.is_stack_walk_ignored() {
+			return current_thread.jni_refs().allocate_wrapped(method.class());
+		}
+	}
+
+	JClass::null()
 }
 
 #[jni_call(no_strict_types)]
@@ -401,8 +443,26 @@ pub extern "C" fn JVM_GetClassDeclaredConstructors(
 }
 
 #[jni_call]
-pub extern "C" fn JVM_AreNestMates(_env: JniEnv, _current: JClass, _member: JClass) -> jboolean {
-	todo!()
+pub extern "C" fn JVM_AreNestMates(env: JniEnv, current: JClass, member: JClass) -> jboolean {
+	let thread = unsafe { &*JavaThread::for_env(env.raw().cast_const()) };
+
+	let Some(current) = (unsafe { current.to_reference() }) else {
+		panic!("JVM_AreNestMates called with null `current` class");
+	};
+
+	let Some(member) = (unsafe { member.to_reference() }) else {
+		panic!("JVM_AreNestMates called with null `member` class");
+	};
+
+	let current_class = current.extract_target_class();
+	let member_class = member.extract_target_class();
+	match current_class.is_nestmate_of(member_class, thread) {
+		Throws::Ok(ret) => ret,
+		Throws::Exception(e) => {
+			e.throw(thread);
+			false
+		},
+	}
 }
 
 #[jni_call]

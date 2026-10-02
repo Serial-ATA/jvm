@@ -240,6 +240,7 @@ vm_symbols::define_symbols! {
 	jdk_internal_loader_ClassLoaders_PlatformClassLoader: "jdk/internal/loader/ClassLoaders$PlatformClassLoader",
 	jdk_internal_loader_NativeLibraries: "jdk/internal/loader/NativeLibraries",
 	jdk_internal_loader_NativeLibraries_NativeLibraryImpl: "jdk/internal/loader/NativeLibraries$NativeLibraryImpl",
+	jdk_internal_reflect_Reflection: "jdk/internal/reflect/Reflection",
 
 	// Throwables
 	java_lang_Throwable: "java/lang/Throwable",
@@ -358,6 +359,8 @@ vm_symbols::define_symbols! {
 
 	addClass,
 	loadClass,
+
+	getCallerClass,
 
 	valueOf_name: "valueOf",
 	// -- GENERATED METHOD NAME MARKER, DO NOT DELETE --
