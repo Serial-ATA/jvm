@@ -102,9 +102,6 @@ pub(crate) mod java {
 		pub(crate) mod String;
 		pub(crate) mod Class;
 	}
-	pub(crate) mod security {
-		pub(crate) mod AccessController;
-	}
 }
 
 pub(crate) mod jdk {
