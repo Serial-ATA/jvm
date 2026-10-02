@@ -219,6 +219,7 @@ vm_symbols::define_symbols! {
 	java_lang_System: "java/lang/System",
 	java_lang_Cloneable: "java/lang/Cloneable",
 	java_io_Serializable: "java/io/Serializable",
+	java_lang_ref_Reference: "java/lang/ref/Reference",
 	java_io_File: "java/io/File",
 	jdk_internal_misc_UnsafeConstants: "jdk/internal/misc/UnsafeConstants",
 	jdk_internal_reflect_MethodAccessorImpl: "jdk/internal/reflect/MethodAccessorImpl",

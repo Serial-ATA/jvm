@@ -1,8 +1,12 @@
 #![native_macros::jni_fn_module]
 
-use jni::env::JniEnv;
-use jni::objects::JObject;
-use jni::sys::jboolean;
+use crate::classes;
+use crate::native::jni::references::JObjectExt;
+use crate::thread::JavaThread;
+
+use ::jni::env::JniEnv;
+use ::jni::objects::JObject;
+use ::jni::sys::jboolean;
 use native_macros::jni_call;
 
 #[jni_call]
@@ -21,17 +25,32 @@ pub extern "C" fn JVM_WaitForReferencePendingList(_env: JniEnv) {
 }
 
 #[jni_call]
-pub extern "C" fn JVM_ReferenceGet(_env: JniEnv, _reference: JObject) -> JObject {
-	todo!()
+pub extern "C" fn JVM_ReferenceGet(env: JniEnv, reference: JObject) -> JObject {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env(), env);
+
+	let Some(reference) = (unsafe { reference.to_reference() }) else {
+		panic!("null object passed to `JVM_ReferenceGet`");
+	};
+
+	let ret = classes::java::lang::r#ref::Reference::referent(reference);
+	thread.jni_refs().allocate_wrapped(ret)
 }
 
 #[jni_call]
-pub extern "C" fn JVM_ReferenceRefersTo(
-	_env: JniEnv,
-	_reference: JObject,
-	_obj: JObject,
-) -> jboolean {
-	todo!()
+pub extern "C" fn JVM_ReferenceRefersTo(env: JniEnv, reference: JObject, obj: JObject) -> jboolean {
+	let thread = JavaThread::current();
+	assert_eq!(thread.env(), env);
+
+	let Some(reference) = (unsafe { reference.to_reference() }) else {
+		panic!("null object passed to `JVM_ReferenceRefersTo`");
+	};
+
+	let Some(obj) = (unsafe { obj.to_reference() }) else {
+		panic!("null object passed to `JVM_ReferenceRefersTo`");
+	};
+
+	classes::java::lang::r#ref::Reference::referent(reference) == obj
 }
 
 #[jni_call]

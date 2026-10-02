@@ -88,7 +88,6 @@ pub(crate) mod java {
 		}
 		pub(crate) mod r#ref {
 			pub(crate) mod PhantomReference;
-			pub(crate) mod Reference;
 			pub(crate) mod Finalizer;
 		}
 		pub(crate) mod reflect {
