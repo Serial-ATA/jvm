@@ -28,6 +28,7 @@ clean:
 test *ARGS: debug
     just dist --profile debug
     JAVA_HOME={{ DIST_DIR }} cargo +nightly -Z unstable-options test {{ ARGS }}
+    TEST_JAVA_HOME={{ DIST_DIR }} cargo +nightly -Z unstable-options test {{ ARGS }}
 
 # Run `cargo clippy`
 lint *ARGS:

@@ -2,7 +2,6 @@ use super::convert_operand;
 use super::references::{JObjectExt, field_ref_from_jfieldid};
 use crate::objects::class::ClassPtr;
 use crate::objects::instance::Instance;
-use crate::objects::instance::object::Object;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};

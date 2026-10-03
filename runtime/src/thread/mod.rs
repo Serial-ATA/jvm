@@ -92,7 +92,7 @@ pub struct JavaThread {
 
 	/// Used in tests to prevent this thread from actually running any Java code
 	#[cfg(test)]
-	pub sealed: AtomicBool,
+	pub sealed: std::sync::atomic::AtomicBool,
 }
 
 // TODO: This isn't *actually* safe, but the way it's currently used is
@@ -132,7 +132,7 @@ impl JavaThread {
 			jni_refs: JniObjectStorage::default(),
 
 			#[cfg(test)]
-			sealed: AtomicBool::new(false),
+			sealed: std::sync::atomic::AtomicBool::new(false),
 		})
 	}
 

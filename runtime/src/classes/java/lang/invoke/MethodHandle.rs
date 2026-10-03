@@ -95,7 +95,6 @@ mod _dynamic {
 	use crate::objects::reference::Reference;
 	use crate::thread::exceptions::{Throws, throw};
 	use crate::thread::frame::Frame;
-	use classfile::FieldType;
 
 	use common::int_types::u2;
 	use instructions::{Operand, StackLike};

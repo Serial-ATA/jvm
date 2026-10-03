@@ -1,8 +1,8 @@
 #![native_macros::jni_fn_module]
 
-use jni::env::JniEnv;
-use jni::objects::{JByteArray, JClass, JObject, JObjectArray, JString};
-use jni::sys::{jboolean, jint, jlong};
+use ::jni::env::JniEnv;
+use ::jni::objects::{JObject, JObjectArray};
+use ::jni::sys::{jint, jlong};
 use native_macros::jni_call;
 
 #[jni_call]

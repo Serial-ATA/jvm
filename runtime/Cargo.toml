@@ -37,6 +37,9 @@ build-deps.workspace = true
 quote.workspace = true
 syn.workspace = true
 
+[dev-dependencies]
+platform = { workspace = true, features = ["test"] }
+
 [features]
 default = ["libffi"]
 libffi = ["dep:libffi"]

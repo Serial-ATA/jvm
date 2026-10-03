@@ -1,7 +1,9 @@
 use crate::classpath::loader::ClassLoader;
 use crate::initialization::initialize_thread;
-use crate::native::jdk::internal::util::SystemProps::Raw::SYSTEM_PROPERTIES;
+use crate::native::jvm::system::SYSTEM_PROPERTIES;
+use crate::options::JvmOptions;
 use crate::thread::{JavaThread, JavaThreadBuilder};
+
 use std::sync::Once;
 
 mod loader;
@@ -34,8 +36,11 @@ pub fn init_basic_shared_runtime() -> &'static JavaThread {
 
 		crate::classpath::jimage::lookup_vm_options();
 
+		let options = JvmOptions::default();
+		options.logs.apply();
+
 		let thread = JavaThreadBuilder::new()
-			.finish(true)
+			.finish(false)
 			.expect("failed to allocate thread");
 
 		JavaThread::set_current_thread(thread);

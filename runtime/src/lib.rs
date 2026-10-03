@@ -1,4 +1,3 @@
-#![feature(c_variadic)]
 #![feature(thread_local)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(macro_metavar_expr)]
@@ -10,7 +9,6 @@
 #![feature(std_internals)]
 #![feature(pointer_is_aligned_to)]
 #![feature(custom_inner_attributes)]
-#![feature(proc_macro_hygiene)]
 #![feature(try_trait_v2_residual)]
 #![feature(int_roundings)]
 #![feature(transmute_prefix)]

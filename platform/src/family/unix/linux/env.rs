@@ -1,9 +1,9 @@
-use crate::env::SystemPaths;
-use libc::{Dl_info, dladdr};
 use std::ffi::{CStr, OsStr};
 use std::mem;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
+
+use libc::{Dl_info, dladdr};
 
 pub const SYS_EXTENSIONS_DIR: &str = "/usr/java/packages";
 pub const EXTENSIONS_DIR: &str = "/lib/ext";
@@ -39,7 +39,7 @@ pub fn java_library_path() -> String {
 	format!("{ld_library_path}{SYS_EXTENSIONS_DIR}/lib:{DEFAULT_LIBPATH}")
 }
 
-fn boot_library_path(libjvm_path: &Path) -> Option<PathBuf> {
+pub fn boot_library_path(libjvm_path: &Path) -> Option<PathBuf> {
 	let vm_variant_dir = libjvm_path.parent()?;
 	let libs_dir = vm_variant_dir.parent()?;
 
@@ -50,7 +50,7 @@ fn boot_library_path(libjvm_path: &Path) -> Option<PathBuf> {
 	Some(libs_dir.to_path_buf())
 }
 
-fn java_home(boot_library_path: &Path) -> Option<PathBuf> {
+pub fn java_home(boot_library_path: &Path) -> Option<PathBuf> {
 	if let Ok(path) = std::env::var("JAVA_HOME") {
 		return Some(PathBuf::from(path));
 	}
@@ -62,23 +62,9 @@ fn java_home(boot_library_path: &Path) -> Option<PathBuf> {
 	Some(java_home.to_path_buf())
 }
 
-impl SystemPaths {
-	pub(in crate::family) fn init_impl() -> Option<Self> {
-		let libjvm_path = libjvm_path()?;
-		let boot_library_path = boot_library_path(&libjvm_path)?;
-		let java_home = java_home(&libjvm_path)?;
-
-		let extensions_dirs = format!(
-			"{}{EXTENSIONS_DIR}:{SYS_EXTENSIONS_DIR}{EXTENSIONS_DIR}",
-			java_home.display()
-		);
-
-		Some(Self {
-			libjvm_path,
-			boot_library_path,
-			boot_class_path: crate::env::boot_class_path(&java_home)?,
-			java_home,
-			extensions_dirs,
-		})
-	}
+pub fn extensions_dirs(java_home_path: &Path) -> String {
+	format!(
+		"{}{EXTENSIONS_DIR}:{SYS_EXTENSIONS_DIR}{EXTENSIONS_DIR}",
+		java_home_path.display()
+	)
 }

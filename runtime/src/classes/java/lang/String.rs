@@ -15,7 +15,7 @@ use byte_slice_cast::AsSliceOf;
 use classfile::FieldType;
 use common::int_types::u2;
 use instructions::Operand;
-use jni::sys::{jboolean, jbyte, jint, jsize};
+use jni::sys::{jboolean, jbyte, jint};
 
 pub trait IntoJavaStringInternable: sealed::Sealed {
 	const IS_UTF8: bool;

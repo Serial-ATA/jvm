@@ -73,6 +73,7 @@ macro_rules! define_log_level_macros {
             }
 
             #[doc(hidden)]
+            #[allow(unused_imports)]
             pub use [<_ $level>] as $level;
         }
         )+

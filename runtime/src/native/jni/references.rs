@@ -4,7 +4,7 @@ use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
-use std::marker::{ConstParamTy, PhantomData};
+use std::marker::ConstParamTy;
 use std::ptr::NonNull;
 use std::sync::{LazyLock, Mutex};
 
@@ -140,6 +140,9 @@ pub enum ObjectReferenceType {
 
 #[derive(Copy, Clone, Default, Debug)]
 enum Slot {
+	// We only ever access occupied slots by pointer. We *construct* `Occupied` slots, but never
+	// read them as such, so the compiler doesn't know this is significant.
+	#[allow(dead_code)]
 	Occupied(ForceSendSync<NonNull<()>>),
 	#[default]
 	Empty,
@@ -310,11 +313,9 @@ impl JObjectExt for jobject {
 ///
 /// JNI reference pointers have the following structure:
 ///
-/// ```
-/// 63                                                            1          0
-/// +--------------------------------------------------------------+-------------------+
-/// |                           Address                            |ObjectReferenceType|
-/// +--------------------------------------------------------------+-------------------+
+/// ```text
+/// [0-1 ] `ObjectReferenceType`
+/// [1-63] Address
 /// ```
 ///
 /// Where `Address` is a pointer to the object's pointer (e.g., a [`Reference`] tagged pointer).

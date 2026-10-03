@@ -16,7 +16,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
 use ::jni::sys::{jboolean, jint, jlong};
-use jni::objects::JString;
 
 include_generated!("native/java/io/def/FileInputStream.definitions.rs");
 

@@ -1,5 +1,3 @@
-#![feature(result_option_map_or_default)]
-
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fmt::Display;

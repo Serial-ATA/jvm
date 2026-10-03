@@ -15,7 +15,6 @@ use crate::error::RuntimeError;
 use crate::modules::{Module, Package};
 use crate::objects::constant_pool::cp_types;
 use crate::objects::instance::mirror::MirrorInstanceRef;
-use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
@@ -25,15 +24,13 @@ use std::cell::{Cell, UnsafeCell};
 use std::fmt::{Debug, Formatter};
 use std::mem::MaybeUninit;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicPtr, Ordering};
 
 use classfile::accessflags::ClassAccessFlags;
 use classfile::attribute::resolved::ResolvedBootstrapMethod;
 use classfile::constant_pool::types::raw as raw_types;
 use classfile::{ClassFile, FieldType, MethodInfo};
 use common::box_slice;
-use common::int_types::{u1, u2, u4};
-use instructions::Operand;
+use common::int_types::{u1, u2};
 
 /// A cache for miscellaneous fields
 #[derive(Default, Debug)]

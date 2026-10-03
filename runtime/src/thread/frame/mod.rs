@@ -386,10 +386,6 @@ impl Frame {
 		assert!(self.depth() < u16::MAX as isize);
 		self.depth += 1;
 	}
-
-	fn has_stashed_depth(&self) -> bool {
-		self.depth > 0
-	}
 }
 
 // Setters
