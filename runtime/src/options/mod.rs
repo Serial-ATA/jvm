@@ -88,8 +88,8 @@ impl JvmOptions {
 			let option_string = option_string_c.to_str()?;
 
 			// Special case for the crazy log syntax
-			if let Some(log_options) = option_string.strip_prefix("-Xlog") {
-				logs.apply_option(logging::LogOption::from_str(log_options)?);
+			if option_string.starts_with("-Xlog") {
+				logs.apply_option(logging::LogOption::from_str(option_string)?);
 				continue;
 			}
 

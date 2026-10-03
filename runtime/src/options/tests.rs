@@ -30,7 +30,7 @@ fn jvm_log_options() {
 			.into(),
 		),
 		(
-			"-Xlog:::foldmultilines=true",
+			"-Xlog::::foldmultilines=true",
 			LogOption {
 				output_options: LogOutputOptions {
 					fold_multilines: true,

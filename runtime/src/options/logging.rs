@@ -301,7 +301,11 @@ impl FromStr for LogOption {
 	type Err = LogParseError;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		let mut sections = s.split(':');
+		let Some(options) = s.strip_prefix("-Xlog") else {
+			todo!("Some error");
+		};
+
+		let mut sections = options.split(':');
 		let _empty = sections
 			.next()
 			.expect("split should always return something");
