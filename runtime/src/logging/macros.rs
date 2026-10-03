@@ -51,7 +51,6 @@ macro_rules! define_log_level_macros {
 	($(($level:ident, $level_camel:ident)),+) => {
 		$(
         paste::paste! {
-            #[macro_export]
             #[doc = "Print a log message at the `" $level "` level for the given tags"]
             ///
             /// The first argument is a list of [`Tag`]s in the form: `TARGETS: (TAG1 [, TAG2...])`.
