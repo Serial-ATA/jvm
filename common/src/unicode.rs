@@ -118,7 +118,7 @@ pub fn encode(input: &str) -> Cow<'_, [u8]> {
                     | 0xC2..=0xDF
                     // 3-byte sequences
                     | 0xE0..=0xEF => {
-                        index += 1;
+                        index += utf8_char_width(b);
                         continue;
                     }
 
@@ -252,7 +252,7 @@ pub fn decode(input: &[u8]) -> Result<Cow<'_, str>, Error> {
 
 				match width {
 					2 => {
-						decoded.extend([b as char, next as char]);
+						decoded.push(make_char(&[b, next]));
 					},
 					3 => {
 						let Some(next2) = input.get(i).copied() else {
@@ -266,7 +266,7 @@ pub fn decode(input: &[u8]) -> Result<Cow<'_, str>, Error> {
 							// Valid UTF-8, nothing extra to do
 							(0xE0, 0xA0..=0xBF)
 							| (0xE1..=0xEC | 0xEE..=0xEF, 0x80..=0xBF)
-							| (0xED, 0x80..=0x9F) => decoded.extend([b as char, next as char, next2 as char]),
+							| (0xED, 0x80..=0x9F) => decoded.push(make_char(&[b, next, next2])),
 							(0xED, 0xA0..=0xAF) => {
 								let Some(next3) = input.get(i).copied() else {
 									return Err(Error::UnexpectedEnd);
@@ -345,6 +345,11 @@ pub fn decode(input: &[u8]) -> Result<Cow<'_, str>, Error> {
 	}
 }
 
+fn make_char(bytes: &[u8]) -> char {
+	debug_assert!(!bytes.is_empty() && bytes.len() <= 4);
+	str::from_utf8(bytes).unwrap().chars().next().unwrap()
+}
+
 /// Converts a modified UTF-8 surrogate pair into a UTF-8 code point
 #[inline]
 fn mutf8_surrogate_to_utf8(surrogate: u16) -> u32 {
@@ -405,6 +410,14 @@ mod tests {
 
 		assert_eq!(*encoded, *b"hello\xE0\xA0\x80world");
 
+		let decoded = decode(&encoded).unwrap();
+		assert_eq!(decoded, s);
+	}
+
+	#[test]
+	fn with_null_and_three_byte() {
+		let s = "hello\0world\u{0800}";
+		let encoded = encode(s);
 		let decoded = decode(&encoded).unwrap();
 		assert_eq!(decoded, s);
 	}
