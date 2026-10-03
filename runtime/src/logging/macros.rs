@@ -62,19 +62,16 @@ macro_rules! define_log_level_macros {
             /// ```rust
             #[doc = "use jvm::logging::" $level ";"]
             ///
+            /// let class_name = "java/lang/Class";
             #[doc = $level "!(TARGETS: (Class, Init), \"Woah, the class {} just initialized!\", class_name)"]
             /// ```
             ///
             /// [`Tag`]: crate::logging::Tag
-            macro_rules! [<_ $level>] {
+            pub macro $level {
                 (TARGETS: ($$($$tag:ident),+), $$($$arg:tt)+) => {
                     $$crate::log!(TARGETS: ($$($$tag),+), $level_camel, $$($$arg)+);
-                };
+                }
             }
-
-            #[doc(hidden)]
-            #[allow(unused_imports)]
-            pub use [<_ $level>] as $level;
         }
         )+
 	};

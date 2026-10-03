@@ -406,7 +406,7 @@ impl LogOptions {
 	}
 
 	pub fn get() -> &'static Self {
-		OPTIONS.get().expect("log options should be initialized")
+		OPTIONS.get_or_init(|| LogOptionsBuilder::default().build())
 	}
 
 	/// Whether all of the given tags in the set are enabled at the given [`LogLevel`] in at least one output.

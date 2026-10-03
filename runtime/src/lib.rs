@@ -14,6 +14,7 @@
 #![feature(transmute_prefix)]
 #![feature(generic_atomic)]
 #![feature(adt_const_params)]
+#![feature(decl_macro)]
 
 pub mod calls;
 pub mod classes;

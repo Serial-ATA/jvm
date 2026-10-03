@@ -1,5 +1,5 @@
 mod macros;
-pub(crate) use macros::*;
+pub use macros::*;
 mod write;
 pub(crate) use write::__write; // For the `log!` macro
 
