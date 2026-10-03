@@ -4,6 +4,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
+	UnsupportedVersion(u32, u32),
+
 	InvalidMagic,
 	InvalidTableSize,
 	BadIndexSize,
@@ -17,6 +19,9 @@ pub enum Error {
 impl Display for Error {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		match self {
+			Self::UnsupportedVersion(major, minor) => {
+				write!(f, "File has an unsupported version: {major}.{minor}")
+			},
 			Self::InvalidMagic => write!(f, "File has an invalid magic signature!"),
 			Self::InvalidTableSize => write!(f, "Encountered invalid table size!"),
 			Self::BadIndexSize => write!(

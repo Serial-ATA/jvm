@@ -2,11 +2,12 @@ use crate::error::{Error, Result};
 use crate::header::{JIMAGE_MAGIC, JIMAGE_MAGIC_INVERTED, JImageHeader};
 
 use std::io::Read;
+use std::ops::RangeInclusive;
 
 use common::endian::Endian;
 
-const MAJOR_VERSION: u32 = 1;
-const MINOR_VERSION: u32 = 1;
+const SUPPORTED_MAJOR_VERSION: u32 = 1;
+const SUPPORTED_MINOR_VERSIONS: RangeInclusive<u32> = 0..=1;
 
 // The header contains information related to identification and description of
 // contents.
@@ -58,16 +59,11 @@ where
 	let major_version = version >> 16;
 	let minor_version = version & 0xFFFF;
 
-	assert_eq!(
-		major_version, MAJOR_VERSION,
-		"Unsupported major version: {}",
-		major_version
-	);
-	assert_eq!(
-		minor_version, MINOR_VERSION,
-		"Unsupported minor version: {}",
-		minor_version
-	);
+	if major_version != SUPPORTED_MAJOR_VERSION
+		|| !SUPPORTED_MINOR_VERSIONS.contains(&minor_version)
+	{
+		return Err(Error::UnsupportedVersion(major_version, minor_version));
+	}
 
 	let flags = endian.read_u4(reader)?;
 
