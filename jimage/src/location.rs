@@ -22,7 +22,7 @@ pub struct PreviewFlagSet(u4);
 
 impl PreviewFlagSet {
 	fn new(raw: u8) -> Self {
-		assert!(raw <= u4::MAX as u8);
+		assert!(raw <= u8::from(u4::MAX));
 		PreviewFlagSet(raw as u4)
 	}
 

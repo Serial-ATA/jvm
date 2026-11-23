@@ -16,6 +16,9 @@ libfuzzer-sys = "0.4"
 [dependencies.classfile]
 path = ".."
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "classfile"
 path = "fuzz_targets/classfile.rs"

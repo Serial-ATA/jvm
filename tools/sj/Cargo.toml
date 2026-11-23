@@ -10,7 +10,6 @@ repository.workspace = true
 
 [dependencies]
 jni = { workspace = true }
-runtime = { workspace = true }
 
 const_format.workspace = true
 

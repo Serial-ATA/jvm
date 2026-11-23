@@ -39,10 +39,10 @@ impl LaunchTarget {
 
 	pub fn target(&self) -> &str {
 		match self {
-			LaunchTarget::Class(target) => target.as_str(),
-			LaunchTarget::Jar(target) => target.as_str(),
-			LaunchTarget::Module(target) => target.as_str(),
-			LaunchTarget::Source(target) => target.as_str(),
+			LaunchTarget::Class(target)
+			| LaunchTarget::Jar(target)
+			| LaunchTarget::Module(target)
+			| LaunchTarget::Source(target) => target.as_str(),
 		}
 	}
 }
@@ -67,11 +67,7 @@ impl Args {
 		}
 
 		let mut args = Args::default();
-		loop {
-			let Some(arg) = cli_args.peek() else {
-				break;
-			};
-
+		while let Some(arg) = cli_args.peek() {
 			if !arg.starts_with('-') {
 				break;
 			}
@@ -97,7 +93,7 @@ impl Args {
 
 		match &mut args.launch_target {
 			Some(LaunchTarget::Jar(jar_name)) => {
-				args.options.set_classpath(&jar_name);
+				args.options.set_classpath(jar_name);
 			},
 			None => {
 				if !args.options.specified_classpath {
@@ -113,8 +109,7 @@ impl Args {
 				};
 
 				let target_path = Path::new(target);
-				if target_path.exists()
-					&& target_path.extension().map_or(false, |ext| ext == "java")
+				if target_path.exists() && target_path.extension().is_some_and(|ext| ext == "java")
 				{
 					args.options
 						.add_system_property("-Dsun.java.launcher.mode=source");

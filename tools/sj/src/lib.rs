@@ -131,6 +131,6 @@ fn main(args: cli::Args) -> Result<i32> {
 		return Ok(0);
 	}
 
-	handle_error!((vm) native::invoke_main_method(env, main_class, args.args));
+	handle_error!((vm) native::invoke_main_method(env, main_class, &args.args));
 	exit(vm)
 }

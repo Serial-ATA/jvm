@@ -93,7 +93,6 @@ too_many_arguments = "allow" # Rarely in our control
 enum_variant_names = "allow"
 
 [workspace.dependencies]
-runtime = { path = "runtime" }
 classfile = { path = "classfile" }
 common = { path = "common" }
 instructions = { path = "instructions" }

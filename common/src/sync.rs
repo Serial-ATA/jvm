@@ -41,6 +41,7 @@ impl<T> Deref for ForceSendSync<T> {
 
 impl<T: Copy> Copy for ForceSendSync<T> {}
 
+#[allow(clippy::expl_impl_clone_on_copy)]
 impl<T: Clone> Clone for ForceSendSync<T> {
 	fn clone(&self) -> Self {
 		Self(self.0.clone())

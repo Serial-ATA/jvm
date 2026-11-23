@@ -12,14 +12,14 @@ use jni_sys::{
 	jlong, jmethodID, jobject, jvalue,
 };
 
-pub const JVMTI_VERSION_1: c_int = 0x30010000;
-pub const JVMTI_VERSION_1_0: c_int = 0x30010000;
-pub const JVMTI_VERSION_1_1: c_int = 0x30010100;
-pub const JVMTI_VERSION_1_2: c_int = 0x30010200;
-pub const JVMTI_VERSION_9: c_int = 0x30090000;
-pub const JVMTI_VERSION_11: c_int = 0x300B0000;
-pub const JVMTI_VERSION_19: c_int = 0x30130000;
-pub const JVMTI_VERSION_21: c_int = 0x30150000;
+pub const JVMTI_VERSION_1: c_int = 0x3001_0000;
+pub const JVMTI_VERSION_1_0: c_int = 0x3001_0000;
+pub const JVMTI_VERSION_1_1: c_int = 0x3001_0100;
+pub const JVMTI_VERSION_1_2: c_int = 0x3001_0200;
+pub const JVMTI_VERSION_9: c_int = 0x3009_0000;
+pub const JVMTI_VERSION_11: c_int = 0x300B_0000;
+pub const JVMTI_VERSION_19: c_int = 0x3013_0000;
+pub const JVMTI_VERSION_21: c_int = 0x3015_0000;
 pub const JVMTI_VERSION: c_int = version::jvmti_version();
 
 unsafe extern "system" {
@@ -59,12 +59,12 @@ pub const JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT: c_int = 0x0020;
 pub const JVMTI_THREAD_STATE_SLEEPING: c_int = 0x0040;
 pub const JVMTI_THREAD_STATE_IN_OBJECT_WAIT: c_int = 0x0100;
 pub const JVMTI_THREAD_STATE_PARKED: c_int = 0x0200;
-pub const JVMTI_THREAD_STATE_SUSPENDED: c_int = 0x100000;
-pub const JVMTI_THREAD_STATE_INTERRUPTED: c_int = 0x200000;
-pub const JVMTI_THREAD_STATE_IN_NATIVE: c_int = 0x400000;
-pub const JVMTI_THREAD_STATE_VENDOR_1: c_int = 0x10000000;
-pub const JVMTI_THREAD_STATE_VENDOR_2: c_int = 0x20000000;
-pub const JVMTI_THREAD_STATE_VENDOR_3: c_int = 0x40000000;
+pub const JVMTI_THREAD_STATE_SUSPENDED: c_int = 0x0010_0000;
+pub const JVMTI_THREAD_STATE_INTERRUPTED: c_int = 0x0020_0000;
+pub const JVMTI_THREAD_STATE_IN_NATIVE: c_int = 0x0040_0000;
+pub const JVMTI_THREAD_STATE_VENDOR_1: c_int = 0x1000_0000;
+pub const JVMTI_THREAD_STATE_VENDOR_2: c_int = 0x2000_0000;
+pub const JVMTI_THREAD_STATE_VENDOR_3: c_int = 0x4000_0000;
 
 pub const JVMTI_JAVA_LANG_THREAD_STATE_MASK: c_int = JVMTI_THREAD_STATE_TERMINATED
 	| JVMTI_THREAD_STATE_ALIVE
@@ -206,13 +206,13 @@ pub const JVMTI_PHASE_START: jvmtiPhase = 6;
 pub const JVMTI_PHASE_LIVE: jvmtiPhase = 4;
 pub const JVMTI_PHASE_DEAD: jvmtiPhase = 8;
 
-pub const JVMTI_VERSION_INTERFACE_JNI: c_int = 0x00000000;
-pub const JVMTI_VERSION_INTERFACE_JVMTI: c_int = 0x30000000;
+pub const JVMTI_VERSION_INTERFACE_JNI: c_int = 0x0000_0000;
+pub const JVMTI_VERSION_INTERFACE_JVMTI: c_int = 0x3000_0000;
 
-pub const JVMTI_VERSION_MASK_INTERFACE_TYPE: c_int = 0x70000000;
-pub const JVMTI_VERSION_MASK_MAJOR: c_int = 0x0FFF0000;
-pub const JVMTI_VERSION_MASK_MINOR: c_int = 0x0000FF00;
-pub const JVMTI_VERSION_MASK_MICRO: c_int = 0x000000FF;
+pub const JVMTI_VERSION_MASK_INTERFACE_TYPE: c_int = 0x7000_0000;
+pub const JVMTI_VERSION_MASK_MAJOR: c_int = 0x0FFF_0000;
+pub const JVMTI_VERSION_MASK_MINOR: c_int = 0x0000_FF00;
+pub const JVMTI_VERSION_MASK_MICRO: c_int = 0x0000_00FF;
 
 pub const JVMTI_VERSION_SHIFT_MAJOR: c_int = 16;
 pub const JVMTI_VERSION_SHIFT_MINOR: c_int = 8;

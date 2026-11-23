@@ -123,7 +123,7 @@ pub extern "system" fn Java_sun_nio_fs_UnixNativeDispatcher_getcwd(
 	// + 1 for null terminator
 	let mut buf = vec![0; libc::PATH_MAX as usize + 1];
 
-	let cwd = unsafe { libc::getcwd(buf.as_mut_ptr() as *mut libc::c_char, buf.capacity()) };
+	let cwd = unsafe { libc::getcwd(buf.as_mut_ptr().cast::<libc::c_char>(), buf.capacity()) };
 	if cwd.is_null() {
 		todo!("Throw sun/util/UnixException")
 	}
