@@ -139,7 +139,7 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 	pub fn neg(&mut self) {
 		match self {
 			Operand::Int(value) => {
-				*self = Operand::Int(value.neg());
+				*self = Operand::Int(value.wrapping_neg());
 			},
 			Operand::Float(value) => {
 				*self = Operand::Float(value.neg());
@@ -148,7 +148,7 @@ impl<Reference: Debug + Clone> Operand<Reference> {
 				*self = Operand::Double(value.neg());
 			},
 			Operand::Long(value) => {
-				*self = Operand::Long(value.neg());
+				*self = Operand::Long(value.wrapping_neg());
 			},
 			_ => panic!("Invalid operand type for `neg` instruction"),
 		}
