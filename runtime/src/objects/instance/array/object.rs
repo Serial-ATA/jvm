@@ -236,10 +236,9 @@ impl Array for ObjectArrayInstanceRef {
 
 	unsafe fn copy_within(&self, src_pos: usize, dest_pos: usize, length: usize) {
 		unsafe {
-			for i in 0..length {
-				let current = self.get_unchecked(src_pos + i);
-				self.store_unchecked(dest_pos + i, current);
-			}
+			let src_ptr = self.field_base().cast::<Reference>().add(src_pos);
+			let dest_ptr = self.field_base().cast::<Reference>().add(dest_pos);
+			src_ptr.copy_to(dest_ptr, length);
 		}
 	}
 }
