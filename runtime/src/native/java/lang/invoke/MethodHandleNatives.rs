@@ -198,7 +198,12 @@ pub fn resolve_member_name(
 		| ReferenceKind::InvokeStatic
 		| ReferenceKind::InvokeSpecial
 		| ReferenceKind::InvokeInterface => {
-			let method = if ref_kind == ReferenceKind::InvokeInterface {
+			let interface_resolution = ref_kind == ReferenceKind::InvokeInterface
+				|| (defining_class.is_interface()
+					&& (ref_kind == ReferenceKind::InvokeStatic
+						|| ref_kind == ReferenceKind::InvokeSpecial));
+
+			let method = if interface_resolution {
 				defining_class.resolve_interface_method(name, descriptor)?
 			} else {
 				defining_class.resolve_method(name, descriptor)?
@@ -293,6 +298,8 @@ fn init_member_name(member_name: ClassInstanceRef, member: FieldOrMethod) {
 			todo!()
 		},
 		FieldOrMethod::Method(method) => {
+			flags |= jint::from(method.access_flags.as_u2());
+
 			if method.is_constructor() {
 				flags |= MethodHandleNatives::MN_IS_CONSTRUCTOR;
 				flags |= (ReferenceKind::NewInvokeSpecial as jint)
