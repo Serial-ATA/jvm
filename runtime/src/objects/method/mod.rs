@@ -559,6 +559,8 @@ fn field_type_mirror(class: ClassPtr, ty: &FieldType) -> Throws<MirrorInstanceRe
 impl Method {
 	/// Convert a C-style array of values into a vector of [`Operand`]s
 	///
+	/// NOTE: This will *not* create empty operands for category 2 types.
+	///
 	/// # Safety
 	///
 	/// See [`Self::args_for_va_list()`]
@@ -597,12 +599,10 @@ impl Method {
 				FieldType::Long => {
 					let val = unsafe { val.j };
 					parameters.push(Operand::from(val));
-					parameters.push(Operand::Empty);
 				},
 				FieldType::Double => {
 					let val = unsafe { val.d };
 					parameters.push(Operand::from(val));
-					parameters.push(Operand::Empty);
 				},
 				FieldType::Float => {
 					let val = unsafe { val.f };
