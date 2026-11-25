@@ -124,7 +124,7 @@ impl Class {
 		// If S is a class type, then:
 		//
 		//     If T is a class type, then S must be the same class as T, or S must be a subclass of T;
-		if !T_class.is_interface() && !T_class.is_array() {
+		if !S_class.is_array() && !T_class.is_interface() && !T_class.is_array() {
 			if S_class == T_class {
 				return true;
 			}
