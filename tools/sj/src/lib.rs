@@ -85,6 +85,12 @@ fn main(args: cli::Args) -> Result<i32> {
 
 	let (vm, env) = native::init_java_vm(args.options)?;
 
+	let launcher_helper = handle_error!((vm) native::LauncherHelper::new(env));
+
+	if let Some(show_settings_opt) = args.hotspot_options.show_settings {
+		handle_error!((vm) launcher_helper.show_settings(env, false, &show_settings_opt));
+	}
+
 	if let Some(version) = args.version {
 		let use_stderr;
 		let exit;
@@ -115,8 +121,6 @@ fn main(args: cli::Args) -> Result<i32> {
 	}
 
 	// Load the main class
-	let launcher_helper = handle_error!((vm) native::LauncherHelper::new(env));
-
 	let launch_target = args.launch_target.as_ref().expect("launch_target");
 	let launch_mode = launch_target.mode();
 

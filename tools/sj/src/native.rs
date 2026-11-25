@@ -119,4 +119,29 @@ impl LauncherHelper {
 
 		Ok(main_class)
 	}
+
+	/// Call `sun.launcher.LauncherHelper#showSettings` with the given `opt` string.
+	pub fn show_settings(&self, env: JniEnv, use_stderr: bool, opt: &str) -> Result<()> {
+		// TODO
+		let initial_heap_size = 0;
+		let max_heap_size = 0;
+		let stack_size = 0;
+
+		let method =
+			env.get_static_method_id(self.0, "showSettings", "(ZLjava/lang/String;JJJ)V")?;
+		let opt_string = env.new_string_utf(opt)?;
+		env.call_static_void_method(
+			self.0,
+			method,
+			[
+				JValue::Boolean(use_stderr),
+				JValue::Object(opt_string.into()),
+				JValue::Long(initial_heap_size),
+				JValue::Long(max_heap_size),
+				JValue::Long(stack_size),
+			],
+		)?;
+
+		Ok(())
+	}
 }

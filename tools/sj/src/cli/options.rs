@@ -5,6 +5,16 @@ use std::iter::Peekable;
 use std::sync::LazyLock;
 
 pub trait CliOption: Send + Sync + 'static {
+	/// Whether the option's name can contain multiple parts
+	///
+	/// Hotspot-style extra options can contain multiple parts (e.g., `-XshowSettings`/`-XshowSettings:all`/...).
+	///
+	/// If this is true, we'll just treat the [`variants`](Self::variants()) as prefixes, rather than
+	/// absolute strings.
+	fn multipart(&self) -> bool {
+		false
+	}
+
 	/// All possible variants of this flag (long and short)
 	fn variants(&self) -> &'static [&'static str];
 
@@ -50,7 +60,13 @@ impl Options {
 	pub fn find(&self, opt: &str) -> Option<&dyn CliOption> {
 		self.options
 			.iter()
-			.find(|o| o.variants().contains(&opt))
+			.find(|o| {
+				if o.multipart() {
+					o.variants().iter().any(|v| opt.starts_with(v))
+				} else {
+					o.variants().contains(&opt)
+				}
+			})
 			.map(|v| &**v)
 	}
 }
@@ -66,6 +82,8 @@ pub static OPTIONS: LazyLock<Options> = LazyLock::new(|| Options {
 		Box::new(ClassPath),
 		Box::new(DryRun),
 		Box::new(Jar),
+		// Hotspot-compat stuff
+		Box::new(ShowSettings),
 	],
 });
 
@@ -292,6 +310,32 @@ impl CliOption for Jar {
 		};
 
 		args.launch_target = Some(LaunchTarget::Jar(jar_file));
+		Ok(())
+	}
+}
+
+pub struct ShowSettings;
+
+impl CliOption for ShowSettings {
+	fn multipart(&self) -> bool {
+		true
+	}
+
+	fn variants(&self) -> &'static [&'static str] {
+		&["-XshowSettings"]
+	}
+
+	fn doc_short(&self) -> &'static str {
+		"Show settings and continue"
+	}
+
+	fn act(
+		&self,
+		variant: String,
+		_: &mut Peekable<std::vec::IntoIter<String>>,
+		args: &mut Args,
+	) -> Result<(), Error> {
+		args.hotspot_options.show_settings = Some(variant);
 		Ok(())
 	}
 }

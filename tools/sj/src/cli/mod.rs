@@ -47,12 +47,20 @@ impl LaunchTarget {
 	}
 }
 
+/// Hotspot-style options
+#[derive(Default)]
+pub struct HotspotOptions {
+	/// -XshowSettings
+	pub show_settings: Option<String>,
+}
+
 #[derive(Default)]
 pub struct Args {
 	pub help: Option<HelpFlag>,
 	pub version: Option<VersionFlag>,
 	pub dry_run: bool,
 	pub options: JVMOptions,
+	pub hotspot_options: HotspotOptions,
 	pub launch_target: Option<LaunchTarget>,
 	pub args: Vec<String>,
 }
