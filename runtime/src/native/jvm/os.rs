@@ -18,12 +18,13 @@ pub extern "C" fn JVM_FreeMemory() -> jlong {
 
 #[jni_call(no_env)]
 pub extern "C" fn JVM_MaxMemory() -> jlong {
-	todo!()
+	// TODO: -Xmx
+	jlong::MAX
 }
 
 #[jni_call(no_env)]
 pub extern "C" fn JVM_ActiveProcessorCount() -> jint {
-	todo!()
+	num_cpus::get() as jint
 }
 
 #[jni_call(no_env)]
