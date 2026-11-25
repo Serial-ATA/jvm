@@ -98,7 +98,6 @@ pub(crate) mod java {
 		pub(crate) mod Throwable;
 		pub(crate) mod Thread;
 		pub(crate) mod String;
-		pub(crate) mod Class;
 	}
 }
 

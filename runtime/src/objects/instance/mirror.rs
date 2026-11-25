@@ -7,12 +7,13 @@ use crate::objects::instance::{Header, Instance};
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
-use classfile::FieldType;
-use instructions::Operand;
-use jni::sys::{jchar, jint};
-
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
+
+use classfile::FieldType;
+use classfile::accessflags::ClassAccessFlags;
+use instructions::Operand;
+use jni::sys::{jchar, jint};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MirrorTarget {
@@ -193,7 +194,21 @@ impl MirrorInstance {
 		let fields_size = descriptor.static_field_offset + target.size_of_static_fields();
 		let instance_ptr = unsafe { MirrorInstanceRef::allocate(descriptor, fields_size) };
 
-		MirrorInstanceRef::new(instance_ptr, target, target.access_flags().as_u2(), false)
+		let mut modifiers = target.access_flags().as_u2();
+		if let Some(inner_classes) = target.unwrap_class_instance().inner_classes() {
+			for inner_class in inner_classes {
+				if inner_class
+					.inner_class_name
+					.is_some_and(|name| name == target.name())
+				{
+					// Dealing with a member class
+					modifiers = inner_class.inner_class_access_flags;
+					break;
+				}
+			}
+		}
+
+		MirrorInstanceRef::new(instance_ptr, target, modifiers, false)
 	}
 
 	pub fn new_array(target: ClassPtr) -> MirrorInstanceRef {
@@ -256,8 +271,11 @@ impl MirrorInstance {
 		let fields_size = mirror_class.size_of_instance_fields();
 		let instance_ptr = unsafe { MirrorInstanceRef::allocate(descriptor, fields_size) };
 
-		// TODO: Are these modifiers correct?
-		let ret = MirrorInstanceRef::new(instance_ptr, target_class, 1, true);
+		let modifiers = (ClassAccessFlags::ACC_ABSTRACT
+			| ClassAccessFlags::ACC_FINAL
+			| ClassAccessFlags::ACC_PUBLIC)
+			.as_u2();
+		let ret = MirrorInstanceRef::new(instance_ptr, target_class, modifiers, true);
 		ret
 	}
 

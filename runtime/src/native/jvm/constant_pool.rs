@@ -1,14 +1,42 @@
 #![native_macros::jni_fn_module]
 
+use crate::classes;
+use crate::native::jni::references::JObjectExt;
+use crate::objects::reference::Reference;
+use crate::thread::JavaThread;
+use crate::thread::exceptions::Throws;
+
+use std::ffi::{c_char, c_int, c_uchar};
+
 use jni::env::JniEnv;
 use jni::objects::{JClass, JObject, JObjectArray, JString};
 use jni::sys::{jbyte, jdouble, jfloat, jint, jlong};
 use native_macros::jni_call;
-use std::ffi::{c_char, c_int, c_uchar};
 
 #[jni_call]
-pub extern "C" fn JVM_GetClassConstantPool(_env: JniEnv, _class: JClass) -> JObject {
-	todo!()
+pub extern "C" fn JVM_GetClassConstantPool(env: JniEnv, class: JClass) -> JObject {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let this = unsafe { class.to_reference() }.expect("invalid class reference");
+	let this = this.extract_mirror();
+
+	// not applicable for primitives or arrays
+	if this.is_primitive() || this.is_array() {
+		return JObject::null();
+	}
+
+	let constant_pool =
+		match classes::jdk::internal::reflect::ConstantPool::new(this.target_class(), thread) {
+			Throws::Ok(cp) => cp,
+			Throws::Exception(e) => {
+				e.throw(thread);
+				return JObject::null();
+			},
+		};
+
+	thread
+		.jni_refs()
+		.allocate_wrapped(Reference::class(constant_pool))
 }
 
 #[jni_call]

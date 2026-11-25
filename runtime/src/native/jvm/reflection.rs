@@ -1,12 +1,19 @@
 #![native_macros::jni_fn_module]
 
-use crate::classes;
 use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
 use crate::native::RawSymbolExt;
+use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::references::JObjectExt;
+use crate::objects::class::ClassPtr;
+use crate::objects::instance::array::{Array, ObjectArrayInstance, ObjectArrayInstanceRef};
+use crate::objects::instance::class::ClassInstanceRef;
+use crate::objects::instance::mirror::MirrorInstanceRef;
+use crate::objects::method::Method;
+use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
-use crate::thread::exceptions::{Throws, handle_exception, throw_with_ret};
+use crate::thread::exceptions::{Throws, handle_exception, throw, throw_with_ret};
+use crate::{classes, globals};
 
 use std::ffi::{CStr, c_char, c_int};
 
@@ -21,6 +28,20 @@ const MN_NESTMATE_CLASS: s4 = 0x0000_0001;
 const MN_HIDDEN_CLASS: s4 = 0x0000_0002;
 const MN_STRONG_LOADER_LINK: s4 = 0x0000_0004;
 const MN_ACCESS_VM_ANNOTATIONS: s4 = 0x0000_0008;
+
+/// Ensure that the mirror instance is not primitive or an array
+pub(super) fn ensure_class_mirror(this: Reference) -> Throws<Option<MirrorInstanceRef>> {
+	if this.is_null() {
+		throw!(@DEFER NullPointerException);
+	}
+
+	let mirror = this.extract_mirror();
+	if mirror.is_primitive() || mirror.is_array() {
+		return Throws::Ok(None);
+	}
+
+	Throws::Ok(Some(mirror))
+}
 
 #[jni_call]
 pub extern "C" fn JVM_GetCallerClass(env: JniEnv) -> JClass {
@@ -70,8 +91,24 @@ pub extern "C" fn JVM_GetCallerClass(env: JniEnv) -> JClass {
 }
 
 #[jni_call(no_strict_types)]
-pub extern "C" fn JVM_FindPrimitiveClass(_env: JniEnv, _utf: *const c_char) -> JClass {
-	todo!()
+pub extern "C" fn JVM_FindPrimitiveClass(env: JniEnv, utf: *const c_char) -> JClass {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let name_c = unsafe { CStr::from_ptr(utf) };
+	for (name, ty) in crate::globals::PRIMITIVE_TYPE_NAMES_TO_FIELD_TYPES {
+		if name_c.to_bytes() == name.as_bytes() {
+			let ret = crate::globals::mirrors::primitive_mirror_for(ty);
+			return thread.jni_refs().allocate_wrapped(ret.extract_mirror());
+		}
+	}
+
+	throw_with_ret!(
+		JClass::null(),
+		thread,
+		ClassNotFoundException,
+		"{}",
+		name_c.to_string_lossy()
+	);
 }
 
 /// Despite the name, this will actually *load* a class if necessary. We also discard any exceptions
@@ -92,12 +129,34 @@ pub extern "C" fn JVM_FindClassFromBootLoader(env: JniEnv, name: *const c_char) 
 
 #[jni_call(no_strict_types)]
 pub extern "C" fn JVM_FindClassFromLoader(
-	_env: JniEnv,
-	_name: *const c_char,
-	_init: jboolean,
-	_loader: JObject,
+	env: JniEnv,
+	name: *const c_char,
+	init: jboolean,
+	loader: JObject,
 ) -> JClass {
-	todo!()
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let loader = unsafe { loader.to_reference_maybe_null() };
+	if name.is_null() {
+		throw_with_ret!(JClass::null(), thread, NullPointerException);
+	}
+
+	let name_c = unsafe { CStr::from_ptr(name) };
+	let Ok(binary_name) = unicode::decode(name_c.to_bytes()) else {
+		throw_with_ret!(JClass::null(), thread, IllegalArgumentException);
+	};
+
+	let internal_name = binary_name.replace('.', "/");
+	let internal_name_sym = Symbol::intern(internal_name);
+
+	let loader = ClassLoaderSet::find_or_add(loader, false);
+	let class: ClassPtr = handle_exception!(JClass::null(), thread, loader.load(internal_name_sym));
+
+	if init {
+		handle_exception!(JClass::null(), thread, class.initialize(thread));
+	}
+
+	thread.jni_refs().allocate_wrapped(class)
 }
 
 #[jni_call(no_strict_types)]
@@ -336,23 +395,62 @@ pub extern "C" fn JVM_FindLoadedClass(env: JniEnv, loader: JObject, name: JStrin
 }
 
 #[jni_call]
-pub extern "C" fn JVM_InitClassName(_env: JniEnv, _class: JClass) -> JString {
-	todo!()
+pub extern "C" fn JVM_InitClassName(env: JniEnv, class: JClass) -> JString {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let this = unsafe { class.to_reference() }.expect("invalid class reference");
+	let this_mirror = this.extract_mirror();
+	let this_mirror_target = this_mirror.target_class();
+
+	let this_name = this_mirror_target.name();
+	let this_binary_name = this_name.as_str().replace('/', ".");
+	let name_string = StringInterner::intern(&*this_binary_name);
+
+	classes::java::lang::Class::set_name(this_mirror, Reference::class(name_string));
+
+	let ptr = thread
+		.jni_refs()
+		.allocate_wrapped(Reference::class(name_string));
+	unsafe { JString::from_raw(ptr.raw()) }
 }
 
 #[jni_call]
-pub extern "C" fn JVM_GetClassInterfaces(_env: JniEnv, _class: JClass) -> JObjectArray {
-	todo!()
+pub extern "C" fn JVM_GetClassInterfaces(env: JniEnv, class: JClass) -> JObjectArray {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let class = unsafe { class.to_reference() }.expect("invalid class reference");
+	let mirror = class.extract_mirror();
+
+	let target_class = mirror.target_class();
+	let interfaces = target_class.interfaces();
+
+	let interfaces_array =
+		ObjectArrayInstance::new(interfaces.len() as s4, globals::classes::java_lang_Class());
+	let interfaces_array: ObjectArrayInstanceRef =
+		handle_exception!(JObjectArray::null(), thread, interfaces_array);
+
+	for (index, interface) in interfaces.iter().enumerate() {
+		// SAFETY: interfaces_array.len() is guaranteed to equal interfaces.len()
+		unsafe {
+			interfaces_array.store_unchecked(index, Reference::mirror(interface.mirror()));
+		}
+	}
+
+	thread.jni_refs().allocate_wrapped(interfaces_array)
 }
 
 #[jni_call]
-pub extern "C" fn JVM_IsInterface(_env: JniEnv, _class: JClass) -> jboolean {
-	todo!()
+pub extern "C" fn JVM_IsInterface(_env: JniEnv, class: JClass) -> jboolean {
+	let this = unsafe { class.to_reference() }.expect("invalid class reference");
+	this.extract_target_class().is_interface()
 }
 
 #[jni_call]
-pub extern "C" fn JVM_IsHiddenClass(_env: JniEnv, _class: JClass) -> jboolean {
-	todo!()
+pub extern "C" fn JVM_IsHiddenClass(_env: JniEnv, class: JClass) -> jboolean {
+	let class = unsafe { class.to_reference() }.expect("invalid class reference");
+
+	let mirror = class.extract_mirror();
+	mirror.target_class().is_hidden()
 }
 
 #[jni_call]
@@ -366,13 +464,94 @@ pub extern "C" fn JVM_GetDeclaredClasses(_env: JniEnv, _class: JClass) -> JObjec
 }
 
 #[jni_call]
-pub extern "C" fn JVM_GetDeclaringClass(_env: JniEnv, _class: JClass) -> JClass {
-	todo!()
+pub extern "C" fn JVM_GetDeclaringClass(env: JniEnv, class: JClass) -> JClass {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let this = unsafe { class.to_reference() }.expect("invalid class reference");
+	let Some(mirror) = handle_exception!(JClass::null(), thread, ensure_class_mirror(this)) else {
+		return JClass::null();
+	};
+
+	let target_class = mirror.target_class();
+	let target_class_descriptor = target_class.unwrap_class_instance();
+	let Some(inner_classes) = target_class_descriptor.inner_classes() else {
+		// No InnerClasses attribute
+		return JClass::null();
+	};
+
+	let mut declaring_class = Reference::null();
+	for inner_class in inner_classes {
+		if inner_class.inner_class != target_class.name() {
+			continue;
+		}
+
+		match inner_class.outer_class {
+			Some(outer) => {
+				let outer: ClassPtr =
+					handle_exception!(JClass::null(), thread, target_class.loader().load(outer));
+
+				if outer.is_array() {
+					throw_with_ret!(JClass::null(), thread, IncompatibleClassChangeError);
+				}
+
+				declaring_class = Reference::mirror(outer.mirror());
+			},
+			None => {
+				let Some(enclosing_method) = target_class_descriptor.enclosing_method else {
+					// Class has no immediate enclosing method/class information
+					return JClass::null();
+				};
+
+				declaring_class = Reference::mirror(enclosing_method.class.mirror());
+			},
+		}
+
+		break;
+	}
+
+	if declaring_class.is_null() {
+		return JClass::null();
+	}
+
+	// TODO: need to verify that outer class actually declared the inner class
+	thread
+		.jni_refs()
+		.allocate_wrapped(declaring_class.extract_mirror())
 }
 
 #[jni_call]
-pub extern "C" fn JVM_GetSimpleBinaryName(_env: JniEnv, _class: JClass) -> JString {
-	todo!()
+pub extern "C" fn JVM_GetSimpleBinaryName(env: JniEnv, class: JClass) -> JString {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let this = unsafe { class.to_reference() }.expect("invalid class reference");
+	let Some(mirror) = handle_exception!(JString::null(), thread, ensure_class_mirror(this)) else {
+		return JString::null();
+	};
+
+	let target_class = mirror.target_class();
+	let target_class_descriptor = target_class.unwrap_class_instance();
+	let Some(inner_classes) = target_class_descriptor.inner_classes() else {
+		// No InnerClasses attribute
+		return JString::null();
+	};
+
+	for inner_class in inner_classes {
+		if inner_class.inner_class != target_class.name() {
+			continue;
+		}
+
+		if let Some(name) = inner_class.inner_class_name {
+			let ptr = thread
+				.jni_refs()
+				.allocate_wrapped(Reference::class(StringInterner::intern(name)));
+
+			return unsafe { JString::from_raw(ptr.raw()) };
+		}
+
+		break;
+	}
+
+	JString::null()
 }
 
 #[jni_call]
@@ -426,20 +605,128 @@ pub extern "C" fn JVM_GetRecordComponents(_env: JniEnv, _class: JClass) -> JObje
 
 #[jni_call]
 pub extern "C" fn JVM_GetClassDeclaredMethods(
-	_env: JniEnv,
-	_class: JClass,
-	_public_only: jboolean,
+	env: JniEnv,
+	class: JClass,
+	public_only: jboolean,
 ) -> JObjectArray {
-	todo!()
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let this = unsafe { class.to_reference() }.expect("invalid class reference");
+	let mirror = this.extract_mirror();
+
+	// Primitive and array mirrors are excluded
+	if mirror.is_array() || mirror.is_primitive() {
+		let empty_array =
+			match ObjectArrayInstance::new(0, globals::classes::java_lang_reflect_Method()) {
+				Throws::Ok(array) => array,
+				Throws::Exception(e) => {
+					e.throw(thread);
+					return JObjectArray::null();
+				},
+			};
+
+		return thread.jni_refs().allocate_wrapped(empty_array);
+	}
+
+	let target = mirror.target_class();
+
+	let methods = target
+		.vtable()
+		.iter_local()
+		.filter(|method| {
+			let matches_visibility = if public_only {
+				method.is_public()
+			} else {
+				true
+			};
+			!method.is_clinit() && !method.is_constructor() && matches_visibility
+		})
+		.collect::<Vec<_>>();
+
+	let ret = match ObjectArrayInstance::new(
+		methods.len() as s4,
+		globals::classes::java_lang_reflect_Method(),
+	) {
+		Throws::Ok(array) => array,
+		Throws::Exception(e) => {
+			e.throw(thread);
+			return JObjectArray::null();
+		},
+	};
+
+	for (index, method) in methods.iter().enumerate() {
+		let reflect_method = match classes::java::lang::reflect::Method::new(method) {
+			Throws::Ok(method) => method,
+			Throws::Exception(e) => {
+				e.throw(thread);
+				return JObjectArray::null();
+			},
+		};
+
+		// SAFETY: We can't go outside the bounds, `ret` was initialized to the right size
+		unsafe {
+			ret.store_unchecked(index, Reference::class(reflect_method));
+		}
+	}
+
+	thread.jni_refs().allocate_wrapped(ret)
 }
 
 #[jni_call]
 pub extern "C" fn JVM_GetClassDeclaredConstructors(
-	_env: JniEnv,
-	_class: JClass,
-	_public_only: jboolean,
+	env: JniEnv,
+	class: JClass,
+	public_only: jboolean,
 ) -> JObjectArray {
-	todo!()
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let this = unsafe { class.to_reference() }.expect("invalid class reference");
+	let this_mirror = this.extract_mirror();
+
+	// Not applicable for primitive and array mirrors
+	if this_mirror.is_primitive() || this_mirror.is_array() {
+		let ret = handle_exception!(
+			JObjectArray::null(),
+			thread,
+			ObjectArrayInstance::new(0, globals::classes::java_lang_reflect_Constructor())
+		);
+		return thread.jni_refs().allocate_wrapped(ret);
+	}
+
+	let target = this_mirror.target_class();
+	let constructors = target
+		.vtable()
+		.iter_local()
+		.filter(|method| {
+			if !method.is_public() && public_only {
+				return false;
+			}
+
+			method.name == sym!(object_initializer_name)
+		})
+		.collect::<Vec<&'static Method>>();
+
+	let ret: ObjectArrayInstanceRef = handle_exception!(
+		JObjectArray::null(),
+		thread,
+		ObjectArrayInstance::new(
+			constructors.len() as jint,
+			globals::classes::java_lang_reflect_Constructor()
+		)
+	);
+
+	for (i, constructor) in constructors.into_iter().enumerate() {
+		let constructor: ClassInstanceRef = handle_exception!(
+			JObjectArray::null(),
+			thread,
+			classes::java::lang::reflect::Constructor::new(constructor)
+		);
+
+		// SAFETY: The array is known to have the correct length
+		unsafe { ret.store_unchecked(i, Reference::class(constructor)) };
+	}
+
+	thread.jni_refs().allocate_wrapped(ret)
 }
 
 #[jni_call]

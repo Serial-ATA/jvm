@@ -1,10 +1,19 @@
 #![native_macros::jni_fn_module]
 
+use crate::native::java::lang::String::StringInterner;
+use crate::native::jni::references::JObjectExt;
+use crate::native::jvm::reflection::ensure_class_mirror;
+use crate::objects::instance::array::{Array, ObjectArrayInstance, ObjectArrayInstanceRef};
+use crate::objects::reference::Reference;
+use crate::thread::JavaThread;
+use crate::thread::exceptions::handle_exception;
+
+use std::ffi::{c_char, c_int, c_uchar, c_ushort};
+
 use jni::env::JniEnv;
 use jni::objects::{JClass, JObject, JObjectArray};
 use jni::sys::{jboolean, jint};
 use native_macros::jni_call;
-use std::ffi::{c_char, c_int, c_uchar, c_ushort};
 
 #[jni_call]
 pub extern "C" fn JVM_InvokeMethod(
@@ -135,7 +144,55 @@ pub extern "C" fn JVM_GetMethodIxSignatureUTF(
 	todo!()
 }
 
+// Returns Object[3] where:
+//
+// [0]: The class holding the enclosing method (not null, java.lang.Class<?>)
+// [1]: The enclosing method's name (nullable, java.lang.String)
+// [2]: The enclosing method's descriptor (nullable. java.lang.String)
 #[jni_call]
-pub extern "C" fn JVM_GetEnclosingMethodInfo(_env: JniEnv, _class: JClass) -> JObjectArray {
-	todo!()
+pub extern "C" fn JVM_GetEnclosingMethodInfo(env: JniEnv, class: JClass) -> JObjectArray {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let this = unsafe { class.to_reference() }.expect("invalid class reference");
+	let Some(mirror) = handle_exception!(JObjectArray::null(), thread, ensure_class_mirror(this))
+	else {
+		return JObjectArray::null();
+	};
+
+	let array = ObjectArrayInstance::new(3, crate::globals::classes::java_lang_Object());
+	let array_instance: ObjectArrayInstanceRef =
+		handle_exception!(JObjectArray::null(), thread, array);
+
+	let target_class = mirror.target_class();
+
+	let Some(enclosing_method) = target_class.unwrap_class_instance().enclosing_method else {
+		// Class has no immediate enclosing method/class information
+		return JObjectArray::null();
+	};
+
+	let enclosing_class = enclosing_method.class;
+
+	// SAFETY: We know that the array has a length of 3
+	unsafe {
+		array_instance.store_unchecked(0, Reference::mirror(enclosing_class.mirror()));
+	}
+
+	let Some(enclosing_method) = enclosing_method.method else {
+		// There is no immediate enclosing method
+		return thread.jni_refs().allocate_wrapped(array_instance);
+	};
+
+	unsafe {
+		array_instance.store_unchecked(
+			1,
+			Reference::class(StringInterner::intern(enclosing_method.name)),
+		);
+
+		array_instance.store_unchecked(
+			2,
+			Reference::class(StringInterner::intern(enclosing_method.descriptor_sym())),
+		);
+	}
+
+	thread.jni_refs().allocate_wrapped(array_instance)
 }

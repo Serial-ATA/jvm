@@ -1,5 +1,7 @@
 use crate::objects::class::ClassPtr;
 use crate::objects::field::Field;
+use crate::objects::instance::array::ObjectArrayInstanceRef;
+use crate::objects::instance::mirror::MirrorInstanceRef;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
@@ -15,7 +17,7 @@ use ::jni::objects::{
 };
 use ::jni::sys::{JNI_ERR, JNI_OK, JNIEnv, jfieldID, jint, jmethodID, jobject};
 use common::sync::ForceSendSync;
-use jni::sys::jclass;
+use jni::sys::{jclass, jobjectArray};
 
 /// Types that can be converted into JNI objects
 pub trait JniObjectType {
@@ -80,6 +82,50 @@ impl JniObjectType for ClassPtr {
 
 	fn null() -> Self::JniTarget {
 		unreachable!("null class pointers should never exist")
+	}
+}
+
+impl JniObjectType for MirrorInstanceRef {
+	type JniTarget = jclass;
+	type JniSafeWrapper = JClass;
+
+	fn ptr(self) -> Option<NonNull<()>> {
+		<Reference as JniObjectType>::ptr(Reference::mirror(self))
+	}
+
+	fn from_ptr(ptr: *mut *mut ()) -> Self::JniTarget {
+		ptr as Self::JniTarget
+	}
+
+	fn wrap(raw: Self::JniTarget) -> Self::JniSafeWrapper {
+		debug_assert!(!raw.is_null());
+		unsafe { JClass::from_raw(raw) }
+	}
+
+	fn null() -> Self::JniTarget {
+		unreachable!("null mirror pointers should never exist")
+	}
+}
+
+impl JniObjectType for ObjectArrayInstanceRef {
+	type JniTarget = jobjectArray;
+	type JniSafeWrapper = JObjectArray;
+
+	fn ptr(self) -> Option<NonNull<()>> {
+		<Reference as JniObjectType>::ptr(Reference::object_array(self))
+	}
+
+	fn from_ptr(ptr: *mut *mut ()) -> Self::JniTarget {
+		ptr as Self::JniTarget
+	}
+
+	fn wrap(raw: Self::JniTarget) -> Self::JniSafeWrapper {
+		debug_assert!(!raw.is_null());
+		unsafe { JObjectArray::from_raw(raw) }
+	}
+
+	fn null() -> Self::JniTarget {
+		std::ptr::null_mut() as Self::JniTarget
 	}
 }
 

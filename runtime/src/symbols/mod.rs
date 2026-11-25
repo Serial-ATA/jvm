@@ -299,6 +299,7 @@ vm_symbols::define_symbols! {
 	linkMethodHandleConstant_signature: "(Ljava/lang/Class;ILjava/lang/Class;Ljava/lang/String;Ljava/lang/Object;)Ljava/lang/invoke/MethodHandle;",
 	ClassLoader_class_string_string_long_signature: "(Ljava/lang/ClassLoader;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)J",
 	Throwable_signature: "()Ljava/lang/Throwable;",
+	String_Class_signature: "(Ljava/lang/String;)Ljava/lang/Class;",
 
 	Boolean_valueOf_signature: "(Z)Ljava/lang/Boolean;",
 	Integer_valueOf_signature: "(I)Ljava/lang/Integer;",
