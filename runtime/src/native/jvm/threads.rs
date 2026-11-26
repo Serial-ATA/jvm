@@ -80,8 +80,12 @@ pub extern "C" fn JVM_SleepNanos(_env: JniEnv, _class: JClass, _nanos: jlong) {
 }
 
 #[jni_call]
-pub extern "C" fn JVM_CurrentCarrierThread(_env: JniEnv, _class: JClass) -> JObject {
-	todo!()
+pub extern "C" fn JVM_CurrentCarrierThread(env: JniEnv, _class: JClass) -> JObject {
+    let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+    assert_eq!(thread.env(), env);
+
+    let obj = thread.obj().expect("current thread should exist");
+    thread.jni_refs().allocate_wrapped(obj)
 }
 
 #[jni_call]
