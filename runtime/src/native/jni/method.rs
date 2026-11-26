@@ -70,6 +70,16 @@ macro_rules! define_call_methods {
 				methodID: jmethodID,
 				args: ...
 			) -> $jni_ty {
+                unsafe { [<Call $ty MethodV>](env, obj, methodID, args) }
+			}
+
+			#[unsafe(no_mangle)]
+			pub unsafe extern "system" fn [<Call $ty MethodV>](
+				env: *mut JNIEnv,
+				obj: jobject,
+				methodID: jmethodID,
+				args: VaList<'_>,
+			) -> $jni_ty {
 				let thread = JavaThread::current();
 				assert_eq!(thread.env().raw(), env);
 
@@ -85,16 +95,6 @@ macro_rules! define_call_methods {
 				};
 
 				unsafe { convert_operand(thread, ret).$ty_code }
-			}
-
-			#[unsafe(no_mangle)]
-			pub unsafe extern "system" fn [<Call $ty MethodV>](
-				env: *mut JNIEnv,
-				obj: jobject,
-				methodID: jmethodID,
-				args: VaList<'_>,
-			) -> $jni_ty {
-				unimplemented!("jni::{}", stringify!([<Call $ty MethodV>]));
 			}
 
 			#[unsafe(no_mangle)]
@@ -152,9 +152,9 @@ macro_rules! define_call_methods {
 				env: *mut JNIEnv,
 				clazz: jclass,
 				methodID: jmethodID,
-				_: ...
+				args: ...
 			) -> $jni_ty {
-				unimplemented!("jni::{}", stringify!([<CallStatic $ty Method>]));
+				unsafe { [<CallStatic $ty MethodV>](env, clazz, methodID, args) }
 			}
 
 			#[unsafe(no_mangle)]
