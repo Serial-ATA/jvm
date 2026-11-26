@@ -71,7 +71,7 @@ pub extern "C" fn JVM_SetThreadPriority(_env: JniEnv, this: JObject, priority: j
 
 #[jni_call]
 pub extern "C" fn JVM_Yield(_env: JniEnv, _class: JClass) {
-	todo!()
+	std::thread::yield_now();
 }
 
 #[jni_call]
@@ -81,11 +81,11 @@ pub extern "C" fn JVM_SleepNanos(_env: JniEnv, _class: JClass, _nanos: jlong) {
 
 #[jni_call]
 pub extern "C" fn JVM_CurrentCarrierThread(env: JniEnv, _class: JClass) -> JObject {
-    let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-    assert_eq!(thread.env(), env);
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
 
-    let obj = thread.obj().expect("current thread should exist");
-    thread.jni_refs().allocate_wrapped(obj)
+	let obj = thread.obj().expect("current thread should exist");
+	thread.jni_refs().allocate_wrapped(obj)
 }
 
 #[jni_call]

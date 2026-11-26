@@ -89,7 +89,6 @@ pub(crate) mod java {
 		pub(crate) mod StringBuilder;
 		pub(crate) mod StringUTF16;
 		pub(crate) mod Throwable;
-		pub(crate) mod Thread;
 		pub(crate) mod String;
 	}
 }
