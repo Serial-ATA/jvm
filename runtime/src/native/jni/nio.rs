@@ -15,8 +15,46 @@
 //! If a JVM does not support such access then the `NewDirectByteBuffer` and `GetDirectBufferAddress` functions must always return `NULL`, and the `GetDirectBufferCapacity` function must always return -1.
 //! If a JVM does support such access then these three functions must be implemented to return the appropriate values.
 
+use crate::classpath::loader::ClassLoader;
+use crate::native::jni::references::JObjectExt;
+use crate::symbols::sym;
+use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, throw_with_ret};
+use crate::{classes, globals};
+
 use core::ffi::c_void;
+use std::sync::OnceLock;
+
 use jni::sys::{JNIEnv, jlong, jobject};
+
+fn init(thread: &'static JavaThread) -> bool {
+	static ONCE: OnceLock<bool> = OnceLock::new();
+
+	*ONCE.get_or_init(|| {
+		fn inner(thread: &'static JavaThread) -> Throws<()> {
+			let class = ClassLoader::bootstrap().load(sym!(sun_nio_ch_DirectBuffer))?;
+			unsafe {
+				globals::classes::set_sun_nio_ch_DirectBuffer(class);
+			}
+
+			let class = ClassLoader::bootstrap().load(sym!(java_nio_Buffer))?;
+			unsafe {
+				globals::classes::set_java_nio_Buffer(class);
+				classes::java::nio::Buffer::init_offsets();
+			}
+
+			Throws::Ok(())
+		}
+
+		match inner(thread) {
+			Throws::Ok(_) => true,
+			Throws::Exception(e) => {
+				e.throw(thread);
+				false
+			},
+		}
+	})
+}
 
 pub extern "system" fn NewDirectByteBuffer(
 	env: *mut JNIEnv,
@@ -28,10 +66,40 @@ pub extern "system" fn NewDirectByteBuffer(
 
 #[unsafe(no_mangle)]
 pub extern "system" fn GetDirectBufferAddress(env: *mut JNIEnv, buf: jobject) -> *mut c_void {
-	unimplemented!("jni::GetDirectBufferAddress");
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	if !init(thread) {
+		return std::ptr::null_mut();
+	}
+
+	let Some(obj) = (unsafe { buf.to_reference() }) else {
+		throw_with_ret!(std::ptr::null_mut(), thread, NullPointerException);
+	};
+
+	if !obj.is_instance_of(globals::classes::sun_nio_ch_DirectBuffer()) {
+		return std::ptr::null_mut();
+	}
+
+	classes::java::nio::Buffer::address(obj.extract_class()) as *mut c_void
 }
 
 #[unsafe(no_mangle)]
 pub extern "system" fn GetDirectBufferCapacity(env: *mut JNIEnv, buf: jobject) -> jlong {
-	unimplemented!("jni::GetDirectBufferCapacity");
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+	if !init(thread) {
+		return 0;
+	}
+
+	let Some(obj) = (unsafe { buf.to_reference() }) else {
+		return -1;
+	};
+
+	if !obj.is_instance_of(globals::classes::sun_nio_ch_DirectBuffer()) {
+		return -1;
+	}
+
+	classes::java::nio::Buffer::capacity(obj.extract_class()) as jlong
 }

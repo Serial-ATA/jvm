@@ -242,6 +242,8 @@ vm_symbols::define_symbols! {
 	jdk_internal_loader_NativeLibraries: "jdk/internal/loader/NativeLibraries",
 	jdk_internal_loader_NativeLibraries_NativeLibraryImpl: "jdk/internal/loader/NativeLibraries$NativeLibraryImpl",
 	jdk_internal_reflect_Reflection: "jdk/internal/reflect/Reflection",
+	java_nio_Buffer: "java/nio/Buffer",
+	sun_nio_ch_DirectBuffer: "sun/nio/ch/DirectBuffer",
 
 	// Throwables
 	java_lang_Throwable: "java/lang/Throwable",
@@ -441,6 +443,8 @@ vm_symbols::define_symbols! {
 	handle,
 	jniVersion,
 	append,
+	capacity,
+	address,
 
 	// Injected fields
 	loader_ptr,
