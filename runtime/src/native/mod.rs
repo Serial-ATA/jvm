@@ -74,13 +74,6 @@ impl RawSymbolExt for Symbol {
 // Module marker, do not remove
 
 pub(crate) mod java {
-	pub(crate) mod io {
-		pub(crate) mod FileInputStream;
-		pub(crate) mod UnixFileSystem;
-		pub(crate) mod FileDescriptor;
-		pub(crate) mod FileSystem;
-		pub(crate) mod FileOutputStream;
-	}
 	pub(crate) mod lang {
 		pub(crate) mod invoke {
 			pub(crate) mod MethodHandleNatives;
