@@ -26,7 +26,7 @@ clean:
 
 # Run `cargo test`
 test *ARGS: debug
-    just dist --profile debug
+    just dist --profile debug --no-native-libs
     TEST_JAVA_HOME={{ DIST_DIR }} cargo +nightly -Z unstable-options test {{ ARGS }}
 
 # Run `cargo clippy`
@@ -73,5 +73,5 @@ java-debug +ARGS: debug
     just _do_java debug {{ ARGS }}
 
 _do_java PROFILE +ARGS:
-    just dist --profile {{ PROFILE }}
+    just dist --profile {{ PROFILE }} --no-native-libs
     JAVA_HOME={{ DIST_DIR }} {{ DIST_DIR / "bin" / "java" }} -Djava.home={{ DIST_DIR }} {{ ARGS }}

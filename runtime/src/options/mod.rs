@@ -5,6 +5,7 @@ mod tests;
 
 use crate::classpath::{ClassPathEntry, add_classpath_entry};
 use crate::native::jvm::system::SYSTEM_PROPERTIES;
+use crate::native::jvm::vm::PREVIEW_ENABLED;
 use crate::options::error::OptionsError;
 use crate::options::logging::{LogOptions, LogOptionsBuilder};
 
@@ -126,17 +127,16 @@ impl JvmOptions {
 				_ => {},
 			}
 
-			let val = opt_split.next().unwrap();
-
 			match key {
-				"-Djava.class.path" => {
-					for path in val.split(':') {
-						add_classpath_entry(ClassPathEntry::new(path));
-					}
-
-					system_props_guard.insert(String::from("java.class.path"), String::from(val));
+				"--enable-preview" => {
+					let _ = PREVIEW_ENABLED.set(true);
 				},
 				_ if let Some(system_prop) = key.strip_prefix("-D") => {
+					let val = opt_split.next().unwrap();
+					if system_prop == "java.class.path" {
+						add_classpath_entry(ClassPathEntry::new(val));
+					}
+
 					let key = String::from(system_prop);
 					let val = String::from(val);
 					system_props_guard.insert(key, val);

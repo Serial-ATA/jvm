@@ -1,5 +1,7 @@
 #![native_macros::jni_fn_module]
 
+use std::sync::OnceLock;
+
 use ::jni::env::JniEnv;
 use ::jni::objects::{JClass, JObject, JObjectArray};
 use ::jni::sys::{jboolean, jint, jlong};
@@ -36,9 +38,11 @@ pub extern "C" fn JVM_IsSupportedJNIVersion(version: jint) -> jboolean {
 	JniVersion::from_raw(version).is_some()
 }
 
+// Modified in `src/options/mod.rs`
+pub(crate) static PREVIEW_ENABLED: OnceLock<bool> = OnceLock::new();
 #[jni_call(no_env)]
 pub extern "C" fn JVM_IsPreviewEnabled() -> jboolean {
-	todo!()
+	*PREVIEW_ENABLED.get_or_init(|| false)
 }
 
 #[jni_call(no_env)]

@@ -20,4 +20,4 @@ mod stackwalker;
 mod strings;
 pub mod system;
 mod threads;
-mod vm;
+pub mod vm;
