@@ -1,11 +1,12 @@
 use crate::classes;
-use crate::globals::{BASE_TYPES_TO_FIELD_TYPES, PRIMITIVES};
+use crate::globals::{BASE_TYPE_SYMBOLS_TO_FIELD_TYPES, BASE_TYPES_TO_FIELD_TYPES, PRIMITIVES};
 use crate::objects::class::ClassPtr;
 use crate::objects::field::Field;
 use crate::objects::instance::object::Object;
 use crate::objects::instance::{Header, Instance};
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
+use crate::symbols::Symbol;
 
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
@@ -314,6 +315,26 @@ impl MirrorInstance {
 			MirrorTarget::Primitive(field_ty) => field_ty,
 			_ => unreachable!("only primitive mirrors should exist within primitive mirrors"),
 		}
+	}
+
+	/// Get the class name as it would appear in a method or field signature
+	///
+	/// See [`Class::as_signature()`]
+	///
+	/// NOTE: For primitive mirrors, this will return the primitive type code (e.g., `I` rather than `Ljava.lang.Integer;`).
+    ///
+    /// [`Class::as_signature()`]: crate::objects::class::Class::as_signature
+	pub fn as_signature(&self) -> Symbol {
+		if self.is_primitive() {
+			let primitive_target = self.primitive_target();
+			let (ty, _) = BASE_TYPE_SYMBOLS_TO_FIELD_TYPES
+				.iter()
+				.find(|(_, field_ty)| field_ty == primitive_target)
+				.expect("all primitives are covered");
+			return *ty;
+		}
+
+		self.target_class().as_signature()
 	}
 
 	fn target_for_primitive(primitive: &FieldType) -> ClassPtr {

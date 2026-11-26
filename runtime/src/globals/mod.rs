@@ -36,6 +36,19 @@ pub const BASE_TYPES_TO_FIELD_TYPES: &[(&str, FieldType)] = &[
 	("V", FieldType::Void),
 ];
 
+/// Same as [`BASE_TYPES_TO_FIELD_TYPES`], but with symbols
+pub const BASE_TYPE_SYMBOLS_TO_FIELD_TYPES: &[(Symbol, FieldType)] = &[
+	(sym!(bool), FieldType::Boolean),
+	(sym!(char), FieldType::Character),
+	(sym!(float), FieldType::Float),
+	(sym!(double), FieldType::Double),
+	(sym!(byte), FieldType::Byte),
+	(sym!(short), FieldType::Short),
+	(sym!(int), FieldType::Integer),
+	(sym!(long), FieldType::Long),
+	(sym!(void), FieldType::Void),
+];
+
 pub const PRIMITIVES: &[Symbol] = &[
 	sym!(bool),
 	sym!(byte),

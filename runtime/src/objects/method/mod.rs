@@ -543,12 +543,13 @@ pub fn field_type_mirror(class: ClassPtr, ty: &FieldType) -> Throws<MirrorInstan
 			Throws::Ok(class.mirror())
 		},
 		FieldType::Array(ty) => {
-			let component_field_ty = field_type_mirror(class, ty)?;
-			if component_field_ty.is_primitive() {
+			if ty.is_primitive() {
 				return Throws::Ok(globals::mirrors::primitive_array_mirror_for(
-					component_field_ty.primitive_target(),
+					ty,
 				));
 			}
+
+            let component_field_ty = field_type_mirror(class, ty)?;
 
 			let array_class_name = component_field_ty.target_class().array_class_name();
 			let array_class = class.loader().load(array_class_name)?;

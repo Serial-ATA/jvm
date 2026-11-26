@@ -134,7 +134,7 @@ pub fn resolve_member_name(
 		let descriptor_str = classes::java::lang::String::extract(type_field.extract_class());
 		descriptor = Symbol::intern(descriptor_str);
 	} else if type_field.is_instance_of(globals::classes::java_lang_Class()) {
-		descriptor = type_field.extract_target_class().as_signature();
+		descriptor = type_field.extract_mirror().as_signature();
 	} else if type_field.is_instance_of(globals::classes::java_lang_invoke_MethodType()) {
 		descriptor = method_type_signature(type_field)?;
 	} else {

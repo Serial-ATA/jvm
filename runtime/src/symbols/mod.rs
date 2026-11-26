@@ -318,6 +318,7 @@ vm_symbols::define_symbols! {
 	int: "I",
 	long: "J",
 	short: "S",
+	void: "V",
 	boolean_array: "[Z",
 	byte_array: "[B",
 	character_array: "[C",

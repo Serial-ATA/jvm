@@ -67,18 +67,9 @@ pub fn primitive_mirror_for(ty: &FieldType) -> Reference {
 }
 
 pub fn primitive_array_mirror_for(ty: &FieldType) -> MirrorInstanceRef {
-	assert!(
-		matches!(ty, FieldType::Array(_)),
-		"`Array` field type expected"
-	);
-
-	let FieldType::Array(ty) = ty else {
-		unreachable!()
-	};
-
 	assert!(ty.is_primitive());
 
-	match &**ty {
+	match ty {
 		FieldType::Byte => crate::globals::classes::byte_array().mirror(),
 		FieldType::Character => crate::globals::classes::character_array().mirror(),
 		FieldType::Double => crate::globals::classes::double_array().mirror(),
