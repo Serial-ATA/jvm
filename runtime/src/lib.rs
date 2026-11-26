@@ -17,6 +17,9 @@
 #![feature(decl_macro)]
 #![feature(panic_update_hook)]
 
+#[cfg(not(target_pointer_width = "64"))]
+compile_error!("The VM only supports 64-bit systems!");
+
 pub mod calls;
 pub mod classes;
 pub mod classpath;
