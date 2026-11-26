@@ -484,12 +484,15 @@ pub fn copyMemory0(
 	dest_offset: jlong,
 	size: jlong,
 ) {
-	debug_assert!(!src_base.is_null());
-	debug_assert!(size > 0);
+	debug_assert!(size >= 0 && src_offset >= 0 && dest_offset >= 0);
+	if size == 0 {
+		return; // Nothing to copy
+	}
+
 	let size = size as usize;
 
-	let src = unsafe { src_base.addr().offset(src_offset as isize) };
-	let dest = unsafe { dest_base.addr().offset(dest_offset as isize) };
+	let src = unsafe { src_base.field_base().add(src_offset as usize) };
+	let dest = unsafe { dest_base.field_base().add(dest_offset as usize) };
 	unsafe { src.copy_to(dest, size) };
 }
 
