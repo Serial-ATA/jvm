@@ -586,11 +586,63 @@ pub extern "C" fn JVM_GetMethodParameters(_env: JniEnv, _method: JObject) -> JOb
 
 #[jni_call]
 pub extern "C" fn JVM_GetClassDeclaredFields(
-	_env: JniEnv,
-	_class: JClass,
-	_public_only: jboolean,
+	env: JniEnv,
+	class: JClass,
+	public_only: jboolean,
 ) -> JObjectArray {
-	todo!()
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let this = unsafe { class.to_reference() }.expect("invalid class reference");
+	let mirror = this.extract_mirror();
+
+	// Primitive and array mirrors are excluded
+	if mirror.is_array() || mirror.is_primitive() {
+		let empty_array =
+			match ObjectArrayInstance::new(0, globals::classes::java_lang_reflect_Field()) {
+				Throws::Ok(array) => array,
+				Throws::Exception(e) => {
+					e.throw(thread);
+					return JObjectArray::null();
+				},
+			};
+
+		return thread.jni_refs().allocate_wrapped(empty_array);
+	}
+
+	let target = mirror.target_class();
+
+	let fields = target
+		.fields()
+		.filter(|field| !public_only || field.access_flags.is_public())
+		.collect::<Vec<_>>();
+
+	let ret = match ObjectArrayInstance::new(
+		fields.len() as s4,
+		globals::classes::java_lang_reflect_Field(),
+	) {
+		Throws::Ok(array) => array,
+		Throws::Exception(e) => {
+			e.throw(thread);
+			return JObjectArray::null();
+		},
+	};
+
+	for (index, field) in fields.iter().enumerate() {
+		let reflect_field = match classes::java::lang::reflect::Field::new(field) {
+			Throws::Ok(field) => field,
+			Throws::Exception(e) => {
+				e.throw(thread);
+				return JObjectArray::null();
+			},
+		};
+
+		// SAFETY: We can't go outside the bounds, `ret` was initialized to the right size
+		unsafe {
+			ret.store_unchecked(index, Reference::class(reflect_field));
+		}
+	}
+
+	thread.jni_refs().allocate_wrapped(ret)
 }
 
 #[jni_call]

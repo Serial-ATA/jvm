@@ -521,7 +521,10 @@ impl Method {
 	}
 }
 
-fn field_type_mirror(class: ClassPtr, ty: &FieldType) -> Throws<MirrorInstanceRef> {
+/// Attempt to get the [`MirrorInstanceRef`] for the given [`FieldType`]
+///
+/// NOTE: This may load other classes, which will be done using the `class`'s ClassLoader
+pub fn field_type_mirror(class: ClassPtr, ty: &FieldType) -> Throws<MirrorInstanceRef> {
 	match ty {
 		FieldType::Byte
 		| FieldType::Character

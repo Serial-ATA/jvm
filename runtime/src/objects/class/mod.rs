@@ -755,7 +755,7 @@ impl Class {
 	/// This should never be used outside of the ClassLoader. The resulting [`ClassRef`] needs to
 	/// be handled properly, as some fields remain uninitialized.
 	pub unsafe fn new(
-		parsed_file: ClassFile,
+		mut parsed_file: ClassFile,
 		super_class: Option<ClassPtr>,
 		super_interfaces: Vec<ClassPtr>,
 		loader: &'static ClassLoader,
@@ -947,22 +947,18 @@ impl Class {
 			.map_or(0, |f| f.offset() + f.descriptor.size());
 		let mut next_static_offset = 0;
 
-		let instance_fields = parsed_file
+		// Instance and static fields must be contiguous
+		parsed_file
 			.fields
-			.iter()
-			.filter(|f| !f.access_flags.is_static());
-		let static_fields = parsed_file
-			.fields
-			.iter()
-			.filter(|f| f.access_flags.is_static());
-		for field in instance_fields.chain(static_fields) {
+			.sort_unstable_by_key(|f| f.access_flags.is_static());
+		for field in parsed_file.fields {
 			let next_offset = if field.access_flags.is_static() {
 				&mut next_static_offset
 			} else {
 				&mut next_instance_offset
 			};
 
-			let field = Field::new(field_idx, *next_offset, class_ptr, &field, constant_pool);
+			let field = Field::new(field_idx, *next_offset, class_ptr, field, constant_pool);
 			*next_offset = field.offset() + field.descriptor.size();
 
 			fields.push(field);

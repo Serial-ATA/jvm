@@ -1,13 +1,17 @@
 use super::reference::Reference;
 use crate::objects::class::ClassPtr;
 use crate::objects::constant_pool::{ConstantPool, cp_types};
+use crate::objects::instance::array::{PrimitiveArrayInstance, PrimitiveArrayInstanceRef};
 use crate::symbols::Symbol;
 
 use std::cell::SyncUnsafeCell;
 use std::fmt::{Debug, Formatter};
 
 use classfile::accessflags::FieldAccessFlags;
+use classfile::attribute::Attribute;
 use classfile::{FieldInfo, FieldType};
+use common::array::IntoJByte;
+use common::box_slice;
 use common::int_types::u2;
 use instructions::Operand;
 
@@ -20,6 +24,7 @@ pub struct Field {
 	offset: SyncUnsafeCell<usize>,
 	pub class: ClassPtr,
 	pub access_flags: FieldAccessFlags,
+	attributes: Box<[Attribute]>,
 	pub name: Symbol,
 	pub descriptor: FieldType,
 	pub descriptor_sym: Symbol,
@@ -39,6 +44,7 @@ impl Debug for Field {
 	}
 }
 
+// Flags
 impl Field {
 	#[inline]
 	pub fn is_static(&self) -> bool {
@@ -120,7 +126,7 @@ impl Field {
 		idx: usize,
 		offset: usize,
 		class: ClassPtr,
-		field_info: &FieldInfo,
+		field_info: FieldInfo,
 		constant_pool: &ConstantPool,
 	) -> &'static Field {
 		let access_flags = field_info.access_flags;
@@ -146,6 +152,7 @@ impl Field {
 			offset: SyncUnsafeCell::new(offset),
 			class,
 			access_flags,
+			attributes: field_info.attributes,
 			name,
 			descriptor,
 			descriptor_sym,
@@ -166,6 +173,7 @@ impl Field {
 			offset: SyncUnsafeCell::new(0),
 			class,
 			access_flags: FieldAccessFlags::NONE,
+			attributes: box_slice![],
 			name,
 			descriptor,
 			descriptor_sym,
@@ -190,5 +198,25 @@ impl Field {
 				Operand::Reference(Reference::null())
 			},
 		}
+	}
+
+	pub fn generic_signature(&self) -> Option<Symbol> {
+		self.attributes
+			.iter()
+			.find_map(Attribute::signature)
+			.map(|signature_attr| {
+				self.class
+					.constant_pool()
+					.unwrap()
+					.get::<cp_types::ConstantUtf8>(signature_attr.signature_index)
+					.expect("resolution of method signatures should not fail")
+			})
+	}
+
+	pub fn annotations_array(&self) -> Option<PrimitiveArrayInstanceRef> {
+		self.attributes
+			.iter()
+			.find_map(Attribute::runtime_visible_annotations)
+			.map(|attr| PrimitiveArrayInstance::new(&*attr.as_bytes().into_jbyte_array()))
 	}
 }
