@@ -6,6 +6,7 @@ use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
+use std::collections::LinkedList;
 use std::marker::ConstParamTy;
 use std::ptr::NonNull;
 use std::sync::{LazyLock, Mutex};
@@ -201,20 +202,55 @@ const _: () = {
 	);
 };
 
-// TODO: Make the storage growable
 const CHUNK_SIZE: usize = 16384;
+
+struct Chunk {
+	slots: [Slot; CHUNK_SIZE],
+	full: bool,
+}
+
+impl Chunk {
+	/// Add an entry to the chunk
+	///
+	/// Returns a pointer to the slot and a boolean indicating whether the chunk is exhausted
+	fn push(&mut self, slot: Slot) -> (*const Slot, bool) {
+		match self.slots.iter_mut().find(|s| matches!(s, Slot::Empty)) {
+			Some(empty) => {
+				*empty = slot;
+
+				let slot_ptr = std::ptr::from_ref(empty);
+				let full = unsafe { slot_ptr.offset_from_unsigned(self.slots.as_ptr()) }
+					== (CHUNK_SIZE - 1);
+				(slot_ptr, full)
+			},
+			None => unreachable!("chunk should not be exhausted"),
+		}
+	}
+}
+
+impl Default for Chunk {
+	fn default() -> Self {
+		Self {
+			slots: [Slot::Empty; CHUNK_SIZE],
+			full: false,
+		}
+	}
+}
 
 /// A collection of active JNI object references
 pub struct JniObjectStorage<
 	const REFERENCE_TYPE: ObjectReferenceType = { ObjectReferenceType::Local },
 > {
-	references: Mutex<[Slot; CHUNK_SIZE]>,
+	references: Mutex<LinkedList<Chunk>>,
 }
 
 impl<const REFERENCE_TYPE: ObjectReferenceType> Default for JniObjectStorage<REFERENCE_TYPE> {
 	fn default() -> Self {
+		let mut list = LinkedList::new();
+		list.push_front(Chunk::default());
+
 		Self {
-			references: Mutex::new([Slot::Empty; CHUNK_SIZE]),
+			references: Mutex::new(list),
 		}
 	}
 }
@@ -232,16 +268,15 @@ impl<const REFERENCE_TYPE: ObjectReferenceType> JniObjectStorage<REFERENCE_TYPE>
 		let mut refs = self.references.lock().unwrap();
 		let slot = Slot::Occupied(ForceSendSync(target_ptr));
 
-		let target_entry = match refs.iter_mut().find(|s| matches!(s, Slot::Empty)) {
-			Some(empty) => {
-				*empty = slot;
-				empty
-			},
-			None => panic!("JNI object storage exceeded"),
-		};
+		let (target_entry, full) = refs
+			.back_mut()
+			.expect("should always have a chunk")
+			.push(slot);
+		if full {
+			refs.push_back(Chunk::default());
+		}
 
-		let new_obj_ptr =
-			(std::ptr::from_ref(target_entry) as usize | REFERENCE_TYPE as usize) as *mut *mut ();
+		let new_obj_ptr = (target_entry as usize | REFERENCE_TYPE as usize) as *mut *mut ();
 		debug_assert_eq!(split_jni_ref(new_obj_ptr).0, REFERENCE_TYPE);
 
 		T::from_ptr(new_obj_ptr)
@@ -260,10 +295,8 @@ impl<const REFERENCE_TYPE: ObjectReferenceType> JniObjectStorage<REFERENCE_TYPE>
 		let (ty, target) = split_jni_ref(obj.cast());
 		assert_eq!(ty, REFERENCE_TYPE);
 
-		let mut refs = self.references.lock().unwrap();
-		let slot = unsafe { (target as *mut Slot).offset_from_unsigned(refs.as_ptr()) };
-
-		refs[slot] = Slot::Empty;
+		let refs = self.references.lock().unwrap();
+		unsafe { std::ptr::write(target as *mut Slot, Slot::Empty) };
 	}
 }
 
