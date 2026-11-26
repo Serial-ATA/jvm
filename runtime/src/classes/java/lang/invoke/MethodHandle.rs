@@ -196,20 +196,21 @@ mod _dynamic {
 	}
 
 	pub fn link_to_virtual(frame: &mut Frame, _entry: MethodEntry) {
-		let Some((appendix, target_method)) = appendix_and_target_method(frame) else {
+		let Some((_appendix, target_method)) = appendix_and_target_method(frame) else {
 			return;
 		};
 
 		let receiver = frame
-			.at(target_method.parameter_stack_size() as u2)
+			// -1 since we popped the appendix
+			.at((target_method.parameter_stack_size() - 1) as u2)
 			.expect_reference();
 		if receiver.is_null() {
 			throw!(frame.thread(), NullPointerException);
 		}
 
-		let vmindex = classes::java::lang::invoke::MemberName::vmindex(appendix);
-		let target_method = &receiver.extract_target_class().vtable()[vmindex as usize];
+		let class = receiver.extract_instance_class();
+		let target_method = class.select_method(target_method);
 
-		frame.tail(target_method);
+		do_invoke(frame, target_method);
 	}
 }
