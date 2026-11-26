@@ -109,6 +109,7 @@ tags! {
 		Class = "class",
 		Init = "init",
 		Exceptions = "exceptions",
+		Library = "library",
 	}
 }
 
