@@ -7,8 +7,9 @@ use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 
-use std::alloc::Layout;
+use std::alloc::{AllocError, Layout};
 use std::marker::PhantomData;
+use std::ptr::NonNull;
 use std::sync::atomic::Ordering;
 
 use ::jni::env::JniEnv;
@@ -435,16 +436,70 @@ pub fn fullFence(
 	std::sync::atomic::fence(Ordering::SeqCst);
 }
 
+/// Allocator used in `{allocate,reallocate,free}Memory0`
+struct UnsafeAllocator;
+
+impl UnsafeAllocator {
+	const HEADER_LAYOUT: Layout = {
+        let Ok(layout) = Layout::new::<usize>().align_to(Self::ALIGNMENT) else {
+            panic!();
+        };
+
+        layout
+    };
+    const ALIGNMENT: usize = align_of::<libc::max_align_t>();
+
+	fn allocate(&self, size: usize) -> Result<NonNull<u8>, AllocError> {
+		let layout = Layout::from_size_align(size, Self::ALIGNMENT)
+			.map_err(|_| AllocError)?;
+		let (layout, _) = Self::HEADER_LAYOUT.extend(layout).map_err(|_| AllocError)?;
+
+		let ptr = unsafe {
+			let ptr = NonNull::new(std::alloc::alloc(layout)).ok_or(AllocError)?;
+			ptr.cast::<usize>().write(layout.size());
+			ptr.byte_add(Self::HEADER_LAYOUT.size())
+		};
+
+		Ok(ptr)
+	}
+
+	unsafe fn read_header(ptr: *mut u8) -> (*mut u8, Layout) {
+		// SAFETY: Assuming this pointer came from `allocateMemory0()`
+		let (header_start, alloc_size) = unsafe {
+			let header_start = ptr.byte_sub(Self::HEADER_LAYOUT.size());
+			(header_start, header_start.cast::<usize>().read())
+		};
+
+		// NOTE: `alloc_size` includes itself
+		(
+			header_start,
+			Layout::from_size_align(alloc_size, Self::ALIGNMENT).unwrap(),
+		)
+	}
+
+	unsafe fn deallocate(&self, ptr: *mut u8) {
+		let (header_start, layout) = unsafe { Self::read_header(ptr) };
+
+		unsafe {
+			std::alloc::dealloc(header_start, layout);
+		}
+	}
+}
+
+static UNSAFE_ALLOCATOR: UnsafeAllocator = UnsafeAllocator;
+
 pub fn allocateMemory0(
 	_env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
 	bytes: jlong,
 ) -> jlong {
-	let ptr = unsafe {
-		std::alloc::alloc(Layout::from_size_align(bytes as usize, align_of::<u64>()).unwrap())
+	let Ok(size) = usize::try_from(bytes) else {
+		return 0; // 0 throws an OutOfMemoryError
 	};
 
-	ptr as jlong
+	UNSAFE_ALLOCATOR
+		.allocate(size)
+		.map_or(0, |ptr| ptr.as_ptr() as jlong)
 }
 
 pub fn reallocateMemory0(
@@ -459,9 +514,13 @@ pub fn reallocateMemory0(
 pub fn freeMemory0(
 	_env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
-	_address: jlong,
+	address: jlong,
 ) {
-	unimplemented!("jdk.internal.misc.Unsafe#freeMemory0")
+	if address == 0 {
+		return; // Just in case...
+	}
+
+	unsafe { UNSAFE_ALLOCATOR.deallocate(address as *mut u8) }
 }
 
 pub fn setMemory0(
