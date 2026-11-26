@@ -70,12 +70,6 @@ impl Drop for Frame {
 
 impl Debug for Frame {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		let mut top_of_stack = self.stash.sp.load(Ordering::Acquire);
-		if top_of_stack == 0 {
-			// Printing the current frame, so we can use the current sp
-			top_of_stack = self.thread().stack().len();
-		}
-
 		f.debug_struct("Frame")
 			.field("method", &self.method)
 			.field("stash", &self.stash)
@@ -86,13 +80,7 @@ impl Debug for Frame {
 					.stack()
 					.slice(self.locals_base, self.method.code.max_locals as usize),
 			)
-			.field(
-				"stack",
-				&self
-					.thread()
-					.stack()
-					.slice(self.stack_base, top_of_stack - self.stack_base),
-			)
+			.field("stack", &self.stack())
 			.finish_non_exhaustive()
 	}
 }
@@ -348,6 +336,20 @@ impl Frame {
 	pub fn at(&self, index: u2) -> Operand<Reference> {
 		self.verify_operand_stack_index(index);
 		self.thread().stack().at(index as isize)
+	}
+
+	/// Get the current state of the method's stack
+	pub fn stack(&self) -> Vec<Operand<Reference>> {
+		let mut top_of_stack = self.stash.sp.load(Ordering::Acquire);
+		if top_of_stack == 0 {
+			// Printing the current frame, so we can use the current sp
+			top_of_stack = self.thread().stack().len();
+		}
+
+		let stack = self.thread().stack();
+		stack
+			.slice(self.stack_base, top_of_stack - self.stack_base)
+			.to_vec()
 	}
 
 	/// Get the operand at `index`

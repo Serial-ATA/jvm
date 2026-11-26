@@ -15,6 +15,7 @@
 #![feature(generic_atomic)]
 #![feature(adt_const_params)]
 #![feature(decl_macro)]
+#![feature(panic_update_hook)]
 
 pub mod calls;
 pub mod classes;
@@ -36,3 +37,40 @@ pub mod verifier;
 
 #[cfg(test)]
 pub(crate) mod test_utils;
+
+pub fn init_panic_handler() {
+	use thread::JavaThread;
+
+	std::panic::update_hook(|prev, info| {
+		if let Some(thread) = JavaThread::current_opt() {
+			use std::io::Write as _;
+			let stderr = std::io::stderr();
+			let mut stderr = stderr.lock();
+
+			let _ = writeln!(stderr, "Panic on Java thread `{}`\n", thread.name());
+
+			let _ = writeln!(stderr, "Operand stack:\n");
+			if let Some(current) = thread.frame_stack().current() {
+				for op in current.stack() {
+					let _ = writeln!(stderr, "{op:?}");
+				}
+			}
+
+			let _ = writeln!(stderr, "Frame stack:\n");
+			for (idx, frame) in thread.frame_stack().iter().enumerate() {
+				let _ = write!(stderr, "{idx}: ");
+				if frame.method().is_native() {
+					let _ = write!(stderr, "(native) ");
+				}
+				let _ = writeln!(stderr, "{}", frame.method().external_name());
+			}
+			if thread.frame_stack().is_empty() {
+				let _ = writeln!(stderr, "<empty>");
+			}
+
+			let _ = writeln!(stderr);
+		}
+
+		prev(info)
+	});
+}
