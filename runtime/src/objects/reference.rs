@@ -153,7 +153,10 @@ impl Reference {
 		}
 	}
 
-	fn addr(self) -> *mut () {
+    /// The pointer backing this reference
+    ///
+    /// NOTE: This is **NOT** valid to reuse in [`Reference::from_raw()`]. See [`Reference::raw_tagged()`] instead.
+	pub fn addr(self) -> *mut () {
 		(self.0 as usize & Self::ADDRESS_MASK) as *mut ()
 	}
 

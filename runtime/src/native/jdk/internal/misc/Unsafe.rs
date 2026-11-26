@@ -7,6 +7,7 @@ use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 
+use std::alloc::Layout;
 use std::marker::PhantomData;
 use std::sync::atomic::Ordering;
 
@@ -437,9 +438,13 @@ pub fn fullFence(
 pub fn allocateMemory0(
 	_env: JniEnv,
 	_this: Reference, // jdk.internal.misc.Unsafe
-	_bytes: jlong,
+	bytes: jlong,
 ) -> jlong {
-	unimplemented!("jdk.internal.misc.Unsafe#allocateMemory0")
+	let ptr = unsafe {
+		std::alloc::alloc(Layout::from_size_align(bytes as usize, align_of::<u64>()).unwrap())
+	};
+
+	ptr as jlong
 }
 
 pub fn reallocateMemory0(
@@ -477,26 +482,15 @@ pub fn copyMemory0(
 	src_offset: jlong,
 	dest_base: Reference, // java.lang.Object
 	dest_offset: jlong,
-	bytes: jlong,
+	size: jlong,
 ) {
-	let size = bytes as usize;
+	debug_assert!(!src_base.is_null());
+	debug_assert!(size > 0);
+	let size = size as usize;
 
-	if src_base.is_primitive_array() {
-		let src_base = src_base.extract_primitive_array();
-		let dest_base = dest_base.extract_primitive_array();
-
-		unsafe { src_base.copy_into(src_offset as usize, &dest_base, dest_offset as usize, size) }
-		return;
-	}
-
-	todo!()
-	// let src_base_ptr;
-	// let dest_base_ptr;
-	// unsafe {
-	// 	src_base_ptr = src_base.get(src_offset as usize);
-	// 	dest_base_ptr = dest_base.get(dest_offset as usize);
-	// 	src_base_ptr.copy_to(dest_base_ptr, size);
-	// }
+	let src = unsafe { src_base.addr().offset(src_offset as isize) };
+	let dest = unsafe { dest_base.addr().offset(dest_offset as isize) };
+	unsafe { src.copy_to(dest, size) };
 }
 
 pub fn copySwapMemory0(
