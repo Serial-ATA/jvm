@@ -6,9 +6,7 @@ use jni::sys::{jboolean, jint, jlong};
 use native_macros::jni_call;
 
 #[jni_call]
-pub extern "C" fn JVM_InitializeFromArchive(_env: JniEnv, _cls: JClass) {
-	todo!()
-}
+pub extern "C" fn JVM_InitializeFromArchive(_env: JniEnv, _cls: JClass) {}
 
 #[jni_call]
 pub extern "C" fn JVM_RegisterLambdaProxyClassForArchiving(
@@ -39,12 +37,12 @@ pub extern "C" fn JVM_LookupLambdaProxyClassFromArchive(
 
 #[jni_call(no_env)]
 pub extern "C" fn JVM_GetRandomSeedForDumping() -> jlong {
-	todo!()
+	0
 }
 
 #[jni_call(no_env)]
 pub extern "C" fn JVM_GetCDSConfigStatus() -> jint {
-	todo!()
+	0
 }
 
 #[jni_call]

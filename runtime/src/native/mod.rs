@@ -98,7 +98,6 @@ pub(crate) mod jdk {
 	pub(crate) mod internal {
 		pub(crate) mod misc {
 			pub(crate) mod ScopedMemoryAccess;
-			pub(crate) mod CDS;
 			pub(crate) mod Unsafe;
 		}
 		pub(crate) mod reflect {
