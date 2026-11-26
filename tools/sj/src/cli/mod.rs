@@ -3,8 +3,10 @@ mod options;
 use crate::error::Error;
 use crate::native::LaunchMode;
 
-use jni::version::JniVersion;
+use std::env::VarError;
 use std::path::Path;
+
+use jni::version::JniVersion;
 
 const JAVA_OPTIONS_ENV: &str = "_JAVA_OPTIONS";
 
@@ -66,6 +68,22 @@ pub struct Args {
 }
 
 impl Args {
+	fn load_from_env(&mut self) -> Result<(), Error> {
+		fn handle_var_error(res: Result<String, VarError>) -> Result<Option<String>, Error> {
+			match res {
+				Ok(s) => Ok(Some(s)),
+				Err(VarError::NotPresent) => Ok(None),
+				Err(VarError::NotUnicode(_)) => Err(Error::NonUtf8Path),
+			}
+		}
+
+		if let Some(classpath) = handle_var_error(std::env::var("CLASSPATH"))? {
+			self.options.set_classpath(&classpath);
+		}
+
+		Ok(())
+	}
+
 	pub fn parse() -> Result<Self, Error> {
 		let cli_args_raw = std::env::args().skip(1).collect::<Vec<_>>();
 		let mut cli_args = cli_args_raw.into_iter().peekable();
@@ -75,6 +93,10 @@ impl Args {
 		}
 
 		let mut args = Args::default();
+
+		// Load the env vars first, then any CLI args can overwrite them
+		args.load_from_env()?;
+
 		while let Some(arg) = cli_args.peek() {
 			if !arg.starts_with('-') {
 				break;
