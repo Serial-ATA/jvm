@@ -5,7 +5,7 @@ use crate::objects::instance::class::ClassInstance;
 use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
-use crate::thread::exceptions::{Throws, throw};
+use crate::thread::exceptions::{Throws, throw, throw_with_ret};
 
 use std::alloc::{AllocError, Layout};
 use std::marker::PhantomData;
@@ -441,17 +441,16 @@ struct UnsafeAllocator;
 
 impl UnsafeAllocator {
 	const HEADER_LAYOUT: Layout = {
-        let Ok(layout) = Layout::new::<usize>().align_to(Self::ALIGNMENT) else {
-            panic!();
-        };
+		let Ok(layout) = Layout::new::<usize>().align_to(Self::ALIGNMENT) else {
+			panic!();
+		};
 
-        layout
-    };
-    const ALIGNMENT: usize = align_of::<libc::max_align_t>();
+		layout
+	};
+	const ALIGNMENT: usize = align_of::<libc::max_align_t>();
 
 	fn allocate(&self, size: usize) -> Result<NonNull<u8>, AllocError> {
-		let layout = Layout::from_size_align(size, Self::ALIGNMENT)
-			.map_err(|_| AllocError)?;
+		let layout = Layout::from_size_align(size, Self::ALIGNMENT).map_err(|_| AllocError)?;
 		let (layout, _) = Self::HEADER_LAYOUT.extend(layout).map_err(|_| AllocError)?;
 
 		let ptr = unsafe {
@@ -569,11 +568,27 @@ pub fn copySwapMemory0(
 }
 
 pub fn objectFieldOffset0(
-	_env: JniEnv,
-	_this: Reference,  // jdk.internal.misc.Unsafe
-	_field: Reference, // java.lang.reflect.Field
+	env: JniEnv,
+	_this: Reference, // jdk.internal.misc.Unsafe
+	field: Reference, // java.lang.reflect.Field
 ) -> jlong {
-	unimplemented!("jdk.internal.misc.Unsafe#objectFieldOffset0")
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+
+	let instance = field.extract_class();
+
+	let target = classes::java::lang::reflect::Field::clazz(instance);
+	let slot = classes::java::lang::reflect::Field::slot(instance);
+
+	let field = target
+		.target_class()
+		.fields()
+		.nth(slot as usize)
+		.expect("malformed java.lang.reflect.Field");
+	if field.is_static() {
+		throw_with_ret!(0, thread, IllegalArgumentException);
+	}
+
+	field.offset() as jlong
 }
 
 pub fn knownObjectFieldOffset0(
