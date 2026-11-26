@@ -27,7 +27,7 @@ impl FieldInfo {
 /// The type of a field, parameter, local variable, or value
 ///
 /// <https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-4.html#jvms-4.3.2>
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum FieldType {
 	Byte,
 	Character,
@@ -40,6 +40,24 @@ pub enum FieldType {
 	Void, // Only valid for method return types
 	Object(Box<[u1]>),
 	Array(Box<FieldType>),
+}
+
+impl std::fmt::Debug for FieldType {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			FieldType::Byte => f.write_str("Byte"),
+			FieldType::Character => f.write_str("Character"),
+			FieldType::Double => f.write_str("Double"),
+			FieldType::Float => f.write_str("Float"),
+			FieldType::Integer => f.write_str("Integer"),
+			FieldType::Long => f.write_str("Long"),
+			FieldType::Short => f.write_str("Short"),
+			FieldType::Boolean => f.write_str("Boolean"),
+			FieldType::Void => f.write_str("Void"),
+			FieldType::Object(class) => write!(f, "Object({})", class.escape_ascii()),
+			FieldType::Array(component) => write!(f, "Array({:?})", component),
+		}
+	}
 }
 
 impl FieldType {
