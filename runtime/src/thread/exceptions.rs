@@ -1,7 +1,7 @@
 use super::JavaThread;
 use crate::classpath::loader::ClassLoader;
 use crate::java_call;
-use crate::native::java::lang::String::StringInterner;
+use crate::native::jvm::strings::StringInterner;
 use crate::objects::class::ClassPtr;
 use crate::objects::instance::class::ClassInstance;
 use crate::objects::reference::Reference;

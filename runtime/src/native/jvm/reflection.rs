@@ -2,8 +2,8 @@
 
 use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
 use crate::native::RawSymbolExt;
-use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::references::JObjectExt;
+use crate::native::jvm::strings::StringInterner;
 use crate::objects::class::ClassPtr;
 use crate::objects::instance::array::{Array, ObjectArrayInstance, ObjectArrayInstanceRef};
 use crate::objects::instance::class::ClassInstanceRef;

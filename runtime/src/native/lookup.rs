@@ -1,5 +1,5 @@
 use crate::java_call;
-use crate::native::java::lang::String::StringInterner;
+use crate::native::jvm::strings::StringInterner;
 use crate::native::method::NativeMethodPtr;
 use crate::objects::method::{Method, MethodEntryPoint};
 use crate::objects::reference::Reference;

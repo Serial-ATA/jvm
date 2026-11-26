@@ -1,6 +1,6 @@
 use super::entry::ResolvedEntry;
-use crate::native::java::lang::String::StringInterner;
 use crate::native::java::lang::invoke::MethodHandleNatives;
+use crate::native::jvm::strings::StringInterner;
 use crate::objects::boxing::Boxable;
 use crate::objects::class::ClassPtr;
 use crate::objects::constant_pool::ConstantPool;

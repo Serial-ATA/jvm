@@ -1,4 +1,3 @@
-use crate::native::java::lang::String::LATIN1;
 use crate::objects::instance::Instance;
 use crate::objects::instance::array::{PrimitiveArrayInstance, PrimitiveArrayInstanceRef};
 use crate::objects::instance::class::{ClassInstance, ClassInstanceRef};
@@ -85,7 +84,7 @@ where
 {
 	fn inner(string: &[u8], is_utf8: bool) -> ClassInstanceRef {
 		let mut is_latin1 = false;
-		if is_utf8 && native::java::lang::String::COMPACT_STRINGS {
+		if is_utf8 && native::jvm::strings::COMPACT_STRINGS {
 			is_latin1 = str_is_latin1(string);
 		}
 
@@ -116,9 +115,9 @@ where
 
 		// Set `private final byte coder`
 		if is_latin1 {
-			set_coder(new_java_string_instance, native::java::lang::String::LATIN1);
+			set_coder(new_java_string_instance, native::jvm::strings::LATIN1);
 		} else {
-			set_coder(new_java_string_instance, native::java::lang::String::UTF16);
+			set_coder(new_java_string_instance, native::jvm::strings::UTF16);
 		}
 
 		new_java_string_instance
@@ -180,7 +179,7 @@ pub fn slice(instance: ClassInstanceRef, start: usize, len: Option<usize>) -> Th
 	let unsigned_chars =
 		unsafe { &*slice_from_raw_parts(value.as_ptr().cast::<u8>(), value.len()) };
 	let ret = match coder {
-		native::java::lang::String::LATIN1 => {
+		native::jvm::strings::LATIN1 => {
 			let chars = &unsigned_chars[start..];
 			match len {
 				Some(len) => {
@@ -193,7 +192,7 @@ pub fn slice(instance: ClassInstanceRef, start: usize, len: Option<usize>) -> Th
 				None => String::from_utf8_lossy(chars).into_owned(),
 			}
 		},
-		native::java::lang::String::UTF16 => {
+		native::jvm::strings::UTF16 => {
 			let chars = unsigned_chars[start..].as_slice_of::<u2>().unwrap();
 			match len {
 				Some(len) => {
@@ -220,7 +219,7 @@ pub fn length(this: ClassInstanceRef) -> usize {
 
 	let value_instance = value(this);
 	let value = value_instance.as_slice::<jbyte>();
-	if coder(this) == LATIN1 {
+	if coder(this) == native::jvm::strings::LATIN1 {
 		return value.len();
 	}
 

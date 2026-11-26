@@ -17,7 +17,7 @@ crate::classes::field_module! {
 	/// `java.io.FileDescriptor#append` field offset
 	///
 	/// Expected field type: `jboolean`
-	[sym: append_name] @FIELD append: FieldType::Boolean,
+	@FIELD append: FieldType::Boolean,
 }
 
 #[cfg(windows)]
@@ -36,7 +36,7 @@ crate::classes::field_module! {
 	/// `java.io.FileDescriptor#append` field offset
 	///
 	/// Expected field type: `jboolean`
-	[sym: append_name] @FIELD append: FieldType::Boolean,
+	@FIELD append: FieldType::Boolean,
 }
 
 pub fn fd(this: Reference) -> jint {

@@ -86,10 +86,7 @@ pub(crate) mod java {
 		pub(crate) mod reflect {
 			pub(crate) mod Array;
 		}
-		pub(crate) mod StringBuilder;
-		pub(crate) mod StringUTF16;
 		pub(crate) mod Throwable;
-		pub(crate) mod String;
 	}
 }
 

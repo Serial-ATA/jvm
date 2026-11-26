@@ -1,8 +1,8 @@
 #![native_macros::jni_fn_module]
 
-use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::references::JObjectExt;
 use crate::native::jvm::reflection::ensure_class_mirror;
+use crate::native::jvm::strings::StringInterner;
 use crate::objects::instance::array::{Array, ObjectArrayInstance, ObjectArrayInstanceRef};
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;

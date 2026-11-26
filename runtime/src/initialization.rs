@@ -1,8 +1,8 @@
 use crate::classes::jdk::internal::misc;
 use crate::classpath::loader::ClassLoader;
 use crate::modules::Module;
-use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::invocation_api::main_java_vm;
+use crate::native::jvm::strings::StringInterner;
 use crate::objects::instance::class::ClassInstance;
 use crate::objects::reference::Reference;
 use crate::options::JvmOptions;

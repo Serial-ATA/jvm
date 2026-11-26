@@ -17,7 +17,7 @@ mod printing;
 mod references;
 mod reflection;
 mod stackwalker;
-mod strings;
+pub mod strings;
 pub mod system;
 mod threads;
 pub mod vm;

@@ -1,8 +1,8 @@
 #![allow(unused_imports)] // Intellij-Rust doesn't like this file much, the imports used in macros are not recognized
 
 use crate::dynamic::var_handle;
-use crate::native::java::lang::String::StringInterner;
 use crate::native::java::lang::invoke::MethodHandle;
+use crate::native::jvm::strings::StringInterner;
 use crate::objects::class::{Class, ClassInitializationState};
 use crate::objects::constant_pool::cp_types::{self, Entry, MethodEntry};
 use crate::objects::field::Field;

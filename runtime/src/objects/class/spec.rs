@@ -1,7 +1,7 @@
 use crate::globals::PRIMITIVES;
 use crate::java_call;
 use crate::logging::info;
-use crate::native::java::lang::String::StringInterner;
+use crate::native::jvm::strings::StringInterner;
 use crate::objects::class::{Class, ClassPtr};
 use crate::objects::constant_pool::cp_types;
 use crate::objects::field::Field;

@@ -439,6 +439,7 @@ vm_symbols::define_symbols! {
 	constantPoolOop,
 	handle,
 	jniVersion,
+	append,
 
 	// Injected fields
 	loader_ptr,

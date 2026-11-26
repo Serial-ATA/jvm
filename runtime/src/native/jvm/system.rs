@@ -1,7 +1,7 @@
 #![native_macros::jni_fn_module]
 
-use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::references::JObjectExt;
+use crate::native::jvm::strings::StringInterner;
 use crate::objects::instance::array::{Array, ObjectArrayInstance};
 use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;

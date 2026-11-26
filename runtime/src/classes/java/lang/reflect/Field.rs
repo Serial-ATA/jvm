@@ -1,5 +1,5 @@
 use crate::globals;
-use crate::native::java::lang::String::StringInterner;
+use crate::native::jvm::strings::StringInterner;
 use crate::objects::field::Field;
 use crate::objects::instance::Instance;
 use crate::objects::instance::array::PrimitiveArrayInstanceRef;

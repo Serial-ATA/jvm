@@ -2,8 +2,8 @@
 
 use crate::classes;
 use crate::classpath::loader::ClassLoader;
-use crate::native::java::lang::String::StringInterner;
 use crate::native::jni::references::JObjectExt;
+use crate::native::jvm::strings::StringInterner;
 use crate::objects::class::ClassPtr;
 use crate::objects::constant_pool::cp_types;
 use crate::objects::instance::array::Array;

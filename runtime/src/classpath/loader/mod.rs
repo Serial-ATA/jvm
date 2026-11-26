@@ -2,7 +2,7 @@ mod set;
 pub use set::*;
 
 use crate::modules::{Module, ModuleLockGuard, ModuleSet, Package};
-use crate::native::java::lang::String::StringInterner;
+use crate::native::jvm::strings::StringInterner;
 use crate::objects::class::{Class, ClassPtr};
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};

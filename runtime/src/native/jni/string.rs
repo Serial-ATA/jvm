@@ -1,6 +1,6 @@
 use super::references::JObjectExt;
 use crate::classes;
-use crate::native::java::lang::String::LATIN1;
+use crate::native::jvm::strings::LATIN1;
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
