@@ -1,5 +1,3 @@
-#![native_macros::jni_fn_module]
-
 use jni::sys::jint;
 use native_macros::jni_call;
 use std::ffi::c_void;

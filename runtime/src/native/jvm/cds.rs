@@ -1,5 +1,3 @@
-#![native_macros::jni_fn_module]
-
 use jni::env::JniEnv;
 use jni::objects::{JClass, JObject, JString};
 use jni::sys::{jboolean, jint, jlong};

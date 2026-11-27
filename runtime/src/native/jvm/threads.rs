@@ -1,5 +1,3 @@
-#![native_macros::jni_fn_module]
-
 use crate::classes;
 use crate::classes::java::lang::Thread::ThreadStatus;
 use crate::native::jni::references::JObjectExt;

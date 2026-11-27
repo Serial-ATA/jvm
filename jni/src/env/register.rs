@@ -48,7 +48,7 @@ macro_rules! impl_jni_method {
         $(($($params:ident),*)),* $(,)?
     ) => {
         $(
-        impl<R, $($params),*> JniMethod for fn(JniEnv, JObject, $($params),*) -> R
+        impl<R, $($params),*> JniMethod for extern "C" fn(JniEnv, JObject, $($params),*) -> R
         where
             R: JniMethodReturnType,
             $($params: JniMethodParameter),*
@@ -58,7 +58,7 @@ macro_rules! impl_jni_method {
             }
         }
 
-        impl<R, $($params),*> JniMethod for fn(JniEnv, JClass, $($params),*) -> R
+        impl<R, $($params),*> JniMethod for extern "C" fn(JniEnv, JClass, $($params),*) -> R
         where
             R: JniMethodReturnType,
             $($params: JniMethodParameter),*

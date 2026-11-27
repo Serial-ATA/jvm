@@ -89,42 +89,25 @@ impl super::ParameterType for ParameterType {
 
 pub struct JvmtiFn {
 	pub rust_fn: proc_macro2::TokenStream,
-	pub extern_fn: proc_macro2::TokenStream,
 	pub errors: Vec<(Error, Span)>,
 }
 
 pub fn generate(input: &ItemFn) -> JvmtiFn {
 	let mut errors = Vec::new();
 	super::validate_abi(&mut errors, input);
-	let params = super::validate_params(&mut errors, input, false, true, CallType::Jvmti);
-	let return_ty = validate_return(&mut errors, input);
-
-	let fn_name = &input.sig.ident;
-	let raw_mod_name = Ident::new(&format!("raw_{}", fn_name), Span::call_site());
-
-	let extern_fn_def = super::generate_extern_fn(input, &params, return_ty);
-	let extern_fn = quote! {
-		#[allow(unused_imports)]
-		mod #raw_mod_name {
-			use super::*;
-
-			#extern_fn_def
-		}
-	};
+	super::validate_params::<ParameterType>(&mut errors, input, false, true, CallType::Jvmti);
+	validate_return(&mut errors, input);
 
 	let rust_fn = quote! {
 		#[allow(non_snake_case)]
+		#[allow(unused)] // Only used via export
 		#input
 	};
 
-	JvmtiFn {
-		rust_fn,
-		extern_fn,
-		errors,
-	}
+	JvmtiFn { rust_fn, errors }
 }
 
-fn validate_return(errors: &mut Vec<(Error, Span)>, fun: &ItemFn) -> Option<ParameterType> {
+fn validate_return(errors: &mut Vec<(Error, Span)>, fun: &ItemFn) {
 	let ReturnType::Type(_, ty) = &fun.sig.output else {
 		errors.push((
 			Error::BadReturnType {
@@ -133,7 +116,7 @@ fn validate_return(errors: &mut Vec<(Error, Span)>, fun: &ItemFn) -> Option<Para
 			},
 			fun.span(),
 		));
-		return None;
+		return;
 	};
 
 	let Type::Path(TypePath { path, .. }) = &**ty else {
@@ -144,7 +127,7 @@ fn validate_return(errors: &mut Vec<(Error, Span)>, fun: &ItemFn) -> Option<Para
 			},
 			ty.span(),
 		));
-		return None;
+		return;
 	};
 
 	let Some((path_str, false)) = super::path_str(path) else {
@@ -155,7 +138,7 @@ fn validate_return(errors: &mut Vec<(Error, Span)>, fun: &ItemFn) -> Option<Para
 			},
 			ty.span(),
 		));
-		return None;
+		return;
 	};
 
 	if !["jvmti::error::JvmtiError", "JvmtiError"].contains(&&*path_str) {
@@ -166,8 +149,5 @@ fn validate_return(errors: &mut Vec<(Error, Span)>, fun: &ItemFn) -> Option<Para
 			},
 			ty.span(),
 		));
-		return None;
 	}
-
-	Some(ParameterType::JvmtiError)
 }

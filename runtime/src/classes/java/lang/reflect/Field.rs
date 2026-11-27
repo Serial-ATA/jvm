@@ -11,7 +11,7 @@ use crate::thread::exceptions::Throws;
 
 use classfile::FieldType;
 use instructions::Operand;
-use jni::sys::{jboolean, jint};
+use jni::sys::jint;
 
 // From java/lang/reflect/Field.java
 const TRUSTED_FINAL: jint = 0x0010;

@@ -303,6 +303,9 @@ vm_symbols::define_symbols! {
 	Throwable_signature: "()Ljava/lang/Throwable;",
 	String_Class_signature: "(Ljava/lang/String;)Ljava/lang/Class;",
 	String_void_signature: "(Ljava/lang/String;)V",
+	Class_void_signature: "(Ljava/lang/Class;)V",
+	Object_void_signature: "(Ljava/lang/Object;)V",
+	Throwable_void_signature: "(Ljava/lang/Throwable;)V",
 
 	Boolean_valueOf_signature: "(Z)Ljava/lang/Boolean;",
 	Integer_valueOf_signature: "(I)Ljava/lang/Integer;",

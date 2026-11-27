@@ -1,4 +1,5 @@
 use crate::classes;
+use crate::native::jni::references::JObjectExt;
 use crate::objects::class::ClassInitializationState;
 use crate::objects::instance::array::{Array, ObjectArrayInstanceRef, PrimitiveType, TypeCode};
 use crate::objects::instance::class::ClassInstance;
@@ -12,12 +13,11 @@ use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::sync::atomic::Ordering;
 
-use ::jni::env::JniEnv;
+use ::jni::env::{JniEnv, JniNativeMethod};
+use ::jni::objects::{JArray, JByteArray, JClass, JDoubleArray, JObject, JString, JThrowable};
 use ::jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 use common::atomic::{Atomic, AtomicCounterpart};
-
-include_generated!("native/jdk/internal/misc/def/Unsafe.definitions.rs");
-include_generated!("native/jdk/internal/misc/def/Unsafe.registerNatives.rs");
+use native_macros::jni_call;
 
 /// Wrapper for unsafe operations
 ///
@@ -31,7 +31,9 @@ struct UnsafeMemoryOp<T> {
 }
 
 impl<T> UnsafeMemoryOp<T> {
-	fn new(object: Reference, offset: jlong) -> Self {
+	fn new(object: JObject, offset: jlong) -> Self {
+		let object = unsafe { object.to_reference_maybe_null() };
+
 		let offset = offset as isize;
 		Self {
 			object,
@@ -155,44 +157,51 @@ unsafe_ops! {
 	double => double
 }
 
-pub fn getUncompressedObject(
+#[jni_call]
+extern "C" fn getUncompressedObject(
 	_env: JniEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
+	_this: JObject, // jdk.internal.misc.Unsafe
 	_address: jlong,
-) -> Reference {
+) -> JObject {
 	unimplemented!("jdk.internal.misc.Unsafe#getUncompressedObject")
 }
 
-pub fn writeback0(
+#[jni_call]
+extern "C" fn writeBack0(
 	_env: JniEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
+	_this: JObject, // jdk.internal.misc.Unsafe
 	_address: jlong,
 ) {
-	unimplemented!("jdk.internal.misc.Unsafe#writeback0")
-}
-pub fn writebackPreSync0(
-	_env: JniEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
-) {
-	unimplemented!("jdk.internal.misc.Unsafe#writebackPreSync0")
-}
-pub fn writebackPostSync0(
-	_env: JniEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
-) {
-	unimplemented!("jdk.internal.misc.Unsafe#writebackPostSync0")
+	unimplemented!("jdk.internal.misc.Unsafe#writeBack0")
 }
 
-pub fn defineClass0(
+#[jni_call]
+extern "C" fn writeBackPreSync0(
 	_env: JniEnv,
-	_this: Reference,  // jdk.internal.misc.Unsafe
-	_name: Reference,  // java.lang.String
-	_bytes: Reference, // [B
+	_this: JObject, // jdk.internal.misc.Unsafe
+) {
+	unimplemented!("jdk.internal.misc.Unsafe#writeBackPreSync0")
+}
+
+#[jni_call]
+extern "C" fn writeBackPostSync0(
+	_env: JniEnv,
+	_this: JObject, // jdk.internal.misc.Unsafe
+) {
+	unimplemented!("jdk.internal.misc.Unsafe#writeBackPostSync0")
+}
+
+#[jni_call]
+extern "C" fn defineClass0(
+	_env: JniEnv,
+	_this: JObject,     // jdk.internal.misc.Unsafe
+	_name: JString,     // java.lang.String
+	_bytes: JByteArray, // [B
 	_offset: jint,
 	_length: jint,
-	_loader: Reference,            // java.lang.ClassLoader
-	_protection_domain: Reference, // java.security.ProtectionDomain
-) -> Reference {
+	_loader: JObject,            // java.lang.ClassLoader
+	_protection_domain: JObject, // java.security.ProtectionDomain
+) -> JObject {
 	unimplemented!("jdk.internal.misc.Unsafe#defineClass0")
 }
 
@@ -200,34 +209,42 @@ pub fn defineClass0(
 // if necessary.
 //
 // throws InstantiationException
-pub fn allocateInstance(
+#[jni_call]
+extern "C" fn allocateInstance(
 	env: JniEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
-	class: Reference, // java.lang.Class
-) -> Reference {
+	_this: JObject, // jdk.internal.misc.Unsafe
+	class: JClass,
+) -> JObject {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+	let class = unsafe { class.to_reference() }.expect("class should be non-null");
 
 	let target = class.extract_target_class();
 	if let Throws::Exception(e) = target.initialize(thread) {
 		e.throw(thread);
-		return Reference::null();
+		return JObject::null();
 	}
 
-	Reference::class(ClassInstance::new(target))
+	thread
+		.jni_refs()
+		.allocate_wrapped(Reference::class(ClassInstance::new(target)))
 }
 
-pub fn throwException(
+#[jni_call]
+extern "C" fn throwException(
 	_env: JniEnv,
-	_this: Reference,      // jdk.internal.misc.Unsafe
-	_exception: Reference, // java.lang.Throwable
+	_this: JObject, // jdk.internal.misc.Unsafe
+	_exception: JThrowable,
 ) {
 	unimplemented!("jdk.internal.misc.Unsafe#throwException")
 }
 
-pub fn compareAndSetInt(
+#[jni_call]
+extern "C" fn compareAndSetInt(
 	env: JniEnv,
-	this: Reference,   // jdk.internal.misc.Unsafe
-	object: Reference, // Object
+	this: JObject, // jdk.internal.misc.Unsafe
+	object: JObject,
 	offset: jlong,
 	expected: jint,
 	value: jint,
@@ -235,14 +252,17 @@ pub fn compareAndSetInt(
 	compareAndExchangeInt(env, this, object, offset, expected, value) == expected
 }
 
-pub fn compareAndExchangeInt(
+#[jni_call]
+extern "C" fn compareAndExchangeInt(
 	_env: JniEnv,
-	_this: Reference,  // jdk.internal.misc.Unsafe
-	object: Reference, // Object
+	_this: JObject, // jdk.internal.misc.Unsafe
+	object: JObject,
 	offset: jlong,
 	expected: jint,
 	value: jint,
 ) -> jint {
+	let object = unsafe { object.to_reference_maybe_null() };
+
 	if object.is_null() {
 		let atomic = unsafe {
 			let raw = offset as *const <jint as AtomicCounterpart>::Counterpart;
@@ -256,10 +276,11 @@ pub fn compareAndExchangeInt(
 	unsafe { object.compare_exchange::<jint>(offset as usize, expected, value) }
 }
 
-pub fn compareAndSetLong(
+#[jni_call]
+extern "C" fn compareAndSetLong(
 	env: JniEnv,
-	this: Reference,   // jdk.internal.misc.Unsafe
-	object: Reference, // Object
+	this: JObject, // jdk.internal.misc.Unsafe
+	object: JObject,
 	offset: jlong,
 	expected: jlong,
 	value: jlong,
@@ -267,14 +288,17 @@ pub fn compareAndSetLong(
 	compareAndExchangeLong(env, this, object, offset, expected, value) == expected
 }
 
-pub fn compareAndExchangeLong(
+#[jni_call]
+extern "C" fn compareAndExchangeLong(
 	_env: JniEnv,
-	_this: Reference,  // jdk.internal.misc.Unsafe
-	object: Reference, // Object
+	_this: JObject, // jdk.internal.misc.Unsafe
+	object: JObject,
 	offset: jlong,
 	expected: jlong,
 	value: jlong,
 ) -> jlong {
+	let object = unsafe { object.to_reference_maybe_null() };
+
 	if object.is_null() {
 		let atomic = unsafe {
 			let raw = offset as *const <jlong as AtomicCounterpart>::Counterpart;
@@ -288,25 +312,37 @@ pub fn compareAndExchangeLong(
 	unsafe { object.compare_exchange::<jlong>(offset as usize, expected, value) }
 }
 
-pub fn compareAndSetReference(
+#[jni_call]
+extern "C" fn compareAndSetReference(
 	env: JniEnv,
-	this: Reference,   // jdk.internal.misc.Unsafe
-	object: Reference, // Object
+	this: JObject, // jdk.internal.misc.Unsafe
+	object: JObject,
 	offset: jlong,
-	expected: Reference, // Object
-	value: Reference,    // Object
+	expected: JObject,
+	value: JObject,
 ) -> jboolean {
 	compareAndExchangeReference(env, this, object, offset, expected, value) == expected
 }
 
-pub fn compareAndExchangeReference(
-	_env: JniEnv,
-	_this: Reference,  // jdk.internal.misc.Unsafe
-	object: Reference, // Object
+#[jni_call]
+extern "C" fn compareAndExchangeReference(
+	env: JniEnv,
+	_this: JObject, // jdk.internal.misc.Unsafe
+	object: JObject,
 	offset: jlong,
-	expected: Reference, // Object
-	value: Reference,    // Object
-) -> Reference {
+	expected: JObject,
+	value: JObject,
+) -> JObject {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+	let Some(object) = (unsafe { object.to_reference() }) else {
+		panic!("should be checked by the jdk");
+	};
+
+	let expected = unsafe { expected.to_reference_maybe_null() };
+	let value = unsafe { value.to_reference_maybe_null() };
+
 	let expected_usize = expected.raw_tagged() as usize;
 	let value_usize = value.raw_tagged() as usize;
 
@@ -314,48 +350,76 @@ pub fn compareAndExchangeReference(
 		unsafe { object.compare_exchange::<usize>(offset as usize, expected_usize, value_usize) };
 
 	// SAFETY: Both the `current` and `new` values are valid references
-	unsafe { Reference::from_raw(ret as *mut ()) }
+	let r = unsafe { Reference::from_raw(ret as *mut ()) };
+	thread.jni_refs().allocate_wrapped(r)
 }
 
-pub fn getReference(
-	_env: JniEnv,
-	_this: Reference,  // jdk.internal.misc.Unsafe
-	object: Reference, // Object
-	offset: jlong,
-) -> Reference /* Object */ {
-	unsafe { object.get::<Reference>(offset as usize) }
+#[jni_call]
+extern "C" fn getReference(env: JniEnv, _this: JObject, object: JObject, offset: jlong) -> JObject {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+	let Some(object) = (unsafe { object.to_reference() }) else {
+		panic!("should be checked by the jdk");
+	};
+
+	let r = unsafe { object.get::<Reference>(offset as usize) };
+	thread.jni_refs().allocate_wrapped(r)
 }
 
-pub fn putReference(
+#[jni_call]
+extern "C" fn putReference(
 	_env: JniEnv,
-	_this: Reference,  // jdk.internal.misc.Unsafe
-	object: Reference, // Object
+	_this: JObject,
+	object: JObject,
 	offset: jlong,
-	value: Reference, // Object
+	value: JObject,
 ) {
+	let Some(object) = (unsafe { object.to_reference() }) else {
+		panic!("should be checked by the jdk");
+	};
+
+	let value = unsafe { value.to_reference_maybe_null() };
+
 	unsafe { object.put::<Reference>(value, offset as usize) }
 }
 
-pub fn getReferenceVolatile(
-	_env: JniEnv,
-	_this: Reference,  // jdk.internal.misc.Unsafe
-	object: Reference, // Object
+#[jni_call]
+extern "C" fn getReferenceVolatile(
+	env: JniEnv,
+	_this: JObject,
+	object: JObject,
 	offset: jlong,
-) -> Reference /* Object */ {
+) -> JObject {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+	let Some(object) = (unsafe { object.to_reference() }) else {
+		panic!("should be checked by the jdk");
+	};
+
 	// SAFETY: Assuming that the caller provided the offset to a real, tagged reference
-	unsafe {
+	let r = unsafe {
 		let raw_tagged_ref = object.atomic_get::<usize>(offset as usize);
 		Reference::from_raw(raw_tagged_ref as *mut ())
-	}
+	};
+	thread.jni_refs().allocate_wrapped(r)
 }
 
-pub fn putReferenceVolatile(
+#[jni_call]
+extern "C" fn putReferenceVolatile(
 	_env: JniEnv,
-	_this: Reference,  // jdk.internal.misc.Unsafe
-	object: Reference, // java.lang.Object
+	_this: JObject,
+	object: JObject,
 	offset: jlong,
-	value: Reference, // java.lang.Object
+	value: JObject,
 ) {
+	let Some(object) = (unsafe { object.to_reference() }) else {
+		panic!("should be checked by the jdk");
+	};
+
+	let value = unsafe { value.to_reference_maybe_null() };
+
 	unsafe { object.atomic_store::<usize>(value.raw_tagged() as usize, offset as usize) }
 }
 
@@ -364,20 +428,22 @@ macro_rules! get_put_methods {
 	($($ty:ident),+) => {
 		$(
 			paste::paste! {
-				pub fn [<get $ty:camel>](
+				#[jni_call]
+                extern "C" fn [<get $ty:camel>](
 					_env: JniEnv,
-					_this: Reference,  // jdk.internal.misc.Unsafe
-					object: Reference, // Object
+					_this: JObject,  // jdk.internal.misc.Unsafe
+					object: JObject,
 					offset: jlong
 				) -> [<j $ty>] {
 					let op = UnsafeMemoryOp::<[<j $ty>]>::new(object, offset);
 					unsafe { op.get() }
 				}
 
-				pub fn [<put $ty:camel>](
+				#[jni_call]
+                extern "C" fn [<put $ty:camel>](
 					_env: JniEnv,
-					_this: Reference,  // jdk.internal.misc.Unsafe
-					object: Reference, // Object
+					_this: JObject,  // jdk.internal.misc.Unsafe
+					object: JObject,
 					offset: jlong,
 					value: [<j $ty>]
 				) {
@@ -385,20 +451,22 @@ macro_rules! get_put_methods {
 					unsafe { op.put(value) }
 				}
 
-				pub fn [<get $ty:camel Volatile>](
+				#[jni_call]
+                extern "C" fn [<get $ty:camel Volatile>](
 					_env: JniEnv,
-					_this: Reference,  // jdk.internal.misc.Unsafe
-					object: Reference, // Object
+					_this: JObject,  // jdk.internal.misc.Unsafe
+					object: JObject,
 					offset: jlong
 				) -> [<j $ty>] {
 					let op = UnsafeMemoryOp::<[<j $ty>]>::new(object, offset);
 					unsafe { op.get_volatile() }
 				}
 
-				pub fn [<put $ty:camel Volatile>](
+				#[jni_call]
+                extern "C" fn [<put $ty:camel Volatile>](
 					_env: JniEnv,
-					_this: Reference,  // jdk.internal.misc.Unsafe
-					object: Reference, // Object
+					_this: JObject,  // jdk.internal.misc.Unsafe
+					object: JObject,
 					offset: jlong,
 					value: [<j $ty>]
 				) {
@@ -412,26 +480,95 @@ macro_rules! get_put_methods {
 
 get_put_methods! { boolean, byte, short, char, int, long, float, double }
 
-pub fn unpark(
+#[jni_call]
+extern "C" fn valueHeaderSize(_env: JniEnv, _this: JObject, _class: JClass) -> jlong {
+	unimplemented!("jdk.internal.misc.Unsafe#valueHeaderSize")
+}
+
+#[jni_call]
+extern "C" fn isFlatField(_env: JniEnv, _this: JObject, _obj: JObject) -> jboolean {
+	unimplemented!("jdk.internal.misc.Unsafe#isFlatField")
+}
+
+#[jni_call]
+extern "C" fn hasNullMarker(_env: JniEnv, _this: JObject, _obj: JObject) -> jboolean {
+	unimplemented!("jdk.internal.misc.Unsafe#hasNullMarker")
+}
+
+#[jni_call]
+extern "C" fn nullMarkerOffset(_env: JniEnv, _this: JObject, _obj: JObject) -> jint {
+	unimplemented!("jdk.internal.misc.Unsafe#nullMarkerOffset")
+}
+
+#[jni_call]
+extern "C" fn arrayLayout(_env: JniEnv, _this: JObject, _array: JArray) -> jint {
+	unimplemented!("jdk.internal.misc.Unsafe#arrayLayout")
+}
+
+#[jni_call]
+extern "C" fn fieldLayout(_env: JniEnv, _this: JObject, _obj: JObject) -> jint {
+	unimplemented!("jdk.internal.misc.Unsafe#fieldLayout")
+}
+
+#[jni_call]
+extern "C" fn newSpecialArray(
 	_env: JniEnv,
-	_this: Reference,   // jdk.internal.misc.Unsafe
-	_thread: Reference, // Object
+	_this: JObject,
+	_elem_class: JClass,
+	_len: jint,
+	_layout_kind: jint,
+) -> JArray {
+	unimplemented!("jdk.internal.misc.Unsafe#newSpecialArray")
+}
+
+#[jni_call]
+extern "C" fn getFlatValue(
+	_env: JniEnv,
+	_this: JObject,
+	_obj: JObject,
+	_offset: jlong,
+	_layout_kind: jint,
+	_vc: JClass,
+) -> JObject {
+	unimplemented!("jdk.internal.misc.Unsafe#getFlatValue")
+}
+
+#[jni_call]
+extern "C" fn putFlatValue(
+	_env: JniEnv,
+	_this: JObject,
+	_obj: JObject,
+	_offset: jlong,
+	_layout_kind: jint,
+	_vc: JClass,
+	_value: JObject,
+) {
+	unimplemented!("jdk.internal.misc.Unsafe#putFlatValue")
+}
+
+#[jni_call]
+extern "C" fn unpark(
+	_env: JniEnv,
+	_this: JObject, // jdk.internal.misc.Unsafe
+	_thread: JObject,
 ) {
 	unimplemented!("jdk.internal.misc.Unsafe#unpark")
 }
 
-pub fn park(
+#[jni_call]
+extern "C" fn park(
 	_env: JniEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
-	_is_absolute: bool,
+	_this: JObject, // jdk.internal.misc.Unsafe
+	_is_absolute: jboolean,
 	_time: jlong,
 ) {
 	unimplemented!("jdk.internal.misc.Unsafe#park")
 }
 
-pub fn fullFence(
+#[jni_call]
+extern "C" fn fullFence(
 	_env: JniEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
+	_this: JObject, // jdk.internal.misc.Unsafe
 ) {
 	std::sync::atomic::fence(Ordering::SeqCst);
 }
@@ -487,9 +624,10 @@ impl UnsafeAllocator {
 
 static UNSAFE_ALLOCATOR: UnsafeAllocator = UnsafeAllocator;
 
-pub fn allocateMemory0(
+#[jni_call]
+extern "C" fn allocateMemory0(
 	_env: JniEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
+	_this: JObject, // jdk.internal.misc.Unsafe
 	bytes: jlong,
 ) -> jlong {
 	let Ok(size) = usize::try_from(bytes) else {
@@ -501,18 +639,20 @@ pub fn allocateMemory0(
 		.map_or(0, |ptr| ptr.as_ptr() as jlong)
 }
 
-pub fn reallocateMemory0(
+#[jni_call]
+extern "C" fn reallocateMemory0(
 	_env: JniEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
+	_this: JObject, // jdk.internal.misc.Unsafe
 	_address: jlong,
 	_bytes: jlong,
 ) -> jlong {
 	unimplemented!("jdk.internal.misc.Unsafe#reallocateMemory0")
 }
 
-pub fn freeMemory0(
+#[jni_call]
+extern "C" fn freeMemory0(
 	_env: JniEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
+	_this: JObject, // jdk.internal.misc.Unsafe
 	address: jlong,
 ) {
 	if address == 0 {
@@ -522,10 +662,11 @@ pub fn freeMemory0(
 	unsafe { UNSAFE_ALLOCATOR.deallocate(address as *mut u8) }
 }
 
-pub fn setMemory0(
+#[jni_call]
+extern "C" fn setMemory0(
 	_env: JniEnv,
-	_this: Reference,   // jdk.internal.misc.Unsafe
-	_object: Reference, // Object
+	_this: JObject, // jdk.internal.misc.Unsafe
+	_object: JObject,
 	_offset: jlong,
 	_bytes: jlong,
 	_value: jbyte,
@@ -533,12 +674,13 @@ pub fn setMemory0(
 	unimplemented!("jdk.internal.misc.Unsafe#setMemory0")
 }
 
-pub fn copyMemory0(
+#[jni_call]
+extern "C" fn copyMemory0(
 	_env: JniEnv,
-	_this: Reference,    // jdk.internal.misc.Unsafe
-	src_base: Reference, // java.lang.Object
+	_this: JObject, // jdk.internal.misc.Unsafe
+	src_base: JObject,
 	src_offset: jlong,
-	dest_base: Reference, // java.lang.Object
+	dest_base: JObject,
 	dest_offset: jlong,
 	size: jlong,
 ) {
@@ -547,6 +689,9 @@ pub fn copyMemory0(
 		return; // Nothing to copy
 	}
 
+	let src_base = unsafe { src_base.to_reference_maybe_null() };
+	let dest_base = unsafe { dest_base.to_reference_maybe_null() };
+
 	let size = size as usize;
 
 	let src = unsafe { src_base.field_base().add(src_offset as usize) };
@@ -554,12 +699,13 @@ pub fn copyMemory0(
 	unsafe { src.copy_to(dest, size) };
 }
 
-pub fn copySwapMemory0(
+#[jni_call]
+extern "C" fn copySwapMemory0(
 	_env: JniEnv,
-	_this: Reference,     // jdk.internal.misc.Unsafe
-	_src_base: Reference, // Object
+	_this: JObject, // jdk.internal.misc.Unsafe
+	_src_base: JObject,
 	_src_offset: jlong,
-	_dest_base: Reference, // Object,
+	_dest_base: JObject,
 	_dest_offset: jlong,
 	_bytes: jlong,
 	_elem_size: jlong,
@@ -567,12 +713,18 @@ pub fn copySwapMemory0(
 	unimplemented!("jdk.internal.misc.Unsafe#copyMemory0")
 }
 
-pub fn objectFieldOffset0(
+#[jni_call]
+extern "C" fn objectFieldOffset0(
 	env: JniEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
-	field: Reference, // java.lang.reflect.Field
+	_this: JObject, // jdk.internal.misc.Unsafe
+	field: JObject, // java.lang.reflect.Field
 ) -> jlong {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+	let Some(field) = (unsafe { field.to_reference() }) else {
+		panic!("should be checked by the jdk");
+	};
 
 	let instance = field.extract_class();
 
@@ -591,15 +743,24 @@ pub fn objectFieldOffset0(
 	field.offset() as jlong
 }
 
-pub fn knownObjectFieldOffset0(
+#[jni_call]
+extern "C" fn knownObjectFieldOffset0(
 	_env: JniEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
-	class: Reference, // java.lang.Class
-	name: Reference,  // String
+	_this: JObject, // jdk.internal.misc.Unsafe
+	class: JClass,
+	name: JString,
 ) -> jlong {
 	// error codes
 	const NOT_FOUND: jlong = -1;
 	const IS_STATIC: jlong = -2;
+
+	let Some(class) = (unsafe { class.to_reference() }) else {
+		panic!("should be checked by the jdk");
+	};
+
+	let Some(name) = (unsafe { name.to_reference() }) else {
+		panic!("should be checked by the jdk");
+	};
 
 	let class = class.extract_mirror();
 
@@ -621,37 +782,59 @@ pub fn knownObjectFieldOffset0(
 	NOT_FOUND
 }
 
-pub fn staticFieldOffset0(
+#[jni_call]
+extern "C" fn staticFieldOffset0(
 	_env: JniEnv,
-	_this: Reference,  // jdk.internal.misc.Unsafe
-	_field: Reference, // java.lang.reflect.Field
+	_this: JObject,  // jdk.internal.misc.Unsafe
+	_field: JObject, // java.lang.reflect.Field
 ) -> jlong {
 	unimplemented!("jdk.internal.misc.Unsafe#staticFieldOffset0")
 }
 
-pub fn staticFieldBase0(
+#[jni_call]
+extern "C" fn staticFieldBase0(
 	_env: JniEnv,
-	_this: Reference,  // jdk.internal.misc.Unsafe
-	_field: Reference, // java.lang.reflect.Field
-) -> Reference /* java.lang.Object */ {
+	_this: JObject,  // jdk.internal.misc.Unsafe
+	_field: JObject, // java.lang.reflect.Field
+) -> JObject {
 	unimplemented!("jdk.internal.misc.Unsafe#staticFieldBase0")
 }
-pub fn shouldBeInitialized0(
+#[jni_call]
+extern "C" fn shouldBeInitialized0(
 	_env: JniEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
-	class: Reference, // java.lang.Class
-) -> bool {
-	assert!(!class.is_null(), "should be checked in the jdk");
+	_this: JObject, // jdk.internal.misc.Unsafe
+	class: JClass,
+) -> jboolean {
+	let Some(class) = (unsafe { class.to_reference() }) else {
+		panic!("should be checked by the jdk");
+	};
 
 	let class = class.extract_target_class();
 	class.initialization_state() != ClassInitializationState::Init
 }
-pub fn ensureClassInitialized0(
+#[jni_call]
+extern "C" fn notifyStrictStaticAccess0(
+	_env: JniEnv,
+	_this: JObject, // jdk.internal.misc.Unsafe
+	_class: JClass,
+	_sfoffset: jlong,
+	_writing: jboolean,
+) -> jboolean {
+	unimplemented!("jdk.internal.misc.Unsafe#notifyStrictStaticAccess0")
+}
+#[jni_call]
+extern "C" fn ensureClassInitialized0(
 	env: JniEnv,
-	_this: Reference, // jdk.internal.misc.Unsafe
-	class: Reference, // java.lang.Class
+	_this: JObject, // jdk.internal.misc.Unsafe
+	class: JClass,
 ) {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+	let Some(class) = (unsafe { class.to_reference() }) else {
+		panic!("should be checked by the jdk");
+	};
+
 	let mirror = class.extract_mirror();
 
 	let target_class = mirror.target_class();
@@ -660,10 +843,10 @@ pub fn ensureClassInitialized0(
 	}
 }
 
-fn scale_of(array_class: Reference) -> Throws<jint> {
-	if array_class.is_null() {
+fn scale_of(array_class: JClass) -> Throws<jint> {
+	let Some(array_class) = (unsafe { array_class.to_reference() }) else {
 		throw!(@DEFER InvalidClassException);
-	}
+	};
 
 	let array_class_mirror = array_class.extract_mirror();
 	let array_class = array_class_mirror.target_class();
@@ -683,10 +866,11 @@ fn scale_of(array_class: Reference) -> Throws<jint> {
 	}
 }
 
-pub fn arrayBaseOffset0(
+#[jni_call]
+extern "C" fn arrayBaseOffset0(
 	env: JniEnv,
-	_this: Reference,       // jdk.internal.misc.Unsafe
-	array_class: Reference, // java.lang.Class
+	_this: JObject, // jdk.internal.misc.Unsafe
+	array_class: JClass,
 ) -> jint {
 	// Just here to verify that the array is valid
 	if let Throws::Exception(e) = scale_of(array_class) {
@@ -699,10 +883,15 @@ pub fn arrayBaseOffset0(
 	// base on the start of the object's fields already, so the indexing is transparent.
 	0
 }
-pub fn arrayIndexScale0(
+#[jni_call]
+extern "C" fn arrayInstanceBaseOffset0(_env: JniEnv, _this: JObject, _array: JArray) -> jint {
+	unimplemented!("jdk.internal.misc.Unsafe#arrayInstanceBaseOffset0")
+}
+#[jni_call]
+extern "C" fn arrayIndexScale0(
 	env: JniEnv,
-	_this: Reference,       // jdk.internal.misc.Unsafe
-	array_class: Reference, // java.lang.Class
+	_this: JObject, // jdk.internal.misc.Unsafe
+	array_class: JClass,
 ) -> jint {
 	match scale_of(array_class) {
 		Throws::Ok(scale) => scale,
@@ -713,11 +902,119 @@ pub fn arrayIndexScale0(
 		},
 	}
 }
-pub fn getLoadAverage0(
+#[jni_call]
+extern "C" fn arrayInstanceIndexScale0(_env: JniEnv, _this: JObject, _array: JArray) -> jint {
+	unimplemented!("jdk.internal.misc.Unsafe#arrayInstanceIndexScale0")
+}
+#[jni_call]
+extern "C" fn getFieldMap0(_env: JniEnv, _this: JObject, _class: JClass) -> JArray {
+	unimplemented!("jdk.internal.misc.Unsafe#getFieldMap0")
+}
+#[jni_call]
+extern "C" fn getObjectSize0(_env: JniEnv, _this: JObject, _obj: JObject) -> jlong {
+	unimplemented!("jdk.internal.misc.Unsafe#getObjectSize0")
+}
+#[jni_call]
+extern "C" fn getLoadAverage0(
 	_env: JniEnv,
-	_this: Reference,    // jdk.internal.misc.Unsafe
-	_loadavg: Reference, // [D
+	_this: JObject, // jdk.internal.misc.Unsafe
+	_loadavg: JDoubleArray,
 	_nelems: jint,
 ) -> jint {
 	unimplemented!("jdk.internal.misc.Unsafe#getLoadAverage0")
+}
+
+#[jni_call]
+#[unsafe(export_name = "Java_jdk_internal_misc_Unsafe_registerNatives")]
+pub extern "C" fn registerNatives(env: JniEnv, class: JClass) {
+	macro_rules! methods {
+        (
+            GET_PUT_TYPES: [$(($get_put_ty:ident, $get_put_ty_code:ident)),* $(,)?],
+            $(($name:expr, $signature:expr, $fn_ptr:expr)),* $(,)?
+        ) => {
+            paste::paste! {
+                [
+                    $(
+                        JniNativeMethod::from(stringify!([<get $get_put_ty>]),          const_format::concatcp!("(Ljava/lang/Object;J)", stringify!($get_put_ty_code)),      [<get $get_put_ty>] as extern "C" fn (_, _, _, _) -> _),
+                        JniNativeMethod::from(stringify!([<put $get_put_ty>]),          const_format::concatcp!("(Ljava/lang/Object;J", stringify!($get_put_ty_code), ")V"), [<put $get_put_ty>] as extern "C" fn (_, _, _, _, _)),
+                        JniNativeMethod::from(stringify!([<get $get_put_ty Volatile>]), const_format::concatcp!("(Ljava/lang/Object;J)", stringify!($get_put_ty_code)),     [<get $get_put_ty Volatile>] as extern "C" fn (_, _, _, _) -> _),
+                        JniNativeMethod::from(stringify!([<put $get_put_ty Volatile>]), const_format::concatcp!("(Ljava/lang/Object;J", stringify!($get_put_ty_code), ")V"), [<put $get_put_ty Volatile>] as extern "C" fn (_, _, _, _, _)),
+                    )*
+                    $(
+                        JniNativeMethod::from($name, $signature, $fn_ptr),
+                    )*
+                ]
+            }
+        }
+    }
+
+	#[allow(trivial_casts)]
+	let methods = methods! {
+		GET_PUT_TYPES: [
+			(Boolean, Z),
+			(Byte, B),
+			(Short, S),
+			(Char, C),
+			(Int, I),
+			(Long, J),
+			(Float, F),
+			(Double, D),
+		],
+
+		("getReference",                "(Ljava/lang/Object;J)Ljava/lang/Object;",                                                          getReference as extern "C" fn(_, _, _, _) -> JObject),
+		("putReference",                "(Ljava/lang/Object;JLjava/lang/Object;)V",                                                         putReference as extern "C" fn(_, _, _, _, _)),
+		("getReferenceVolatile",        "(Ljava/lang/Object;J)Ljava/lang/Object;",                                                          getReferenceVolatile as extern "C" fn(_, _, _, _) -> JObject),
+		("putReferenceVolatile",        "(Ljava/lang/Object;JLjava/lang/Object;)V",                                                         putReferenceVolatile as extern "C" fn(_, _, _, _, _)),
+		("isFlatField0",                "(Ljava/lang/Object;)Z",                                                                            isFlatField as extern "C" fn(_, _, _) -> jboolean),
+		("hasNullMarker0",              "(Ljava/lang/Object;)Z",                                                                            hasNullMarker as extern "C" fn(_, _, _) -> jboolean),
+		("nullMarkerOffset0",           "(Ljava/lang/Object;)I",                                                                            nullMarkerOffset as extern "C" fn(_, _, _) -> jint),
+		("arrayLayout0",                "([Ljava/lang/Object;)I",                                                                           arrayLayout as extern "C" fn(_, _, _) -> jint),
+		("fieldLayout0",                "(Ljava/lang/Object;)I",                                                                            fieldLayout as extern "C" fn(_, _, _) -> jint),
+		("newSpecialArray",             "(Ljava/lang/Class;II)[Ljava/lang/Object;",                                                         newSpecialArray as extern "C" fn(_, _, _, _, _) -> JArray),
+		("getFlatValue",                "(Ljava/lang/Object;JILjava/lang/Class;)Ljava/lang/Object;",                                        getFlatValue as extern "C" fn(_, _, _, _, _, _) -> JObject),
+		("putFlatValue",                "(Ljava/lang/Object;JILjava/lang/Class;Ljava/lang/Object;)V",                                       putFlatValue as extern "C" fn(_, _, _, _, _, _, _)),
+		("valueHeaderSize",             "(Ljava/lang/Class;)J",                                                                             valueHeaderSize as extern "C" fn(_, _, _) -> jlong),
+		("getUncompressedObject",       "(J)Ljava/lang/Object;",                                                                            getUncompressedObject as extern "C" fn(_, _, _) -> JObject),
+		("allocateMemory0",             "(J)J",                                                                                             allocateMemory0 as extern "C" fn(_, _, _) -> jlong),
+		("reallocateMemory0",           "(JJ)J",                                                                                            reallocateMemory0 as extern "C" fn(_, _, _, _) -> jlong),
+		("freeMemory0",                 "(J)V",                                                                                             freeMemory0 as extern "C" fn(_, _, _)),
+		("objectFieldOffset0",          "(Ljava/lang/reflect/Field;)J",                                                                     objectFieldOffset0 as extern "C" fn(_, _, _) -> jlong),
+		("knownObjectFieldOffset0",     "(Ljava/lang/Class;Ljava/lang/String;)J",                                                           knownObjectFieldOffset0 as extern "C" fn(_, _, _, _) -> jlong),
+		("staticFieldOffset0",          "(Ljava/lang/reflect/Field;)J",                                                                     staticFieldOffset0 as extern "C" fn(_, _, _) -> jlong),
+		("staticFieldBase0",            "(Ljava/lang/reflect/Field;)Ljava/lang/Object;",                                                    staticFieldBase0 as extern "C" fn(_, _, _) -> JObject),
+		("ensureClassInitialized0",     "(Ljava/lang/Class;)V",                                                                             ensureClassInitialized0 as extern "C" fn(_, _, _)),
+		("arrayBaseOffset0",            "(Ljava/lang/Class;)I",                                                                             arrayBaseOffset0 as extern "C" fn(_, _, _) -> jint),
+		("arrayInstanceBaseOffset0",    "([Ljava/lang/Object;)I",                                                                           arrayInstanceBaseOffset0 as extern "C" fn(_, _, _) -> jint),
+		("arrayIndexScale0",            "(Ljava/lang/Class;)I",                                                                             arrayIndexScale0 as extern "C" fn(_, _, _) -> jint),
+		("arrayInstanceIndexScale0",    "([Ljava/lang/Object;)I",                                                                           arrayInstanceIndexScale0 as extern "C" fn(_, _, _) -> jint),
+		("getFieldMap0",                "(Ljava/lang/Class;)[I",                                                                            getFieldMap0 as extern "C" fn(_, _, _) -> JArray),
+		("getObjectSize0",              "(Ljava/lang/Object;)J",                                                                            getObjectSize0 as extern "C" fn(_, _, _) -> jlong),
+		("defineClass0",                "(Ljava/lang/String;[BIILjava/lang/ClassLoader;Ljava/security/ProtectionDomain;)Ljava/lang/Class;", defineClass0 as extern "C" fn(_, _, _, _, _, _, _, _) -> JObject),
+		("allocateInstance",            "(Ljava/lang/Class;)Ljava/lang/Object;",                                                            allocateInstance as extern "C" fn(_, _, _) -> JObject),
+		("throwException",              "(Ljava/lang/Throwable;)V",                                                                         throwException as extern "C" fn(_, _, _)),
+		("compareAndSetReference",      "(Ljava/lang/Object;JLjava/lang/Object;Ljava/lang/Object;)Z",                                       compareAndSetReference as extern "C" fn(_, _, _, _, _, _) -> jboolean),
+		("compareAndSetInt",            "(Ljava/lang/Object;JII)Z",                                                                         compareAndSetInt as extern "C" fn(_, _, _, _, _, _) -> jboolean),
+		("compareAndSetLong",           "(Ljava/lang/Object;JJJ)Z",                                                                         compareAndSetLong as extern "C" fn(_, _, _, _, _, _) -> jboolean),
+		("compareAndExchangeReference", "(Ljava/lang/Object;JLjava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;",                      compareAndExchangeReference as extern "C" fn(_, _, _, _, _, _) -> JObject),
+		("compareAndExchangeInt",       "(Ljava/lang/Object;JII)I",                                                                         compareAndExchangeInt as extern "C" fn(_, _, _, _, _, _) -> jint),
+		("compareAndExchangeLong",      "(Ljava/lang/Object;JJJ)J",                                                                         compareAndExchangeLong as extern "C" fn(_, _, _, _, _, _) -> jlong),
+		("park",                        "(ZJ)V",                                                                                            park as extern "C" fn(_, _, _, _)),
+		("unpark",                      "(Ljava/lang/Object;)V",                                                                            unpark as extern "C" fn(_, _, _)),
+		("getLoadAverage0",             "([DI)I",                                                                                           getLoadAverage0 as extern "C" fn(_, _, _, _) -> jint),
+		("copyMemory0",                 "(Ljava/lang/Object;JLjava/lang/Object;JJ)V",                                                       copyMemory0 as extern "C" fn(_, _, _, _, _, _, _)),
+		("copySwapMemory0",             "(Ljava/lang/Object;JLjava/lang/Object;JJJ)V",                                                      copySwapMemory0 as extern "C" fn(_, _, _, _, _, _, _, _)),
+		("writeback0",                  "(J)V",                                                                                             writeBack0 as extern "C" fn(_, _, _)),
+		("writebackPreSync0",           "()V",                                                                                              writeBackPreSync0 as extern "C" fn(_, _)),
+		("writebackPostSync0",          "()V",                                                                                              writeBackPostSync0 as extern "C" fn(_, _)),
+		("setMemory0",                  "(Ljava/lang/Object;JJB)V",                                                                         setMemory0 as extern "C" fn(_, _, _, _, _, _)),
+		("shouldBeInitialized0",        "(Ljava/lang/Class;)Z",                                                                             shouldBeInitialized0 as extern "C" fn(_, _, _) -> jboolean),
+		("notifyStrictStaticAccess0",   "(Ljava/lang/Class;JZ)V",                                                                           notifyStrictStaticAccess0 as extern "C" fn(_, _, _, _, _) -> jboolean),
+		("fullFence",                   "()V",                                                                                              fullFence as extern "C" fn(_, _)),
+	};
+
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+	env.register_natives(class, &methods)
+		.expect("should register")
 }

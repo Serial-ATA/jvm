@@ -1,5 +1,3 @@
-#![native_macros::jni_fn_module]
-
 use crate::native::jni::references::JObjectExt;
 
 use jni::env::JniEnv;

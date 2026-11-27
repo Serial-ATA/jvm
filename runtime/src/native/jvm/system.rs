@@ -1,5 +1,3 @@
-#![native_macros::jni_fn_module]
-
 use crate::native::jni::references::JObjectExt;
 use crate::native::jvm::strings::StringInterner;
 use crate::objects::instance::array::{Array, ObjectArrayInstance};

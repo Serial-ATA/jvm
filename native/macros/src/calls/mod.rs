@@ -92,7 +92,7 @@ fn validate_params<P: ParameterType>(
 	no_env: bool,
 	no_strict_types: bool,
 	call_type: CallType,
-) -> Vec<(Ident, P)> {
+) {
 	fn parse_type<P: ParameterType>(
 		fun: &ItemFn,
 		no_env: bool,
@@ -135,7 +135,6 @@ fn validate_params<P: ParameterType>(
 		}
 	}
 
-	let mut params = Vec::new();
 	for (index, param) in fun.sig.inputs.iter().enumerate() {
 		match param {
 			FnArg::Receiver(receiver) => errors.push((Error::HasReceiver, receiver.span())),
@@ -148,73 +147,12 @@ fn validate_params<P: ParameterType>(
 					continue;
 				};
 
-				match parse_type(fun, no_env, index, param, arg, call_type) {
-					Ok(parsed) => params.push((ident.clone(), parsed)),
-					Err(e) => {
-						if no_strict_types {
-							params.push((ident.clone(), P::from_loose_ty(arg.ty.clone())));
-							continue;
-						}
-
+				if let Err(e) = parse_type::<P>(fun, no_env, index, param, arg, call_type) {
+					if !no_strict_types {
 						errors.push(e);
-					},
+					}
 				}
 			},
-		}
-	}
-
-	params
-}
-
-fn generate_extern_fn<P: ParameterType>(
-	fun: &ItemFn,
-	params: &[(Ident, P)],
-	return_type: Option<P>,
-) -> proc_macro2::TokenStream {
-	let fn_name = &fun.sig.ident;
-
-	let sys_params = params
-		.iter()
-		.map(|(param, parsed_ty)| {
-			let ty = parsed_ty.to_raw();
-			quote! { #param: #ty }
-		})
-		.collect::<Vec<_>>();
-
-	let arg_conversions = params
-		.iter()
-		.map(|(param, parsed_ty)| {
-			let conversion = parsed_ty.safe_conversion_fn(param.clone());
-			quote! { let #param = #conversion; }
-		})
-		.collect::<Vec<_>>();
-
-	let all_param_names = params
-		.iter()
-		.map(|(param, _)| param.clone())
-		.collect::<Vec<_>>();
-
-	let result_ident = Ident::new("result", Span::call_site());
-
-	let ret;
-	let to_raw_conversion;
-	if let Some(ty) = return_type {
-		let sys_ty = ty.to_raw();
-		ret = quote! { -> #sys_ty };
-		to_raw_conversion = ty.raw_conversion_fn(result_ident.clone());
-	} else {
-		ret = quote! {};
-		to_raw_conversion = quote! {};
-	}
-
-	quote! {
-		#[unsafe(no_mangle)]
-		#[allow(non_snake_case)]
-		pub unsafe extern "system" fn #fn_name(#(#sys_params),*) #ret {
-			#(#arg_conversions)*
-
-			let #result_ident = super::#fn_name(#(#all_param_names),*);
-			#to_raw_conversion
 		}
 	}
 }

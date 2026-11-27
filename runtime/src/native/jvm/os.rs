@@ -1,5 +1,3 @@
-#![native_macros::jni_fn_module]
-
 use std::ffi::{CStr, c_char, c_void};
 
 use common::unicode;

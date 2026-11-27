@@ -206,7 +206,6 @@ const CHUNK_SIZE: usize = 16384;
 
 struct Chunk {
 	slots: [Slot; CHUNK_SIZE],
-	full: bool,
 }
 
 impl Chunk {
@@ -232,7 +231,6 @@ impl Default for Chunk {
 	fn default() -> Self {
 		Self {
 			slots: [Slot::Empty; CHUNK_SIZE],
-			full: false,
 		}
 	}
 }

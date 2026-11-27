@@ -1,5 +1,3 @@
-#![native_macros::jni_fn_module]
-
 use crate::native::jni::references::JObjectExt;
 use crate::native::jvm::reflection::ensure_class_mirror;
 use crate::native::jvm::strings::StringInterner;

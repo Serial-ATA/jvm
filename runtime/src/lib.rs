@@ -8,7 +8,6 @@
 #![feature(reentrant_lock)]
 #![feature(std_internals)]
 #![feature(pointer_is_aligned_to)]
-#![feature(custom_inner_attributes)]
 #![feature(try_trait_v2_residual)]
 #![feature(int_roundings)]
 #![feature(transmute_prefix)]

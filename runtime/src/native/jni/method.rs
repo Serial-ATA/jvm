@@ -1,6 +1,5 @@
 use super::convert_operand;
 use super::references::{JObjectExt, method_ref_from_jmethodid};
-use crate::objects::instance::object::Object;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::symbols::Symbol;

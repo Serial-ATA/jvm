@@ -1,5 +1,3 @@
-#![native_macros::jni_fn_module]
-
 use jni::sys::jboolean;
 use native_macros::jni_call;
 

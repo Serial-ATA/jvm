@@ -1,5 +1,3 @@
-#![native_macros::jni_fn_module]
-
 use crate::classes;
 use crate::classpath::loader::ClassLoader;
 use crate::modules::{Module, Package};

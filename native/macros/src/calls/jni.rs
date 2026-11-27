@@ -234,52 +234,41 @@ impl super::ParameterType for ParameterType {
 
 pub struct JniFn {
 	pub rust_fn: proc_macro2::TokenStream,
-	pub extern_fn: proc_macro2::TokenStream,
 	pub errors: Vec<(Error, Span)>,
 }
 
 pub fn generate(input: &ItemFn, no_env: bool, no_strict_types: bool) -> JniFn {
 	let mut errors = Vec::new();
 	super::validate_abi(&mut errors, input);
-	let params = super::validate_params(&mut errors, input, no_env, no_strict_types, CallType::Jni);
-	let return_ty = validate_return(&mut errors, input, no_strict_types);
-
-	let fn_name = &input.sig.ident;
-	let raw_mod_name = Ident::new(&format!("raw_{}", fn_name), Span::call_site());
-
-	let extern_fn_def = super::generate_extern_fn(input, &params, return_ty);
-	let extern_fn = quote! {
-		#[allow(unused_imports)]
-		mod #raw_mod_name {
-			use super::*;
-
-			#extern_fn_def
-		}
-	};
+	super::validate_params::<ParameterType>(
+		&mut errors,
+		input,
+		no_env,
+		no_strict_types,
+		CallType::Jni,
+	);
+	validate_return(&mut errors, input, no_strict_types);
 
 	let rust_fn = quote! {
+		#[unsafe(no_mangle)]
 		#[allow(non_snake_case)]
 		#input
 	};
 
-	JniFn {
-		rust_fn,
-		extern_fn,
-		errors,
-	}
+	JniFn { rust_fn, errors }
 }
 
 fn validate_return(
 	errors: &mut Vec<(Error, Span)>,
 	fun: &ItemFn,
 	no_strict_types: bool,
-) -> Option<ParameterType> {
+) {
 	let ReturnType::Type(_, ty) = &fun.sig.output else {
-		return None;
+		return;
 	};
 
 	if no_strict_types {
-		return Some(ParameterType::Loose(ty.clone()));
+		return;
 	}
 
 	let Type::Path(TypePath { path, .. }) = &**ty else {
@@ -290,7 +279,7 @@ fn validate_return(
 			},
 			ty.span(),
 		));
-		return None;
+		return;
 	};
 
 	let Some((path_str, optional)) = super::path_str(path) else {
@@ -301,18 +290,16 @@ fn validate_return(
 			},
 			ty.span(),
 		));
-		return None;
-	};
-	let Some(parsed) = SafeJniWrapperType::from_str(&path_str, optional) else {
-		errors.push((
-			Error::BadReturnType {
-				ty: path_str,
-				call_type: CallType::Jni,
-			},
-			ty.span(),
-		));
-		return None;
+        return;
 	};
 
-	Some(ParameterType::Strict(parsed))
+    if SafeJniWrapperType::from_str(&path_str, optional).is_none() {
+        errors.push((
+            Error::BadReturnType {
+                ty: path_str,
+                call_type: CallType::Jni,
+            },
+            ty.span(),
+        ));
+    }
 }

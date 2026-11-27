@@ -1,5 +1,3 @@
-#![native_macros::jni_fn_module]
-
 use jni::env::JniEnv;
 use jni::objects::{JByteArray, JClass, JObject};
 use jni::sys::{jint, jlong, jsize};

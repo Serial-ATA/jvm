@@ -1,5 +1,3 @@
-#![native_macros::jni_fn_module]
-
 use std::sync::OnceLock;
 
 use ::jni::env::JniEnv;

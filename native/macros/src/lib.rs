@@ -35,18 +35,14 @@ pub fn jni_call(args: TokenStream, input: TokenStream) -> TokenStream {
 
 	parse_macro_input!(args with meta_parser);
 	let input = parse_macro_input!(input as syn::ItemFn);
-	let calls::jni::JniFn {
-		rust_fn,
-		extern_fn,
-		errors,
-	} = calls::jni::generate(&input, no_env, no_strict_types);
+	let calls::jni::JniFn { rust_fn, errors } =
+		calls::jni::generate(&input, no_env, no_strict_types);
 
 	let errors = quote_errors(errors);
 	quote! {
 		#(#errors)*
 
 		#rust_fn
-		#extern_fn
 	}
 	.into()
 }
@@ -54,68 +50,13 @@ pub fn jni_call(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn jvmti_call(_args: TokenStream, input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as syn::ItemFn);
-	let calls::jvmti::JvmtiFn {
-		rust_fn,
-		extern_fn,
-		errors,
-	} = calls::jvmti::generate(&input);
+	let calls::jvmti::JvmtiFn { rust_fn, errors } = calls::jvmti::generate(&input);
 
 	let errors = quote_errors(errors);
 	quote! {
 		#(#errors)*
 
 		#rust_fn
-		#extern_fn
-	}
-	.into()
-}
-
-/// Collects all `#[jni_call]` annotated functions in the module and re-exports them under `self::raw`
-#[proc_macro_attribute]
-pub fn jni_fn_module(_attr: TokenStream, input: TokenStream) -> TokenStream {
-	let input = parse_macro_input!(input as syn::ItemMod);
-
-	let Some((_, items)) = input.content else {
-		return syn::Error::new_spanned(input, "cannot use #[jni_fn_module] on an empty module")
-			.into_compile_error()
-			.into();
-	};
-
-	let mut raw_mod_entries = Vec::new();
-	for item in &items {
-		let syn::Item::Fn(item_fn) = item else {
-			continue;
-		};
-
-		if !item_fn
-			.attrs
-			.iter()
-			.any(|a| a.meta.path().is_ident("jni_call"))
-		{
-			continue;
-		}
-
-		let name = item_fn.sig.ident.clone();
-		let raw_ident = Ident::new(&format!("raw_{name}"), name.span());
-		raw_mod_entries.push(quote_spanned! {raw_ident.span()=>
-			pub use super::#raw_ident::*;
-		});
-	}
-
-	let attrs = &input.attrs;
-	let vis = &input.vis;
-	let ident = &input.ident;
-	quote! {
-		#(#attrs)*
-		#vis mod #ident {
-			#(#items)*
-
-			/// Generated C bindings for sun.io.fs.UnixNativeDispatcher methods
-			#[allow(unused_imports)]
-			pub mod raw {
-				#(#raw_mod_entries)*
-			}
-		}
 	}
 	.into()
 }

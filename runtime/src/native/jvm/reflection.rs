@@ -1,5 +1,3 @@
-#![native_macros::jni_fn_module]
-
 use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
 use crate::native::RawSymbolExt;
 use crate::native::jni::references::JObjectExt;

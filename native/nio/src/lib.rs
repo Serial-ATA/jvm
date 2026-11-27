@@ -1,5 +1,3 @@
-#![feature(custom_inner_attributes)]
-
 pub mod channel;
 pub mod fs;
 

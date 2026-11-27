@@ -13,6 +13,7 @@ use platform::libs::Library;
 
 mod class;
 pub mod intrinsics;
+mod jdk;
 pub mod jni;
 pub mod jvm;
 pub mod jvmti;
@@ -87,15 +88,6 @@ pub(crate) mod java {
 			pub(crate) mod Array;
 		}
 		pub(crate) mod Throwable;
-	}
-}
-
-pub(crate) mod jdk {
-	pub(crate) mod internal {
-		pub(crate) mod misc {
-			pub(crate) mod ScopedMemoryAccess;
-			pub(crate) mod Unsafe;
-		}
 	}
 }
 
