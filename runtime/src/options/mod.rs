@@ -68,6 +68,22 @@ impl Default for JvmOptions {
 	}
 }
 
+/// Module CLI options -> system property
+const MODULE_OPTION_MAPPINGS: &[(&str, &str)] = &[
+	("--add-reads", "jdk.module.addreads"),
+	("--add-exports", "jdk.module.addexports"),
+	("--add-opens", "jdk.module.addopens"),
+	("--add-modules", "jdk.module.addmods"),
+	("--enable-native-access", "jdk.module.enable.native.access"),
+	(
+		"--illegal-native-access",
+		"jdk.module.illegal.native.access",
+	),
+	("--limit-modules", "jdk.module.limitmods"),
+	("--module-path", "jdk.module.path"),
+	("--upgrade-module-path", "jdk.module.upgrade.path"),
+];
+
 impl JvmOptions {
 	/// Parse the `JvmOptions` from the user-provided [`JavaVMInitArgs`]
 	///
@@ -140,6 +156,14 @@ impl JvmOptions {
 					let key = String::from(system_prop);
 					let val = String::from(val);
 					system_props_guard.insert(key, val);
+				},
+				// Module stuff
+				_ if let Some(module_prop) = MODULE_OPTION_MAPPINGS
+					.iter()
+					.find_map(|(opt, prop)| (*opt == key).then_some(*prop)) =>
+				{
+					let val = opt_split.next().unwrap();
+					system_props_guard.insert(String::from(module_prop), String::from(val));
 				},
 				_ => {
 					if !init.ignoreUnrecognized {
