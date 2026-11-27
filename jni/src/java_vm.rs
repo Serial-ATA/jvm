@@ -9,7 +9,6 @@ use crate::env::JniEnv;
 use crate::error::{JniError, Result};
 use crate::version::JniVersion;
 
-use std::cell::UnsafeCell;
 use std::ffi::c_void;
 use std::path::PathBuf;
 
@@ -117,7 +116,7 @@ impl JavaVmBuilder {
 		}
 
 		let java_vm = JavaVm {
-			inner: UnsafeCell::new(unsafe { *javavm_raw }),
+			inner: javavm_raw,
 			_libjvm: Some(libjvm),
 		};
 		let jni_env = unsafe { JniEnv::from_raw(jni_env_raw.cast::<JNIEnv>()) };
@@ -136,7 +135,7 @@ fn default_libjvm_path() -> Option<PathBuf> {
 ///
 /// See [`JavaVmBuilder`].
 pub struct JavaVm {
-	inner: UnsafeCell<jni_sys::JavaVM>,
+	inner: *mut jni_sys::JavaVM,
 	// Not used outside of the original load, just kept here to prevent unloading.
 	// Optional since it's also used in libjvm, where it, of course, isn't applicable.
 	_libjvm: Option<platform::libs::Library>,
@@ -144,7 +143,7 @@ pub struct JavaVm {
 
 impl PartialEq for JavaVm {
 	fn eq(&self, other: &Self) -> bool {
-		self.inner.get() == other.inner.get()
+		self.inner == other.inner
 	}
 }
 
@@ -162,7 +161,7 @@ impl JavaVm {
 		let ret;
 		unsafe {
 			let invoke_interface = self.as_invoke_interface();
-			ret = ((*invoke_interface).DestroyJavaVM)(self.inner.get());
+			ret = ((*invoke_interface).DestroyJavaVM)(self.inner);
 		}
 
 		if let Some(err) = JniError::from_jint(ret) {
@@ -184,8 +183,7 @@ impl JavaVm {
 				args_ptr = args.raw().cast_mut();
 			}
 
-			ret =
-				((*invoke_interface).AttachCurrentThread)(self.inner.get(), &raw mut env, args_ptr);
+			ret = ((*invoke_interface).AttachCurrentThread)(self.inner, &raw mut env, args_ptr);
 		}
 
 		if let Some(err) = JniError::from_jint(ret) {
@@ -206,7 +204,7 @@ impl JavaVm {
 		let ret;
 		unsafe {
 			let invoke_interface = self.as_invoke_interface();
-			ret = ((*invoke_interface).DetachCurrentThread)(self.inner.get());
+			ret = ((*invoke_interface).DetachCurrentThread)(self.inner);
 		}
 
 		if let Some(err) = JniError::from_jint(ret) {
@@ -235,7 +233,7 @@ impl JavaVm {
 		let ret;
 		unsafe {
 			let invoke_interface = self.as_invoke_interface();
-			ret = ((*invoke_interface).GetEnv)(self.inner.get(), &raw mut env, version.into());
+			ret = ((*invoke_interface).GetEnv)(self.inner, &raw mut env, version.into());
 		}
 
 		if let Some(err) = JniError::from_jint(ret) {
@@ -250,13 +248,14 @@ impl JavaVm {
 	}
 
 	unsafe fn as_invoke_interface(&self) -> *const jni_sys::JNIInvokeInterface_ {
-		unsafe { *self.inner.get() }
+		assert!(!self.inner.is_null());
+		unsafe { *self.inner }
 	}
 }
 
 impl JavaVm {
 	pub const fn raw(&self) -> *mut jni_sys::JavaVM {
-		self.inner.get()
+		self.inner
 	}
 
 	/// Create a [`JavaVm`] from a raw pointer
@@ -264,9 +263,9 @@ impl JavaVm {
 	/// # Safety
 	///
 	/// The caller *must* ensure that the pointer provided was obtained from the VM.
-	pub const unsafe fn from_raw(ptr: jni_sys::JavaVM) -> Self {
+	pub const unsafe fn from_raw(ptr: *mut jni_sys::JavaVM) -> Self {
 		Self {
-			inner: UnsafeCell::new(ptr),
+			inner: ptr,
 			_libjvm: None,
 		}
 	}

@@ -7,6 +7,6 @@ pub extern "system" fn GetJavaVM(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint
 		return -1;
 	}
 
-	unsafe { *vm = main_java_vm().raw().cast_mut() };
+	unsafe { *vm = main_java_vm().raw() };
 	return 0;
 }

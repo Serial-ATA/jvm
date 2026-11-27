@@ -165,7 +165,7 @@ pub unsafe extern "system" fn JNI_CreateJavaVM(
 	let current_thread = JavaThread::current();
 	let env = current_thread.env();
 	unsafe {
-		*pvm = vm.raw().cast_mut();
+		*pvm = vm.raw();
 		*penv = env.raw().cast();
 	}
 
@@ -239,11 +239,16 @@ fn attach_current_thread_impl(
 	JNI_OK
 }
 
-#[allow(trivial_casts)]
 pub unsafe fn main_java_vm() -> JavaVm {
-	let raw: jni::sys::JavaVM = &raw const RAW_INVOKE_INTERFACE.0;
-	unsafe { JavaVm::from_raw(raw.cast_mut()) }
+	unsafe { JavaVm::from_raw((&raw const RAW_JAVA_VM.0).cast_mut()) }
 }
+
+struct RawJavaVm(jni::sys::JavaVM);
+
+unsafe impl Sync for RawJavaVm {}
+unsafe impl Send for RawJavaVm {}
+
+static RAW_JAVA_VM: RawJavaVm = RawJavaVm(&raw const RAW_INVOKE_INTERFACE.0);
 
 struct InvokeInterface(jni::sys::JNIInvokeInterface_);
 
