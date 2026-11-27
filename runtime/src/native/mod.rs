@@ -84,9 +84,6 @@ pub(crate) mod java {
 			pub(crate) mod PhantomReference;
 			pub(crate) mod Finalizer;
 		}
-		pub(crate) mod reflect {
-			pub(crate) mod Array;
-		}
 		pub(crate) mod Throwable;
 	}
 }

@@ -1,9 +1,20 @@
+use crate::objects::instance::array::{
+	ObjectArrayInstance, PrimitiveArrayInstance, PrimitiveArrayInstanceRef,
+};
+use crate::objects::reference::Reference;
+use crate::thread::JavaThread;
+use crate::thread::exceptions::{handle_exception, throw_with_ret};
+use crate::native::jni::references::JObjectExt;
+
 use std::ffi::c_uchar;
 
-use jni::env::JniEnv;
-use jni::objects::{JArray, JClass, JIntArray, JObject};
-use jni::sys::{jboolean, jint, jvalue};
+use ::jni::env::JniEnv;
+use ::jni::objects::{JArray, JClass, JIntArray, JObject};
+use ::jni::sys::{jboolean, jint, jvalue};
 use native_macros::jni_call;
+
+/// Maximum number of array dimensions
+pub const MAX_DIM: u8 = 255;
 
 #[jni_call]
 pub extern "C" fn JVM_CopyOfSpecialArray(
@@ -69,8 +80,46 @@ pub extern "C" fn JVM_SetPrimitiveArrayElement(
 }
 
 #[jni_call]
-pub extern "C" fn JVM_NewArray(_env: JniEnv, _element_class: JClass, _length: jint) -> JObject {
-	todo!()
+pub extern "C" fn JVM_NewArray(env: JniEnv, element_class: JClass, length: jint) -> JObject {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+    let Some(element_class) = (unsafe { element_class.to_reference() }) else {
+        throw_with_ret!(JObject::null(), thread, NullPointerException);
+    };
+
+	if length.is_negative() {
+		throw_with_ret!(
+			JObject::null(),
+			thread,
+			NegativeArraySizeException,
+			"{length}"
+		);
+	}
+
+	let mirror = element_class.extract_mirror();
+	if mirror.is_primitive() {
+		let type_code = mirror
+			.primitive_target()
+			.as_array_type_code()
+			.expect("should be a valid array type code");
+
+		let array = PrimitiveArrayInstance::new_from_type(type_code, length);
+		let array_instance: PrimitiveArrayInstanceRef =
+			handle_exception!(JObject::null(), thread, array);
+		return thread.jni_refs().allocate_wrapped(Reference::array(array_instance));
+	}
+
+	let class = mirror.target_class();
+	if class.is_array() && class.unwrap_array_instance().dimensions >= MAX_DIM {
+		throw_with_ret!(JObject::null(), thread, IllegalArgumentException);
+	}
+
+	let array = ObjectArrayInstance::new(length, class);
+	let array_instance = handle_exception!(JObject::null(), thread, array);
+	thread
+		.jni_refs()
+		.allocate_wrapped(Reference::object_array(array_instance))
 }
 
 #[jni_call]
