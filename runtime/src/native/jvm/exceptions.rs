@@ -1,17 +1,20 @@
-use crate::classes;
 use crate::classpath::loader::ClassLoader;
 use crate::native::jni::references::JObjectExt;
 use crate::native::jvm::strings::StringInterner;
 use crate::objects::class::ClassPtr;
 use crate::objects::constant_pool::cp_types;
-use crate::objects::instance::array::Array;
+use crate::objects::instance::array::{Array, PrimitiveArrayInstance};
 use crate::objects::instance::class::ClassInstanceRef;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
 use crate::thread::exceptions::throw;
+use crate::thread::frame::stack::VisibleStackFrame;
+use crate::{classes, globals};
 
+use std::slice;
+use std::sync::Once;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::jni::env::JniEnv;
@@ -21,9 +24,157 @@ use common::int_types::{s8, u2};
 use instructions::OpCode;
 use native_macros::jni_call;
 
+/// A wrapper for backtrace (`java.lang.Throwable#backtrace`) creation
+///
+/// The field in Java is defined as:
+///
+/// ```java
+/// private transient Object backtrace;
+/// ```
+///
+/// So we're given free rein to define the format of our backtrace.
+///
+/// The format is the following struct:
+///
+/// ```text
+/// struct BackTrace {
+///     method: &Method as jlong,
+///     pc: jlong,
+/// }
+/// ```
+///
+/// Flattened into an `long[]`:
+///
+/// ```text
+/// ["java/lang/Foo#foo", 2, "java/lang/Foo#bar", 5]
+/// ```
+pub struct BackTrace {
+	inner: Vec<jlong>,
+}
+
+impl BackTrace {
+	const NUMBER_OF_FIELDS: usize = 2;
+
+	pub fn from_encoded(backtrace: &[jlong]) -> BackTraceIter<'_> {
+		BackTraceIter {
+			inner: backtrace.iter(),
+		}
+	}
+
+	/// Create a new `BackTrace`
+	///
+	/// `depth` is the number of methods in the backtrace
+	fn new(mut depth: usize) -> Self {
+		depth *= Self::NUMBER_OF_FIELDS;
+
+		BackTrace {
+			inner: Vec::with_capacity(depth),
+		}
+	}
+
+	#[allow(trivial_casts)]
+	fn push(&mut self, frame: VisibleStackFrame<'_>) {
+		let method = frame.method();
+		let pc = match frame {
+			VisibleStackFrame::Regular(frame) => frame.stashed_pc(),
+			_ => -1,
+		};
+
+		self.inner.push(std::ptr::from_ref(method) as jlong);
+		self.inner.push(pc as jlong);
+	}
+
+	fn into_obj(self) -> Reference {
+		let array = PrimitiveArrayInstance::new::<jlong>(&self.inner);
+		Reference::array(array)
+	}
+}
+
+pub struct BackTraceElement {
+	pub method: &'static Method,
+	pub pc: jlong,
+}
+
+pub struct BackTraceIter<'a> {
+	inner: slice::Iter<'a, jlong>,
+}
+
+impl Iterator for BackTraceIter<'_> {
+	type Item = BackTraceElement;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		match self.inner.next_chunk::<2>() {
+			Ok([method, pc]) => Some(BackTraceElement {
+				method: unsafe { &*(*method as *const Method) },
+				pc: *pc,
+			}),
+			Err(_) => None,
+		}
+	}
+}
+
+// Initialize the java.lang.Throwable field offsets
+unsafe fn initialize() {
+	static ONCE: Once = Once::new();
+	ONCE.call_once(|| unsafe {
+		classes::java::lang::Throwable::init_offsets();
+	});
+}
+
 #[jni_call]
-pub extern "C" fn JVM_FillInStackTrace(_env: JniEnv, _receiver: JObject) {
-	todo!()
+pub extern "C" fn JVM_FillInStackTrace(env: JniEnv, receiver: JObject) {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+	unsafe { initialize() };
+
+	let Some(this) = (unsafe { receiver.to_reference() }) else {
+		throw!(thread, NullPointerException);
+	};
+
+	// Reset the current fields
+	classes::java::lang::Throwable::set_backtrace(this, Reference::null());
+	classes::java::lang::Throwable::set_stackTrace(this, Reference::null());
+
+	let current_thread = unsafe { &*JavaThread::for_env(env.raw().cast_const()) };
+
+	let stack_depth = current_thread.frame_stack().visible_depth();
+
+	let mut frames_to_skip = 0;
+	for frame in current_thread.frame_stack().iter() {
+		if frame
+			.method()
+			.class()
+			.is_subclass_of(globals::classes::java_lang_Throwable())
+		{
+			if frame.method().name == sym!(fillInStackTrace)
+				|| frame.method().name == sym!(object_initializer_name)
+			{
+				frames_to_skip += 1;
+			}
+
+			continue;
+		}
+
+		break;
+	}
+
+	assert!(frames_to_skip < stack_depth);
+
+	// Create the backtrace
+	let backtrace_depth = stack_depth - frames_to_skip;
+	let mut backtrace = BackTrace::new(backtrace_depth);
+	for frame in current_thread
+		.frame_stack()
+		.iter()
+		.skip(frames_to_skip)
+		.take(backtrace_depth)
+	{
+		backtrace.push(frame);
+	}
+
+	classes::java::lang::Throwable::set_backtrace(this, backtrace.into_obj());
+	classes::java::lang::Throwable::set_depth(this, backtrace_depth as jint);
 }
 
 #[jni_call]
@@ -96,6 +247,7 @@ pub extern "C" fn JVM_GetExtendedNPEMessage(env: JniEnv, throwable: JThrowable) 
 	}
 
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
 
 	let Some(throwable) = (unsafe { throwable.to_reference() }) else {
 		return JString::null(); // TODO: Exception?

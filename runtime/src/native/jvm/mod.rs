@@ -3,7 +3,7 @@ mod arrays;
 mod assertions;
 mod cds;
 mod constant_pool;
-mod exceptions;
+pub mod exceptions;
 mod fields;
 mod finalization;
 mod libraries;

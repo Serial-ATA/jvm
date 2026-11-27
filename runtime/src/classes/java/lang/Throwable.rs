@@ -1,6 +1,6 @@
 use crate::classes::AsClassInstanceRef;
 use crate::java_call;
-use crate::native::java::lang::Throwable::BackTrace;
+use crate::native::jvm::exceptions::BackTrace;
 use crate::objects::instance::Instance;
 use crate::objects::instance::class::ClassInstanceRef;
 use crate::objects::instance::object::Object;

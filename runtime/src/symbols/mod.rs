@@ -370,6 +370,7 @@ vm_symbols::define_symbols! {
 	loadClass,
 
 	getCallerClass,
+	fillInStackTrace,
 
 	valueOf_name: "valueOf",
 	// -- GENERATED METHOD NAME MARKER, DO NOT DELETE --
