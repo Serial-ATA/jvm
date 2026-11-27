@@ -9,11 +9,11 @@ cfg_select! {
 	target_os = "linux" => {
 		mod linux;
 		pub use linux::*;
-	}
+	},
 	target_os = "macos" => {
 		mod macos;
 		pub use macos::*;
-	}
+	},
 }
 
 pub use libc::{AF_INET, AF_INET6, sockaddr, sockaddr_in, sockaddr_in6};

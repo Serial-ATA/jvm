@@ -477,18 +477,16 @@ impl JavaThread {
 		}
 	}
 
-    #[cfg(not(feature = "libffi"))]
-    fn invoke_native(&'static self, method: &'static Method) {
-        unimplemented!("non-libffi native calls");
-    }
-
-    #[cfg(feature = "libffi")]
+	#[cfg(not(feature = "libffi"))]
 	fn invoke_native(&'static self, method: &'static Method) {
-        use ::jni::sys::{
-            jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort,
-        };
-        use libffi::low::CodePtr;
-        use libffi::middle::Arg;
+		unimplemented!("non-libffi native calls");
+	}
+
+	#[cfg(feature = "libffi")]
+	fn invoke_native(&'static self, method: &'static Method) {
+		use ::jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
+		use libffi::low::CodePtr;
+		use libffi::middle::Arg;
 
 		// Try to lookup and set the method prior to calling
 		let fn_ptr;
@@ -514,74 +512,80 @@ impl JavaThread {
 		self.frame_stack
 			.push(StackFrame::Native(NativeFrame { method }));
 
-        let env = self.env().raw();
-        let target_class = self.jni_refs().allocate(method.class());
+		let env = self.env().raw();
+		let target_class = self.jni_refs().allocate(method.class());
 
-        let jni_locals = locals.into_jni(self);
-        let mut locals = jni_locals.iter();
+		let jni_locals = locals.into_jni(self);
+		let mut locals = jni_locals.iter();
 
-        // To keep the receiver live
-        let mut this = MaybeUninit::uninit();
+		// To keep the receiver live
+		let mut this = MaybeUninit::uninit();
 
-        let receiver;
-        if method.is_static() {
-            receiver = Arg::new(&target_class);
-        } else {
-            let this_ref = locals
-                .next()
-                .expect("should have a receiver")
-                .expect_reference();
-            this.write(this_ref);
-            receiver = Arg::new(&this);
-        }
+		let receiver;
+		if method.is_static() {
+			receiver = Arg::new(&target_class);
+		} else {
+			let this_ref = locals
+				.next()
+				.expect("should have a receiver")
+				.expect_reference();
+			this.write(this_ref);
+			receiver = Arg::new(&this);
+		}
 
-        let cfi = method.prepare_cfi(&env, receiver, &mut locals);
-        let ret = unsafe {
-            match method.descriptor.return_type {
-                FieldType::Byte => Some(Operand::Int(
-                    cfi.cfi
-                        .call::<jbyte>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args)
-                        .into(),
-                )),
-                FieldType::Character => Some(Operand::Int(
-                    cfi.cfi
-                        .call::<jchar>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args)
-                        .into(),
-                )),
-                FieldType::Double => Some(Operand::Double(
-                    cfi.cfi.call::<jdouble>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args),
-                )),
-                FieldType::Float => Some(Operand::Float(
-                    cfi.cfi.call::<jfloat>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args),
-                )),
-                FieldType::Integer => Some(Operand::Int(
-                    cfi.cfi.call::<jint>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args),
-                )),
-                FieldType::Long => Some(Operand::Long(
-                    cfi.cfi.call::<jlong>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args),
-                )),
-                FieldType::Short => Some(Operand::Int(
-                    cfi.cfi
-                        .call::<jshort>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args)
-                        .into(),
-                )),
-                FieldType::Boolean => Some(Operand::Int(
-                    cfi.cfi
-                        .call::<jboolean>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args)
-                        .into(),
-                )),
-                FieldType::Void => {
-                    cfi.cfi.call::<()>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args);
-                    None
-                },
-                FieldType::Object(_) | FieldType::Array(_) => {
-                    let jobject =
-                        cfi.cfi.call::<jobject>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args);
-                    let obj_ref = jobject.to_reference_maybe_null();
-                    Some(Operand::Reference(obj_ref))
-                },
-            }
-        };
+		let cfi = method.prepare_cfi(&env, receiver, &mut locals);
+		let ret = unsafe {
+			match method.descriptor.return_type {
+				FieldType::Byte => Some(Operand::Int(
+					cfi.cfi
+						.call::<jbyte>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args)
+						.into(),
+				)),
+				FieldType::Character => Some(Operand::Int(
+					cfi.cfi
+						.call::<jchar>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args)
+						.into(),
+				)),
+				FieldType::Double => Some(Operand::Double(
+					cfi.cfi
+						.call::<jdouble>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args),
+				)),
+				FieldType::Float => Some(Operand::Float(
+					cfi.cfi
+						.call::<jfloat>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args),
+				)),
+				FieldType::Integer => Some(Operand::Int(
+					cfi.cfi
+						.call::<jint>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args),
+				)),
+				FieldType::Long => Some(Operand::Long(
+					cfi.cfi
+						.call::<jlong>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args),
+				)),
+				FieldType::Short => Some(Operand::Int(
+					cfi.cfi
+						.call::<jshort>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args)
+						.into(),
+				)),
+				FieldType::Boolean => Some(Operand::Int(
+					cfi.cfi
+						.call::<jboolean>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args)
+						.into(),
+				)),
+				FieldType::Void => {
+					cfi.cfi
+						.call::<()>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args);
+					None
+				},
+				FieldType::Object(_) | FieldType::Array(_) => {
+					let jobject = cfi
+						.cfi
+						.call::<jobject>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args);
+					let obj_ref = jobject.to_reference_maybe_null();
+					Some(Operand::Reference(obj_ref))
+				},
+			}
+		};
 
 		// There's a chance that the native frame was consumed while handling an exception, otherwise
 		// it should always be present.

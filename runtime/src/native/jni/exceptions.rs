@@ -135,7 +135,7 @@ pub extern "system" fn ExceptionClear(env: *mut JNIEnv) {
 	let thread = JavaThread::current();
 	assert_eq!(thread.env().raw(), env);
 
-    thread.discard_pending_exception();
+	thread.discard_pending_exception();
 }
 
 #[unsafe(no_mangle)]

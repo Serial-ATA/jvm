@@ -22,7 +22,7 @@ pub enum OptionsError {
 	BadCstr(Utf8Error),
 	/// Failed to parse a `-Xlog` option
 	Logging(LogParseError),
-    /// Failed to a parse a `<size>[unit]` string (e.g., `64m` in `-Xms64m`)
+	/// Failed to a parse a `<size>[unit]` string (e.g., `64m` in `-Xms64m`)
 	InvalidSize(SizeTarget, String),
 }
 

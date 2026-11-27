@@ -18,16 +18,16 @@ pub const LINE_SEPARATOR: &str = "\r\n";
 cfg_select! {
 	target_arch = "x86_64" => {
 		pub const OS_ARCH: &str = "amd64";
-	}
+	},
 	target_arch = "x86" => {
 		pub const OS_ARCH: &str = "x86";
-	}
+	},
 	target_arch = "aarch64" => {
 		pub const OS_ARCH: &str = "aarch64";
-	}
+	},
 	_ => {
 		pub const OS_ARCH: &str = "unknown";
-	}
+	},
 }
 //         @Native private static final int _os_name_NDX = 1 + _os_arch_NDX;
 //         @Native private static final int _os_version_NDX = 1 + _os_name_NDX;

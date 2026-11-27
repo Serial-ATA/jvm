@@ -5,8 +5,8 @@ use crate::objects::field::Field;
 use crate::objects::instance::object::Object;
 use crate::objects::instance::{Header, Instance};
 use crate::objects::reference::Reference;
-use crate::thread::JavaThread;
 use crate::symbols::Symbol;
+use crate::thread::JavaThread;
 
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
@@ -322,8 +322,8 @@ impl MirrorInstance {
 	/// See [`Class::as_signature()`]
 	///
 	/// NOTE: For primitive mirrors, this will return the primitive type code (e.g., `I` rather than `Ljava.lang.Integer;`).
-    ///
-    /// [`Class::as_signature()`]: crate::objects::class::Class::as_signature
+	///
+	/// [`Class::as_signature()`]: crate::objects::class::Class::as_signature
 	pub fn as_signature(&self) -> Symbol {
 		if self.is_primitive() {
 			let primitive_target = self.primitive_target();

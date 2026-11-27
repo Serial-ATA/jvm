@@ -802,11 +802,15 @@ extern "C" fn staticFieldOffset0(
 		throw_with_ret!(0, thread, IllegalArgumentException);
 	}
 
-    let slot = classes::java::lang::reflect::Field::slot(field);
-    let class = classes::java::lang::reflect::Field::clazz(field);
+	let slot = classes::java::lang::reflect::Field::slot(field);
+	let class = classes::java::lang::reflect::Field::clazz(field);
 
-    let field = class.target_class().fields().nth(slot as usize).expect("malformed java.lang.reflect.Field");
-    field.offset() as jlong
+	let field = class
+		.target_class()
+		.fields()
+		.nth(slot as usize)
+		.expect("malformed java.lang.reflect.Field");
+	field.offset() as jlong
 }
 
 #[jni_call]

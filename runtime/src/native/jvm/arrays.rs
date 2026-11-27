@@ -1,10 +1,10 @@
+use crate::native::jni::references::JObjectExt;
 use crate::objects::instance::array::{
 	ObjectArrayInstance, PrimitiveArrayInstance, PrimitiveArrayInstanceRef,
 };
 use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{handle_exception, throw_with_ret};
-use crate::native::jni::references::JObjectExt;
 
 use std::ffi::c_uchar;
 
@@ -84,9 +84,9 @@ pub extern "C" fn JVM_NewArray(env: JniEnv, element_class: JClass, length: jint)
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 	assert_eq!(thread.env(), env);
 
-    let Some(element_class) = (unsafe { element_class.to_reference() }) else {
-        throw_with_ret!(JObject::null(), thread, NullPointerException);
-    };
+	let Some(element_class) = (unsafe { element_class.to_reference() }) else {
+		throw_with_ret!(JObject::null(), thread, NullPointerException);
+	};
 
 	if length.is_negative() {
 		throw_with_ret!(
@@ -107,7 +107,9 @@ pub extern "C" fn JVM_NewArray(env: JniEnv, element_class: JClass, length: jint)
 		let array = PrimitiveArrayInstance::new_from_type(type_code, length);
 		let array_instance: PrimitiveArrayInstanceRef =
 			handle_exception!(JObject::null(), thread, array);
-		return thread.jni_refs().allocate_wrapped(Reference::array(array_instance));
+		return thread
+			.jni_refs()
+			.allocate_wrapped(Reference::array(array_instance));
 	}
 
 	let class = mirror.target_class();

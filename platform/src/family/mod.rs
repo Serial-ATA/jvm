@@ -11,16 +11,16 @@ cfg_select! {
 	unix => {
 		mod unix;
 		use unix as imp;
-		pub use unix::*;
 		pub use unix::signals::*;
-	}
+		pub use unix::*;
+	},
 	windows => {
 		mod windows;
 		use windows as imp;
-		pub use windows::*;
 		pub use windows::signals::*;
-	}
+		pub use windows::*;
+	},
 	_ => {
 		compile_error!("target family is not supported!");
-	}
+	},
 }

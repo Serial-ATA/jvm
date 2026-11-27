@@ -4,14 +4,14 @@ cfg_select! {
 	target_os = "linux" => {
 		mod linux;
 		use linux as imp;
-	}
+	},
 	target_os = "macos" => {
 		mod macos;
 		use macos as imp;
-	}
+	},
 	_ => {
 		compile_error!("target OS is not supported!");
-	}
+	},
 }
 
 // Exports

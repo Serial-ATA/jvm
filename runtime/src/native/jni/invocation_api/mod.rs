@@ -118,7 +118,7 @@ pub unsafe extern "system" fn JNI_CreateJavaVM(
 	penv: *mut *mut c_void,
 	args: *mut c_void,
 ) -> jint {
-    crate::init_panic_handler();
+	crate::init_panic_handler();
 
 	if args.is_null() {
 		return jni::sys::JNI_EINVAL;
