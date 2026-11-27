@@ -96,10 +96,6 @@ pub(crate) mod jdk {
 			pub(crate) mod ScopedMemoryAccess;
 			pub(crate) mod Unsafe;
 		}
-		pub(crate) mod reflect {
-			pub(crate) mod DirectConstructorHandleAccessor;
-			pub(crate) mod DirectMethodHandleAccessor;
-		}
 	}
 }
 

@@ -153,9 +153,9 @@ impl Reference {
 		}
 	}
 
-    /// The pointer backing this reference
-    ///
-    /// NOTE: This is **NOT** valid to reuse in [`Reference::from_raw()`]. See [`Reference::raw_tagged()`] instead.
+	/// The pointer backing this reference
+	///
+	/// NOTE: This is **NOT** valid to reuse in [`Reference::from_raw()`]. See [`Reference::raw_tagged()`] instead.
 	pub fn addr(self) -> *mut () {
 		(self.0 as usize & Self::ADDRESS_MASK) as *mut ()
 	}
@@ -314,11 +314,11 @@ impl Object for Reference {
 }
 
 impl Reference {
-	pub fn is_instance_of(&self, other: ClassPtr) -> bool {
+	pub fn is_instance_of(self, other: ClassPtr) -> bool {
 		self.extract_instance_class().can_cast_to(other)
 	}
 
-	pub fn array_length(&self) -> Throws<usize> {
+	pub fn array_length(self) -> Throws<usize> {
 		if self.is_null() {
 			throw!(@DEFER NullPointerException);
 		}
@@ -336,7 +336,7 @@ impl Reference {
 		panic!("Expected an array reference!")
 	}
 
-	pub fn extract_primitive_array(&self) -> PrimitiveArrayInstanceRef {
+	pub fn extract_primitive_array(self) -> PrimitiveArrayInstanceRef {
 		assert!(!self.is_null());
 
 		if self.is_primitive_array() {
@@ -346,7 +346,7 @@ impl Reference {
 		panic!("Expected a primitive array reference!")
 	}
 
-	pub fn extract_object_array(&self) -> ObjectArrayInstanceRef {
+	pub fn extract_object_array(self) -> ObjectArrayInstanceRef {
 		assert!(!self.is_null());
 
 		if self.is_object_array() {
@@ -356,7 +356,7 @@ impl Reference {
 		panic!("Expected an object array reference!")
 	}
 
-	pub fn extract_class(&self) -> ClassInstanceRef {
+	pub fn extract_class(self) -> ClassInstanceRef {
 		assert!(!self.is_null());
 
 		if self.is_class() {
@@ -381,7 +381,7 @@ impl Reference {
 	/// For references other than `mirror`, this will return the same as `extract_instance_class`.
 	///
 	/// [`MirrorInstance::target_class`]: crate::objects::instance::mirror::MirrorInstance::target_class
-	pub fn extract_target_class(&self) -> ClassPtr {
+	pub fn extract_target_class(self) -> ClassPtr {
 		if self.is_mirror() {
 			let mirror = unsafe { self.as_mirror_unchecked() };
 			return mirror.target_class();
@@ -399,11 +399,11 @@ impl Reference {
 	/// This is a very important distinction to make when dealing with things such as method resolution.
 	///
 	/// For references other than `mirror`, this will return the same as `extract_target_class`.
-	pub fn extract_instance_class(&self) -> ClassPtr {
+	pub fn extract_instance_class(self) -> ClassPtr {
 		self.class()
 	}
 
-	pub fn extract_mirror(&self) -> MirrorInstanceRef {
+	pub fn extract_mirror(self) -> MirrorInstanceRef {
 		assert!(!self.is_null());
 
 		if self.is_mirror() {
@@ -414,7 +414,7 @@ impl Reference {
 	}
 
 	/// Extract a mirror instance from a `Class` or `Array` instance, this is NOT the same as `Reference::extract_mirror`
-	pub fn extract_class_mirror(&self) -> MirrorInstanceRef {
+	pub fn extract_class_mirror(self) -> MirrorInstanceRef {
 		assert!(!self.is_null());
 		assert!(!self.is_mirror(), "Expected a class/array reference!");
 
