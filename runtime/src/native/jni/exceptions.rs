@@ -132,7 +132,10 @@ pub extern "system" fn ExceptionDescribe(env: *mut JNIEnv) {
 
 #[unsafe(no_mangle)]
 pub extern "system" fn ExceptionClear(env: *mut JNIEnv) {
-	unimplemented!("jni::ExceptionClear");
+	let thread = JavaThread::current();
+	assert_eq!(thread.env().raw(), env);
+
+    thread.discard_pending_exception();
 }
 
 #[unsafe(no_mangle)]
