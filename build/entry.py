@@ -75,8 +75,8 @@ def copy_native_libs(target_dir: Path, variant: VmVariant):
         shutil.copy(src, dest)
 
 
-def copy_native_libs_from_boot_jdk(
-    target_dir: Path, variant: VmVariant, boot_jdk: Path
+def copy_from_boot_jdk(
+        target_dir: Path, variant: VmVariant, boot_jdk: Path
 ):
     # Always copy VM libraries from sj
     for lib in VM_LIBRARIES:
@@ -93,9 +93,10 @@ def copy_native_libs_from_boot_jdk(
     boot_jdk_libs = boot_jdk.joinpath("lib")
     for entry in os.listdir(boot_jdk_libs):
         path = boot_jdk_libs.joinpath(entry)
-        if not path.is_file() or not path.name.endswith(LIBRARY_SUFFIX):
+        if not path.is_file():
             continue
-        shutil.copy(path, LIB_DIR)
+        if path.name.endswith(LIBRARY_SUFFIX) or path.name == "tzdb.dat":
+            shutil.copy(path, LIB_DIR)
 
 
 def main():
@@ -137,7 +138,7 @@ def main():
     shutil.copy(boot_jdk_modules, LIB_DIR)
 
     if args.no_native_libs:
-        copy_native_libs_from_boot_jdk(target_dir, args.variant, boot_jdk)
+        copy_from_boot_jdk(target_dir, args.variant, boot_jdk)
     else:
         copy_native_libs(target_dir, args.variant)
 

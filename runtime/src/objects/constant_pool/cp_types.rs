@@ -354,7 +354,9 @@ impl EntryType for InvokeDynamic {
 				LoadableConstantPoolValueInner::Float(val) => r = val.into_box(thread)?,
 				LoadableConstantPoolValueInner::Long(val) => r = val.into_box(thread)?,
 				LoadableConstantPoolValueInner::Double(val) => r = val.into_box(thread)?,
-				LoadableConstantPoolValueInner::Class(_) => todo!("Class static argument"),
+				LoadableConstantPoolValueInner::Class(_) => {
+					r = Reference::mirror(cp.get::<Class>(arg.index)?.mirror());
+				},
 				LoadableConstantPoolValueInner::String(ref val) => {
 					let sym = Symbol::intern(val);
 					r = Reference::class(StringInterner::intern(sym));
