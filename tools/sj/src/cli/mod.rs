@@ -6,6 +6,7 @@ use crate::native::LaunchMode;
 use std::env::VarError;
 use std::path::Path;
 
+use common::size::ByteSize;
 use jni::version::JniVersion;
 
 const JAVA_OPTIONS_ENV: &str = "_JAVA_OPTIONS";
@@ -50,10 +51,16 @@ impl LaunchTarget {
 }
 
 /// Hotspot-style options
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct HotspotOptions {
 	/// -XshowSettings
 	pub show_settings: Option<String>,
+	/// -Xss
+	pub stack_size: Option<ByteSize>,
+	/// -Xms
+	pub initial_heap: Option<ByteSize>,
+	/// -Xmx
+	pub max_heap: Option<ByteSize>,
 }
 
 #[derive(Default)]

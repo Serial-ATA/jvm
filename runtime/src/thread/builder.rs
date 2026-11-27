@@ -1,4 +1,5 @@
 use crate::objects::reference::Reference;
+use crate::stack::STACK_SIZE;
 use crate::thread::JavaThread;
 use crate::thread::exceptions::Throws;
 use crate::thread::pool::ThreadPool;
@@ -20,7 +21,7 @@ impl JavaThreadBuilder {
 	pub fn new() -> JavaThreadBuilder {
 		Self {
 			obj: None,
-			stack_size: 1024, // TODO: Default -Xss
+			stack_size: *STACK_SIZE.get().expect("should be set"),
 		}
 	}
 

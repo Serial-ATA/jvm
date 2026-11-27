@@ -52,6 +52,9 @@ pub fn create_java_vm(args: Option<&JavaVMInitArgs>) -> Result<JavaVm, Initializ
 		// https://github.com/openjdk/jdk/blob/03a9a88efbb68537e24b7de28c5b81d6cd8fdb04/src/hotspot/share/runtime/arguments.cpp#L3322
 	}
 
+	crate::heap::ensure_initialized();
+	crate::stack::ensure_initialized();
+
 	match JavaThreadBuilder::new().finish(false) {
 		Throws::Ok(thread) => {
 			JavaThread::set_current_thread(thread);

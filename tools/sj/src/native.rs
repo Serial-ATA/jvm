@@ -3,11 +3,12 @@ use crate::error::{Error, Result};
 
 use std::ops::Deref;
 
+use common::size::ByteSize;
 use jni::env::JniEnv;
 use jni::error::JniError;
 use jni::java_vm::{JavaVm, VmInitArgs};
 use jni::objects::{JClass, JObjectArray, JValue};
-use jni::sys::{jint, jsize};
+use jni::sys::{jint, jlong, jsize};
 
 const MAIN_METHOD_SIGNATURE: &str = "([Ljava/lang/String;)V";
 
@@ -121,12 +122,15 @@ impl LauncherHelper {
 	}
 
 	/// Call `sun.launcher.LauncherHelper#showSettings` with the given `opt` string.
-	pub fn show_settings(&self, env: JniEnv, use_stderr: bool, opt: &str) -> Result<()> {
-		// TODO
-		let initial_heap_size = 0;
-		let max_heap_size = 0;
-		let stack_size = 0;
-
+	pub fn show_settings(
+		&self,
+		env: JniEnv,
+		use_stderr: bool,
+		opt: &str,
+		initial_heap_size: Option<ByteSize>,
+		max_heap_size: Option<ByteSize>,
+		stack_size: Option<ByteSize>,
+	) -> Result<()> {
 		let method =
 			env.get_static_method_id(self.0, "showSettings", "(ZLjava/lang/String;JJJ)V")?;
 		let opt_string = env.new_string_utf(opt)?;
@@ -136,9 +140,9 @@ impl LauncherHelper {
 			[
 				JValue::Boolean(use_stderr),
 				JValue::Object(opt_string.into()),
-				JValue::Long(initial_heap_size),
-				JValue::Long(max_heap_size),
-				JValue::Long(stack_size),
+				JValue::Long(initial_heap_size.map_or(0, |size| size.0 as jlong)),
+				JValue::Long(max_heap_size.map_or(0, |size| size.0 as jlong)),
+				JValue::Long(stack_size.map_or(0, |size| size.0 as jlong)),
 			],
 		)?;
 

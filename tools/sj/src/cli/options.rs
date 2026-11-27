@@ -1,7 +1,9 @@
 use super::{Args, HelpFlag, LaunchTarget, VersionFlag};
 use crate::error::Error;
 
+use common::size::ByteSize;
 use std::iter::Peekable;
+use std::str::FromStr;
 use std::sync::LazyLock;
 
 pub trait CliOption: Send + Sync + 'static {
@@ -84,6 +86,9 @@ pub static OPTIONS: LazyLock<Options> = LazyLock::new(|| Options {
 		Box::new(Jar),
 		// Hotspot-compat stuff
 		Box::new(ShowSettings),
+		Box::new(StackSize),
+		Box::new(InitialHeap),
+		Box::new(MaxHeap),
 	],
 });
 
@@ -338,4 +343,91 @@ impl CliOption for ShowSettings {
 		args.hotspot_options.show_settings = Some(variant);
 		Ok(())
 	}
+}
+
+pub struct StackSize;
+
+impl CliOption for StackSize {
+	fn multipart(&self) -> bool {
+		true
+	}
+
+	fn variants(&self) -> &'static [&'static str] {
+		&["-Xss"]
+	}
+
+	fn doc_short(&self) -> &'static str {
+		"Set the Java thread stack size"
+	}
+
+	fn act(
+		&self,
+		variant: String,
+		_: &mut Peekable<std::vec::IntoIter<String>>,
+		args: &mut Args,
+	) -> Result<(), Error> {
+		args.hotspot_options.stack_size = parse_size(variant.strip_prefix("-Xss").unwrap());
+		args.options.extra_args.push(variant); // Need to pass it along to the VM...
+		Ok(())
+	}
+}
+
+pub struct InitialHeap;
+
+impl CliOption for InitialHeap {
+	fn multipart(&self) -> bool {
+		true
+	}
+
+	fn variants(&self) -> &'static [&'static str] {
+		&["-Xms"]
+	}
+
+	fn doc_short(&self) -> &'static str {
+		"Set the minimum and initial Java heap size"
+	}
+
+	fn act(
+		&self,
+		variant: String,
+		_: &mut Peekable<std::vec::IntoIter<String>>,
+		args: &mut Args,
+	) -> Result<(), Error> {
+		args.hotspot_options.initial_heap = parse_size(variant.strip_prefix("-Xms").unwrap());
+		args.options.extra_args.push(variant); // Need to pass it along to the VM...
+		Ok(())
+	}
+}
+
+pub struct MaxHeap;
+
+impl CliOption for MaxHeap {
+	fn multipart(&self) -> bool {
+		true
+	}
+
+	fn variants(&self) -> &'static [&'static str] {
+		&["-Xmx"]
+	}
+
+	fn doc_short(&self) -> &'static str {
+		"Set the maximum Java heap size"
+	}
+
+	fn act(
+		&self,
+		variant: String,
+		_: &mut Peekable<std::vec::IntoIter<String>>,
+		args: &mut Args,
+	) -> Result<(), Error> {
+		args.hotspot_options.max_heap = parse_size(variant.strip_prefix("-Xmx").unwrap());
+		args.options.extra_args.push(variant); // Need to pass it along to the VM...
+		Ok(())
+	}
+}
+
+fn parse_size(s: &str) -> Option<ByteSize> {
+	// Don't actually need to handle errors here. We just need the value as a hint for the launcher.
+	// The VM will yell at us later if the value ends up being bad.
+	ByteSize::from_str(s).ok()
 }

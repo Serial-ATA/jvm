@@ -4,16 +4,19 @@ pub mod logging;
 mod tests;
 
 use crate::classpath::{ClassPathEntry, add_classpath_entry};
+use crate::heap::{INITIAL_HEAP_SIZE, MAX_HEAP_SIZE};
 use crate::native::jvm::system::SYSTEM_PROPERTIES;
 use crate::native::jvm::vm::PREVIEW_ENABLED;
-use crate::options::error::OptionsError;
+use crate::options::error::{OptionsError, SizeTarget};
 use crate::options::logging::{LogOptions, LogOptionsBuilder};
 
-use jni::java_vm::{AbortHookFn, ExitHookFn, VFPrintFHookFn};
-use jni::sys::JavaVMInitArgs;
 use std::ffi::{CStr, c_char, c_int, c_void};
 use std::mem;
 use std::str::FromStr;
+
+use ::jni::java_vm::{AbortHookFn, ExitHookFn, VFPrintFHookFn};
+use ::jni::sys::JavaVMInitArgs;
+use common::size::ByteSize;
 
 unsafe extern "C" fn vfprintf_default(_stream: *mut c_void, _format: *const c_char, _: ...) {
 	todo!("vfprintf")
@@ -164,6 +167,53 @@ impl JvmOptions {
 				{
 					let val = opt_split.next().unwrap();
 					system_props_guard.insert(String::from(module_prop), String::from(val));
+				},
+				// Extra options
+				_ if let Some(extra_option) = option_string.strip_prefix("-X") => {
+					// -Xlog
+					if extra_option.starts_with("log") {
+						logs.apply_option(logging::LogOption::from_str(option_string)?);
+						continue;
+					}
+
+					// -Xss
+					if let Some(size) = extra_option.strip_prefix("ss") {
+						let size = ByteSize::from_str(size).map_err(|_| {
+							OptionsError::InvalidSize(
+								SizeTarget::InitialHeap,
+								option_string.to_string(),
+							)
+						})?;
+
+						let _ = INITIAL_HEAP_SIZE.set(size.0);
+						continue;
+					}
+
+					// -Xms
+					if let Some(size) = extra_option.strip_prefix("ms") {
+						let size = ByteSize::from_str(size).map_err(|_| {
+							OptionsError::InvalidSize(
+								SizeTarget::InitialHeap,
+								option_string.to_string(),
+							)
+						})?;
+
+						let _ = INITIAL_HEAP_SIZE.set(size.0);
+						continue;
+					}
+
+					// -Xmx
+					if let Some(size) = extra_option.strip_prefix("mx") {
+						let size = ByteSize::from_str(size).map_err(|_| {
+							OptionsError::InvalidSize(
+								SizeTarget::MaxHeap,
+								option_string.to_string(),
+							)
+						})?;
+
+						let _ = MAX_HEAP_SIZE.set(size.0);
+						continue;
+					}
 				},
 				_ => {
 					if !init.ignoreUnrecognized {

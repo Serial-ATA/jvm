@@ -9,8 +9,8 @@ repository.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-jni = { workspace = true }
-
+jni.workspace = true
+common.workspace = true
 const_format.workspace = true
 
 [lints]

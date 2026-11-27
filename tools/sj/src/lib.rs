@@ -88,7 +88,7 @@ fn main(args: cli::Args) -> Result<i32> {
 	let launcher_helper = handle_error!((vm) native::LauncherHelper::new(env));
 
 	if let Some(show_settings_opt) = args.hotspot_options.show_settings {
-		handle_error!((vm) launcher_helper.show_settings(env, false, &show_settings_opt));
+		handle_error!((vm) launcher_helper.show_settings(env, false, &show_settings_opt, args.hotspot_options.initial_heap, args.hotspot_options.max_heap, args.hotspot_options.stack_size));
 	}
 
 	if let Some(version) = args.version {

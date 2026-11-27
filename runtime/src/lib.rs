@@ -25,6 +25,7 @@ pub mod classpath;
 mod dynamic;
 pub mod error;
 pub mod globals;
+mod heap;
 mod initialization;
 mod interpreter;
 pub mod logging;

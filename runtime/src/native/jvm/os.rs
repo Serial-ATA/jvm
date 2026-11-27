@@ -1,7 +1,9 @@
+use crate::heap::MAX_HEAP_SIZE;
+
 use std::ffi::{CStr, c_char, c_void};
 
+use ::jni::sys::{jboolean, jint, jlong};
 use common::unicode;
-use jni::sys::{jboolean, jint, jlong};
 use native_macros::jni_call;
 
 #[jni_call(no_env)]
@@ -16,8 +18,7 @@ pub extern "C" fn JVM_FreeMemory() -> jlong {
 
 #[jni_call(no_env)]
 pub extern "C" fn JVM_MaxMemory() -> jlong {
-	// TODO: -Xmx
-	jlong::MAX
+	*MAX_HEAP_SIZE.get().expect("should be initialized") as jlong
 }
 
 #[jni_call(no_env)]
