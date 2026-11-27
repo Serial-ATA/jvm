@@ -1,6 +1,6 @@
 use crate::java_call;
+use crate::native::NativeMethodPtr;
 use crate::native::jvm::strings::StringInterner;
-use crate::native::method::NativeMethodPtr;
 use crate::objects::method::{Method, MethodEntryPoint};
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
@@ -207,13 +207,9 @@ fn lookup_style(
 	// SAFETY: The name converter won't generate names with null bytes
 	let jni_name_c = unsafe { CString::from_vec_unchecked(jni_name.as_bytes().to_vec()) };
 
-	if let Some(entry) = crate::native::method::lookup_method(method) {
-		return Some(entry);
-	}
-
 	// SAFETY: Assuming symbols from libjava are valid
 	if let Ok(sym) = unsafe { crate::native::lib_java().symbol::<*const c_void>(&jni_name_c) } {
-		return Some(NativeMethodPtr::External(sym.raw()));
+		return Some(sym.raw().into());
 	}
 
 	let classloader_class = crate::globals::classes::java_lang_ClassLoader();
@@ -252,8 +248,7 @@ fn lookup_style(
 		return None;
 	}
 
-	let entry = address as usize as *const ();
-	Some(unsafe { NativeMethodPtr::from_raw(entry) })
+	Some(NativeMethodPtr::from(address as usize as *const c_void))
 }
 
 fn lookup_entry(method: &Method, thread: &'static JavaThread) -> Option<NativeMethodPtr> {
@@ -265,8 +260,8 @@ fn lookup_entry(method: &Method, thread: &'static JavaThread) -> Option<NativeMe
 	};
 
 	let num_args = 1 // JNIEnv
-    + if method.is_static() { 1 } else { 0 } // Extra argument for class
-    + method.parameter_count();
+        + if method.is_static() { 1 } else { 0 } // Extra argument for class
+        + method.parameter_count();
 
 	// 1) Try JNI short style
 	if let Some(entry) = lookup_style(

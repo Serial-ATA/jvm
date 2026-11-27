@@ -5,15 +5,6 @@ use std::path::{Path, PathBuf};
 use syn::Type;
 
 fn main() {
-	println!("cargo::rerun-if-changed=../generators/native_methods/");
-	println!("cargo::rerun-if-changed=../generated");
-	build_deps::rerun_if_changed_paths("src/native/**/*.def").unwrap();
-
-	if let Err(e) = native_methods::generate() {
-		println!("cargo::error=Failed to generate native methods: {e}");
-		std::process::exit(1);
-	}
-
 	collect_jvm_h()
 }
 

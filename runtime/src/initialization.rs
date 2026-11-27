@@ -181,6 +181,7 @@ fn load_global_classes() -> Throws<()> {
 	// MethodHandle stuff
 	load!(
 		java_lang_invoke_MethodHandle,
+		java_lang_invoke_VarHandle,
 		java_lang_invoke_LambdaForm,
 		jdk_internal_reflect_MethodAccessorImpl,
 		jdk_internal_reflect_ConstantPool,
@@ -188,7 +189,6 @@ fn load_global_classes() -> Throws<()> {
 		java_lang_invoke_MemberName,
 		java_lang_invoke_ResolvedMethodName,
 		java_lang_invoke_MethodType,
-		java_lang_invoke_VarHandle,
 		java_lang_reflect_Constructor,
 		java_lang_reflect_Method,
 		java_lang_reflect_Field,

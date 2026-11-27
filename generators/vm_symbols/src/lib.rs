@@ -1,10 +1,7 @@
 use std::collections::HashSet;
 use std::hash::Hash;
-use std::path::PathBuf;
-use std::str::FromStr;
 
 use proc_macro::TokenStream;
-use proc_macro2::Span;
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
@@ -86,106 +83,12 @@ impl Parse for Symbols {
 	}
 }
 
-const CRATE_ROOT: &str = env!("CARGO_MANIFEST_DIR");
-
-fn get_generated_dir() -> syn::Result<PathBuf> {
-	let project_root = PathBuf::from(CRATE_ROOT);
-	let Some(workspace_root) = project_root.ancestors().nth(2) else {
-		return Err(syn::Error::new(
-			Span::call_site(),
-			"Failed to find workspace root",
-		));
-	};
-
-	Ok(workspace_root.join("generated").join("native"))
-}
-
-fn collect_symbols_from_files() -> syn::Result<TokenStream> {
-	let generated_dir = get_generated_dir()?;
-	if !generated_dir.exists() {
-		return Err(syn::Error::new(
-			Span::call_site(),
-			format!(
-				"Generated directory `{}` does not exist",
-				generated_dir.display()
-			),
-		));
-	}
-
-	let entries = match std::fs::read_dir(&generated_dir) {
-		Ok(entries) => entries,
-		Err(e) => {
-			return Err(syn::Error::new(
-				Span::call_site(),
-				format!(
-					"Unable to read symbols from `{}`: {e}",
-					generated_dir.display()
-				),
-			));
-		},
-	};
-
-	let symbols_files = entries.into_iter().map(Result::unwrap).filter(|entry| {
-		entry.file_type().unwrap().is_file()
-			&& entry.path().extension().map(std::ffi::OsStr::to_str) == Some(Some("symbols"))
-	});
-
-	let mut tokenstream = TokenStream::new();
-	for file in symbols_files {
-		let content = match std::fs::read_to_string(file.path()) {
-			Ok(content) => content,
-			Err(e) => {
-				return Err(syn::Error::new(
-					Span::call_site(),
-					format!(
-						"Unable to read symbols from `{}`: {e}",
-						file.path().display()
-					),
-				));
-			},
-		};
-
-		tokenstream.extend(TokenStream::from_str(&content))
-	}
-
-	Ok(tokenstream)
-}
-
-fn collect_merged_symbols(predefined_symbols: TokenStream) -> syn::Result<Symbols> {
-	let mut symbols: Symbols = syn::parse2(predefined_symbols.into())?;
-
-	let generated_symbols_stream = collect_symbols_from_files()?;
-	let generated_symbols: Symbols = syn::parse2(generated_symbols_stream.into())?;
-
-	// TODO: Ideally, just create an alias so that:
-	//
-	// collides: "collides",
-	// otherCollides: "collides",
-	//
-	// become:
-	//
-	// const collides: Symbol = Symbol(0);
-	// const otherCollides: Symbol = collides;
-	for generated_symbol in generated_symbols.0 {
-		assert!(
-			symbols.0.insert(generated_symbol.clone()),
-			"Unable to insert generated symbol (name: `{}`, value: `{:?}`), collides with a \
-			 predefined symbol",
-			generated_symbol.variant_name,
-			generated_symbol.value.map(|v| v.value())
-		);
-	}
-
-	Ok(symbols)
-}
-
 #[proc_macro]
 pub fn define_symbols(input: TokenStream) -> TokenStream {
-	let symbols;
-	match collect_merged_symbols(input) {
-		Ok(s) => symbols = s,
+	let symbols: Symbols = match syn::parse2(input.into()) {
+		Ok(symbols) => symbols,
 		Err(e) => return e.to_compile_error().into(),
-	}
+	};
 
 	let mut index = 0u32;
 

@@ -1,8 +1,8 @@
 use super::{CallType, Error};
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::Span;
 use quote::{ToTokens, quote};
 use syn::spanned::Spanned;
-use syn::{Abi, ItemFn, ReturnType, Type, TypePath};
+use syn::{ItemFn, ReturnType, Type, TypePath};
 
 enum ParameterType {
 	Jni(super::jni::ParameterType),
@@ -30,60 +30,6 @@ impl super::ParameterType for ParameterType {
 		Self: Sized,
 	{
 		Self::Jni(super::jni::ParameterType::from_loose_ty(ty))
-	}
-
-	fn to_raw(&self) -> TokenStream {
-		match self {
-			ParameterType::Jni(ty) => ty.to_raw(),
-			ParameterType::Env => quote! { *mut ::jvmti::sys::jvmtiEnv },
-			ParameterType::JvmtiError => quote! { ::jvmti::sys::jvmtiError },
-			ParameterType::JThread => quote! { ::jvmti::sys::jthread },
-			ParameterType::JThreadGroup => quote! { ::jvmti::sys::jthreadGroup },
-			ParameterType::JRawMonitorId => quote! { ::jvmti::sys::jrawMonitorID },
-		}
-	}
-
-	fn to_safe(&self) -> TokenStream {
-		match self {
-			ParameterType::Jni(ty) => ty.to_safe(),
-			ParameterType::Env => quote! { ::jvmti::env::JvmtiEnv },
-			ParameterType::JvmtiError => quote! { ::jvmti::error::JvmtiError },
-			ParameterType::JThread => quote! { ::jvmti::objects::JThread },
-			ParameterType::JThreadGroup => quote! { ::jvmti::objects::JThreadGroup },
-			ParameterType::JRawMonitorId => quote! { ::jvmti::objects::JRawMonitorId },
-		}
-	}
-
-	fn raw_conversion_fn(&self, param_name: Ident) -> TokenStream {
-		match self {
-			ParameterType::Jni(ty) => ty.raw_conversion_fn(param_name),
-			ParameterType::Env
-			| ParameterType::JvmtiError
-			| ParameterType::JThread
-			| ParameterType::JThreadGroup
-			| ParameterType::JRawMonitorId => quote! { #param_name.raw() },
-		}
-	}
-
-	fn safe_conversion_fn(&self, param_name: Ident) -> TokenStream {
-		match self {
-			ParameterType::Jni(ty) => ty.safe_conversion_fn(param_name),
-			ParameterType::Env => {
-				quote! { unsafe { ::jvmti::env::JvmtiEnv::from_raw(#param_name) } }
-			},
-			ParameterType::JvmtiError => {
-				quote! { unsafe { ::jvmti::error::JvmtiError::from_raw(#param_name) } }
-			},
-			ParameterType::JThread => {
-				quote! { unsafe { ::jvmti::objects::JThread::from_raw(#param_name) } }
-			},
-			ParameterType::JThreadGroup => {
-				quote! { unsafe { ::jvmti::objects::JThreadGroup::from_raw(#param_name) } }
-			},
-			ParameterType::JRawMonitorId => {
-				quote! { unsafe { ::jvmti::objects::JRawMonitorId::from_raw(#param_name) } }
-			},
-		}
 	}
 }
 

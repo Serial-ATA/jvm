@@ -1,5 +1,5 @@
-use proc_macro2::{Ident, Span, TokenStream};
-use quote::{ToTokens, quote};
+use proc_macro2::Span;
+use quote::ToTokens;
 use syn::spanned::Spanned;
 use syn::{
 	Abi, FnArg, GenericArgument, ItemFn, Pat, PatIdent, PatType, Path, PathArguments, Type,
@@ -17,10 +17,6 @@ trait ParameterType {
 	fn from_loose_ty(ty: Box<Type>) -> Self
 	where
 		Self: Sized;
-	fn to_raw(&self) -> TokenStream;
-	fn to_safe(&self) -> TokenStream;
-	fn raw_conversion_fn(&self, param_name: Ident) -> TokenStream;
-	fn safe_conversion_fn(&self, param_name: Ident) -> TokenStream;
 }
 
 #[derive(Copy, Clone, PartialEq)]

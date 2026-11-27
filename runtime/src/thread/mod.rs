@@ -13,7 +13,6 @@ use crate::logging::info;
 use crate::native::jni::invocation_api::new_env;
 use crate::native::jni::references::{JObjectExt, JniObjectStorage};
 use crate::native::jvm::strings::StringInterner;
-use crate::native::method::NativeMethodPtr;
 use crate::objects::instance::class::{ClassInstance, ClassInstanceRef};
 use crate::objects::instance::object::Object;
 use crate::objects::method::Method;
@@ -31,11 +30,11 @@ use std::mem::MaybeUninit;
 use std::sync::atomic::{AtomicIsize, AtomicU8, Ordering};
 use std::thread::JoinHandle;
 
+use ::jni::env::JniEnv;
+use ::jni::sys::JNIEnv;
 use classfile::FieldType;
 use classfile::accessflags::MethodAccessFlags;
 use instructions::{Operand, StackLike};
-use jni::env::JniEnv;
-use jni::sys::JNIEnv;
 
 #[thread_local]
 static CURRENT_JAVA_THREAD: Cell<Option<&'static JavaThread>> = Cell::new(None);
@@ -478,7 +477,19 @@ impl JavaThread {
 		}
 	}
 
+    #[cfg(not(feature = "libffi"))]
+    fn invoke_native(&'static self, method: &'static Method) {
+        unimplemented!("non-libffi native calls");
+    }
+
+    #[cfg(feature = "libffi")]
 	fn invoke_native(&'static self, method: &'static Method) {
+        use ::jni::sys::{
+            jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort,
+        };
+        use libffi::low::CodePtr;
+        use libffi::middle::Arg;
+
 		// Try to lookup and set the method prior to calling
 		let fn_ptr;
 		match crate::native::lookup::lookup_native_method(method, self) {
@@ -503,94 +514,74 @@ impl JavaThread {
 		self.frame_stack
 			.push(StackFrame::Native(NativeFrame { method }));
 
-		let ret;
-		match fn_ptr {
-			NativeMethodPtr::StaticInternal(func) => {
-				assert!(method.is_static());
-				ret = func(self.env(), method.class(), locals);
-			},
-			NativeMethodPtr::NonStaticInternal(func) => {
-				assert!(!method.is_static());
-				ret = func(self.env(), locals);
-			},
-			#[cfg(feature = "libffi")]
-			NativeMethodPtr::External(func) => {
-				use jni::sys::{
-					jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort,
-				};
-				use libffi::low::CodePtr;
-				use libffi::middle::Arg;
+        let env = self.env().raw();
+        let target_class = self.jni_refs().allocate(method.class());
 
-				let env = self.env().raw();
-				let target_class = self.jni_refs().allocate(method.class());
+        let jni_locals = locals.into_jni(self);
+        let mut locals = jni_locals.iter();
 
-				let jni_locals = locals.into_jni(self);
-				let mut locals = jni_locals.iter();
+        // To keep the receiver live
+        let mut this = MaybeUninit::uninit();
 
-				// To keep the receiver live
-				let mut this = MaybeUninit::uninit();
+        let receiver;
+        if method.is_static() {
+            receiver = Arg::new(&target_class);
+        } else {
+            let this_ref = locals
+                .next()
+                .expect("should have a receiver")
+                .expect_reference();
+            this.write(this_ref);
+            receiver = Arg::new(&this);
+        }
 
-				let receiver;
-				if method.is_static() {
-					receiver = Arg::new(&target_class);
-				} else {
-					let this_ref = locals
-						.next()
-						.expect("should have a receiver")
-						.expect_reference();
-					this.write(this_ref);
-					receiver = Arg::new(&this);
-				}
-
-				let cfi = method.prepare_cfi(&env, receiver, &mut locals);
-				ret = unsafe {
-					match method.descriptor.return_type {
-						FieldType::Byte => Some(Operand::Int(
-							cfi.cfi
-								.call::<jbyte>(CodePtr::from_ptr(func), &cfi.args)
-								.into(),
-						)),
-						FieldType::Character => Some(Operand::Int(
-							cfi.cfi
-								.call::<jchar>(CodePtr::from_ptr(func), &cfi.args)
-								.into(),
-						)),
-						FieldType::Double => Some(Operand::Double(
-							cfi.cfi.call::<jdouble>(CodePtr::from_ptr(func), &cfi.args),
-						)),
-						FieldType::Float => Some(Operand::Float(
-							cfi.cfi.call::<jfloat>(CodePtr::from_ptr(func), &cfi.args),
-						)),
-						FieldType::Integer => Some(Operand::Int(
-							cfi.cfi.call::<jint>(CodePtr::from_ptr(func), &cfi.args),
-						)),
-						FieldType::Long => Some(Operand::Long(
-							cfi.cfi.call::<jlong>(CodePtr::from_ptr(func), &cfi.args),
-						)),
-						FieldType::Short => Some(Operand::Int(
-							cfi.cfi
-								.call::<jshort>(CodePtr::from_ptr(func), &cfi.args)
-								.into(),
-						)),
-						FieldType::Boolean => Some(Operand::Int(
-							cfi.cfi
-								.call::<jboolean>(CodePtr::from_ptr(func), &cfi.args)
-								.into(),
-						)),
-						FieldType::Void => {
-							cfi.cfi.call::<()>(CodePtr::from_ptr(func), &cfi.args);
-							None
-						},
-						FieldType::Object(_) | FieldType::Array(_) => {
-							let jobject =
-								cfi.cfi.call::<jobject>(CodePtr::from_ptr(func), &cfi.args);
-							let obj_ref = jobject.to_reference_maybe_null();
-							Some(Operand::Reference(obj_ref))
-						},
-					}
-				};
-			},
-		}
+        let cfi = method.prepare_cfi(&env, receiver, &mut locals);
+        let ret = unsafe {
+            match method.descriptor.return_type {
+                FieldType::Byte => Some(Operand::Int(
+                    cfi.cfi
+                        .call::<jbyte>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args)
+                        .into(),
+                )),
+                FieldType::Character => Some(Operand::Int(
+                    cfi.cfi
+                        .call::<jchar>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args)
+                        .into(),
+                )),
+                FieldType::Double => Some(Operand::Double(
+                    cfi.cfi.call::<jdouble>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args),
+                )),
+                FieldType::Float => Some(Operand::Float(
+                    cfi.cfi.call::<jfloat>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args),
+                )),
+                FieldType::Integer => Some(Operand::Int(
+                    cfi.cfi.call::<jint>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args),
+                )),
+                FieldType::Long => Some(Operand::Long(
+                    cfi.cfi.call::<jlong>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args),
+                )),
+                FieldType::Short => Some(Operand::Int(
+                    cfi.cfi
+                        .call::<jshort>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args)
+                        .into(),
+                )),
+                FieldType::Boolean => Some(Operand::Int(
+                    cfi.cfi
+                        .call::<jboolean>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args)
+                        .into(),
+                )),
+                FieldType::Void => {
+                    cfi.cfi.call::<()>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args);
+                    None
+                },
+                FieldType::Object(_) | FieldType::Array(_) => {
+                    let jobject =
+                        cfi.cfi.call::<jobject>(CodePtr::from_ptr(fn_ptr.into()), &cfi.args);
+                    let obj_ref = jobject.to_reference_maybe_null();
+                    Some(Operand::Reference(obj_ref))
+                },
+            }
+        };
 
 		// There's a chance that the native frame was consumed while handling an exception, otherwise
 		// it should always be present.

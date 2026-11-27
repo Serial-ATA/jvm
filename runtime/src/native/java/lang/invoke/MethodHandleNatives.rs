@@ -1,4 +1,5 @@
 use crate::native::java::lang::invoke::MethodHandleNatives;
+use crate::native::jni::references::JObjectExt;
 use crate::native::jvm::strings::StringInterner;
 use crate::objects::class::ClassPtr;
 use crate::objects::field::Field;
@@ -9,19 +10,26 @@ use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
-use crate::thread::exceptions::{Throws, handle_exception, throw, throw_and_return_null};
+use crate::thread::exceptions::{Throws, handle_exception, throw, throw_with_ret};
 use crate::{classes, globals};
 
 use std::fmt::Write;
 
-use ::jni::env::JniEnv;
+use ::jni::env::{JniEnv, JniNativeMethod};
+use ::jni::objects::{JClass, JIntArray, JObject, JObjectArray};
 use ::jni::sys::{jboolean, jint, jlong};
 use classfile::accessflags::FieldAccessFlags;
 use classfile::constant_pool::types::ReferenceKind;
+use native_macros::jni_call;
 
-include_generated!("native/java/lang/invoke/def/MethodHandleNatives.registerNatives.rs");
-include_generated!("native/java/lang/invoke/def/MethodHandleNatives.definitions.rs");
-include_generated!("native/java/lang/invoke/def/MethodHandleNatives$Constants.constants.rs");
+// From java/lang/invoke/MethodHandleNatives.java
+const MN_IS_METHOD: jint = 0x00010000; // method (not object constructor)
+const MN_IS_CONSTRUCTOR: jint = 0x00020000; // object constructor
+const MN_IS_FIELD: jint = 0x00040000; // field
+const MN_CALLER_SENSITIVE: jint = 0x00100000; // @CallerSensitive annotation detected
+const MN_TRUSTED_FINAL: jint = 0x00200000; // trusted final field
+const MN_REFERENCE_KIND_SHIFT: jint = 24; // refKind
+const LM_TRUSTED: jint = -1;
 
 pub fn new_member_name(
 	name: Symbol,
@@ -152,11 +160,11 @@ pub fn resolve_member_name(
 			let field = defining_class.resolve_field(name, descriptor)?;
 
 			flags = jint::from(field.access_flags.as_u2());
-			flags |= MethodHandleNatives::MN_IS_FIELD;
-			flags |= (ref_kind as jint) << MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
+			flags |= MN_IS_FIELD;
+			flags |= (ref_kind as jint) << MN_REFERENCE_KIND_SHIFT;
 
 			if field.is_trusted_final() {
-				flags |= MethodHandleNatives::MN_TRUSTED_FINAL;
+				flags |= MN_TRUSTED_FINAL;
 			}
 
 			match ref_kind {
@@ -210,8 +218,8 @@ pub fn resolve_member_name(
 			};
 
 			flags = jint::from(method.access_flags.as_u2());
-			flags |= MethodHandleNatives::MN_IS_METHOD;
-			flags |= (ref_kind as jint) << MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
+			flags |= MN_IS_METHOD;
+			flags |= (ref_kind as jint) << MN_REFERENCE_KIND_SHIFT;
 
 			if let Some(calling_class) = calling_class {
 				match ref_kind {
@@ -225,7 +233,7 @@ pub fn resolve_member_name(
 								|| method.class() == globals::classes::java_lang_Object());
 					},
 					ReferenceKind::NewInvokeSpecial => {
-						flags |= MethodHandleNatives::MN_IS_CONSTRUCTOR;
+						flags |= MN_IS_CONSTRUCTOR;
 
 						is_valid = method.name == sym!(object_initializer_name);
 						if method.is_protected() {
@@ -301,24 +309,19 @@ fn init_member_name(member_name: ClassInstanceRef, member: FieldOrMethod) {
 			flags |= jint::from(method.access_flags.as_u2());
 
 			if method.is_constructor() {
-				flags |= MethodHandleNatives::MN_IS_CONSTRUCTOR;
-				flags |= (ReferenceKind::NewInvokeSpecial as jint)
-					<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
+				flags |= MN_IS_CONSTRUCTOR;
+				flags |= (ReferenceKind::NewInvokeSpecial as jint) << MN_REFERENCE_KIND_SHIFT;
 			} else {
-				flags |= MethodHandleNatives::MN_IS_METHOD;
+				flags |= MN_IS_METHOD;
 
 				if method.is_static() {
-					flags |= (ReferenceKind::InvokeStatic as jint)
-						<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
+					flags |= (ReferenceKind::InvokeStatic as jint) << MN_REFERENCE_KIND_SHIFT;
 				} else if method.is_final() || method.is_private() {
-					flags |= (ReferenceKind::InvokeSpecial as jint)
-						<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
+					flags |= (ReferenceKind::InvokeSpecial as jint) << MN_REFERENCE_KIND_SHIFT;
 				} else if method.class().is_interface() {
-					flags |= (ReferenceKind::InvokeInterface as jint)
-						<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
+					flags |= (ReferenceKind::InvokeInterface as jint) << MN_REFERENCE_KIND_SHIFT;
 				} else {
-					flags |= (ReferenceKind::InvokeVirtual as jint)
-						<< MethodHandleNatives::MN_REFERENCE_KIND_SHIFT;
+					flags |= (ReferenceKind::InvokeVirtual as jint) << MN_REFERENCE_KIND_SHIFT;
 				}
 			}
 
@@ -345,20 +348,23 @@ fn init_member_name(member_name: ClassInstanceRef, member: FieldOrMethod) {
 
 // -- MemberName support --
 
-pub fn init(
+#[jni_call]
+extern "C" fn init(
 	env: JniEnv,
-	_class: ClassPtr,
-	self_: Reference, // java.lang.invoke.MemberName
-	ref_: Reference,  // java.lang.Object
+	_class: JClass,
+	self_: JObject, // java.lang.invoke.MemberName
+	ref_: JObject,  // java.lang.Object
 ) {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	if self_.is_null() {
-		throw!(thread, InternalError, "mname is null");
-	}
+	assert_eq!(thread.env(), env);
 
-	if ref_.is_null() {
+	let Some(self_) = (unsafe { self_.to_reference() }) else {
+		throw!(thread, InternalError, "mname is null");
+	};
+
+	let Some(ref_) = (unsafe { ref_.to_reference() }) else {
 		throw!(thread, InternalError, "target is null");
-	}
+	};
 
 	let target = ref_.extract_class();
 	let target_class = target.class();
@@ -387,34 +393,40 @@ pub fn init(
 	}
 }
 
-pub fn expand(
+#[jni_call]
+extern "C" fn expand(
 	_env: JniEnv,
-	_class: ClassPtr,
-	_self_: Reference, // java.lang.invoke.MemberName
+	_class: JClass,
+	_self_: JObject, // java.lang.invoke.MemberName
 ) {
 	unimplemented!("java.lang.invoke.MethodHandleNatives#expand");
 }
 
 // throws LinkageError, ClassNotFoundException
-pub fn resolve(
-	_env: JniEnv,
-	_class: ClassPtr,
-	self_: Reference,  // java.lang.invoke.MemberName
-	caller: Reference, // java.lang.Class<?>
+#[jni_call]
+extern "C" fn resolve(
+	env: JniEnv,
+	_class: JClass,
+	self_: JObject, // java.lang.invoke.MemberName
+	caller: JClass, // java.lang.Class<?>
 	lookup_mode: jint,
 	speculative_resolve: jboolean,
-) -> Reference /* java.lang.invoke.MemberName */ {
-	if self_.is_null() {
-		throw_and_return_null!(JavaThread::current(), NullPointerException);
-	}
+) -> JObject /* java.lang.invoke.MemberName */ {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+	let Some(self_) = (unsafe { self_.to_reference() }) else {
+		throw_with_ret!(JObject::null(), thread, NullPointerException);
+	};
 
 	let class_instance = self_.extract_class();
 
 	let flags = classes::java::lang::invoke::MemberName::flags(class_instance);
 	let Some(reference_kind) = ReferenceKind::from_u8((flags >> MN_REFERENCE_KIND_SHIFT) as u8)
 	else {
-		throw_and_return_null!(
-			JavaThread::current(),
+		throw_with_ret!(
+			JObject::null(),
+			thread,
 			InternalError,
 			"obsolete MemberName format"
 		);
@@ -425,6 +437,10 @@ pub fn resolve(
 	if (lookup_mode & LM_TRUSTED) == LM_TRUSTED {
 		calling_class = None;
 	} else {
+		let Some(caller) = (unsafe { caller.to_reference() }) else {
+			throw_with_ret!(JObject::null(), thread, NullPointerException);
+		};
+
 		calling_class = Some(caller.extract_target_class());
 	}
 
@@ -433,33 +449,35 @@ pub fn resolve(
 	{
 		if speculative_resolve {
 			// Speculative resolution is allowed to fail
-			return Reference::null();
+			return JObject::null();
 		}
 
 		if reference_kind.is_field() {
-			throw_and_return_null!(
-				JavaThread::current(),
+			throw_with_ret!(
+				JObject::null(),
+				thread,
 				NoSuchFieldError,
 				"field resolution failed"
 			);
 		}
 
-		throw_and_return_null!(
-			JavaThread::current(),
+		throw_with_ret!(
+			JObject::null(),
+			thread,
 			NoSuchMethodError,
 			"method resolution failed"
 		);
 	}
 
-	self_
+	thread.jni_refs().allocate_wrapped(self_)
 }
 
 // -- Field layout queries parallel to jdk.internal.misc.Unsafe --
 
-fn find_member_offset(self_: Reference, is_static: bool) -> Throws<(jlong, MirrorInstanceRef)> {
-	if self_.is_null() {
-		throw!(@DEFER InternalError, "mname not resolved")
-	}
+fn find_member_offset(self_: JObject, is_static: bool) -> Throws<(jlong, MirrorInstanceRef)> {
+	let Some(self_) = (unsafe { self_.to_reference() }) else {
+		throw!(@DEFER InternalError, "mname not resolved");
+	};
 
 	let clazz = classes::java::lang::invoke::MemberName::clazz(self_.extract_class())?;
 	let flags = classes::java::lang::invoke::MemberName::flags(self_.extract_class());
@@ -481,92 +499,145 @@ fn find_member_offset(self_: Reference, is_static: bool) -> Throws<(jlong, Mirro
 	throw!(@DEFER InternalError, "non-static field required");
 }
 
-pub fn objectFieldOffset(
+#[jni_call]
+extern "C" fn objectFieldOffset(
 	env: JniEnv,
-	_class: ClassPtr,
-	self_: Reference, // java.lang.invoke.MemberName
+	_class: JClass,
+	self_: JObject, // java.lang.invoke.MemberName
 ) -> jlong {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
 	let (index, _) = handle_exception!(0, thread, find_member_offset(self_, false));
 	index
 }
 
-pub fn staticFieldOffset(
+#[jni_call]
+extern "C" fn staticFieldOffset(
 	env: JniEnv,
-	_class: ClassPtr,
-	self_: Reference, // java.lang.invoke.MemberName
+	_class: JClass,
+	self_: JObject, // java.lang.invoke.MemberName
 ) -> jlong {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
 	let (index, clazz) = handle_exception!(0, thread, find_member_offset(self_, true));
 	(clazz.static_field_offset() as jlong) + index
 }
 
-pub fn staticFieldBase(
+#[jni_call]
+extern "C" fn staticFieldBase(
 	env: JniEnv,
-	_class: ClassPtr,
-	self_: Reference, // java.lang.invoke.MemberName
-) -> Reference /* java.lang.Object */ {
+	_class: JClass,
+	self_: JObject, // java.lang.invoke.MemberName
+) -> JObject /* java.lang.Object */ {
 	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	let (_, clazz) = handle_exception!(Reference::null(), thread, find_member_offset(self_, true));
-	Reference::mirror(clazz)
+	assert_eq!(thread.env(), env);
+
+	let (_, clazz) = handle_exception!(JObject::null(), thread, find_member_offset(self_, true));
+	thread
+		.jni_refs()
+		.allocate_wrapped(Reference::mirror(clazz))
+		.into()
 }
 
-pub fn getMemberVMInfo(
+#[jni_call]
+extern "C" fn getMemberVMInfo(
 	_env: JniEnv,
-	_class: ClassPtr,
-	_self_: Reference, // java.lang.invoke.MemberName
-) -> Reference /* java.lang.Object */ {
+	_class: JClass,
+	_self_: JObject, // java.lang.invoke.MemberName
+) -> JObject /* java.lang.Object */ {
 	unimplemented!("java.lang.invoke.MethodHandleNatives#getMemberVMInfo");
 }
 
 // -- CallSite support --
 
-pub fn setCallSiteTargetNormal(
+#[jni_call]
+extern "C" fn setCallSiteTargetNormal(
 	_env: JniEnv,
-	_class: ClassPtr,
-	_site: Reference,   // java.lang.invoke.CallSite
-	_target: Reference, // java.lang.invoke.MethodHandle
+	_class: JClass,
+	_site: JObject,   // java.lang.invoke.CallSite
+	_target: JObject, // java.lang.invoke.MethodHandle
 ) {
 	unimplemented!("java.lang.invoke.MethodHandleNatives#setCallSiteTargetNormal");
 }
 
-pub fn setCallSiteTargetVolatile(
+#[jni_call]
+extern "C" fn setCallSiteTargetVolatile(
 	_env: JniEnv,
-	_class: ClassPtr,
-	_site: Reference,   // java.lang.invoke.CallSite
-	_target: Reference, // java.lang.invoke.MethodHandle
+	_class: JClass,
+	_site: JObject,   // java.lang.invoke.CallSite
+	_target: JObject, // java.lang.invoke.MethodHandle
 ) {
 	unimplemented!("java.lang.invoke.MethodHandleNatives#setCallSiteTargetVolatile");
 }
 
-pub fn copyOutBootstrapArguments(
+#[jni_call]
+extern "C" fn copyOutBootstrapArguments(
 	_env: JniEnv,
-	_class: ClassPtr,
-	_caller: Reference,     // java.lang.Class<?>
-	_index_info: Reference, // int[]
+	_class: JClass,
+	_caller: JClass, // java.lang.Class<?>
+	_index_info: JIntArray,
 	_start: jint,
 	_end: jint,
-	_buf: Reference, // java.lang.Object[]
+	_buf: JObjectArray, // java.lang.Object[]
 	_pos: jint,
 	_resolve: jboolean,
-	_if_not_available: Reference, // java.lang.Object
+	_if_not_available: JObject, // java.lang.Object
 ) {
 	unimplemented!("java.lang.invoke.MethodHandleNatives#copyOutBootstrapArguments");
 }
 
-pub fn clearCallSiteContext(
+#[jni_call]
+extern "C" fn clearCallSiteContext(
 	_env: JniEnv,
-	_class: ClassPtr,
-	_context: Reference, // java.lang.invoke.CallSiteContext
+	_class: JClass,
+	_context: JObject, // java.lang.invoke.CallSiteContext
 ) {
 	unimplemented!("java.lang.invoke.MethodHandleNatives#clearCallSiteContext");
 }
 
-pub fn getNamedCon(
+#[jni_call]
+extern "C" fn getNamedCon(
 	_env: JniEnv,
-	_class: ClassPtr,
+	_class: JClass,
 	_which: jint,
-	_name: Reference, // java.lang.Object[]
+	_name: JObjectArray, // java.lang.Object[]
 ) -> jint {
 	unimplemented!("java.lang.invoke.MethodHandleNatives#getNamedCon");
+}
+
+#[jni_call]
+#[unsafe(export_name = "Java_java_lang_invoke_MethodHandleNatives_registerNatives")]
+pub extern "C" fn registerNatives(env: JniEnv, class: JClass) {
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+	// java.lang.invoke.VarHandle
+	{
+		let var_handle_class = globals::classes::java_lang_invoke_VarHandle();
+		let var_handle_jclass = thread.jni_refs().allocate_wrapped(var_handle_class);
+		env.register_natives(var_handle_jclass, &super::VarHandle::methods())
+			.expect("should register");
+	}
+
+	// java.lang.invoke.MethodHandleNatives
+	#[rustfmt::skip]
+    #[allow(trivial_casts)]
+    let methods = [
+        JniNativeMethod::from("init",                      "(Ljava/lang/invoke/MemberName;Ljava/lang/Object;)V",                              init as extern "C" fn(_, _, _, _)),
+        JniNativeMethod::from("expand",                    "(Ljava/lang/invoke/MemberName;)V",                                                expand as extern "C" fn(_, _, _)),
+        JniNativeMethod::from("resolve",                   "(Ljava/lang/invoke/MemberName;Ljava/lang/Class;IZ)Ljava/lang/invoke/MemberName;", resolve as extern "C" fn(_, _, _, _, _, _) -> JObject),
+        JniNativeMethod::from("getNamedCon",               "(I[Ljava/lang/Object;)I",                                                         getNamedCon as extern "C" fn(_, _, _, _) -> jint),
+        JniNativeMethod::from("objectFieldOffset",         "(Ljava/lang/invoke/MemberName;)J",                                                objectFieldOffset as extern "C" fn(_, _, _) -> jlong),
+        JniNativeMethod::from("setCallSiteTargetNormal",   "(Ljava/lang/invoke/CallSite;Ljava/lang/invoke/MethodHandle;)V",                   setCallSiteTargetNormal as extern "C" fn(_, _, _, _)),
+        JniNativeMethod::from("setCallSiteTargetVolatile", "(Ljava/lang/invoke/CallSite;Ljava/lang/invoke/MethodHandle;)V",                   setCallSiteTargetVolatile as extern "C" fn(_, _, _, _)),
+        JniNativeMethod::from("copyOutBootstrapArguments", "(Ljava/lang/Class;[III[Ljava/lang/Object;IZLjava/lang/Object;)V",                 copyOutBootstrapArguments as extern "C" fn(_, _, _, _, _, _, _, _, _, _)),
+        JniNativeMethod::from("staticFieldOffset",         "(Ljava/lang/invoke/MemberName;)J",                                                staticFieldOffset as extern "C" fn(_, _, _) -> jlong),
+        JniNativeMethod::from("staticFieldBase",           "(Ljava/lang/invoke/MemberName;)Ljava/lang/Object;",                               staticFieldBase as extern "C" fn(_, _, _) -> JObject),
+        JniNativeMethod::from("getMemberVMInfo",           "(Ljava/lang/invoke/MemberName;)Ljava/lang/Object;",                               getMemberVMInfo as extern "C" fn(_, _, _) -> JObject),
+    ];
+
+	env.register_natives(class, &methods)
+		.expect("should register");
 }

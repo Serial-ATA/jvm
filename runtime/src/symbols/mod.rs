@@ -354,6 +354,14 @@ vm_symbols::define_symbols! {
 	findMethodHandleType,
 	linkMethodHandleConstant,
 
+    invoke,
+    invokeBasic,
+    invokeExact,
+    linkToStatic,
+    linkToSpecial,
+    linkToInterface,
+    linkToVirtual,
+
 	dispatchUncaughtException,
 	exit_name: "exit",
 

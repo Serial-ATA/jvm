@@ -1,5 +1,4 @@
 use super::references::JObjectExt;
-use crate::native::method::NativeMethodPtr;
 use crate::objects::method::MethodEntryPoint;
 use crate::symbols::Symbol;
 use crate::thread::JavaThread;
@@ -56,9 +55,7 @@ pub unsafe extern "system" fn RegisterNatives(
 					);
 				}
 
-				method.set_entry_point(MethodEntryPoint::NativeMethod(NativeMethodPtr::External(
-					raw_method.fnPtr,
-				)));
+				method.set_entry_point(MethodEntryPoint::NativeMethod(raw_method.fnPtr.into()));
 			},
 			Throws::Exception(e) => {
 				e.throw(thread);

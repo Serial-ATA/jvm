@@ -3,7 +3,7 @@
 use crate::symbols::Symbol;
 
 use std::cell::SyncUnsafeCell;
-use std::ffi::{CStr, c_char};
+use std::ffi::{CStr, c_char, c_void};
 use std::sync::Once;
 
 use common::sync::ForceSendSync;
@@ -12,23 +12,37 @@ use platform::env::SystemPaths;
 use platform::libs::Library;
 
 mod class;
-pub mod intrinsics;
+pub mod java;
 mod jdk;
 pub mod jni;
 pub mod jvm;
 pub mod jvmti;
 pub mod lookup;
-pub mod method;
 
-#[macro_export]
-macro_rules! include_generated {
-	($path:literal) => {
-		include!(std::concat!(
-			env!("CARGO_MANIFEST_DIR"),
-			"/../generated/",
-			$path
-		));
-	};
+/// Pointer to a native method implementation
+#[repr(transparent)]
+#[derive(Copy, Clone)]
+pub struct NativeMethodPtr(*const c_void);
+
+unsafe impl Send for NativeMethodPtr {}
+unsafe impl Sync for NativeMethodPtr {}
+
+impl From<*const c_void> for NativeMethodPtr {
+	fn from(value: *const c_void) -> Self {
+		Self(value)
+	}
+}
+
+impl From<*mut c_void> for NativeMethodPtr {
+	fn from(value: *mut c_void) -> Self {
+		Self(value.cast_const())
+	}
+}
+
+impl From<NativeMethodPtr> for *const c_void {
+	fn from(value: NativeMethodPtr) -> Self {
+		value.0
+	}
 }
 
 static LIB_JAVA: SyncUnsafeCell<Option<ForceSendSync<Library>>> = SyncUnsafeCell::new(None);
@@ -71,15 +85,3 @@ impl RawSymbolExt for Symbol {
 		Symbol::intern(decoded)
 	}
 }
-
-// Module marker, do not remove
-
-pub(crate) mod java {
-	pub(crate) mod lang {
-		pub(crate) mod invoke {
-			pub(crate) mod MethodHandleNatives;
-			pub(crate) mod MethodHandle;
-		}
-	}
-}
-

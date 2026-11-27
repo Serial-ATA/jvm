@@ -1,6 +1,6 @@
 use super::{CallType, Error};
-use proc_macro2::{Ident, Span, TokenStream};
-use quote::{ToTokens, quote, quote_spanned};
+use proc_macro2::Span;
+use quote::{ToTokens, quote};
 use syn::spanned::Spanned;
 use syn::{ItemFn, ReturnType, Type, TypePath};
 
@@ -18,18 +18,6 @@ macro_rules! parameter_types {
 		#[allow(non_camel_case_types)]
 		enum Primitive {
 			$($sys_ty),+
-		}
-
-		impl Primitive {
-			fn as_ident(&self) -> Ident {
-				match self {
-					$(
-					Primitive::$sys_ty => {
-						Ident::new(stringify!($sys_ty), Span::call_site())
-					}
-					)+
-				}
-			}
 		}
 
 		#[derive(Clone)]
@@ -52,92 +40,6 @@ macro_rules! parameter_types {
                         }
                     },)+
 					_ => None,
-				}
-			}
-
-			fn to_raw(&self) -> proc_macro2::TokenStream {
-				match self {
-					SafeJniWrapperType::Primitive(p) => {
-						let ident = p.as_ident();
-						quote! {
-							::jni::sys::#ident
-						}
-					},
-                    SafeJniWrapperType::Optional(inner) => {
-                        inner.to_raw()
-                    },
-					$(
-					SafeJniWrapperType::$obj_ty => {
-						let ty = Ident::new(stringify!($obj_sys_ty), Span::call_site()).to_token_stream();
-						quote! {
-							::jni::sys::#ty
-						}
-					},
-					)+
-				}
-			}
-
-			fn to_safe(&self) -> proc_macro2::TokenStream {
-				match self {
-					SafeJniWrapperType::Primitive(_) => self.to_raw(),
-                    SafeJniWrapperType::Optional(inner) => {
-                        let inner_safe = inner.to_safe();
-                        quote! {
-                            core::option::Option<#inner_safe>
-                        }
-                    },
-					$(
-					SafeJniWrapperType::$obj_ty => {
-						let ty = Ident::new(stringify!($obj_ty), Span::call_site()).to_token_stream();
-						quote! {
-							::jni::objects::#ty
-						}
-					},
-					)+
-				}
-			}
-
-			fn raw_conversion_fn(&self, param_name: Ident) -> proc_macro2::TokenStream {
-				match self {
-					SafeJniWrapperType::Primitive(_) => {
-						quote_spanned!{param_name.span()=>
-							::core::convert::identity(#param_name)
-						}
-					},
-                    SafeJniWrapperType::Optional(inner) => {
-                        let unwrapped = Ident::new("unwrapped", Span::call_site());
-                        let inner_raw = inner.raw_conversion_fn(unwrapped.clone());
-						quote_spanned! {param_name.span()=>
-							match #param_name {
-                                Some(#unwrapped) => #inner_raw,
-                                None => ::core::ptr::null_mut() as _,
-                            }
-						}
-                    },
-					$(
-					SafeJniWrapperType::$obj_ty => {
-						quote_spanned! {param_name.span()=>
-							#param_name.raw() as _
-						}
-					},
-					)+
-				}
-			}
-
-			fn safe_conversion_fn(&self, param_name: Ident) -> proc_macro2::TokenStream {
-				match self {
-					SafeJniWrapperType::Primitive(_) => param_name.to_token_stream(),
-                    SafeJniWrapperType::Optional(_inner) => {
-                        unimplemented!("Optional object parameters");
-                    },
-					$(
-					SafeJniWrapperType::$obj_ty => {
-						let raw = self.to_safe();
-						quote_spanned! {param_name.span()=>
-							unsafe { #raw::from_raw(#param_name) }
-						}
-					},
-					)+
 				}
 			}
 		}
@@ -198,38 +100,6 @@ impl super::ParameterType for ParameterType {
 	{
 		Self::Loose(ty)
 	}
-
-	fn to_raw(&self) -> TokenStream {
-		match self {
-			ParameterType::Env => quote! { *mut ::jni::sys::JNIEnv },
-			ParameterType::Strict(inner) => inner.to_raw(),
-			ParameterType::Loose(inner) => inner.to_token_stream(),
-		}
-	}
-
-	fn to_safe(&self) -> TokenStream {
-		match self {
-			ParameterType::Env => quote! { ::jni::env::JniEnv },
-			ParameterType::Strict(inner) => inner.to_safe(),
-			ParameterType::Loose(inner) => inner.to_token_stream(),
-		}
-	}
-
-	fn raw_conversion_fn(&self, param_name: Ident) -> TokenStream {
-		match self {
-			ParameterType::Env => quote! { #param_name.raw() },
-			ParameterType::Strict(inner) => inner.raw_conversion_fn(param_name),
-			ParameterType::Loose(_inner) => param_name.to_token_stream(),
-		}
-	}
-
-	fn safe_conversion_fn(&self, param_name: Ident) -> TokenStream {
-		match self {
-			ParameterType::Env => quote! { unsafe { ::jni::env::JniEnv::from_raw(#param_name) } },
-			ParameterType::Strict(inner) => inner.safe_conversion_fn(param_name),
-			ParameterType::Loose(_inner) => param_name.to_token_stream(),
-		}
-	}
 }
 
 pub struct JniFn {
@@ -258,11 +128,7 @@ pub fn generate(input: &ItemFn, no_env: bool, no_strict_types: bool) -> JniFn {
 	JniFn { rust_fn, errors }
 }
 
-fn validate_return(
-	errors: &mut Vec<(Error, Span)>,
-	fun: &ItemFn,
-	no_strict_types: bool,
-) {
+fn validate_return(errors: &mut Vec<(Error, Span)>, fun: &ItemFn, no_strict_types: bool) {
 	let ReturnType::Type(_, ty) = &fun.sig.output else {
 		return;
 	};
@@ -290,16 +156,16 @@ fn validate_return(
 			},
 			ty.span(),
 		));
-        return;
+		return;
 	};
 
-    if SafeJniWrapperType::from_str(&path_str, optional).is_none() {
-        errors.push((
-            Error::BadReturnType {
-                ty: path_str,
-                call_type: CallType::Jni,
-            },
-            ty.span(),
-        ));
-    }
+	if SafeJniWrapperType::from_str(&path_str, optional).is_none() {
+		errors.push((
+			Error::BadReturnType {
+				ty: path_str,
+				call_type: CallType::Jni,
+			},
+			ty.span(),
+		));
+	}
 }

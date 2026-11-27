@@ -1,4 +1,4 @@
-use crate::native::method::NativeMethodPtr;
+use crate::native::NativeMethodPtr;
 use crate::objects::method::MethodEntryPoint;
 use crate::symbols::sym;
 
@@ -21,35 +21,35 @@ pub fn register_natives() {
 			}
 
 			if method.name == sym!(hashCode) {
-				method.set_entry_point(MethodEntryPoint::NativeMethod(NativeMethodPtr::External(
+				method.set_entry_point(MethodEntryPoint::NativeMethod(NativeMethodPtr::from(
 					crate::native::jvm::object::JVM_IHashCode as *const c_void,
 				)));
 				continue;
 			}
 
 			if method.name == sym!(wait0) {
-				method.set_entry_point(MethodEntryPoint::NativeMethod(NativeMethodPtr::External(
+				method.set_entry_point(MethodEntryPoint::NativeMethod(NativeMethodPtr::from(
 					crate::native::jvm::object::JVM_MonitorWait as *const c_void,
 				)));
 				continue;
 			}
 
 			if method.name == sym!(notify) {
-				method.set_entry_point(MethodEntryPoint::NativeMethod(NativeMethodPtr::External(
+				method.set_entry_point(MethodEntryPoint::NativeMethod(NativeMethodPtr::from(
 					crate::native::jvm::object::JVM_MonitorNotify as *const c_void,
 				)));
 				continue;
 			}
 
 			if method.name == sym!(notifyAll) {
-				method.set_entry_point(MethodEntryPoint::NativeMethod(NativeMethodPtr::External(
+				method.set_entry_point(MethodEntryPoint::NativeMethod(NativeMethodPtr::from(
 					crate::native::jvm::object::JVM_MonitorNotifyAll as *const c_void,
 				)));
 				continue;
 			}
 
 			if method.name == sym!(clone) {
-				method.set_entry_point(MethodEntryPoint::NativeMethod(NativeMethodPtr::External(
+				method.set_entry_point(MethodEntryPoint::NativeMethod(NativeMethodPtr::from(
 					crate::native::jvm::object::JVM_Clone as *const c_void,
 				)));
 				continue;

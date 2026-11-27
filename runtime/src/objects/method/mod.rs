@@ -1,7 +1,7 @@
 pub mod spec;
 
+use crate::native::NativeMethodPtr;
 use crate::native::jni::references::JObjectExt;
-use crate::native::method::NativeMethodPtr;
 use crate::objects::class::ClassPtr;
 use crate::objects::constant_pool::cp_types;
 use crate::objects::constant_pool::cp_types::MethodEntry;
@@ -544,12 +544,10 @@ pub fn field_type_mirror(class: ClassPtr, ty: &FieldType) -> Throws<MirrorInstan
 		},
 		FieldType::Array(ty) => {
 			if ty.is_primitive() {
-				return Throws::Ok(globals::mirrors::primitive_array_mirror_for(
-					ty,
-				));
+				return Throws::Ok(globals::mirrors::primitive_array_mirror_for(ty));
 			}
 
-            let component_field_ty = field_type_mirror(class, ty)?;
+			let component_field_ty = field_type_mirror(class, ty)?;
 
 			let array_class_name = component_field_ty.target_class().array_class_name();
 			let array_class = class.loader().load(array_class_name)?;
