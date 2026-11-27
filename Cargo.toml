@@ -30,6 +30,9 @@ license = "MIT OR APACHE-2.0"
 debug = "full"
 opt-level = 0
 
+[profile.release]
+debug = "full"
+
 [workspace.lints.rust]
 rust_2018_idioms = { level = "deny", priority = -1 }
 rust_2021_compatibility = { level = "deny", priority = -1 }

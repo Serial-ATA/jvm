@@ -46,6 +46,10 @@ debug:
 release:
     cargo +nightly -Z unstable-options build --release --workspace --target {{ HOST_TRIPLE }}
 
+# Build the entire project in release with ASan
+release-asan:
+    RUSTFLAGS="-Z sanitizer=address -C force-frame-pointers=yes -C link-arg=-Wl,--export-dynamic-symbol=__asan_* -C link-arg=-Wl,--export-dynamic-symbol=__sanitizer_* -C link-arg=-Wl,--export-dynamic-symbol=__lsan_* -C link-arg=-Wl,--export-dynamic-symbol=__ubsan_*" cargo +nightly -Z unstable-options -Z build-std build --release --workspace --target {{ HOST_TRIPLE }}
+
 native-debug:
     cargo +nightly -Z unstable-options build -p native-meta
 
@@ -67,6 +71,10 @@ script name *ARGS: _venv
 
 # Build and run the java binary with the provided arguments
 java +ARGS: release
+    just _do_java release {{ HOST_TRIPLE }} {{ ARGS }}
+
+# Build the java binary in release mode with ASan and run with the provided arguments
+java-asan +ARGS: release-asan
     just _do_java release {{ HOST_TRIPLE }} {{ ARGS }}
 
 # Build and run the java binary in debug mode with the provided arguments
