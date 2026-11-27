@@ -80,10 +80,6 @@ pub(crate) mod java {
 			pub(crate) mod MethodHandleNatives;
 			pub(crate) mod MethodHandle;
 		}
-		pub(crate) mod r#ref {
-			pub(crate) mod PhantomReference;
-			pub(crate) mod Finalizer;
-		}
 		pub(crate) mod Throwable;
 	}
 }

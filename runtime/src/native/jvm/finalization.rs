@@ -1,6 +1,6 @@
-use jni::env::JniEnv;
-use jni::objects::JObject;
-use jni::sys::jboolean;
+use ::jni::env::JniEnv;
+use ::jni::objects::JObject;
+use ::jni::sys::jboolean;
 use native_macros::jni_call;
 
 #[jni_call]
@@ -10,5 +10,5 @@ pub extern "C" fn JVM_ReportFinalizationComplete(_env: JniEnv, _finalizee: JObje
 
 #[jni_call]
 pub extern "C" fn JVM_IsFinalizationEnabled(_env: JniEnv) -> jboolean {
-	todo!()
+	false // Finalization is deprecated anyway
 }

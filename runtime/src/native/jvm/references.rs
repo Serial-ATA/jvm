@@ -1,5 +1,6 @@
 use crate::classes;
 use crate::native::jni::references::JObjectExt;
+use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
 use ::jni::env::JniEnv;
@@ -52,8 +53,12 @@ pub extern "C" fn JVM_ReferenceRefersTo(env: JniEnv, reference: JObject, obj: JO
 }
 
 #[jni_call]
-pub extern "C" fn JVM_ReferenceClear(_env: JniEnv, _reference: JObject) {
-	todo!()
+pub extern "C" fn JVM_ReferenceClear(_env: JniEnv, reference: JObject) {
+	let Some(this) = (unsafe { reference.to_reference() }) else {
+		panic!("null object passed to `JVM_ReferenceRefersTo`");
+	};
+
+	classes::java::lang::r#ref::Reference::set_referent(this, Reference::null());
 }
 
 #[jni_call]
