@@ -16,6 +16,7 @@ GENERATED_DIR := PROJECT_ROOT / "generated"
 BUILD_DIR := PROJECT_ROOT / "build"
 DIST_DIR := BUILD_DIR / "dist"
 OUT_DIR := BUILD_DIR / "out"
+HOST_TRIPLE := `rustc -vV | awk '/host:/ { print $2 }'`
 
 default: debug
 
@@ -43,7 +44,7 @@ debug:
 
 # Build the entire project in release
 release:
-    cargo +nightly -Z unstable-options build --release --workspace
+    cargo +nightly -Z unstable-options build --release --workspace --target {{ HOST_TRIPLE }}
 
 native-debug:
     cargo +nightly -Z unstable-options build -p native-meta
@@ -66,12 +67,12 @@ script name *ARGS: _venv
 
 # Build and run the java binary with the provided arguments
 java +ARGS: release
-    just _do_java release {{ ARGS }}
+    just _do_java release {{ HOST_TRIPLE }} {{ ARGS }}
 
 # Build and run the java binary in debug mode with the provided arguments
 java-debug +ARGS: debug
-    just _do_java debug {{ ARGS }}
+    just _do_java debug "" {{ ARGS }}
 
-_do_java PROFILE +ARGS:
-    just dist --profile {{ PROFILE }} --no-native-libs
+_do_java PROFILE TARGET +ARGS:
+    just dist --profile {{ PROFILE }} {{ if TARGET != "" { "--target " + TARGET } else { "" } }} --no-native-libs
     JAVA_HOME={{ DIST_DIR }} {{ DIST_DIR / "bin" / "java" }} -Djava.home={{ DIST_DIR }} {{ ARGS }}

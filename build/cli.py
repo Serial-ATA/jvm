@@ -54,6 +54,12 @@ def args() -> Namespace:
         default="release",
     )
     parser.add_argument(
+        "--target",
+        type=str,
+        help="the Cargo target triple (optional)",
+        default=None,
+    )
+    parser.add_argument(
         "--variant",
         choices=[x for x in VmVariant.__members__.keys()],
         help="the variant of the VM",

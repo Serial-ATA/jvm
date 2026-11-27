@@ -107,7 +107,10 @@ def main():
             return
 
     print(f"Packaging for profile `{args.profile}`")
-    target_dir = TARGET_DIR.joinpath(args.profile)
+    if args.target:
+        target_dir = TARGET_DIR.joinpath(args.target, args.profile)
+    else:
+        target_dir = TARGET_DIR.joinpath(args.profile)
     if not os.path.isdir(target_dir):
         print(
             f"Project not built for profile `{args.profile}` (searched {str(target_dir)})",
