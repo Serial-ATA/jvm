@@ -16,6 +16,7 @@ use std::sync::atomic::Ordering;
 use ::jni::env::{JniEnv, JniNativeMethod};
 use ::jni::objects::{JArray, JByteArray, JClass, JDoubleArray, JObject, JString, JThrowable};
 use ::jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
+use classfile::accessflags::FieldAccessFlags;
 use common::atomic::{Atomic, AtomicCounterpart};
 use native_macros::jni_call;
 
@@ -784,20 +785,51 @@ extern "C" fn knownObjectFieldOffset0(
 
 #[jni_call]
 extern "C" fn staticFieldOffset0(
-	_env: JniEnv,
-	_this: JObject,  // jdk.internal.misc.Unsafe
-	_field: JObject, // java.lang.reflect.Field
+	env: JniEnv,
+	_this: JObject, // jdk.internal.misc.Unsafe
+	field: JObject, // java.lang.reflect.Field
 ) -> jlong {
-	unimplemented!("jdk.internal.misc.Unsafe#staticFieldOffset0")
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+	let Some(field) = (unsafe { field.to_reference() }) else {
+		throw_with_ret!(0, thread, NullPointerException);
+	};
+	let field = field.extract_class();
+
+	let modifiers = classes::java::lang::reflect::Field::modifiers(field);
+	if modifiers & FieldAccessFlags::ACC_STATIC.as_u2() as jint == 0 {
+		throw_with_ret!(0, thread, IllegalArgumentException);
+	}
+
+    let slot = classes::java::lang::reflect::Field::slot(field);
+    let class = classes::java::lang::reflect::Field::clazz(field);
+
+    let field = class.target_class().fields().nth(slot as usize).expect("malformed java.lang.reflect.Field");
+    field.offset() as jlong
 }
 
 #[jni_call]
 extern "C" fn staticFieldBase0(
-	_env: JniEnv,
-	_this: JObject,  // jdk.internal.misc.Unsafe
-	_field: JObject, // java.lang.reflect.Field
+	env: JniEnv,
+	_this: JObject, // jdk.internal.misc.Unsafe
+	field: JObject, // java.lang.reflect.Field
 ) -> JObject {
-	unimplemented!("jdk.internal.misc.Unsafe#staticFieldBase0")
+	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	assert_eq!(thread.env(), env);
+
+	let Some(field) = (unsafe { field.to_reference() }) else {
+		throw_with_ret!(JObject::null(), thread, NullPointerException);
+	};
+	let field = field.extract_class();
+
+	let modifiers = classes::java::lang::reflect::Field::modifiers(field);
+	if modifiers & FieldAccessFlags::ACC_STATIC.as_u2() as jint == 0 {
+		throw_with_ret!(JObject::null(), thread, IllegalArgumentException);
+	}
+
+	let class = classes::java::lang::reflect::Field::clazz(field);
+	thread.jni_refs().allocate_wrapped(class).into()
 }
 #[jni_call]
 extern "C" fn shouldBeInitialized0(
