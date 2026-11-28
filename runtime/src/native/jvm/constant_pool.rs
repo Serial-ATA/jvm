@@ -1,7 +1,7 @@
 use crate::classes;
+use crate::native::jni::JniEnvExt;
 use crate::native::jni::references::JObjectExt;
 use crate::objects::reference::Reference;
-use crate::thread::JavaThread;
 use crate::thread::exceptions::Throws;
 
 use std::ffi::{c_char, c_int, c_uchar};
@@ -13,7 +13,7 @@ use native_macros::jni_call;
 
 #[jni_call]
 pub extern "C" fn JVM_GetClassConstantPool(env: JniEnv, class: JClass) -> JObject {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let thread = unsafe { env.thread() };
 
 	let this = unsafe { class.to_reference() }.expect("invalid class reference");
 	let this = this.extract_mirror();

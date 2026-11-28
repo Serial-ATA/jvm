@@ -2,9 +2,8 @@ use crate::classes;
 use crate::classpath::loader::ClassLoader;
 use crate::modules::{Module, Package};
 use crate::native::jni::references::JObjectExt;
-use crate::native::jni::{JniObjectArrayExt, JniStringExt};
+use crate::native::jni::{JniEnvExt, JniObjectArrayExt, JniStringExt};
 use crate::symbols::Symbol;
-use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, handle_exception, throw};
 
 use ::jni::env::JniEnv;
@@ -21,7 +20,7 @@ pub extern "C" fn JVM_DefineModule(
 	location: JString,
 	packages: JObjectArray,
 ) {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let thread = unsafe { env.thread() };
 
 	let mut version_sym = None;
 	if !version.is_null() {
@@ -59,11 +58,11 @@ pub extern "C" fn JVM_DefineModule(
 
 #[jni_call]
 pub extern "C" fn JVM_SetBootLoaderUnnamedModule(env: JniEnv, module: JObject) {
+	let thread = unsafe { env.thread() };
+
 	let Some(module) = (unsafe { module.to_reference() }) else {
 		panic!("Attempting to SetBootLoaderUnnamedModule with a null reference");
 	};
-
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 
 	let module_entry_result = Module::unnamed(module);
 	let module_entry = handle_exception!(thread, module_entry_result);
@@ -87,7 +86,7 @@ pub extern "C" fn JVM_AddModuleExports(
 	package: JString,
 	to_module: JObject,
 ) {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let thread = unsafe { env.thread() };
 
 	let Some(from_module) = (unsafe { from_module.to_reference() }) else {
 		throw!(thread, NullPointerException, "from_module is null");
@@ -128,7 +127,7 @@ pub extern "C" fn JVM_AddModuleExportsToAllUnnamed(
 
 #[jni_call]
 pub extern "C" fn JVM_AddModuleExportsToAll(env: JniEnv, from_module: JObject, package: JString) {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let thread = unsafe { env.thread() };
 
 	let Some(from_module) = (unsafe { from_module.to_reference() }) else {
 		throw!(thread, NullPointerException, "from_module is null");
@@ -151,7 +150,7 @@ pub extern "C" fn JVM_AddModuleExportsToAll(env: JniEnv, from_module: JObject, p
 
 #[jni_call]
 pub extern "C" fn JVM_AddReadsModule(env: JniEnv, from_module: JObject, source_module: JObject) {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let thread = unsafe { env.thread() };
 
 	let Some(from_module) = (unsafe { from_module.to_reference() }) else {
 		throw!(thread, NullPointerException, "from_module is null");

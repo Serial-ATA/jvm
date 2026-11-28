@@ -12,6 +12,7 @@ use crate::objects::reference::Reference;
 use ::jni::objects::{JObjectArray, JString};
 use ::jni::sys::jvalue;
 use instructions::Operand;
+use jni::env::JniEnv;
 
 pub mod array;
 pub mod class;
@@ -83,5 +84,23 @@ impl JniObjectArrayExt for JObjectArray {
 			panic!("`JObjectArray` is null")
 		};
 		obj.extract_object_array()
+	}
+}
+
+pub trait JniEnvExt {
+	/// Get the [`JavaThread`] for this [`JniEnv`]
+	///
+	/// # Safety
+	///
+	/// The `JniEnv` is assumed to point to a valid env created by _this_ VM.
+	unsafe fn thread(self) -> &'static JavaThread;
+}
+
+impl JniEnvExt for JniEnv {
+	unsafe fn thread(self) -> &'static JavaThread {
+		let thread = unsafe { &*JavaThread::for_env(self.raw()) };
+		assert_eq!(thread.env(), self);
+
+		thread
 	}
 }

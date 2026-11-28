@@ -1,5 +1,6 @@
 use crate::classpath::loader::{ClassLoader, ClassLoaderSet};
 use crate::native::RawSymbolExt;
+use crate::native::jni::JniEnvExt;
 use crate::native::jni::references::JObjectExt;
 use crate::native::jvm::strings::StringInterner;
 use crate::objects::class::ClassPtr;
@@ -9,7 +10,6 @@ use crate::objects::instance::mirror::MirrorInstanceRef;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
-use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, handle_exception, throw, throw_with_ret};
 use crate::{classes, globals};
 
@@ -43,7 +43,7 @@ pub(super) fn ensure_class_mirror(this: Reference) -> Throws<Option<MirrorInstan
 
 #[jni_call]
 pub extern "C" fn JVM_GetCallerClass(env: JniEnv) -> JClass {
-	let current_thread = unsafe { &*JavaThread::for_env(env.raw().cast_const()) };
+	let thread = unsafe { env.thread() };
 
 	// The call stack at this point looks something like this:
 	//
@@ -51,7 +51,7 @@ pub extern "C" fn JVM_GetCallerClass(env: JniEnv) -> JClass {
 	// [1] [ @CallerSensitive API.method                                            ]
 	// [.] [ (skipped intermediate frames)                                          ]
 	// [n] [ caller                                                                 ]
-	for (n, frame) in current_thread.frame_stack().iter().enumerate() {
+	for (n, frame) in thread.frame_stack().iter().enumerate() {
 		let method = frame.method();
 
 		if n == 0 || n == 1 {
@@ -61,7 +61,7 @@ pub extern "C" fn JVM_GetCallerClass(env: JniEnv) -> JClass {
 				{
 					throw_with_ret!(
 						JClass::null(),
-						current_thread,
+						thread,
 						InternalError,
 						"JVM_GetCallerClass must only be called from Reflection.getCallerClass"
 					);
@@ -71,7 +71,7 @@ pub extern "C" fn JVM_GetCallerClass(env: JniEnv) -> JClass {
 			if !method.is_caller_sensitive() {
 				throw_with_ret!(
 					JClass::null(),
-					current_thread,
+					thread,
 					InternalError,
 					"`getCallerClass` is not called from a @CallerSensitive method"
 				);
@@ -81,7 +81,7 @@ pub extern "C" fn JVM_GetCallerClass(env: JniEnv) -> JClass {
 		}
 
 		if !method.is_stack_walk_ignored() {
-			return current_thread.jni_refs().allocate_wrapped(method.class());
+			return thread.jni_refs().allocate_wrapped(method.class());
 		}
 	}
 
@@ -90,7 +90,7 @@ pub extern "C" fn JVM_GetCallerClass(env: JniEnv) -> JClass {
 
 #[jni_call(no_strict_types)]
 pub extern "C" fn JVM_FindPrimitiveClass(env: JniEnv, utf: *const c_char) -> JClass {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let thread = unsafe { env.thread() };
 
 	let name_c = unsafe { CStr::from_ptr(utf) };
 	for (name, ty) in crate::globals::PRIMITIVE_TYPE_NAMES_TO_FIELD_TYPES {
@@ -113,8 +113,7 @@ pub extern "C" fn JVM_FindPrimitiveClass(env: JniEnv, utf: *const c_char) -> JCl
 /// and just return `null`.
 #[jni_call(no_strict_types)]
 pub extern "C" fn JVM_FindClassFromBootLoader(env: JniEnv, name: *const c_char) -> JClass {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let name_c = unsafe { CStr::from_ptr(name) };
 	let name = unicode::decode(name_c.to_bytes()).unwrap();
@@ -132,7 +131,7 @@ pub extern "C" fn JVM_FindClassFromLoader(
 	init: jboolean,
 	loader: JObject,
 ) -> JClass {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let thread = unsafe { env.thread() };
 
 	let loader = unsafe { loader.to_reference_maybe_null() };
 	if name.is_null() {
@@ -191,8 +190,7 @@ pub extern "C" fn JVM_LookupDefineClass(
 	flags: c_int,
 	class_data: JObject,
 ) -> JClass {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let lookup = unsafe { lookup.to_reference_maybe_null() };
 	if lookup.is_null() {
@@ -283,7 +281,6 @@ pub extern "C" fn JVM_LookupDefineClass(
 	let class = match lookup.loader().derive_class(name, Some(buf), is_hidden) {
 		Throws::Ok(class) => class,
 		Throws::Exception(e) => {
-			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 			e.throw(thread);
 			return JClass::null();
 		},
@@ -319,8 +316,7 @@ pub extern "C" fn JVM_DefineClassWithSource(
 	_protection_domain: JObject,
 	source: *const c_char,
 ) -> JClass {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let buf = unsafe {
 		// SAFETY: `i8` and `u8` have the same size and alignment
@@ -367,8 +363,7 @@ pub extern "C" fn JVM_DefineClassWithSource(
 
 #[jni_call]
 pub extern "C" fn JVM_FindLoadedClass(env: JniEnv, loader: JObject, name: JString) -> JClass {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let name = unsafe { name.to_reference_maybe_null() };
 	if name.is_null() {
@@ -394,7 +389,7 @@ pub extern "C" fn JVM_FindLoadedClass(env: JniEnv, loader: JObject, name: JStrin
 
 #[jni_call]
 pub extern "C" fn JVM_InitClassName(env: JniEnv, class: JClass) -> JString {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let thread = unsafe { env.thread() };
 
 	let this = unsafe { class.to_reference() }.expect("invalid class reference");
 	let this_mirror = this.extract_mirror();
@@ -414,7 +409,7 @@ pub extern "C" fn JVM_InitClassName(env: JniEnv, class: JClass) -> JString {
 
 #[jni_call]
 pub extern "C" fn JVM_GetClassInterfaces(env: JniEnv, class: JClass) -> JObjectArray {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let thread = unsafe { env.thread() };
 
 	let class = unsafe { class.to_reference() }.expect("invalid class reference");
 	let mirror = class.extract_mirror();
@@ -463,7 +458,7 @@ pub extern "C" fn JVM_GetDeclaredClasses(_env: JniEnv, _class: JClass) -> JObjec
 
 #[jni_call]
 pub extern "C" fn JVM_GetDeclaringClass(env: JniEnv, class: JClass) -> JClass {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let thread = unsafe { env.thread() };
 
 	let this = unsafe { class.to_reference() }.expect("invalid class reference");
 	let Some(mirror) = handle_exception!(JClass::null(), thread, ensure_class_mirror(this)) else {
@@ -519,7 +514,7 @@ pub extern "C" fn JVM_GetDeclaringClass(env: JniEnv, class: JClass) -> JClass {
 
 #[jni_call]
 pub extern "C" fn JVM_GetSimpleBinaryName(env: JniEnv, class: JClass) -> JString {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let thread = unsafe { env.thread() };
 
 	let this = unsafe { class.to_reference() }.expect("invalid class reference");
 	let Some(mirror) = handle_exception!(JString::null(), thread, ensure_class_mirror(this)) else {
@@ -588,7 +583,7 @@ pub extern "C" fn JVM_GetClassDeclaredFields(
 	class: JClass,
 	public_only: jboolean,
 ) -> JObjectArray {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let thread = unsafe { env.thread() };
 
 	let this = unsafe { class.to_reference() }.expect("invalid class reference");
 	let mirror = this.extract_mirror();
@@ -659,7 +654,7 @@ pub extern "C" fn JVM_GetClassDeclaredMethods(
 	class: JClass,
 	public_only: jboolean,
 ) -> JObjectArray {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let thread = unsafe { env.thread() };
 
 	let this = unsafe { class.to_reference() }.expect("invalid class reference");
 	let mirror = this.extract_mirror();
@@ -728,7 +723,7 @@ pub extern "C" fn JVM_GetClassDeclaredConstructors(
 	class: JClass,
 	public_only: jboolean,
 ) -> JObjectArray {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let thread = unsafe { env.thread() };
 
 	let this = unsafe { class.to_reference() }.expect("invalid class reference");
 	let this_mirror = this.extract_mirror();
@@ -781,7 +776,7 @@ pub extern "C" fn JVM_GetClassDeclaredConstructors(
 
 #[jni_call]
 pub extern "C" fn JVM_AreNestMates(env: JniEnv, current: JClass, member: JClass) -> jboolean {
-	let thread = unsafe { &*JavaThread::for_env(env.raw().cast_const()) };
+	let thread = unsafe { env.thread() };
 
 	let Some(current) = (unsafe { current.to_reference() }) else {
 		panic!("JVM_AreNestMates called with null `current` class");

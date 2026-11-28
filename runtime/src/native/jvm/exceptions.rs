@@ -1,4 +1,5 @@
 use crate::classpath::loader::ClassLoader;
+use crate::native::jni::JniEnvExt;
 use crate::native::jni::references::JObjectExt;
 use crate::native::jvm::strings::StringInterner;
 use crate::objects::class::ClassPtr;
@@ -8,7 +9,6 @@ use crate::objects::instance::class::ClassInstanceRef;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
-use crate::thread::JavaThread;
 use crate::thread::exceptions::throw;
 use crate::thread::frame::stack::VisibleStackFrame;
 use crate::{classes, globals};
@@ -123,8 +123,7 @@ unsafe fn initialize() {
 
 #[jni_call]
 pub extern "C" fn JVM_FillInStackTrace(env: JniEnv, receiver: JObject) {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	unsafe { initialize() };
 
@@ -136,12 +135,10 @@ pub extern "C" fn JVM_FillInStackTrace(env: JniEnv, receiver: JObject) {
 	classes::java::lang::Throwable::set_backtrace(this, Reference::null());
 	classes::java::lang::Throwable::set_stackTrace(this, Reference::null());
 
-	let current_thread = unsafe { &*JavaThread::for_env(env.raw().cast_const()) };
-
-	let stack_depth = current_thread.frame_stack().visible_depth();
+	let stack_depth = thread.frame_stack().visible_depth();
 
 	let mut frames_to_skip = 0;
-	for frame in current_thread.frame_stack().iter() {
+	for frame in thread.frame_stack().iter() {
 		if frame
 			.method()
 			.class()
@@ -164,7 +161,7 @@ pub extern "C" fn JVM_FillInStackTrace(env: JniEnv, receiver: JObject) {
 	// Create the backtrace
 	let backtrace_depth = stack_depth - frames_to_skip;
 	let mut backtrace = BackTrace::new(backtrace_depth);
-	for frame in current_thread
+	for frame in thread
 		.frame_stack()
 		.iter()
 		.skip(frames_to_skip)
@@ -246,8 +243,7 @@ pub extern "C" fn JVM_GetExtendedNPEMessage(env: JniEnv, throwable: JThrowable) 
 		class.external_name()
 	}
 
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(throwable) = (unsafe { throwable.to_reference() }) else {
 		return JString::null(); // TODO: Exception?
@@ -305,6 +301,8 @@ pub extern "C" fn JVM_InitStackTraceElementArray(
 	backtrace: JObject,
 	depth: jint,
 ) {
+	let thread = unsafe { env.thread() };
+
 	unsafe {
 		initialize_stack_trace_element();
 	}
@@ -312,7 +310,6 @@ pub extern "C" fn JVM_InitStackTraceElementArray(
 	let (Some(backtrace), Some(elements)) =
 		(unsafe { (backtrace.to_reference(), elements.to_reference()) })
 	else {
-		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(thread, NullPointerException);
 	};
 
@@ -320,7 +317,6 @@ pub extern "C" fn JVM_InitStackTraceElementArray(
 	let stacktrace_elements = stacktrace_elements.as_slice();
 
 	if stacktrace_elements.len() != depth as usize {
-		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(thread, IndexOutOfBoundsException);
 	}
 
@@ -329,7 +325,6 @@ pub extern "C" fn JVM_InitStackTraceElementArray(
 	let backtrace_array_contents = backtrace_array.as_slice::<jlong>();
 
 	if !backtrace_array_contents.len().is_multiple_of(2) {
-		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(
 			thread,
 			InternalError,

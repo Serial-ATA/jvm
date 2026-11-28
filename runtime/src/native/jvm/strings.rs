@@ -1,19 +1,21 @@
 use crate::classes;
+use crate::native::jni::JniEnvExt;
 use crate::native::jni::references::JObjectExt;
 use crate::objects::instance::class::ClassInstanceRef;
 use crate::objects::reference::Reference;
 use crate::symbols::Symbol;
-use crate::thread::JavaThread;
-use byte_slice_cast::{AsByteSlice, AsSliceOf};
-use common::int_types::{s1, u1, u2};
-use jni::env::JniEnv;
-use jni::objects::JString;
-use jni::sys::jbyte;
-use native_macros::jni_call;
+
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ffi::c_char;
 use std::sync::{LazyLock, RwLock};
+
+use ::jni::env::JniEnv;
+use ::jni::objects::JString;
+use ::jni::sys::jbyte;
+use byte_slice_cast::{AsByteSlice, AsSliceOf};
+use common::int_types::{s1, u1, u2};
+use native_macros::jni_call;
 
 // TODO: This is controlled by a cli argument
 // Compact strings are enabled by default
@@ -109,8 +111,7 @@ fn do_intern(hash: StringHash, string: ClassInstanceRef) -> ClassInstanceRef {
 
 #[jni_call]
 pub extern "C" fn JVM_InternString(env: JniEnv, string: JString) -> JString {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	if string.is_null() {
 		return JString::null();

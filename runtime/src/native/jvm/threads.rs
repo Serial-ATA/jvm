@@ -1,5 +1,6 @@
 use crate::classes;
 use crate::classes::java::lang::Thread::ThreadStatus;
+use crate::native::jni::JniEnvExt;
 use crate::native::jni::references::JObjectExt;
 use crate::objects::monitor::MonitorMap;
 use crate::thread::exceptions::{Throws, throw, throw_with_ret};
@@ -79,8 +80,7 @@ pub extern "C" fn JVM_SleepNanos(_env: JniEnv, _class: JClass, _nanos: jlong) {
 
 #[jni_call]
 pub extern "C" fn JVM_CurrentCarrierThread(env: JniEnv, _class: JClass) -> JObject {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let obj = thread.obj().expect("current thread should exist");
 	thread.jni_refs().allocate_wrapped(obj)
@@ -88,8 +88,7 @@ pub extern "C" fn JVM_CurrentCarrierThread(env: JniEnv, _class: JClass) -> JObje
 
 #[jni_call]
 pub extern "C" fn JVM_CurrentThread(env: JniEnv, _class: JClass) -> JObject {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let obj = thread.obj().expect("current thread should exist");
 
@@ -118,8 +117,7 @@ pub extern "C" fn JVM_Interrupt(_env: JniEnv, _thread: JObject) {
 /// Whether the current thread holds the lock for the given object
 #[jni_call]
 pub extern "C" fn JVM_HoldsLock(env: JniEnv, _class: JClass, obj: JObject) -> jboolean {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(obj) = (unsafe { obj.to_reference() }) else {
 		throw_with_ret!(false, thread, NullPointerException);

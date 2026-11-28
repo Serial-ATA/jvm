@@ -1,4 +1,5 @@
 use crate::native::java::lang::invoke::MethodHandleNatives;
+use crate::native::jni::JniEnvExt;
 use crate::native::jni::references::JObjectExt;
 use crate::native::jvm::strings::StringInterner;
 use crate::objects::class::ClassPtr;
@@ -9,7 +10,6 @@ use crate::objects::instance::object::Object;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
-use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, handle_exception, throw, throw_with_ret};
 use crate::{classes, globals};
 
@@ -360,8 +360,7 @@ extern "C" fn init(
 	self_: JObject, // java.lang.invoke.MemberName
 	ref_: JObject,  // java.lang.Object
 ) {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(self_) = (unsafe { self_.to_reference() }) else {
 		throw!(thread, InternalError, "mname is null");
@@ -417,8 +416,7 @@ extern "C" fn resolve(
 	lookup_mode: jint,
 	speculative_resolve: jboolean,
 ) -> JObject /* java.lang.invoke.MemberName */ {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(self_) = (unsafe { self_.to_reference() }) else {
 		throw_with_ret!(JObject::null(), thread, NullPointerException);
@@ -510,8 +508,7 @@ extern "C" fn objectFieldOffset(
 	_class: JClass,
 	self_: JObject, // java.lang.invoke.MemberName
 ) -> jlong {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let (index, _) = handle_exception!(0, thread, find_member_offset(self_, false));
 	index
@@ -523,8 +520,7 @@ extern "C" fn staticFieldOffset(
 	_class: JClass,
 	self_: JObject, // java.lang.invoke.MemberName
 ) -> jlong {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let (index, clazz) = handle_exception!(0, thread, find_member_offset(self_, true));
 	(clazz.static_field_offset() as jlong) + index
@@ -536,8 +532,7 @@ extern "C" fn staticFieldBase(
 	_class: JClass,
 	self_: JObject, // java.lang.invoke.MemberName
 ) -> JObject /* java.lang.Object */ {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let (_, clazz) = handle_exception!(JObject::null(), thread, find_member_offset(self_, true));
 	thread
@@ -615,8 +610,7 @@ extern "C" fn getNamedCon(
 #[jni_call]
 #[unsafe(export_name = "Java_java_lang_invoke_MethodHandleNatives_registerNatives")]
 pub extern "C" fn registerNatives(env: JniEnv, class: JClass) {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	// java.lang.invoke.VarHandle
 	{

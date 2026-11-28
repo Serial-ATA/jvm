@@ -1,9 +1,9 @@
+use crate::native::jni::JniEnvExt;
 use crate::native::jni::references::JObjectExt;
 use crate::native::jvm::strings::StringInterner;
 use crate::objects::instance::array::{Array, ObjectArrayInstance};
 use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
-use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 
 use std::collections::HashMap;
@@ -70,16 +70,16 @@ pub extern "C" fn JVM_ArrayCopy(
 		}
 	}
 
+	let thread = unsafe { env.thread() };
+
 	let (Some(src), Some(dst)) = (unsafe { src.to_reference() }, unsafe { dst.to_reference() })
 	else {
-		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(thread, NullPointerException);
 	};
 
 	let src_len = match src.array_length() {
 		Throws::Ok(len) => len,
 		Throws::Exception(e) => {
-			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 			e.throw(thread);
 			return;
 		},
@@ -87,7 +87,6 @@ pub extern "C" fn JVM_ArrayCopy(
 	let dest_len = match dst.array_length() {
 		Throws::Ok(len) => len,
 		Throws::Exception(e) => {
-			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 			e.throw(thread);
 			return;
 		},
@@ -101,7 +100,6 @@ pub extern "C" fn JVM_ArrayCopy(
 		|| src_pos + length > src_len as jint
 		|| dst_pos + length > dest_len as jint
 	{
-		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw!(thread, IndexOutOfBoundsException);
 	}
 
@@ -205,8 +203,7 @@ pub static SYSTEM_PROPERTIES: LazyLock<Mutex<HashMap<String, String>>> = LazyLoc
 
 #[jni_call]
 pub extern "C" fn JVM_GetProperties(env: JniEnv) -> JObjectArray {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let props = SYSTEM_PROPERTIES.lock().unwrap();
 	let len = (props.len() * 2)

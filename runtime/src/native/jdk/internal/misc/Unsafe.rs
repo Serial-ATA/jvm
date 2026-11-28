@@ -1,11 +1,11 @@
 use crate::classes;
+use crate::native::jni::JniEnvExt;
 use crate::native::jni::references::JObjectExt;
 use crate::objects::class::ClassInitializationState;
 use crate::objects::instance::array::{Array, ObjectArrayInstanceRef, PrimitiveType, TypeCode};
 use crate::objects::instance::class::ClassInstance;
 use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
-use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw, throw_with_ret};
 
 use std::alloc::{AllocError, Layout};
@@ -216,8 +216,7 @@ extern "C" fn allocateInstance(
 	_this: JObject, // jdk.internal.misc.Unsafe
 	class: JClass,
 ) -> JObject {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let class = unsafe { class.to_reference() }.expect("class should be non-null");
 
@@ -334,8 +333,7 @@ extern "C" fn compareAndExchangeReference(
 	expected: JObject,
 	value: JObject,
 ) -> JObject {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(object) = (unsafe { object.to_reference() }) else {
 		panic!("should be checked by the jdk");
@@ -357,8 +355,7 @@ extern "C" fn compareAndExchangeReference(
 
 #[jni_call]
 extern "C" fn getReference(env: JniEnv, _this: JObject, object: JObject, offset: jlong) -> JObject {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(object) = (unsafe { object.to_reference() }) else {
 		panic!("should be checked by the jdk");
@@ -392,8 +389,7 @@ extern "C" fn getReferenceVolatile(
 	object: JObject,
 	offset: jlong,
 ) -> JObject {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(object) = (unsafe { object.to_reference() }) else {
 		panic!("should be checked by the jdk");
@@ -720,8 +716,7 @@ extern "C" fn objectFieldOffset0(
 	_this: JObject, // jdk.internal.misc.Unsafe
 	field: JObject, // java.lang.reflect.Field
 ) -> jlong {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(field) = (unsafe { field.to_reference() }) else {
 		panic!("should be checked by the jdk");
@@ -789,8 +784,7 @@ extern "C" fn staticFieldOffset0(
 	_this: JObject, // jdk.internal.misc.Unsafe
 	field: JObject, // java.lang.reflect.Field
 ) -> jlong {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(field) = (unsafe { field.to_reference() }) else {
 		throw_with_ret!(0, thread, NullPointerException);
@@ -819,8 +813,7 @@ extern "C" fn staticFieldBase0(
 	_this: JObject, // jdk.internal.misc.Unsafe
 	field: JObject, // java.lang.reflect.Field
 ) -> JObject {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(field) = (unsafe { field.to_reference() }) else {
 		throw_with_ret!(JObject::null(), thread, NullPointerException);
@@ -864,8 +857,7 @@ extern "C" fn ensureClassInitialized0(
 	_this: JObject, // jdk.internal.misc.Unsafe
 	class: JClass,
 ) {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(class) = (unsafe { class.to_reference() }) else {
 		panic!("should be checked by the jdk");
@@ -908,9 +900,10 @@ extern "C" fn arrayBaseOffset0(
 	_this: JObject, // jdk.internal.misc.Unsafe
 	array_class: JClass,
 ) -> jint {
+	let thread = unsafe { env.thread() };
+
 	// Just here to verify that the array is valid
 	if let Throws::Exception(e) = scale_of(array_class) {
-		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		e.throw(thread);
 		return 0;
 	}
@@ -929,10 +922,11 @@ extern "C" fn arrayIndexScale0(
 	_this: JObject, // jdk.internal.misc.Unsafe
 	array_class: JClass,
 ) -> jint {
+	let thread = unsafe { env.thread() };
+
 	match scale_of(array_class) {
 		Throws::Ok(scale) => scale,
 		Throws::Exception(e) => {
-			let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 			e.throw(thread);
 			0
 		},
@@ -1047,9 +1041,6 @@ pub extern "C" fn registerNatives(env: JniEnv, class: JClass) {
 		("notifyStrictStaticAccess0",   "(Ljava/lang/Class;JZ)V",                                                                           notifyStrictStaticAccess0 as extern "C" fn(_, _, _, _, _) -> jboolean),
 		("fullFence",                   "()V",                                                                                              fullFence as extern "C" fn(_, _)),
 	};
-
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
 
 	env.register_natives(class, &methods)
 		.expect("should register")

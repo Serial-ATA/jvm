@@ -1,8 +1,8 @@
+use crate::native::jni::JniEnvExt;
 use crate::native::jni::references::JObjectExt;
 use crate::objects::instance::CloneableInstance;
 use crate::objects::instance::object::Object;
 use crate::objects::reference::Reference;
-use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw_with_ret};
 
 use std::time::Duration;
@@ -14,8 +14,7 @@ use native_macros::jni_call;
 
 #[jni_call]
 pub extern "C" fn JVM_IHashCode(env: JniEnv, handle: JObject) -> jint {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	// Null references can be hashed
 	let handle = unsafe { handle.to_reference_maybe_null() };
@@ -26,8 +25,7 @@ pub extern "C" fn JVM_IHashCode(env: JniEnv, handle: JObject) -> jint {
 
 #[jni_call]
 pub extern "C" fn JVM_MonitorWait(env: JniEnv, handle: JObject, timeout_millis: jlong) {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(handle) = (unsafe { handle.to_reference() }) else {
 		panic!("Attempting to MonitorWait on a null reference");
@@ -47,8 +45,7 @@ pub extern "C" fn JVM_MonitorWait(env: JniEnv, handle: JObject, timeout_millis: 
 
 #[jni_call]
 pub extern "C" fn JVM_MonitorNotify(env: JniEnv, handle: JObject) {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(handle) = (unsafe { handle.to_reference() }) else {
 		panic!("Attempting to MonitorNotify on a null reference");
@@ -61,8 +58,7 @@ pub extern "C" fn JVM_MonitorNotify(env: JniEnv, handle: JObject) {
 
 #[jni_call]
 pub extern "C" fn JVM_MonitorNotifyAll(env: JniEnv, handle: JObject) {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(handle) = (unsafe { handle.to_reference() }) else {
 		panic!("Attempting to MonitorNotifyAll on a null reference");
@@ -75,8 +71,7 @@ pub extern "C" fn JVM_MonitorNotifyAll(env: JniEnv, handle: JObject) {
 
 #[jni_call]
 pub extern "C" fn JVM_Clone(env: JniEnv, handle: JObject) -> JObject {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(handle) = (unsafe { handle.to_reference() }) else {
 		panic!("Attempting to clone a null reference");

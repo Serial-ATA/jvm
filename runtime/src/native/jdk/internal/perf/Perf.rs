@@ -1,5 +1,3 @@
-use crate::thread::JavaThread;
-
 use ::jni::env::{JniEnv, JniNativeMethod};
 use ::jni::objects::{JClass, JObject, JString};
 use ::jni::sys::{jint, jlong};
@@ -63,9 +61,6 @@ pub extern "C" fn registerNatives(env: JniEnv, class: JClass) {
         JniNativeMethod::from("highResCounter",   "()J",                                            highResCounter as extern "C" fn(_, _) -> jlong),
         JniNativeMethod::from("highResFrequency", "()J",                                            highResFrequency as extern "C" fn(_, _) -> jlong),
 	];
-
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
 
 	env.register_natives(class, &methods)
 		.expect("should register")

@@ -1,3 +1,4 @@
+use crate::native::jni::JniEnvExt;
 use crate::native::jni::references::JObjectExt;
 use crate::native::jvm::reflection::ensure_class_mirror;
 use crate::native::jvm::strings::StringInterner;
@@ -9,7 +10,6 @@ use crate::objects::instance::mirror::MirrorInstanceRef;
 use crate::objects::method::Method;
 use crate::objects::reference::Reference;
 use crate::symbols::sym;
-use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, handle_exception, throw_with_ret};
 use crate::{classes, java_call};
 
@@ -29,7 +29,7 @@ fn do_invoke(
 	args: Option<ObjectArrayInstanceRef>,
 	receiver: Reference,
 ) -> JObject {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
+	let thread = unsafe { env.thread() };
 
 	// Ensure the class is initialized
 	handle_exception!(JObject::null(), thread, target_class.initialize(thread));
@@ -130,8 +130,7 @@ pub extern "C" fn JVM_InvokeMethod(
 	obj: JObject,        // java.lang.Object
 	args0: JObjectArray, // Object[]
 ) -> JObject {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let method_ref = unsafe { method.to_reference() }.expect("null method");
 	let method = method_ref.extract_class();
@@ -142,7 +141,6 @@ pub extern "C" fn JVM_InvokeMethod(
 
 	let class = classes::java::lang::reflect::Method::clazz(method);
 	let Some(target_method) = classes::java::lang::reflect::Method::vmtarget(method) else {
-		let thread = unsafe { &*JavaThread::for_env(env.raw()) };
 		throw_with_ret!(JObject::null(), thread, InternalError, "invoke");
 	};
 
@@ -164,8 +162,7 @@ pub extern "C" fn JVM_NewInstanceFromConstructor(
 	c: JObject,          // java.lang.reflect.Constructor
 	args0: JObjectArray, // java.lang.Object[]
 ) -> JObject {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let constructor_ref = unsafe { c.to_reference() }.expect("null constructor");
 	let constructor = constructor_ref.extract_class();
@@ -306,8 +303,7 @@ pub extern "C" fn JVM_GetMethodIxSignatureUTF(
 // [2]: The enclosing method's descriptor (nullable. java.lang.String)
 #[jni_call]
 pub extern "C" fn JVM_GetEnclosingMethodInfo(env: JniEnv, class: JClass) -> JObjectArray {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let this = unsafe { class.to_reference() }.expect("invalid class reference");
 	let Some(mirror) = handle_exception!(JObjectArray::null(), thread, ensure_class_mirror(this))

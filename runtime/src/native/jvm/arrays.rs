@@ -1,9 +1,9 @@
+use crate::native::jni::JniEnvExt;
 use crate::native::jni::references::JObjectExt;
 use crate::objects::instance::array::{
 	ObjectArrayInstance, PrimitiveArrayInstance, PrimitiveArrayInstanceRef,
 };
 use crate::objects::reference::Reference;
-use crate::thread::JavaThread;
 use crate::thread::exceptions::{handle_exception, throw_with_ret};
 
 use std::ffi::c_uchar;
@@ -81,8 +81,7 @@ pub extern "C" fn JVM_SetPrimitiveArrayElement(
 
 #[jni_call]
 pub extern "C" fn JVM_NewArray(env: JniEnv, element_class: JClass, length: jint) -> JObject {
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
+	let thread = unsafe { env.thread() };
 
 	let Some(element_class) = (unsafe { element_class.to_reference() }) else {
 		throw_with_ret!(JObject::null(), thread, NullPointerException);

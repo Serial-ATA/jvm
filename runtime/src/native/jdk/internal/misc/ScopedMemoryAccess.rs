@@ -1,5 +1,3 @@
-use crate::thread::JavaThread;
-
 use ::jni::env::{JniEnv, JniNativeMethod};
 use ::jni::objects::{JClass, JObject};
 use native_macros::jni_call;
@@ -24,9 +22,6 @@ pub extern "C" fn registerNatives(env: JniEnv, class: JClass) {
 		 ScopedMemoryAccess$ScopedAccessError;)V",
 		closeScope0 as extern "C" fn(_, _, _, _),
 	)];
-
-	let thread = unsafe { &*JavaThread::for_env(env.raw()) };
-	assert_eq!(thread.env(), env);
 
 	env.register_natives(class, &methods)
 		.expect("should register")
