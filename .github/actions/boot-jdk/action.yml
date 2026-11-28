@@ -1,0 +1,15 @@
+name: "Install boot JDK"
+description: "Installs the boot JDK for testing"
+runs:
+  using: composite
+  steps:
+    - name: Get the expected Java version
+      id: java-version
+      shell: bash
+      run: |
+        echo "version=$(just print-java-version)" >> "$GITHUB_OUTPUT"
+    - name: Set up JDK
+      uses: oracle-actions/setup-java@v1
+      with:
+        website: jdk.java.net
+        release: ${{ steps.java-version.outputs.version }}

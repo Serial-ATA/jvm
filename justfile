@@ -69,6 +69,9 @@ _venv:
 script name *ARGS: _venv
     {{ PYTHON_VENV }}/bin/python {{ PROJECT_ROOT }}/scripts/{{ name }}.py {{ ARGS }}
 
+print-java-version:
+    @echo {{ JAVA_VERSION }}
+
 # Build and run the java binary with the provided arguments
 java +ARGS: release
     just _do_java release {{ HOST_TRIPLE }} {{ ARGS }}

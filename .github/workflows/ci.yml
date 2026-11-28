@@ -21,12 +21,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: taiki-e/install-action@just
+      - uses: ./.github/actions/boot-jdk
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: nightly
           override: true
-      - run: just test --workspace --all-features --tests
+      - run: BOOT_JDK=$JAVA_HOME just test --workspace --all-features --tests
   docs:
     name: Docs
     runs-on: ubuntu-latest
