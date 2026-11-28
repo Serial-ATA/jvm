@@ -57,6 +57,7 @@ else:
 
 BIN_DIR: Path = DIST_DIR.joinpath("bin")
 LIB_DIR: Path = DIST_DIR.joinpath("lib")
+CONF_DIR: Path = DIST_DIR.joinpath("conf")
 
 
 def copy_native_libs(target_dir: Path, variant: VmVariant):
@@ -97,6 +98,10 @@ def copy_from_boot_jdk(
             continue
         if path.name.endswith(LIBRARY_SUFFIX) or path.name == "tzdb.dat":
             shutil.copy(path, LIB_DIR)
+
+    # JDK config files
+    boot_jdk_conf = boot_jdk.joinpath("conf")
+    shutil.copytree(boot_jdk_conf, CONF_DIR, dirs_exist_ok=True)
 
 
 def main():
