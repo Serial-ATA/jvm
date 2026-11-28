@@ -1,11 +1,17 @@
 #![feature(thread_local)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(macro_metavar_expr)]
+#![expect(incomplete_features, reason = "only used in simple cases")]
 #![feature(specialization)]
 #![feature(sync_unsafe_cell)]
 #![feature(try_trait_v2)]
 #![feature(iter_next_chunk)]
 #![feature(reentrant_lock)]
+#![expect(
+	internal_features,
+	reason = "only needed for `ReentrantLock::try_lock()`, which is likely to be public \
+	          eventually anyway"
+)]
 #![feature(std_internals)]
 #![feature(pointer_is_aligned_to)]
 #![feature(try_trait_v2_residual)]
