@@ -1,7 +1,7 @@
-use crate::objects::instance::CloneableInstance;
-use crate::objects::instance::array::{Array, PrimitiveArrayInstance};
-use crate::objects::instance::object::Object;
-use crate::test_utils::init_basic_shared_runtime;
+use jvm::objects::instance::CloneableInstance;
+use jvm::objects::instance::array::{Array, PrimitiveArrayInstance};
+use jvm::objects::instance::object::Object;
+use jvm::test_utils::init_basic_shared_runtime;
 
 use common::box_slice;
 use instructions::Operand;

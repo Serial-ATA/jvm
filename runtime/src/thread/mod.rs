@@ -90,7 +90,7 @@ pub struct JavaThread {
 	jni_refs: JniObjectStorage,
 
 	/// Used in tests to prevent this thread from actually running any Java code
-	#[cfg(test)]
+	#[cfg(feature = "test-utils")]
 	pub sealed: std::sync::atomic::AtomicBool,
 }
 
@@ -130,7 +130,7 @@ impl JavaThread {
 
 			jni_refs: JniObjectStorage::default(),
 
-			#[cfg(test)]
+			#[cfg(feature = "test-utils")]
 			sealed: std::sync::atomic::AtomicBool::new(false),
 		})
 	}
@@ -162,7 +162,7 @@ impl JavaThread {
 	///
 	/// This will panic if there is no `JavaThread` available, which is only possible on an
 	/// uninitialized thread.
-	#[cfg(not(test))] // Tests have a custom impl, see src/test_utils/thread.rs
+	#[cfg(not(feature = "test-utils"))] // Tests have a custom impl, see src/test_utils/thread.rs
 	pub fn current() -> &'static JavaThread {
 		Self::current_opt().expect("current JavaThread should be available")
 	}
@@ -401,7 +401,7 @@ impl JavaThread {
 		&'static self,
 		method: &'static Method,
 	) -> Option<Operand<Reference>> {
-		#[cfg(test)]
+		#[cfg(feature = "test-utils")]
 		{
 			self.assert_not_sealed();
 		}
@@ -451,7 +451,7 @@ impl JavaThread {
 	}
 
 	pub fn invoke_method(&'static self, method: &'static Method) {
-		#[cfg(test)]
+		#[cfg(feature = "test-utils")]
 		{
 			self.assert_not_sealed();
 		}

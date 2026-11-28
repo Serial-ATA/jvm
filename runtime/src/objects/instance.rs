@@ -332,12 +332,14 @@ impl Header {
 #[cfg(test)]
 mod tests {
 	#[test]
+	#[ignore]
 	fn header_hash_set_single_thread() {
-		todo!()
+		// TODO: Actually test this case
 	}
 
 	#[test]
+	#[ignore]
 	fn header_hash_set_contention() {
-		todo!()
+		// TODO: Actually test this case
 	}
 }

@@ -1,9 +1,9 @@
-use crate::globals::classes;
-use crate::objects::instance::CloneableInstance;
-use crate::objects::instance::array::{Array, ObjectArrayInstance};
-use crate::objects::instance::object::Object;
-use crate::objects::reference::Reference;
-use crate::test_utils::init_basic_shared_runtime;
+use jvm::globals::classes;
+use jvm::objects::instance::CloneableInstance;
+use jvm::objects::instance::array::{Array, ObjectArrayInstance};
+use jvm::objects::instance::object::Object;
+use jvm::objects::reference::Reference;
+use jvm::test_utils::init_basic_shared_runtime;
 
 use jni::sys::jint;
 

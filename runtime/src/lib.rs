@@ -39,8 +39,8 @@ mod symbols;
 pub mod thread;
 pub mod verifier;
 
-#[cfg(test)]
-pub(crate) mod test_utils;
+#[cfg(feature = "test-utils")]
+pub mod test_utils;
 
 pub fn init_panic_handler() {
 	use thread::JavaThread;

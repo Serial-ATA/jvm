@@ -28,16 +28,16 @@ impl FromStr for ByteSize {
 	type Err = ();
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		let unit = match s.chars().last() {
-			Some('k' | 'K') => Unit::Kilobytes,
-			Some('m' | 'M') => Unit::Megabytes,
-			Some('g' | 'G') => Unit::Gigabytes,
-			Some(c) if c.is_ascii_digit() => Unit::Bytes,
+		let (unit, suffix_len) = match s.chars().last() {
+			Some('k' | 'K') => (Unit::Kilobytes, 1),
+			Some('m' | 'M') => (Unit::Megabytes, 1),
+			Some('g' | 'G') => (Unit::Gigabytes, 1),
+			Some(c) if c.is_ascii_digit() => (Unit::Bytes, 0),
 			_ => return Err(()),
 		};
 
 		// Safe to slice, the unit char was verified above
-		let digits = &s[..s.len() - 1];
+		let digits = &s[..s.len() - suffix_len];
 		if !digits.chars().all(|c| c.is_ascii_digit()) {
 			return Err(());
 		}

@@ -37,15 +37,17 @@ quote.workspace = true
 syn.workspace = true
 
 [dev-dependencies]
+jvm = { package = "runtime", path = ".", features = ["test-utils"] }
 platform = { workspace = true, features = ["test"] }
 
 [features]
 default = ["libffi"]
 libffi = ["dep:libffi"]
+test-utils = ["platform/test"]
 
 [lints]
 workspace = true
 
 [lib]
 name = "jvm"
-crate-type = ["rlib", "dylib"]
+crate-type = ["dylib"]

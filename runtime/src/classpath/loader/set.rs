@@ -24,7 +24,7 @@ static CLASS_LOADER_SET: LazyLock<ClassLoaderSet> = LazyLock::new(|| ClassLoader
 
 impl ClassLoaderSet {
 	pub fn add(loader: Reference, is_hidden: bool) -> &'static ClassLoader {
-		#[cfg(test)]
+		#[cfg(feature = "test-utils")]
 		{
 			ClassLoader::bootstrap().assert_not_sealed()
 		}

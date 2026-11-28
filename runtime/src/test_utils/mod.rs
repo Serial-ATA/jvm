@@ -35,6 +35,8 @@ pub fn init_basic_shared_runtime() -> &'static JavaThread {
 		}
 
 		crate::classpath::jimage::lookup_vm_options();
+		crate::heap::ensure_initialized();
+		crate::stack::ensure_initialized();
 
 		let options = JvmOptions::default();
 		options.logs.apply();

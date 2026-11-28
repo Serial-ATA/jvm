@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
-#[cfg(test)]
+#[cfg(feature = "test-utils")]
 use std::sync::atomic::AtomicBool;
 use std::sync::{LazyLock, Mutex};
 
@@ -70,7 +70,7 @@ pub struct ClassLoader {
 	inner: ClassLoaderType,
 
 	/// Used in tests to prevent this loader from loading additional classes
-	#[cfg(test)]
+	#[cfg(feature = "test-utils")]
 	pub sealed: AtomicBool,
 }
 
@@ -125,7 +125,7 @@ impl ClassLoader {
 				packages: SyncUnsafeCell::new(HashMap::new()),
 			},
 
-			#[cfg(test)]
+			#[cfg(feature = "test-utils")]
 			sealed: AtomicBool::new(false),
 		}
 	}
@@ -138,7 +138,7 @@ impl ClassLoader {
 			name_and_id,
 			inner: ClassLoaderType::Hidden,
 
-			#[cfg(test)]
+			#[cfg(feature = "test-utils")]
 			sealed: AtomicBool::new(false),
 		}
 	}
@@ -234,7 +234,7 @@ impl ClassLoader {
 					packages: SyncUnsafeCell::new(HashMap::new()),
 				},
 
-				#[cfg(test)]
+				#[cfg(feature = "test-utils")]
 				sealed: AtomicBool::new(false),
 			};
 
@@ -361,7 +361,7 @@ impl ClassLoader {
 			return Throws::Ok(ret);
 		}
 
-		#[cfg(test)]
+		#[cfg(feature = "test-utils")]
 		{
 			self.assert_not_sealed();
 		}
@@ -392,7 +392,7 @@ impl ClassLoader {
 			return Throws::Ok(ret);
 		}
 
-		#[cfg(test)]
+		#[cfg(feature = "test-utils")]
 		{
 			self.assert_not_sealed();
 		}
