@@ -45,9 +45,7 @@ pub extern "C" fn JVM_ReferenceRefersTo(env: JniEnv, reference: JObject, obj: JO
 		panic!("null object passed to `JVM_ReferenceRefersTo`");
 	};
 
-	let Some(obj) = (unsafe { obj.to_reference() }) else {
-		panic!("null object passed to `JVM_ReferenceRefersTo`");
-	};
+	let obj = (unsafe { obj.to_reference_maybe_null() });
 
 	classes::java::lang::r#ref::Reference::referent(reference) == obj
 }

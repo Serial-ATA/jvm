@@ -28,12 +28,12 @@ pub extern "C" fn JVM_ActiveProcessorCount() -> jint {
 
 #[jni_call(no_env)]
 pub extern "C" fn JVM_IsUseContainerSupport() -> jboolean {
-	todo!()
+	cfg!(target_os = "linux") // TODO: also toggleable from -XX:-UseContainerSupport
 }
 
 #[jni_call(no_env)]
 pub extern "C" fn JVM_IsContainerized() -> jboolean {
-	todo!()
+	platform::containers::is_containerized()
 }
 
 #[jni_call(no_env, no_strict_types)]

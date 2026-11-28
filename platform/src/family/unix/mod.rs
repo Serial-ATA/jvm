@@ -25,4 +25,4 @@ pub(crate) mod locale;
 pub mod mem;
 pub mod properties;
 pub(super) mod signals;
-pub use imp::env;
+pub use imp::{containers, env};
