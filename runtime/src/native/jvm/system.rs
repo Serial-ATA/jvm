@@ -22,7 +22,11 @@ pub extern "C" fn JVM_AOTEndRecording(_env: JniEnv) -> jboolean {
 
 #[jni_call]
 pub extern "C" fn JVM_CurrentTimeMillis(_env: JniEnv, _unused: JClass) -> jlong {
-	todo!()
+	let now = SystemTime::now();
+	let lhs = std::cmp::max(SystemTime::UNIX_EPOCH, now);
+	let rhs = std::cmp::min(SystemTime::UNIX_EPOCH, now);
+	lhs.duration_since(rhs)
+		.map_or(0, |d| d.as_millis().saturating_cast::<jlong>())
 }
 
 #[jni_call]
