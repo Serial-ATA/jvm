@@ -19,7 +19,7 @@ use crate::thread::exceptions::{
 };
 use crate::thread::frame::{Frame, PcUpdateStrategy};
 use crate::thread::{ControlFlow, JavaThread, exceptions};
-use crate::{classes, java_call};
+use crate::{classes, globals, java_call};
 
 use std::cmp::Ordering;
 use std::sync::Arc;
@@ -1044,27 +1044,20 @@ impl Interpreter {
             return;
         }
 
-        if entry.method.class().is_subclass_of(crate::globals::classes::java_lang_invoke_MethodHandle()) {
+        if entry
+		    .method
+		    .class()
+		    .is_subclass_of(globals::classes::java_lang_invoke_MethodHandle())
+        {
             let Some(MethodEntryPoint::MethodHandleInvoker(mh_invoker)) = entry.method.entry_point() else {
-                panic!("Expected MethodHandleInvoker entry point");
+                throw!(frame.thread(), LinkageError, "MethodHandle natives should be linked already");
             };
-            
+
             mh_invoker(frame, entry);
             return;
         }
 
-        
-        if entry.method.class().is_subclass_of(crate::globals::classes::java_lang_invoke_VarHandle()) {
-            let _ = match var_handle::resolve_invoke_virtual(frame, &entry) {
-                Throws::Ok(()) => (),
-                Throws::Exception(e) => {
-                    e.throw(frame.thread());
-                    return;
-                }
-            };
-            
-            todo!()
-        }
+        unreachable!()
     }
     
     fn fetch_field(frame: &mut Frame, is_static: bool) -> Option<&'static Field> {
@@ -1125,6 +1118,10 @@ impl Interpreter {
         let mut method = entry.method;
         let class = this.extract_instance_class();
         method = class.select_method(method);
+
+        if let Some(appendix) = entry.appendix {
+            frame.thread().stack().push_reference(appendix);
+        }
 
         frame.thread().invoke_method(method);
     }

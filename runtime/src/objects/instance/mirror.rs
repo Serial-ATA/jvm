@@ -370,3 +370,9 @@ impl Instance for MirrorInstanceRef {
 		}
 	}
 }
+
+impl From<MirrorInstanceRef> for Operand<Reference> {
+	fn from(value: MirrorInstanceRef) -> Self {
+		Operand::Reference(Reference::mirror(value))
+	}
+}

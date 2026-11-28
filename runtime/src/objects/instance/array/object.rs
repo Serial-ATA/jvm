@@ -14,6 +14,7 @@ use std::ops::Deref;
 use std::slice;
 
 use common::int_types::s4;
+use instructions::Operand;
 use jni::sys::jint;
 
 /// Reference to an allocated array of objects
@@ -240,5 +241,11 @@ impl Array for ObjectArrayInstanceRef {
 			let dest_ptr = self.field_base().cast::<Reference>().add(dest_pos);
 			src_ptr.copy_to(dest_ptr, length);
 		}
+	}
+}
+
+impl From<ObjectArrayInstanceRef> for Operand<Reference> {
+	fn from(value: ObjectArrayInstanceRef) -> Self {
+		Operand::Reference(Reference::object_array(value))
 	}
 }

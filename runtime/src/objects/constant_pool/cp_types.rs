@@ -11,7 +11,7 @@ use crate::objects::reference::Reference;
 use crate::symbols::{Symbol, sym};
 use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
-use crate::{classes, java_call};
+use crate::{classes, globals, java_call};
 
 use classfile::MethodDescriptor;
 use classfile::constant_pool::types::{
@@ -568,6 +568,8 @@ impl EntryType for FieldRef {
 pub struct MethodEntry {
 	pub method: &'static Method,
 	pub descriptor: Symbol,
+	/// The appendix to include in invocations of this method
+	pub appendix: Option<Reference>,
 	/// The number of parameters this method takes
 	///
 	/// This is needed for variadic methods, saving the effort of parsing the descriptor on
@@ -582,8 +584,6 @@ pub struct MethodEntry {
 }
 
 /// A resolved `CONSTANT_Methodref` entry
-///
-/// This resolves into a tuple of a [`Method`] and a [`Symbol`] representing the method's descriptor.
 ///
 /// The descriptor is necessary for [signature polymorphic] methods, where the method's descriptor
 /// is used to determine the types of the parameters at runtime. Otherwise, the descriptor can be
@@ -617,7 +617,7 @@ impl EntryType for MethodRef {
 			cp.resolve_entry_with::<NameAndType>(value.name_and_type_index, value.name_and_type)?
 		};
 
-		let method_ref;
+		let mut method_ref;
 		if value.is_interface {
 			method_ref = class.resolve_interface_method(name, descriptor)?;
 		} else {
@@ -644,9 +644,23 @@ impl EntryType for MethodRef {
 			(method_ref.parameter_count(), stack_size)
 		};
 
+		// Extra resolution for `VarHandle`s
+		let mut appendix = None;
+		if method_ref
+			.class()
+			.is_subclass_of(globals::classes::java_lang_invoke_VarHandle())
+			&& method_ref.is_signature_polymorphic()
+		{
+			let (actual_target, appendix_) =
+				crate::dynamic::var_handle::resolve_target(method_ref, descriptor)?;
+			method_ref = actual_target;
+			appendix = Some(appendix_);
+		}
+
 		let entry = MethodEntry {
 			method: method_ref,
 			descriptor,
+			appendix,
 			parameter_count,
 			parameters_stack_size,
 		};

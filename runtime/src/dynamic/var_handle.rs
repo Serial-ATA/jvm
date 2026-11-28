@@ -1,51 +1,67 @@
-use crate::objects::constant_pool::cp_types::MethodEntry;
-use crate::thread::exceptions::Throws;
-use crate::thread::frame::Frame;
+use crate::native::jvm::strings::StringInterner;
+use crate::objects::instance::array::{Array, ObjectArrayInstance};
+use crate::objects::method::Method;
+use crate::objects::reference::Reference;
+use crate::symbols::{Symbol, sym};
+use crate::thread::JavaThread;
+use crate::thread::exceptions::{Throws, throw};
+use crate::{classes, globals, java_call};
 
-pub fn resolve_invoke_virtual(frame: &Frame, entry: &MethodEntry) -> Throws<()> {
-	// If the resolved method is signature polymorphic and declared in the
-	// java.lang.invoke.VarHandle class, then the invokevirtual instruction proceeds as follows,
-	// where N and D are the name and descriptor of the method symbolically referenced by the instruction.
-	let N = entry.method.name;
-	let D = entry.method.descriptor_sym();
+use classfile::constant_pool::types::ReferenceKind;
+use instructions::Operand;
+use jni::sys::jint;
 
-	// First, a reference to an instance of java.lang.invoke.VarHandle.AccessMode is obtained
-	// as if by invocation of the valueFromMethodName method of java.lang.invoke.VarHandle.AccessMode
-	// with a String argument denoting N.
-	todo!();
+/// Attempts to resolve a signature polymorphic method
+///
+/// If successful, this returns the resolved method and appendix
+pub fn resolve_target(
+	method: &'static Method,
+	descriptor: Symbol,
+) -> Throws<(&'static Method, Reference)> {
+	assert!(
+		method
+			.class()
+			.is_subclass_of(globals::classes::java_lang_invoke_VarHandle()),
+		"Only VarHandles should make it to this point"
+	);
 
-	// Second, a reference to an instance of java.lang.invoke.MethodType is obtained as if by
-	// invocation of the accessModeType method of java.lang.invoke.VarHandle on the instance
-	// objectref, with the instance of java.lang.invoke.VarHandle.AccessMode as the argument.
-	todo!();
+	let caller_class = method.class();
 
-	// Third, a reference to an instance of java.lang.invoke.MethodHandle is obtained as if by
-	// invocation of the varHandleExactInvoker method of java.lang.invoke.MethodHandles with
-	// the instance of java.lang.invoke.VarHandle.AccessMode as the first argument and the
-	// instance of java.lang.invoke.MethodType as the second argument. The resulting instance
-	// is called the invoker method handle.
-	todo!();
+	let caller_class_mirror = caller_class.mirror();
+	let defining_class_mirror = method.class().mirror();
+	let name_str = StringInterner::intern(method.name);
+	let appendix = ObjectArrayInstance::new(1, globals::classes::java_lang_Object())?;
+	let method_ty = Method::method_type_for(caller_class, descriptor.as_str())?;
 
-	// Finally, the nargs argument values and objectref are popped from the operand stack, and
-	// the invoker method handle is invoked. The invocation occurs as if by execution of an
-	// invokevirtual instruction that indicates a run-time constant pool index to a symbolic
-	// reference R where:
-	//
-	//     * R is a symbolic reference to a method of a class;
-	//
-	//     * for the symbolic reference to the class in which the method is to be found, R specifies java.lang.invoke.MethodHandle;
-	//
-	//     * for the name of the method, R specifies invoke;
-	//
-	//     * for the descriptor of the method, R specifies a return type indicated by the return
-	//       descriptor of D, and specifies a first parameter type of java.lang.invoke.VarHandle
-	//       followed by the parameter types indicated by the parameter descriptors of D (if any) in order.
-	//
-	// and where it is as if the following items were pushed, in order, onto the operand stack:
-	//
-	//     * a reference to the instance of java.lang.invoke.MethodHandle (the invoker method handle);
-	//
-	//     * objectref;
-	//
-	//     * the nargs argument values, where the number, type, and order of the values must be consistent with the type descriptor of the invoker method handle.
+	let link_method = globals::classes::java_lang_invoke_MethodHandleNatives()
+		.resolve_method(sym!(linkMethod), sym!(linkMethodSignature))?;
+
+	let result = java_call!(
+		JavaThread::current(),
+		link_method,
+		caller_class_mirror,
+		ReferenceKind::InvokeVirtual as jint,
+		defining_class_mirror,
+		name_str,
+		Operand::Reference(method_ty),
+		appendix
+	)
+	.expect("should produce a result")
+	.expect_reference();
+
+	if result.is_null() {
+		throw!(@DEFER LinkageError);
+	}
+
+	let result = result.extract_class();
+	let appendix = appendix.array_get(0)?;
+
+	let clazz = classes::java::lang::invoke::MemberName::clazz(result)?;
+	let vmindex = classes::java::lang::invoke::MemberName::vmindex(result);
+
+	let Some(method) = clazz.target_class().vtable().iter().nth(vmindex as usize) else {
+		throw!(@DEFER LinkageError, "MethodHandleNatives produced an invalid MemberName");
+	};
+
+	Throws::Ok((method, appendix))
 }

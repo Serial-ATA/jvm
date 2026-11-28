@@ -221,40 +221,44 @@ pub fn resolve_member_name(
 			flags |= MN_IS_METHOD;
 			flags |= (ref_kind as jint) << MN_REFERENCE_KIND_SHIFT;
 
-			if let Some(calling_class) = calling_class {
-				match ref_kind {
-					ReferenceKind::InvokeSpecial => {
-						is_valid = !method.is_static()
-							&& (method.class() == calling_class
-								|| calling_class
-									.parent_iter()
-									.any(|super_class| super_class == calling_class)
-								|| calling_class.interfaces().contains(&defining_class)
-								|| method.class() == globals::classes::java_lang_Object());
-					},
-					ReferenceKind::NewInvokeSpecial => {
-						flags |= MN_IS_CONSTRUCTOR;
+			match ref_kind {
+				ReferenceKind::InvokeSpecial => {
+					is_valid = !method.is_static();
+					if let Some(calling_class) = calling_class {
+						is_valid &= method.class() == calling_class
+							|| calling_class
+								.parent_iter()
+								.any(|super_class| super_class == calling_class)
+							|| calling_class.interfaces().contains(&defining_class)
+							|| method.class() == globals::classes::java_lang_Object();
+					}
+				},
+				ReferenceKind::NewInvokeSpecial => {
+					flags |= MN_IS_CONSTRUCTOR;
 
-						is_valid = method.name == sym!(object_initializer_name);
-						if method.is_protected() {
-							is_valid &= method.class().shares_package_with(calling_class);
-						}
-					},
-					ReferenceKind::InvokeStatic => {
-						is_valid = method.is_static();
-					},
-					ReferenceKind::InvokeVirtual => {
-						if method.is_protected()
-							&& !method.class().shares_package_with(calling_class)
-						{
-							is_valid = method.class().is_subclass_of(calling_class);
-						}
-					},
-					ReferenceKind::InvokeInterface => {
-						is_valid = !method.is_static();
-					},
-					_ => unreachable!(),
-				}
+					is_valid = method.name == sym!(object_initializer_name);
+					if let Some(calling_class) = calling_class
+						&& method.is_protected()
+					{
+						is_valid &= method.class().shares_package_with(calling_class);
+					}
+				},
+				ReferenceKind::InvokeStatic => {
+					is_valid = method.is_static();
+				},
+				ReferenceKind::InvokeVirtual => {
+					is_valid = !method.is_static();
+					if let Some(calling_class) = calling_class
+						&& method.is_protected()
+						&& !method.class().shares_package_with(calling_class)
+					{
+						is_valid &= method.class().is_subclass_of(calling_class);
+					}
+				},
+				ReferenceKind::InvokeInterface => {
+					is_valid = !method.is_static();
+				},
+				_ => unreachable!(),
 			}
 
 			if !is_valid {
@@ -270,7 +274,8 @@ pub fn resolve_member_name(
 
 			classes::java::lang::invoke::MemberName::set_method(member_name, resolved_method_name);
 
-			let vmindex = defining_class
+			let vmindex = method
+				.class()
 				.vtable()
 				.iter()
 				.position(|m| m == method)

@@ -475,3 +475,9 @@ impl Array for PrimitiveArrayInstanceRef {
 		}
 	}
 }
+
+impl From<PrimitiveArrayInstanceRef> for Operand<Reference> {
+	fn from(value: PrimitiveArrayInstanceRef) -> Self {
+		Operand::Reference(Reference::array(value))
+	}
+}

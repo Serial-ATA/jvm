@@ -275,32 +275,21 @@ impl Class {
 		//    2.1. If C declares exactly one method with the name specified by the method reference, and the declaration
 		//         is a signature polymorphic method (§2.9.3), then method lookup succeeds. All the class names mentioned
 		//         in the descriptor are resolved (§5.4.3.1).
-		let mut searched_method = None;
-		for method in self
+		let mut local_matching_name = self
 			.vtable()
-			.iter()
-			.filter(|method| method.name == method_name)
+			.iter_local()
+			.filter(|method| method.name == method_name);
+		if let Some(method) = local_matching_name.next()
+			&& local_matching_name.next().is_none()
+			&& method.is_signature_polymorphic()
 		{
-			match searched_method {
-				Some(_) => {
-					searched_method = None;
-					break;
-				},
-				None => {
-					if method.is_signature_polymorphic() {
-						searched_method = Some(method)
-					}
-				},
-			}
-		}
-		if let Some(method) = searched_method {
 			return Some(method);
 		}
 
 		// 	  2.2. Otherwise, if C declares a method with the name and descriptor specified by the method reference, method lookup succeeds.
 		let searched_method = self
 			.vtable()
-			.iter()
+			.iter_local()
 			.find(|method| method.name == method_name && method.descriptor_sym() == descriptor);
 		if let Some(method) = searched_method {
 			return Some(method);

@@ -1,11 +1,14 @@
 use crate::objects::class::ClassPtr;
 use crate::objects::instance::object::Object;
 use crate::objects::instance::{CloneableInstance, Header, Instance};
+use crate::objects::reference::Reference;
 use crate::thread::JavaThread;
 
-use jni::sys::jint;
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
+
+use instructions::Operand;
+use jni::sys::jint;
 
 /// Reference to an allocated class instance
 #[derive(Copy, Clone)]
@@ -124,3 +127,9 @@ impl CloneableInstance for ClassInstanceRef {
 }
 
 impl Instance for ClassInstanceRef {}
+
+impl From<ClassInstanceRef> for Operand<Reference> {
+	fn from(value: ClassInstanceRef) -> Self {
+		Operand::Reference(Reference::class(value))
+	}
+}

@@ -80,10 +80,12 @@ impl PartialEq for ExtraFields {
 	}
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum MethodEntryPoint {
 	MethodHandleLinker(fn(&mut Frame, MethodEntry)),
 	MethodHandleInvoker(fn(&mut Frame, MethodEntry)),
+	/// A signature polymorphic method derived from a `VarHandle`. Includes an appendix
+	VarHandle(&'static Method, Reference),
 	NativeMethod(NativeMethodPtr),
 }
 

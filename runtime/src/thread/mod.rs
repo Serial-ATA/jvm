@@ -406,35 +406,35 @@ impl JavaThread {
 			self.assert_not_sealed();
 		}
 
-		if method.is_native() {
-			unimplemented!("Manual invocation of native methods");
-		}
-
 		self.stash_and_reset_pc();
-
 		self.frame_stack.push(StackFrame::Fake);
-		self.invoke_method(method);
 
-		loop {
-			match self.control_flow() {
-				ControlFlow::Continue => {
-					if let Some(current_frame) = self.frame_stack.current() {
-						Interpreter::instruction(current_frame);
-						continue;
-					}
+		if method.is_native() {
+			self.invoke_native(method);
+		} else {
+			self.invoke_method(method);
 
-					// Thread finished execution normally
-					break;
-				},
-				ControlFlow::ExceptionThrown => {
-					self.on_exception();
-					if self.has_pending_exception() {
-						break; // Pass it back up to the caller
-					}
-				},
-				ControlFlow::Break => {
-					break;
-				},
+			loop {
+				match self.control_flow() {
+					ControlFlow::Continue => {
+						if let Some(current_frame) = self.frame_stack.current() {
+							Interpreter::instruction(current_frame);
+							continue;
+						}
+
+						// Thread finished execution normally
+						break;
+					},
+					ControlFlow::ExceptionThrown => {
+						self.on_exception();
+						if self.has_pending_exception() {
+							break; // Pass it back up to the caller
+						}
+					},
+					ControlFlow::Break => {
+						break;
+					},
+				}
 			}
 		}
 
@@ -461,12 +461,13 @@ impl JavaThread {
 			return;
 		}
 
+		self.stash_and_reset_pc();
+
 		if method.is_native() {
 			self.invoke_native(method);
 			return;
 		}
 
-		self.stash_and_reset_pc();
 		match Frame::new(self, method) {
 			Throws::Ok(frame) => {
 				self.frame_stack.push(StackFrame::Real(frame));
@@ -505,8 +506,6 @@ impl JavaThread {
 
 		let params = self.stack().popn(parameter_count);
 		let locals = unsafe { LocalStack::new_with_args(params, method.parameter_stack_size()) };
-
-		self.stash_and_reset_pc();
 
 		// See comments on `NativeFrame`
 		self.frame_stack

@@ -1,4 +1,4 @@
-use ::jni::env::{JniEnv, JniNativeMethod};
+use ::jni::env::JniEnv;
 use ::jni::objects::{JObject, JObjectArray};
 use native_macros::jni_call;
 

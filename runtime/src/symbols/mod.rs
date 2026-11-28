@@ -306,6 +306,8 @@ vm_symbols::define_symbols! {
 	Class_void_signature: "(Ljava/lang/Class;)V",
 	Object_void_signature: "(Ljava/lang/Object;)V",
 	Throwable_void_signature: "(Ljava/lang/Throwable;)V",
+	// java.lang.invoke.MethodHandleNatives#linkMethod
+	linkMethodSignature: "(Ljava/lang/Class;ILjava/lang/Class;Ljava/lang/String;Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/invoke/MemberName;",
 
 	Boolean_valueOf_signature: "(Z)Ljava/lang/Boolean;",
 	Integer_valueOf_signature: "(I)Ljava/lang/Integer;",
@@ -350,6 +352,7 @@ vm_symbols::define_symbols! {
 	notifyAll,
 	wait0,
 
+	linkMethod,
 	linkCallSite,
 	findMethodHandleType,
 	linkMethodHandleConstant,

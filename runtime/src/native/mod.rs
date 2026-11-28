@@ -21,7 +21,7 @@ pub mod lookup;
 
 /// Pointer to a native method implementation
 #[repr(transparent)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct NativeMethodPtr(*const c_void);
 
 unsafe impl Send for NativeMethodPtr {}
