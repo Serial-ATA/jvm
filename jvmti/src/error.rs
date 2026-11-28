@@ -1,209 +1,89 @@
-use jvmti_sys::jvmtiError;
-
+#[rustfmt::skip]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum JvmtiError {
-	InvalidThread,
-	InvalidThreadGroup,
-	InvalidPriority,
-	ThreadNotSuspended,
-	ThreadSuspended,
-	ThreadNotAlive,
-	InvalidObject,
-	InvalidClass,
-	ClassNotPrepared,
-	InvalidMethodId,
-	InvalidLocation,
-	InvalidFieldId,
-	InvalidModule,
-	NoMoreFrames,
-	OpaqueFrame,
-	TypeMismatch,
-	InvalidSlot,
-	Duplicate,
-	NotFound,
-	InvalidMonitor,
-	NotMonitorOwner,
-	Interrupt,
-	InvalidClassFormat,
-	CircularClassDefinition,
-	FailsVerification,
-	UnsupportedRedefinitionMethodAdded,
-	UnsupportedRedefinitionSchemaChanged,
-	InvalidTypestate,
-	UnsupportedRedefinitionHierarchyChanged,
-	UnsupportedRedefinitionMethodDeleted,
-	UnsupportedVersion,
-	NamesDontMatch,
-	UnsupportedRedefinitionClassModifiersChanged,
-	UnsupportedRedefinitionMethodModifiersChanged,
-	UnsupportedRedefinitionClassAttributeChanged,
-	UnsupportedOperation,
-	UnmodifiableClass,
-	UnmodifiableModule,
-	NotAvailable,
-	MustPossessCapability,
-	NullPointer,
-	AbsentInformation,
-	InvalidEventType,
-	IllegalArgument,
-	NativeMethod,
-	ClassLoaderUnsupported,
-	OutOfMemory,
-	AccessDenied,
-	WrongPhase,
-	Internal,
-	UnattachedThread,
-	InvalidEnvironment,
+	InvalidThread                                 = crate::sys::JVMTI_ERROR_INVALID_THREAD as isize,
+	InvalidThreadGroup                            = crate::sys::JVMTI_ERROR_INVALID_THREAD_GROUP as isize,
+	InvalidPriority                               = crate::sys::JVMTI_ERROR_INVALID_PRIORITY as isize,
+	ThreadNotSuspended                            = crate::sys::JVMTI_ERROR_THREAD_NOT_SUSPENDED as isize,
+	ThreadSuspended                               = crate::sys::JVMTI_ERROR_THREAD_SUSPENDED as isize,
+	ThreadNotAlive                                = crate::sys::JVMTI_ERROR_THREAD_NOT_ALIVE as isize,
+	InvalidObject                                 = crate::sys::JVMTI_ERROR_INVALID_OBJECT as isize,
+	InvalidClass                                  = crate::sys::JVMTI_ERROR_INVALID_CLASS as isize,
+	ClassNotPrepared                              = crate::sys::JVMTI_ERROR_CLASS_NOT_PREPARED as isize,
+	InvalidMethodId                               = crate::sys::JVMTI_ERROR_INVALID_METHODID as isize,
+	InvalidLocation                               = crate::sys::JVMTI_ERROR_INVALID_LOCATION as isize,
+	InvalidFieldId                                = crate::sys::JVMTI_ERROR_INVALID_FIELDID as isize,
+	InvalidModule                                 = crate::sys::JVMTI_ERROR_INVALID_MODULE as isize,
+	NoMoreFrames                                  = crate::sys::JVMTI_ERROR_NO_MORE_FRAMES as isize,
+	OpaqueFrame                                   = crate::sys::JVMTI_ERROR_OPAQUE_FRAME as isize,
+	TypeMismatch                                  = crate::sys::JVMTI_ERROR_TYPE_MISMATCH as isize,
+	InvalidSlot                                   = crate::sys::JVMTI_ERROR_INVALID_SLOT as isize,
+	Duplicate                                     = crate::sys::JVMTI_ERROR_DUPLICATE as isize,
+	NotFound                                      = crate::sys::JVMTI_ERROR_NOT_FOUND as isize,
+	InvalidMonitor                                = crate::sys::JVMTI_ERROR_INVALID_MONITOR as isize,
+	NotMonitorOwner                               = crate::sys::JVMTI_ERROR_NOT_MONITOR_OWNER as isize,
+	Interrupt                                     = crate::sys::JVMTI_ERROR_INTERRUPT as isize,
+	InvalidClassFormat                            = crate::sys::JVMTI_ERROR_INVALID_CLASS_FORMAT as isize,
+	CircularClassDefinition                       = crate::sys::JVMTI_ERROR_CIRCULAR_CLASS_DEFINITION as isize,
+	FailsVerification                             = crate::sys::JVMTI_ERROR_FAILS_VERIFICATION as isize,
+	UnsupportedRedefinitionMethodAdded            = crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_ADDED as isize,
+	UnsupportedRedefinitionSchemaChanged          = crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_SCHEMA_CHANGED as isize,
+	InvalidTypestate                              = crate::sys::JVMTI_ERROR_INVALID_TYPESTATE as isize,
+	UnsupportedRedefinitionHierarchyChanged       = crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_HIERARCHY_CHANGED as isize,
+	UnsupportedRedefinitionMethodDeleted          = crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_DELETED as isize,
+	UnsupportedVersion                            = crate::sys::JVMTI_ERROR_UNSUPPORTED_VERSION as isize,
+	NamesDontMatch                                = crate::sys::JVMTI_ERROR_NAMES_DONT_MATCH as isize,
+	UnsupportedRedefinitionClassModifiersChanged  = crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_MODIFIERS_CHANGED as isize,
+	UnsupportedRedefinitionMethodModifiersChanged = crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_MODIFIERS_CHANGED as isize,
+	UnsupportedRedefinitionClassAttributeChanged  = crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_ATTRIBUTE_CHANGED as isize,
+	UnsupportedOperation                          = crate::sys::JVMTI_ERROR_UNSUPPORTED_OPERATION as isize,
+	UnmodifiableClass                             = crate::sys::JVMTI_ERROR_UNMODIFIABLE_CLASS as isize,
+	UnmodifiableModule                            = crate::sys::JVMTI_ERROR_UNMODIFIABLE_MODULE as isize,
+	NotAvailable                                  = crate::sys::JVMTI_ERROR_NOT_AVAILABLE as isize,
+	MustPossessCapability                         = crate::sys::JVMTI_ERROR_MUST_POSSESS_CAPABILITY as isize,
+	NullPointer                                   = crate::sys::JVMTI_ERROR_NULL_POINTER as isize,
+	AbsentInformation                             = crate::sys::JVMTI_ERROR_ABSENT_INFORMATION as isize,
+	InvalidEventType                              = crate::sys::JVMTI_ERROR_INVALID_EVENT_TYPE as isize,
+	IllegalArgument                               = crate::sys::JVMTI_ERROR_ILLEGAL_ARGUMENT as isize,
+	NativeMethod                                  = crate::sys::JVMTI_ERROR_NATIVE_METHOD as isize,
+	ClassLoaderUnsupported                        = crate::sys::JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED as isize,
+	OutOfMemory                                   = crate::sys::JVMTI_ERROR_OUT_OF_MEMORY as isize,
+	AccessDenied                                  = crate::sys::JVMTI_ERROR_ACCESS_DENIED as isize,
+	WrongPhase                                    = crate::sys::JVMTI_ERROR_WRONG_PHASE as isize,
+	Internal                                      = crate::sys::JVMTI_ERROR_INTERNAL as isize,
+	UnattachedThread                              = crate::sys::JVMTI_ERROR_UNATTACHED_THREAD as isize,
+	InvalidEnvironment                            = crate::sys::JVMTI_ERROR_INVALID_ENVIRONMENT as isize,
 }
 
-impl JvmtiError {
-	pub fn from_raw(raw: jvmtiError) -> Option<Self> {
-		match raw {
-			crate::sys::JVMTI_ERROR_INVALID_THREAD => Some(JvmtiError::InvalidThread),
-			crate::sys::JVMTI_ERROR_INVALID_THREAD_GROUP => Some(JvmtiError::InvalidThreadGroup),
-			crate::sys::JVMTI_ERROR_INVALID_PRIORITY => Some(JvmtiError::InvalidPriority),
-			crate::sys::JVMTI_ERROR_THREAD_NOT_SUSPENDED => Some(JvmtiError::ThreadNotSuspended),
-			crate::sys::JVMTI_ERROR_THREAD_SUSPENDED => Some(JvmtiError::ThreadSuspended),
-			crate::sys::JVMTI_ERROR_THREAD_NOT_ALIVE => Some(JvmtiError::ThreadNotAlive),
-			crate::sys::JVMTI_ERROR_INVALID_OBJECT => Some(JvmtiError::InvalidObject),
-			crate::sys::JVMTI_ERROR_INVALID_CLASS => Some(JvmtiError::InvalidClass),
-			crate::sys::JVMTI_ERROR_CLASS_NOT_PREPARED => Some(JvmtiError::ClassNotPrepared),
-			crate::sys::JVMTI_ERROR_INVALID_METHODID => Some(JvmtiError::InvalidMethodId),
-			crate::sys::JVMTI_ERROR_INVALID_LOCATION => Some(JvmtiError::InvalidLocation),
-			crate::sys::JVMTI_ERROR_INVALID_FIELDID => Some(JvmtiError::InvalidFieldId),
-			crate::sys::JVMTI_ERROR_INVALID_MODULE => Some(JvmtiError::InvalidModule),
-			crate::sys::JVMTI_ERROR_NO_MORE_FRAMES => Some(JvmtiError::NoMoreFrames),
-			crate::sys::JVMTI_ERROR_OPAQUE_FRAME => Some(JvmtiError::OpaqueFrame),
-			crate::sys::JVMTI_ERROR_TYPE_MISMATCH => Some(JvmtiError::TypeMismatch),
-			crate::sys::JVMTI_ERROR_INVALID_SLOT => Some(JvmtiError::InvalidSlot),
-			crate::sys::JVMTI_ERROR_DUPLICATE => Some(JvmtiError::Duplicate),
-			crate::sys::JVMTI_ERROR_NOT_FOUND => Some(JvmtiError::NotFound),
-			crate::sys::JVMTI_ERROR_INVALID_MONITOR => Some(JvmtiError::InvalidMonitor),
-			crate::sys::JVMTI_ERROR_NOT_MONITOR_OWNER => Some(JvmtiError::NotMonitorOwner),
-			crate::sys::JVMTI_ERROR_INTERRUPT => Some(JvmtiError::Interrupt),
-			crate::sys::JVMTI_ERROR_INVALID_CLASS_FORMAT => Some(JvmtiError::InvalidClassFormat),
-			crate::sys::JVMTI_ERROR_CIRCULAR_CLASS_DEFINITION => {
-				Some(JvmtiError::CircularClassDefinition)
-			},
-			crate::sys::JVMTI_ERROR_FAILS_VERIFICATION => Some(JvmtiError::FailsVerification),
-			crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_ADDED => {
-				Some(JvmtiError::UnsupportedRedefinitionMethodAdded)
-			},
-			crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_SCHEMA_CHANGED => {
-				Some(JvmtiError::UnsupportedRedefinitionSchemaChanged)
-			},
-			crate::sys::JVMTI_ERROR_INVALID_TYPESTATE => Some(JvmtiError::InvalidTypestate),
-			crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_HIERARCHY_CHANGED => {
-				Some(JvmtiError::UnsupportedRedefinitionHierarchyChanged)
-			},
-			crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_DELETED => {
-				Some(JvmtiError::UnsupportedRedefinitionMethodDeleted)
-			},
-			crate::sys::JVMTI_ERROR_UNSUPPORTED_VERSION => Some(JvmtiError::UnsupportedVersion),
-			crate::sys::JVMTI_ERROR_NAMES_DONT_MATCH => Some(JvmtiError::NamesDontMatch),
-			crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_MODIFIERS_CHANGED => {
-				Some(JvmtiError::UnsupportedRedefinitionClassModifiersChanged)
-			},
-			crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_MODIFIERS_CHANGED => {
-				Some(JvmtiError::UnsupportedRedefinitionMethodModifiersChanged)
-			},
-			crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_ATTRIBUTE_CHANGED => {
-				Some(JvmtiError::UnsupportedRedefinitionClassAttributeChanged)
-			},
-			crate::sys::JVMTI_ERROR_UNSUPPORTED_OPERATION => Some(JvmtiError::UnsupportedOperation),
-			crate::sys::JVMTI_ERROR_UNMODIFIABLE_CLASS => Some(JvmtiError::UnmodifiableClass),
-			crate::sys::JVMTI_ERROR_UNMODIFIABLE_MODULE => Some(JvmtiError::UnmodifiableModule),
-			crate::sys::JVMTI_ERROR_NOT_AVAILABLE => Some(JvmtiError::NotAvailable),
-			crate::sys::JVMTI_ERROR_MUST_POSSESS_CAPABILITY => {
-				Some(JvmtiError::MustPossessCapability)
-			},
-			crate::sys::JVMTI_ERROR_NULL_POINTER => Some(JvmtiError::NullPointer),
-			crate::sys::JVMTI_ERROR_ABSENT_INFORMATION => Some(JvmtiError::AbsentInformation),
-			crate::sys::JVMTI_ERROR_INVALID_EVENT_TYPE => Some(JvmtiError::InvalidEventType),
-			crate::sys::JVMTI_ERROR_ILLEGAL_ARGUMENT => Some(JvmtiError::IllegalArgument),
-			crate::sys::JVMTI_ERROR_NATIVE_METHOD => Some(JvmtiError::NativeMethod),
-			crate::sys::JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED => {
-				Some(JvmtiError::ClassLoaderUnsupported)
-			},
-			crate::sys::JVMTI_ERROR_OUT_OF_MEMORY => Some(JvmtiError::OutOfMemory),
-			crate::sys::JVMTI_ERROR_ACCESS_DENIED => Some(JvmtiError::AccessDenied),
-			crate::sys::JVMTI_ERROR_WRONG_PHASE => Some(JvmtiError::WrongPhase),
-			crate::sys::JVMTI_ERROR_INTERNAL => Some(JvmtiError::Internal),
-			crate::sys::JVMTI_ERROR_UNATTACHED_THREAD => Some(JvmtiError::UnattachedThread),
-			crate::sys::JVMTI_ERROR_INVALID_ENVIRONMENT => Some(JvmtiError::InvalidEnvironment),
-			_ => None,
-		}
-	}
+const _: () = {
+	assert!(size_of::<JvmtiError>() == size_of::<std::ffi::c_int>());
+	assert!(size_of::<std::ffi::c_int>() == size_of::<i32>());
+};
 
-	pub fn raw(&self) -> jvmtiError {
-		match self {
-			JvmtiError::InvalidThread => crate::sys::JVMTI_ERROR_INVALID_THREAD,
-			JvmtiError::InvalidThreadGroup => crate::sys::JVMTI_ERROR_INVALID_THREAD_GROUP,
-			JvmtiError::InvalidPriority => crate::sys::JVMTI_ERROR_INVALID_PRIORITY,
-			JvmtiError::ThreadNotSuspended => crate::sys::JVMTI_ERROR_THREAD_NOT_SUSPENDED,
-			JvmtiError::ThreadSuspended => crate::sys::JVMTI_ERROR_THREAD_SUSPENDED,
-			JvmtiError::ThreadNotAlive => crate::sys::JVMTI_ERROR_THREAD_NOT_ALIVE,
-			JvmtiError::InvalidObject => crate::sys::JVMTI_ERROR_INVALID_OBJECT,
-			JvmtiError::InvalidClass => crate::sys::JVMTI_ERROR_INVALID_CLASS,
-			JvmtiError::ClassNotPrepared => crate::sys::JVMTI_ERROR_CLASS_NOT_PREPARED,
-			JvmtiError::InvalidMethodId => crate::sys::JVMTI_ERROR_INVALID_METHODID,
-			JvmtiError::InvalidLocation => crate::sys::JVMTI_ERROR_INVALID_LOCATION,
-			JvmtiError::InvalidFieldId => crate::sys::JVMTI_ERROR_INVALID_FIELDID,
-			JvmtiError::InvalidModule => crate::sys::JVMTI_ERROR_INVALID_MODULE,
-			JvmtiError::NoMoreFrames => crate::sys::JVMTI_ERROR_NO_MORE_FRAMES,
-			JvmtiError::OpaqueFrame => crate::sys::JVMTI_ERROR_OPAQUE_FRAME,
-			JvmtiError::TypeMismatch => crate::sys::JVMTI_ERROR_TYPE_MISMATCH,
-			JvmtiError::InvalidSlot => crate::sys::JVMTI_ERROR_INVALID_SLOT,
-			JvmtiError::Duplicate => crate::sys::JVMTI_ERROR_DUPLICATE,
-			JvmtiError::NotFound => crate::sys::JVMTI_ERROR_NOT_FOUND,
-			JvmtiError::InvalidMonitor => crate::sys::JVMTI_ERROR_INVALID_MONITOR,
-			JvmtiError::NotMonitorOwner => crate::sys::JVMTI_ERROR_NOT_MONITOR_OWNER,
-			JvmtiError::Interrupt => crate::sys::JVMTI_ERROR_INTERRUPT,
-			JvmtiError::InvalidClassFormat => crate::sys::JVMTI_ERROR_INVALID_CLASS_FORMAT,
-			JvmtiError::CircularClassDefinition => {
-				crate::sys::JVMTI_ERROR_CIRCULAR_CLASS_DEFINITION
-			},
-			JvmtiError::FailsVerification => crate::sys::JVMTI_ERROR_FAILS_VERIFICATION,
-			JvmtiError::UnsupportedRedefinitionMethodAdded => {
-				crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_ADDED
-			},
-			JvmtiError::UnsupportedRedefinitionSchemaChanged => {
-				crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_SCHEMA_CHANGED
-			},
-			JvmtiError::InvalidTypestate => crate::sys::JVMTI_ERROR_INVALID_TYPESTATE,
-			JvmtiError::UnsupportedRedefinitionHierarchyChanged => {
-				crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_HIERARCHY_CHANGED
-			},
-			JvmtiError::UnsupportedRedefinitionMethodDeleted => {
-				crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_DELETED
-			},
-			JvmtiError::UnsupportedVersion => crate::sys::JVMTI_ERROR_UNSUPPORTED_VERSION,
-			JvmtiError::NamesDontMatch => crate::sys::JVMTI_ERROR_NAMES_DONT_MATCH,
-			JvmtiError::UnsupportedRedefinitionClassModifiersChanged => {
-				crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_MODIFIERS_CHANGED
-			},
-			JvmtiError::UnsupportedRedefinitionMethodModifiersChanged => {
-				crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_MODIFIERS_CHANGED
-			},
-			JvmtiError::UnsupportedRedefinitionClassAttributeChanged => {
-				crate::sys::JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_ATTRIBUTE_CHANGED
-			},
-			JvmtiError::UnsupportedOperation => crate::sys::JVMTI_ERROR_UNSUPPORTED_OPERATION,
-			JvmtiError::UnmodifiableClass => crate::sys::JVMTI_ERROR_UNMODIFIABLE_CLASS,
-			JvmtiError::UnmodifiableModule => crate::sys::JVMTI_ERROR_UNMODIFIABLE_MODULE,
-			JvmtiError::NotAvailable => crate::sys::JVMTI_ERROR_NOT_AVAILABLE,
-			JvmtiError::MustPossessCapability => crate::sys::JVMTI_ERROR_MUST_POSSESS_CAPABILITY,
-			JvmtiError::NullPointer => crate::sys::JVMTI_ERROR_NULL_POINTER,
-			JvmtiError::AbsentInformation => crate::sys::JVMTI_ERROR_ABSENT_INFORMATION,
-			JvmtiError::InvalidEventType => crate::sys::JVMTI_ERROR_INVALID_EVENT_TYPE,
-			JvmtiError::IllegalArgument => crate::sys::JVMTI_ERROR_ILLEGAL_ARGUMENT,
-			JvmtiError::NativeMethod => crate::sys::JVMTI_ERROR_NATIVE_METHOD,
-			JvmtiError::ClassLoaderUnsupported => crate::sys::JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED,
-			JvmtiError::OutOfMemory => crate::sys::JVMTI_ERROR_OUT_OF_MEMORY,
-			JvmtiError::AccessDenied => crate::sys::JVMTI_ERROR_ACCESS_DENIED,
-			JvmtiError::WrongPhase => crate::sys::JVMTI_ERROR_WRONG_PHASE,
-			JvmtiError::Internal => crate::sys::JVMTI_ERROR_INTERNAL,
-			JvmtiError::UnattachedThread => crate::sys::JVMTI_ERROR_UNATTACHED_THREAD,
-			JvmtiError::InvalidEnvironment => crate::sys::JVMTI_ERROR_INVALID_ENVIRONMENT,
+impl From<crate::sys::jvmtiError> for JvmtiError {
+	fn from(value: crate::sys::jvmtiError) -> Self {
+		if value <= crate::sys::JVMTI_ERROR_NONE || value > crate::sys::JVMTI_ERROR_MAX {
+			return JvmtiError::Internal;
 		}
+
+		unsafe { std::mem::transmute(value) }
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn jvmti_error_mappings() {
+		for out_of_range in [-1, crate::sys::JVMTI_ERROR_MAX + 1] {
+			assert_eq!(JvmtiError::from(out_of_range), JvmtiError::Internal);
+		}
+
+		assert_eq!(
+			JvmtiError::from(crate::sys::JVMTI_ERROR_MAX),
+			JvmtiError::InvalidEnvironment
+		);
 	}
 }
