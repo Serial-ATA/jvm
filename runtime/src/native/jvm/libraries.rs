@@ -66,7 +66,7 @@ pub extern "C" fn JVM_FindLibraryEntry(handle: *mut c_void, name: *const c_char)
 	let lib = unsafe { platform::libs::Library::from_raw(handle) };
 	let name_c = unsafe { CStr::from_ptr(name) };
 
-	let ret = match unsafe { lib.symbol::<c_void>(&name_c) } {
+	let ret = match unsafe { lib.symbol::<c_void>(name_c) } {
 		Ok(sym) => sym.raw(),
 		Err(_) => std::ptr::null_mut(),
 	};

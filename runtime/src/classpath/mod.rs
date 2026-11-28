@@ -48,7 +48,7 @@ pub fn find_classpath_entry(loader: &ClassLoader, name: Symbol) -> Option<Vec<u1
 }
 
 /// A zip (.zip/.jar) classpath entry
-enum ZipEntry {
+pub enum ZipEntry {
 	Unopened(PathBuf),
 	Open(ZipArchive<File>),
 }
@@ -62,9 +62,7 @@ impl ClassPathEntry {
 	pub fn new<P: AsRef<Path>>(path: P) -> Self {
 		let path = path.as_ref();
 		match path.extension().and_then(|ext| ext.to_str()) {
-			Some("jar") | Some("zip") => {
-				Self::Zip(Mutex::new(ZipEntry::Unopened(path.to_path_buf())))
-			},
+			Some("jar" | "zip") => Self::Zip(Mutex::new(ZipEntry::Unopened(path.to_path_buf()))),
 			_ => Self::Dir(path.to_path_buf()),
 		}
 	}
@@ -74,7 +72,7 @@ impl ClassPathEntry {
 		// TODO: Zero error handling... not even a little bit
 		match self {
 			ClassPathEntry::Dir(path) => {
-				let class_path = path.join(&name);
+				let class_path = path.join(name);
 				if class_path.exists() {
 					return Some(std::fs::read(class_path).unwrap());
 				}

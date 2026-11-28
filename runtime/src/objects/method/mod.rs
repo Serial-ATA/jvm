@@ -359,28 +359,28 @@ impl Method {
 		self.attributes
 			.iter()
 			.find_map(Attribute::runtime_visible_annotations)
-			.map(|attr| PrimitiveArrayInstance::new(&*attr.as_bytes().into_jbyte_array()))
+			.map(|attr| PrimitiveArrayInstance::new(&attr.as_bytes().into_jbyte_array()))
 	}
 
 	pub fn parameter_annotations_array(&self) -> Option<PrimitiveArrayInstanceRef> {
 		self.attributes
 			.iter()
 			.find_map(Attribute::runtime_visible_parameter_annotations)
-			.map(|attr| PrimitiveArrayInstance::new(&*attr.as_bytes().into_jbyte_array()))
+			.map(|attr| PrimitiveArrayInstance::new(&attr.as_bytes().into_jbyte_array()))
 	}
 
 	pub fn type_annotations_array(&self) -> Option<PrimitiveArrayInstanceRef> {
 		self.attributes
 			.iter()
 			.find_map(Attribute::runtime_visible_type_annotations)
-			.map(|attr| PrimitiveArrayInstance::new(&*attr.as_bytes().into_jbyte_array()))
+			.map(|attr| PrimitiveArrayInstance::new(&attr.as_bytes().into_jbyte_array()))
 	}
 
 	pub fn annotation_default(&self) -> Option<PrimitiveArrayInstanceRef> {
 		self.attributes
 			.iter()
 			.find_map(Attribute::annotation_default)
-			.map(|attr| PrimitiveArrayInstance::new(&*attr.as_bytes().into_jbyte_array()))
+			.map(|attr| PrimitiveArrayInstance::new(&attr.as_bytes().into_jbyte_array()))
 	}
 }
 

@@ -27,12 +27,6 @@ impl Debug for StackFrame {
 	}
 }
 
-impl StackFrame {
-	fn is_fake(&self) -> bool {
-		matches!(self, StackFrame::Fake)
-	}
-}
-
 #[derive(Debug)]
 pub enum VisibleStackFrame<'a> {
 	Regular(&'a Frame),

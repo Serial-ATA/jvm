@@ -36,10 +36,10 @@ fn find_field(
 	let sig_sym = Symbol::intern(sig);
 
 	let ret = class.resolve_field(name_sym, sig_sym);
-	if let Throws::Ok(ret) = &ret {
-		if ret.is_static() != is_static {
-			throw!(@DEFER NoSuchFieldError, "{name_sym}");
-		}
+	if let Throws::Ok(ret) = &ret
+		&& ret.is_static() != is_static
+	{
+		throw!(@DEFER NoSuchFieldError, "{name_sym}");
 	}
 
 	ret.map(|field| thread.jni_refs().allocate(field))
@@ -143,10 +143,10 @@ macro_rules! impl_set_field {
 #[rustfmt::skip]
 impl_set_field!(
 	SetObjectField(jobject)   |val| { Operand::Reference(unsafe { val.to_reference_maybe_null() }) },
-	SetBooleanField(jboolean) |val| { Operand::Int(val as jint)                                    },
-	SetByteField(jbyte)       |val| { Operand::Int(val as jint)                                    },
-	SetCharField(jchar)       |val| { Operand::Int(val as jint)                                    },
-	SetShortField(jshort)     |val| { Operand::Int(val as jint)                                    },
+	SetBooleanField(jboolean) |val| { Operand::Int(jint::from(val))                                },
+	SetByteField(jbyte)       |val| { Operand::Int(jint::from(val))                                },
+	SetCharField(jchar)       |val| { Operand::Int(jint::from(val))                                },
+	SetShortField(jshort)     |val| { Operand::Int(jint::from(val))                                },
 	SetIntField(jint)         |val| { Operand::Int(val)                                            },
 	SetLongField(jlong)       |val| { Operand::Long(val)                                           },
 	SetFloatField(jfloat)     |val| { Operand::Float(val)                                          },
@@ -264,9 +264,7 @@ pub unsafe extern "system" fn SetStaticObjectField(
 	let value = unsafe { value.to_reference_maybe_null() };
 	let mirror = field.class.mirror();
 
-	// SAFETY: Assuming that `fieldID` points to a valid field, then its index is guaranteed to be valid
-	//         by the class loader.
-	unsafe { mirror.put_field_value(field, Operand::Reference(value)) }
+	mirror.put_field_value(field, Operand::Reference(value))
 }
 
 pub extern "system" fn SetStaticBooleanField(

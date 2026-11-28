@@ -24,7 +24,7 @@ pub trait Instance: object::Object {
 			return self.class().mirror().get_field_value(field);
 		}
 
-		unsafe { get_field_value_impl(self, &field, field.offset()) }
+		unsafe { get_field_value_impl(self, field, field.offset()) }
 	}
 
 	/// Get the value of a field by its index
@@ -46,7 +46,7 @@ pub trait Instance: object::Object {
 			return self.class().mirror().put_field_value(field, value);
 		}
 
-		unsafe { put_field_value_impl(self, &field, field.offset(), value) }
+		unsafe { put_field_value_impl(self, field, field.offset(), value) }
 	}
 
 	/// Set the value of a field by its index
@@ -264,12 +264,6 @@ pub trait CloneableInstance {
 #[derive(Copy, Clone, Default, Debug, PartialEq)]
 struct HeaderFlags {
 	locked: bool,
-}
-
-impl HeaderFlags {
-	pub fn encode(self) -> u8 {
-		u8::from(self.locked)
-	}
 }
 
 #[repr(C)]

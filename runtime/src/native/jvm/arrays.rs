@@ -112,10 +112,6 @@ pub extern "C" fn JVM_NewArray(env: JniEnv, element_class: JClass, length: jint)
 	}
 
 	let class = mirror.target_class();
-	if class.is_array() && class.unwrap_array_instance().dimensions >= MAX_DIM {
-		throw_with_ret!(JObject::null(), thread, IllegalArgumentException);
-	}
-
 	let array = ObjectArrayInstance::new(length, class);
 	let array_instance = handle_exception!(JObject::null(), thread, array);
 	thread

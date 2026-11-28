@@ -153,7 +153,7 @@ impl<W: Write> WriteImpl<'_, W> {
 		//
 		// [error][exceptions] <some long message
 		// [                 ] that extends multiple lines>
-		let mut decoration_padding = decorator_width.saturating_sub(2); // - 2 for the brackets already written
+		let decoration_padding = decorator_width.saturating_sub(2); // - 2 for the brackets already written
 		if decoration_padding > 0 {
 			write!(self.writer, " ")?;
 		}

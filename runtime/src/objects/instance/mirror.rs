@@ -94,16 +94,16 @@ impl MirrorInstanceRef {
 		ret
 	}
 
-	fn get_static_field_value(&self, field: &Field) -> Operand<Reference> {
+	fn get_static_field_value(self, field: &Field) -> Operand<Reference> {
 		debug_assert!(field.is_static());
 		let offset = self.static_field_offset + field.offset();
-		unsafe { super::get_field_value_impl(self, &field, offset) }
+		unsafe { super::get_field_value_impl(&self, field, offset) }
 	}
 
-	fn put_static_field_value(&self, field: &Field, value: Operand<Reference>) {
+	fn put_static_field_value(self, field: &Field, value: Operand<Reference>) {
 		debug_assert!(field.is_static());
 		let offset = self.static_field_offset + field.offset();
-		unsafe { super::put_field_value_impl(self, &field, offset, value) }
+		unsafe { super::put_field_value_impl(&self, field, offset, value) }
 	}
 
 	pub fn set_module(&self, module: Reference) {
@@ -276,8 +276,8 @@ impl MirrorInstance {
 			| ClassAccessFlags::ACC_FINAL
 			| ClassAccessFlags::ACC_PUBLIC)
 			.as_u2();
-		let ret = MirrorInstanceRef::new(instance_ptr, target_class, modifiers, true);
-		ret
+
+		MirrorInstanceRef::new(instance_ptr, target_class, modifiers, true)
 	}
 
 	pub fn is_primitive(&self) -> bool {
@@ -358,7 +358,7 @@ impl Instance for MirrorInstanceRef {
 		if field.is_static() {
 			self.get_static_field_value(field)
 		} else {
-			unsafe { super::get_field_value_impl(self, &field, field.offset()) }
+			unsafe { super::get_field_value_impl(self, field, field.offset()) }
 		}
 	}
 

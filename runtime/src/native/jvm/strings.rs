@@ -123,16 +123,16 @@ pub extern "C" fn JVM_InternString(env: JniEnv, string: JString) -> JString {
 
 	let hash = classes::java::lang::String::hash(string);
 	let hash_is_zero = classes::java::lang::String::hashIsZero(string);
-	if hash != 0 || hash_is_zero {
-		if let Some(interned_string) = lookup(StringHash(hash)) {
-			let ptr = thread
-				.jni_refs()
-				.allocate(Reference::class(interned_string));
-			return unsafe { JString::from_raw(ptr) };
-		}
-
-		// Otherwise something's off, recompute the hash...
+	if (hash != 0 || hash_is_zero)
+		&& let Some(interned_string) = lookup(StringHash(hash))
+	{
+		let ptr = thread
+			.jni_refs()
+			.allocate(Reference::class(interned_string));
+		return unsafe { JString::from_raw(ptr) };
 	}
+
+	// Otherwise something's off, recompute the hash...
 
 	let coder = classes::java::lang::String::coder(string);
 	let value = classes::java::lang::String::value(string);

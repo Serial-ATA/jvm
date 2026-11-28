@@ -11,7 +11,6 @@ use common::unicode;
 use platform::env::SystemPaths;
 use platform::libs::Library;
 
-mod class;
 pub mod java;
 mod jdk;
 pub mod jni;

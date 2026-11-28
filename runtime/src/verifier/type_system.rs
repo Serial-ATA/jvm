@@ -149,7 +149,7 @@ impl VerificationType {
 }
 
 /// For basic assignment checks, class assignability is implemented differently.
-pub trait IsAssignable<Rhs = VerificationType> {
+pub trait IsAssignable<Rhs = VerificationType>: Copy {
 	fn is_assignable(self, to: Rhs) -> bool;
 }
 
@@ -213,7 +213,10 @@ impl IsAssignable for types::Class {
 	}
 }
 
-impl<T> IsAssignable for types::ArrayOf<T> {
+impl<T> IsAssignable for types::ArrayOf<T>
+where
+	T: Copy,
+{
 	fn is_assignable(self, to: VerificationType) -> bool {
 		types::Reference.is_assignable(to)
 	}
@@ -270,19 +273,25 @@ impl IsAssignable<types::Class> for types::Class {
 	}
 }
 
-impl<X> IsAssignable<types::Class> for types::ArrayOf<X> {
+impl<X> IsAssignable<types::Class> for types::ArrayOf<X>
+where
+	X: Copy,
+{
 	fn is_assignable(self, to: types::Class) -> bool {
 		self.is_java_assignable(to)
 	}
 }
 
-impl<X, Y> IsAssignable<types::ArrayOf<Y>> for types::ArrayOf<X> {
+impl<X, Y> IsAssignable<types::ArrayOf<Y>> for types::ArrayOf<X>
+where
+	X: Copy,
+{
 	fn is_assignable(self, to: types::ArrayOf<Y>) -> bool {
 		self.is_java_assignable(to)
 	}
 }
 
-trait IsJavaAssignable<Rhs> {
+trait IsJavaAssignable<Rhs>: Copy {
 	fn is_java_assignable(self, to: Rhs) -> bool;
 }
 
@@ -299,7 +308,10 @@ impl IsJavaAssignable<types::Class> for types::Class {
 	}
 }
 
-impl<X, Y> IsJavaAssignable<types::ArrayOf<Y>> for types::ArrayOf<X> {
+impl<X, Y> IsJavaAssignable<types::ArrayOf<Y>> for types::ArrayOf<X>
+where
+	X: Copy,
+{
 	default fn is_java_assignable(self, _to: types::ArrayOf<Y>) -> bool {
 		false
 	}
@@ -317,7 +329,10 @@ impl<X, Y> IsJavaAssignable<types::ArrayOf<Y>> for types::ArrayOf<X> {
 // isArrayInterface(class('java/io/Serializable', BL)) :-
 //     isBootstrapLoader(BL).
 
-impl<T> IsJavaAssignable<types::Class> for types::ArrayOf<T> {
+impl<T> IsJavaAssignable<types::Class> for types::ArrayOf<T>
+where
+	T: Copy,
+{
 	fn is_java_assignable(self, to: types::Class) -> bool {
 		(to.0 == sym!(java_lang_Object) && todo!("isBootstrapLoader")) || is_array_interface(to)
 	}
@@ -354,15 +369,19 @@ primitive_arrays!(types::Int, types::Float, types::Long, types::Double);
 // isJavaAssignable(arrayOf(X), arrayOf(Y)) :-
 //     compound(X), compound(Y), isJavaAssignable(X, Y).
 
-impl<X, Y> IsJavaAssignable<types::ArrayOf<types::ArrayOf<Y>>>
-	for types::ArrayOf<types::ArrayOf<X>>
+impl<X, Y> IsJavaAssignable<types::ArrayOf<types::ArrayOf<Y>>> for types::ArrayOf<types::ArrayOf<X>>
+where
+	X: Copy,
 {
 	fn is_java_assignable(self, to: types::ArrayOf<types::ArrayOf<Y>>) -> bool {
 		self.0.is_java_assignable(to.0)
 	}
 }
 
-impl<X> IsJavaAssignable<types::ArrayOf<types::Class>> for types::ArrayOf<types::ArrayOf<X>> {
+impl<X> IsJavaAssignable<types::ArrayOf<types::Class>> for types::ArrayOf<types::ArrayOf<X>>
+where
+	X: Copy,
+{
 	fn is_java_assignable(self, to: types::ArrayOf<types::Class>) -> bool {
 		self.0.is_java_assignable(to.0)
 	}

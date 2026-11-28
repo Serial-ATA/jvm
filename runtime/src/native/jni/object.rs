@@ -10,10 +10,7 @@ use ::jni::sys::{JNIEnv, jboolean, jclass, jmethodID, jobject, jobjectRefType, j
 use instructions::Operand;
 
 fn allocate_object(thread: &'static JavaThread, class: jclass) -> Option<jobject> {
-	let class_obj = unsafe { class.to_reference() };
-	let Some(class_obj) = class_obj else {
-		return None;
-	};
+	let class_obj = unsafe { class.to_reference()? };
 
 	let class = class_obj.extract_target_class();
 	let obj = Reference::class(ClassInstance::new(class));

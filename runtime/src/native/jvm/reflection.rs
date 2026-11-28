@@ -55,17 +55,16 @@ pub extern "C" fn JVM_GetCallerClass(env: JniEnv) -> JClass {
 		let method = frame.method();
 
 		if n == 0 || n == 1 {
-			if n == 0 {
-				if !(method.class().name() == sym!(jdk_internal_reflect_Reflection)
+			if n == 0
+				&& !(method.class().name() == sym!(jdk_internal_reflect_Reflection)
 					&& method.name == sym!(getCallerClass))
-				{
-					throw_with_ret!(
-						JClass::null(),
-						thread,
-						InternalError,
-						"JVM_GetCallerClass must only be called from Reflection.getCallerClass"
-					);
-				}
+			{
+				throw_with_ret!(
+					JClass::null(),
+					thread,
+					InternalError,
+					"JVM_GetCallerClass must only be called from Reflection.getCallerClass"
+				);
 			}
 
 			if !method.is_caller_sensitive() {

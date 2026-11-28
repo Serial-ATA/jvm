@@ -23,11 +23,11 @@ use classfile::constant_pool::types::ReferenceKind;
 use native_macros::jni_call;
 
 // From java/lang/invoke/MethodHandleNatives.java
-const MN_IS_METHOD: jint = 0x00010000; // method (not object constructor)
-const MN_IS_CONSTRUCTOR: jint = 0x00020000; // object constructor
-const MN_IS_FIELD: jint = 0x00040000; // field
-const MN_CALLER_SENSITIVE: jint = 0x00100000; // @CallerSensitive annotation detected
-const MN_TRUSTED_FINAL: jint = 0x00200000; // trusted final field
+const MN_IS_METHOD: jint = 0x0001_0000; // method (not object constructor)
+const MN_IS_CONSTRUCTOR: jint = 0x0002_0000; // object constructor
+const MN_IS_FIELD: jint = 0x0004_0000; // field
+const MN_CALLER_SENSITIVE: jint = 0x0010_0000; // @CallerSensitive annotation detected
+const MN_TRUSTED_FINAL: jint = 0x0020_0000; // trusted final field
 const MN_REFERENCE_KIND_SHIFT: jint = 24; // refKind
 const LM_TRUSTED: jint = -1;
 
@@ -535,10 +535,7 @@ extern "C" fn staticFieldBase(
 	let thread = unsafe { env.thread() };
 
 	let (_, clazz) = handle_exception!(JObject::null(), thread, find_member_offset(self_, true));
-	thread
-		.jni_refs()
-		.allocate_wrapped(Reference::mirror(clazz))
-		.into()
+	thread.jni_refs().allocate_wrapped(Reference::mirror(clazz))
 }
 
 #[jni_call]

@@ -294,12 +294,12 @@ impl<const REFERENCE_TYPE: ObjectReferenceType> JniObjectStorage<REFERENCE_TYPE>
 		assert_eq!(ty, REFERENCE_TYPE);
 
 		let refs = self.references.lock().unwrap();
-		unsafe { std::ptr::write(target as *mut Slot, Slot::Empty) };
+		unsafe { std::ptr::write(target.cast::<Slot>(), Slot::Empty) };
 	}
 }
 
 static GLOBAL_REFERENCES: LazyLock<JniObjectStorage<{ ObjectReferenceType::Global }>> =
-	LazyLock::new(|| JniObjectStorage::default());
+	LazyLock::new(JniObjectStorage::default);
 
 /// Methods for JNI object handles
 pub trait JObjectExt {

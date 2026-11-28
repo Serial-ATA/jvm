@@ -760,14 +760,6 @@ impl JavaThread {
 		let _ = self.take_pending_exception();
 	}
 
-	/// Wipe everything from the thread
-	///
-	/// Likely means we'll be exiting soon...
-	fn nuke(&self) {
-		self.frame_stack.clear();
-		self.pc.store(0, Ordering::Relaxed);
-	}
-
 	fn on_exception(&self) {
 		self.handle_pending_exception();
 		if self.has_pending_exception() {

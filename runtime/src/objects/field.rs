@@ -217,6 +217,6 @@ impl Field {
 		self.attributes
 			.iter()
 			.find_map(Attribute::runtime_visible_annotations)
-			.map(|attr| PrimitiveArrayInstance::new(&*attr.as_bytes().into_jbyte_array()))
+			.map(|attr| PrimitiveArrayInstance::new(&attr.as_bytes().into_jbyte_array()))
 	}
 }

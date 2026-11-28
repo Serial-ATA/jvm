@@ -101,5 +101,5 @@ pub extern "system" fn GetDirectBufferCapacity(env: *mut JNIEnv, buf: jobject) -
 		return -1;
 	}
 
-	classes::java::nio::Buffer::capacity(obj.extract_class()) as jlong
+	jlong::from(classes::java::nio::Buffer::capacity(obj.extract_class()))
 }

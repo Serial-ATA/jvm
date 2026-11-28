@@ -18,8 +18,8 @@ impl Unit {
 		match self {
 			Unit::Bytes => 1,
 			Unit::Kilobytes => 1000,
-			Unit::Megabytes => 1000000,
-			Unit::Gigabytes => 1000000000,
+			Unit::Megabytes => 1_000_000,
+			Unit::Gigabytes => 1_000_000_000,
 		}
 	}
 }
@@ -40,7 +40,7 @@ impl FromStr for ByteSize {
 		let digits = &s[..s.len() - 1];
 		if !digits.chars().all(|c| c.is_ascii_digit()) {
 			return Err(());
-		};
+		}
 
 		let count = digits
 			.as_bytes()

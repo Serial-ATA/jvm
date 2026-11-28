@@ -184,7 +184,7 @@ impl<'a> NativeNameConverter<'a> {
 				'[' => stream.push_str("_3"),
 				c => {
 					let c = c as u32;
-					write!(stream, "_{c:05x}");
+					write!(stream, "_{c:05x}").expect("string write shouldn't fail");
 				},
 			}
 		}

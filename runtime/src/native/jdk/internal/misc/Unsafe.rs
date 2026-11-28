@@ -46,7 +46,6 @@ impl<T> UnsafeMemoryOp<T> {
 
 impl<T> UnsafeMemoryOp<T>
 where
-	T: UnsafeOpImpl<Output = T>,
 	T: PrimitiveType,
 	T: AtomicCounterpart,
 {
@@ -87,75 +86,20 @@ where
 
 	unsafe fn put_volatile(&self, value: T) {
 		if self.object.is_null() {
-			return unsafe { self.__put_raw_volatile(value) };
+			let offset = self.offset;
+			let ptr = offset as *mut T;
+
+			debug_assert!(
+				ptr.is_aligned_to(align_of::<T::Counterpart>()),
+				"atomic writes can only be performed on aligned offsets"
+			);
+
+			let atomic = unsafe { &*ptr.cast::<T::Counterpart>() };
+			atomic.store(value, Ordering::SeqCst)
 		}
 
-		if self.object.is_primitive_array() {
-			return unsafe { self.__put_array_volatile(value) };
-		}
-
-		assert!(self.object.is_class());
-		unsafe { self.__put_field_volatile(value) }
+		unsafe { self.object.atomic_store(value, self.offset as usize) }
 	}
-
-	#[doc(hidden)]
-	unsafe fn __put_raw_volatile(&self, _value: T) {
-		unimplemented!("Volatile raw pointer set")
-	}
-
-	#[doc(hidden)]
-	unsafe fn __put_array_volatile(&self, _value: T) {
-		unimplemented!("Volatile array set")
-	}
-
-	#[doc(hidden)]
-	unsafe fn __put_field_volatile(&self, _value: T) {
-		unimplemented!("Volatile field put")
-	}
-}
-
-trait UnsafeOpImpl: Sized + AtomicCounterpart {
-	type Output;
-
-	unsafe fn get_field_volatile_impl(field_value: *mut Self) -> Self::Output;
-	unsafe fn put_field_impl(field_value: *mut Self, value: Self::Output);
-}
-
-macro_rules! unsafe_ops {
-	($($ty:ident => $operand_ty:ident),+) => {
-		paste::paste! {
-			$(
-			impl UnsafeOpImpl for [<j $ty>] {
-				type Output = [<j $ty>];
-
-				#[allow(trivial_numeric_casts)]
-				unsafe fn get_field_volatile_impl(field_value: *mut [<j $ty>]) -> Self::Output {
-					let field_value_atomic = field_value.cast::<Self::Counterpart>();
-					unsafe {
-						(&*field_value_atomic).load(Ordering::Acquire)
-					}
-				}
-
-				#[allow(dropping_copy_types)]
-				unsafe fn put_field_impl(field_value: *mut [<j $ty>], value: Self::Output) {
-					let old = unsafe { field_value.replace(value) };
-					drop(old);
-				}
-			}
-			)+
-		}
-	};
-}
-
-unsafe_ops! {
-	boolean => int,
-	byte => int,
-	short => int,
-	char => int,
-	int => int,
-	long => long,
-	float => float,
-	double => double
 }
 
 #[jni_call]
@@ -792,7 +736,7 @@ extern "C" fn staticFieldOffset0(
 	let field = field.extract_class();
 
 	let modifiers = classes::java::lang::reflect::Field::modifiers(field);
-	if modifiers & FieldAccessFlags::ACC_STATIC.as_u2() as jint == 0 {
+	if modifiers & jint::from(FieldAccessFlags::ACC_STATIC.as_u2()) == 0 {
 		throw_with_ret!(0, thread, IllegalArgumentException);
 	}
 
@@ -821,7 +765,7 @@ extern "C" fn staticFieldBase0(
 	let field = field.extract_class();
 
 	let modifiers = classes::java::lang::reflect::Field::modifiers(field);
-	if modifiers & FieldAccessFlags::ACC_STATIC.as_u2() as jint == 0 {
+	if modifiers & jint::from(FieldAccessFlags::ACC_STATIC.as_u2()) == 0 {
 		throw_with_ret!(JObject::null(), thread, IllegalArgumentException);
 	}
 

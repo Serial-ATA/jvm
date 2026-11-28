@@ -22,8 +22,6 @@ const ARGS_NOTICE: &str = r" Arguments following the main class, source file, -j
  -m or --module <module>/<mainclass> are passed as the arguments to
  main class.";
 
-const AUTHOR: &str = env!("SYSTEM_PROPS_VM_VENDOR");
-
 const USAGE_STRING: &str = const_format::formatcp!("{ABOUT}\n\nUsage: {USAGE}\n\n{ARGS_NOTICE}");
 
 /// Launch a Java application

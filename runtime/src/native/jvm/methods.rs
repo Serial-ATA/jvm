@@ -60,10 +60,10 @@ fn do_invoke(
 				let instance = arg.extract_class();
 				match parameter_mirror.primitive_target() {
 					FieldType::Byte => {
-						stack.push_int(classes::java::lang::Byte::value(instance) as jint)
+						stack.push_int(jint::from(classes::java::lang::Byte::value(instance)))
 					},
 					FieldType::Character => {
-						stack.push_int(classes::java::lang::Character::value(instance) as jint);
+						stack.push_int(jint::from(classes::java::lang::Character::value(instance)));
 					},
 					FieldType::Double => {
 						stack.push_double(classes::java::lang::Double::value(instance))
@@ -76,10 +76,10 @@ fn do_invoke(
 					},
 					FieldType::Long => stack.push_long(classes::java::lang::Long::value(instance)),
 					FieldType::Short => {
-						stack.push_int(classes::java::lang::Short::value(instance) as jint)
+						stack.push_int(jint::from(classes::java::lang::Short::value(instance)))
 					},
 					FieldType::Boolean => {
-						stack.push_int(classes::java::lang::Boolean::value(instance) as jint)
+						stack.push_int(jint::from(classes::java::lang::Boolean::value(instance)))
 					},
 					_ => throw_with_ret!(
 						JObject::null(),

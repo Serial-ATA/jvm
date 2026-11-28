@@ -10,12 +10,5 @@ license.workspace = true
 name = "java"
 crate-type = ["rlib", "dylib"]
 
-[dependencies]
-jni.workspace = true
-native-macros.workspace = true
-
-[target.'cfg(unix)'.dependencies]
-libc.workspace = true
-
 [lints]
 workspace = true

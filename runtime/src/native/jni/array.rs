@@ -378,7 +378,7 @@ pub unsafe extern "system" fn ReleasePrimitiveArrayCritical(
 	match mode {
 		0 | JNI_COMMIT | JNI_ABORT => {},
 		_ => panic!("invalid mode `{mode}` for `ReleasePrimitiveArrayCritical`"),
-	};
+	}
 
 	let Some(array) = (unsafe { array.to_reference() }) else {
 		panic!("null object passed to `ReleasePrimitiveArrayCritical`");

@@ -15,6 +15,7 @@ use jni::sys::jint;
 
 // From java/lang/reflect/Field.java
 const TRUSTED_FINAL: jint = 0x0010;
+#[expect(dead_code)]
 const NULL_RESTRICTED: jint = 0x0020;
 
 /// Create a new `java.lang.reflect.Field` instance for the given field

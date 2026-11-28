@@ -117,7 +117,7 @@ pub extern "system" fn Java_sun_nio_fs_UnixNativeDispatcher_init(
 pub extern "system" fn Java_sun_nio_fs_UnixNativeDispatcher_getcwd(
 	env: JniEnv,
 	_this: JClass,
-) -> Option<JByteArray> {
+) -> JByteArray {
 	// + 1 for null terminator
 	let mut buf = vec![0; libc::PATH_MAX as usize + 1];
 
@@ -135,17 +135,17 @@ pub extern "system" fn Java_sun_nio_fs_UnixNativeDispatcher_getcwd(
 	let buf_without_terminator = &mut buf[..cwd_len - 1];
 
 	let Ok(byte_array) = env.new_byte_array((cwd_len - 1) as jsize) else {
-		return None;
+		return JByteArray::null();
 	};
 
 	if env
 		.set_byte_array_region(byte_array, 0, buf_without_terminator)
 		.is_err()
 	{
-		return None;
+		return JByteArray::null();
 	}
 
-	Some(byte_array)
+	byte_array
 }
 
 #[jni_call]

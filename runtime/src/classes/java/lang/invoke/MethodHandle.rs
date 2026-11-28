@@ -88,16 +88,14 @@ pub fn init_entry_points() {
 
 mod _dynamic {
 	use crate::classes;
-	use crate::objects::boxing::Boxable;
 	use crate::objects::constant_pool::cp_types::MethodEntry;
 	use crate::objects::instance::class::ClassInstanceRef;
 	use crate::objects::method::Method;
-	use crate::objects::reference::Reference;
 	use crate::thread::exceptions::{Throws, throw};
 	use crate::thread::frame::Frame;
 
 	use common::int_types::u2;
-	use instructions::{Operand, StackLike};
+	use instructions::StackLike;
 
 	fn get_target_method(frame: &Frame, handle: ClassInstanceRef) -> Option<&'static Method> {
 		let form = classes::java::lang::invoke::MethodHandle::form(handle);
@@ -107,26 +105,6 @@ mod _dynamic {
 			Throws::Exception(e) => {
 				e.throw(frame.thread());
 				None
-			},
-		}
-	}
-
-	fn morph_return_value(frame: &mut Frame, ret: Option<Operand<Reference>>) {
-		if frame.thread().has_pending_exception() {
-			return;
-		}
-
-		// A void return from a method handle target gets converted to `null`
-		let Some(ret) = ret else {
-			// frame.stack_mut().push_reference(Reference::null());
-			return;
-		};
-
-		match ret.into_box(frame.thread()) {
-			Throws::Ok(ret) => frame.push_reference(ret),
-			Throws::Exception(e) => {
-				e.throw(frame.thread());
-				return;
 			},
 		}
 	}
@@ -177,7 +155,7 @@ mod _dynamic {
 		}
 	}
 
-	pub fn link_to_static(frame: &mut Frame, entry: MethodEntry) {
+	pub fn link_to_static(frame: &mut Frame, _entry: MethodEntry) {
 		let Some((_appendix, target_method)) = appendix_and_target_method(frame) else {
 			return;
 		};

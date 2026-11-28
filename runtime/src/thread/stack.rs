@@ -500,6 +500,14 @@ impl ThreadStack {
 	}
 }
 
+impl<'a> IntoIterator for &'a ThreadStack {
+	type Item = &'a Operand<Reference>;
+	type IntoIter = ThreadStackIter<'a>;
+	fn into_iter(self) -> Self::IntoIter {
+		self.iter()
+	}
+}
+
 impl StackLike<Reference> for ThreadStack {
 	fn clear(&mut self) {
 		self.cur = self.base;

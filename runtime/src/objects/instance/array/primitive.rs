@@ -85,19 +85,6 @@ impl TypeCode {
 			TypeCode::Long => sym!(long_array),
 		}
 	}
-
-	fn array_class(self) -> ClassPtr {
-		match self {
-			TypeCode::Boolean => crate::globals::classes::boolean_array(),
-			TypeCode::Byte => crate::globals::classes::byte_array(),
-			TypeCode::Char => crate::globals::classes::character_array(),
-			TypeCode::Double => crate::globals::classes::double_array(),
-			TypeCode::Float => crate::globals::classes::float_array(),
-			TypeCode::Int => crate::globals::classes::integer_array(),
-			TypeCode::Long => crate::globals::classes::long_array(),
-			TypeCode::Short => crate::globals::classes::short_array(),
-		}
-	}
 }
 
 /// Reference to an allocated primitive array
@@ -249,7 +236,7 @@ impl PrimitiveArrayInstance {
 			let new_array_slice = unsafe {
 				slice::from_raw_parts_mut::<T>(array.field_base().cast::<T>(), elements.len())
 			};
-			new_array_slice.copy_from_slice(&elements);
+			new_array_slice.copy_from_slice(elements);
 		}
 
 		array
