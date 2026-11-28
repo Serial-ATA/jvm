@@ -4,32 +4,14 @@ use quote::{ToTokens, quote};
 use syn::spanned::Spanned;
 use syn::{ItemFn, ReturnType, Type, TypePath};
 
-enum ParameterType {
-	Jni(super::jni::ParameterType),
-	Env,
-	JvmtiError,
-	JThread,
-	JThreadGroup,
-	JRawMonitorId,
-}
+struct ParameterType;
 
 impl super::ParameterType for ParameterType {
-	fn env() -> Self {
-		Self::Env
-	}
-
-	fn from_str_strict(ty: &str, optional: bool) -> Option<Self>
+	fn from_str_strict(ty: &str) -> bool
 	where
 		Self: Sized,
 	{
-		super::jni::ParameterType::from_str_strict(ty, optional).map(Self::Jni)
-	}
-
-	fn from_loose_ty(ty: Box<Type>) -> Self
-	where
-		Self: Sized,
-	{
-		Self::Jni(super::jni::ParameterType::from_loose_ty(ty))
+		super::jni::ParameterType::from_str_strict(ty)
 	}
 }
 
@@ -76,7 +58,7 @@ fn validate_return(errors: &mut Vec<(Error, Span)>, fun: &ItemFn) {
 		return;
 	};
 
-	let Some((path_str, false)) = super::path_str(path) else {
+	let Some(path_str) = super::path_str(path) else {
 		errors.push((
 			Error::BadReturnType {
 				ty: ty.to_token_stream().to_string(),

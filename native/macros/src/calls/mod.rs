@@ -10,11 +10,7 @@ pub(crate) mod jni;
 pub(crate) mod jvmti;
 
 trait ParameterType {
-	fn env() -> Self;
-	fn from_str_strict(ty: &str, optional: bool) -> Option<Self>
-	where
-		Self: Sized;
-	fn from_loose_ty(ty: Box<Type>) -> Self
+	fn from_str_strict(ty: &str) -> bool
 	where
 		Self: Sized;
 }
@@ -96,7 +92,7 @@ fn validate_params<P: ParameterType>(
 		param: &FnArg,
 		arg: &PatType,
 		call_type: CallType,
-	) -> Result<P, (Error, Span)> {
+	) -> Result<(), (Error, Span)> {
 		let Type::Path(TypePath { path, .. }) = &*arg.ty else {
 			return Err((
 				Error::BadParameterType(arg.ty.to_token_stream().to_string()),
@@ -104,7 +100,7 @@ fn validate_params<P: ParameterType>(
 			));
 		};
 
-		let Some((path_str, _optional)) = path_str(path) else {
+		let Some(path_str) = path_str(path) else {
 			return Err((
 				Error::BadParameterType(arg.ty.to_token_stream().to_string()),
 				param.span(),
@@ -122,12 +118,13 @@ fn validate_params<P: ParameterType>(
 				return Err((Error::MissingEnv { call_type }, fun.sig.span()));
 			}
 
-			return Ok(ParameterType::env());
+			return Ok(());
 		}
 
-		match P::from_str_strict(&path_str, false) {
-			Some(parsed) => Ok(parsed),
-			None => Err((Error::BadParameterType(path_str), param.span())),
+		if P::from_str_strict(&path_str) {
+			Ok(())
+		} else {
+			Err((Error::BadParameterType(path_str), param.span()))
 		}
 	}
 
@@ -135,7 +132,7 @@ fn validate_params<P: ParameterType>(
 		match param {
 			FnArg::Receiver(receiver) => errors.push((Error::HasReceiver, receiver.span())),
 			FnArg::Typed(arg) => {
-				let Pat::Ident(PatIdent { ident, .. }) = &*arg.pat else {
+				let Pat::Ident(PatIdent { .. }) = &*arg.pat else {
 					errors.push((
 						Error::BadParameterType(arg.ty.to_token_stream().to_string()),
 						param.span(),
@@ -143,26 +140,23 @@ fn validate_params<P: ParameterType>(
 					continue;
 				};
 
-				if let Err(e) = parse_type::<P>(fun, no_env, index, param, arg, call_type) {
-					if !no_strict_types {
-						errors.push(e);
-					}
+				if let Err(e) = parse_type::<P>(fun, no_env, index, param, arg, call_type)
+					&& !no_strict_types
+				{
+					errors.push(e);
 				}
 			},
 		}
 	}
 }
 
-fn path_str(path: &Path) -> Option<(String, bool)> {
+fn path_str(path: &Path) -> Option<String> {
 	let mut s = String::new();
-	let mut optional = false;
 
 	let segments_len = path.segments.len();
 	for (index, segment) in path.segments.iter().enumerate() {
 		let segment_str = segment.ident.to_string();
 		if segment_str == "Option" {
-			optional = true;
-
 			let PathArguments::AngleBracketed(args) = &segment.arguments else {
 				return None;
 			};
@@ -175,7 +169,7 @@ fn path_str(path: &Path) -> Option<(String, bool)> {
 				return None;
 			};
 
-			s.push_str(&path_str(path)?.0);
+			s.push_str(&path_str(path)?);
 		} else {
 			s.push_str(&segment_str);
 		}
@@ -185,5 +179,5 @@ fn path_str(path: &Path) -> Option<(String, bool)> {
 		}
 	}
 
-	Some((s, optional))
+	Some(s)
 }

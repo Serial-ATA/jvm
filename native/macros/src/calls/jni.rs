@@ -14,32 +14,17 @@ macro_rules! parameter_types {
 			$($obj_ty:ident => $obj_sys_ty:ident),+ $(,)?
 		]
 	) => {
-		#[derive(Copy, Clone)]
-		#[allow(non_camel_case_types)]
-		enum Primitive {
-			$($sys_ty),+
-		}
-
-		#[derive(Clone)]
-		pub enum SafeJniWrapperType {
-			Primitive(Primitive),
-            Optional(Box<SafeJniWrapperType>),
-			$($obj_ty),+
-		}
+		pub struct SafeJniWrapperType;
 
 		impl SafeJniWrapperType {
-            pub fn from_str(s: &str, optional: bool) -> Option<Self> {
+            pub fn is_valid(s: &str) -> bool {
 				match s {
-					$(stringify!($sys_ty) | stringify!(jni::sys::$sys_ty) | stringify!(::jni::sys::$sys_ty) => Some(SafeJniWrapperType::Primitive(Primitive::$sys_ty)),)+
+					$(stringify!($sys_ty) | stringify!(jni::sys::$sys_ty) | stringify!(::jni::sys::$sys_ty) => true,)+
 					$(stringify!($obj_sys_ty) | stringify!(jni::objects::$obj_sys_ty) | stringify!(::jni::objects::$obj_sys_ty)
 					| stringify!($obj_ty) | stringify!(jni::objects::$obj_ty) | stringify!(::jni::objects::$obj_ty) => {
-                        if optional {
-                            Some(SafeJniWrapperType::Optional(Box::new(SafeJniWrapperType::$obj_ty)))
-                        } else {
-                            Some(SafeJniWrapperType::$obj_ty)
-                        }
+                        true
                     },)+
-					_ => None,
+					_ => false,
 				}
 			}
 		}
@@ -76,29 +61,14 @@ parameter_types!(
 	]
 );
 
-pub enum ParameterType {
-	Env,
-	Strict(SafeJniWrapperType),
-	Loose(Box<Type>),
-}
+pub struct ParameterType;
 
 impl super::ParameterType for ParameterType {
-	fn env() -> Self {
-		Self::Env
-	}
-
-	fn from_str_strict(ty: &str, optional: bool) -> Option<Self>
+	fn from_str_strict(ty: &str) -> bool
 	where
 		Self: Sized,
 	{
-		SafeJniWrapperType::from_str(ty, optional).map(Self::Strict)
-	}
-
-	fn from_loose_ty(ty: Box<Type>) -> Self
-	where
-		Self: Sized,
-	{
-		Self::Loose(ty)
+		SafeJniWrapperType::is_valid(ty)
 	}
 }
 
@@ -148,7 +118,7 @@ fn validate_return(errors: &mut Vec<(Error, Span)>, fun: &ItemFn, no_strict_type
 		return;
 	};
 
-	let Some((path_str, optional)) = super::path_str(path) else {
+	let Some(path_str) = super::path_str(path) else {
 		errors.push((
 			Error::BadReturnType {
 				ty: ty.to_token_stream().to_string(),
@@ -159,7 +129,7 @@ fn validate_return(errors: &mut Vec<(Error, Span)>, fun: &ItemFn, no_strict_type
 		return;
 	};
 
-	if SafeJniWrapperType::from_str(&path_str, optional).is_none() {
+	if !SafeJniWrapperType::is_valid(&path_str) {
 		errors.push((
 			Error::BadReturnType {
 				ty: path_str,
