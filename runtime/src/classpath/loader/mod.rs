@@ -320,7 +320,7 @@ impl ClassLoader {
 
 	/// Get the `nameAndId` field of the `ClassLoader`
 	///
-	/// Unlike [`name`], this field is always available.
+	/// Unlike [`name`](Self::name), this field is always available.
 	///
 	/// The format is:
 	/// * The loader has a name defined: `'<loader-name>' @<id>`

@@ -121,8 +121,8 @@ crate::classes::field_module! {
 	/// [`Method`] offset in target class [`VTable`] *or* [`Field`] offset
 	///
 	/// Expected type: `jlong`
-	/// [`Method`]: crate::objects::method::Method
-	/// [`VTable`]: crate::objects::vtable::VTable
+	///
+	/// [`VTable`]: crate::objects::class::vtable::VTable
 	/// [`Field`]: crate::objects::field::Field
 	@INJECTED vmindex: FieldType::Long => jni::sys::jlong,
 }

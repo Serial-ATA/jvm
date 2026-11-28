@@ -1,6 +1,6 @@
 use crate::error::{JniError, Result};
 use crate::objects::{
-	JBooleanArray, JByteArray, JCharArray, JClass, JDoubleArray, JFloatArray, JIntArray,
+	JArray, JBooleanArray, JByteArray, JCharArray, JClass, JDoubleArray, JFloatArray, JIntArray,
 	JLongArray, JObject, JObjectArray, JShortArray,
 };
 use crate::sys::jsize;
@@ -113,7 +113,26 @@ macro_rules! define_primitive_array_methods {
 }
 
 impl super::JniEnv {
-	// TODO: GetArrayLength
+	/// Returns the number of elements in the array.
+	///
+	/// ## PARAMETERS
+	///
+	/// `array`: a Java array object.
+	pub fn get_array_length(&self, array: impl Into<JArray>) -> Result<jsize> {
+		let array = array.into();
+
+		let ret;
+		unsafe {
+			let invoke_interface = self.as_native_interface();
+			ret = ((*invoke_interface).GetArrayLength)(self.raw(), array.raw());
+		}
+
+		if self.exception_check() {
+			return Err(JniError::ExceptionThrown);
+		}
+
+		Ok(ret)
+	}
 
 	/// Constructs a new array of `class` objects.
 	///

@@ -1,4 +1,4 @@
-//! https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.4
+//! <https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-2.html#jvms-2.4>
 
 use super::class::ClassPtr;
 use super::instance::Instance;

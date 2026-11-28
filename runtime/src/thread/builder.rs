@@ -43,8 +43,6 @@ impl JavaThreadBuilder {
 	/// Construct the `JavaThread`
 	///
 	/// This will also spawn an OS thread if applicable.
-	///
-	/// [`entry_point`]: Self::entry_point
 	pub fn finish(self, start: bool) -> Throws<&'static JavaThread> {
 		let thread = JavaThread::new(self.obj, self.stack_size)?;
 

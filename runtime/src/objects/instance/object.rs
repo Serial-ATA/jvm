@@ -77,6 +77,8 @@ pub trait Object: Sized {
 	/// `c` is an instance of `Class<?>`, which backs the mirror.
 	///
 	/// To get the class that this mirror is targeting (in this case, `java.lang.String`), use [`MirrorInstance::target_class`].
+	///
+	/// [`MirrorInstance::target_class`]: crate::objects::instance::mirror::MirrorInstance::target_class
 	fn class(&self) -> ClassPtr;
 
 	#[inline]

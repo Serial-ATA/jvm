@@ -91,6 +91,8 @@ impl Frame {
 	/// # Exceptions
 	///
 	/// This may throw [`ExceptionKind::OutOfMemoryError`]
+	///
+	/// [`ExceptionKind::OutOfMemoryError`]: crate::thread::exceptions::ExceptionKind::OutOfMemoryError
 	pub fn new(thread: &'static JavaThread, method: &'static Method) -> Throws<Self> {
 		let constant_pool = method
 			.class()

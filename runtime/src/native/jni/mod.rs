@@ -56,7 +56,7 @@ pub trait JniStringExt {
 	///
 	/// The `JString` is assumed to point to a valid `java/lang/String` object.
 	///
-	/// [`java::lang::String::extract()`]: crate::java::lang::String::extract
+	/// [`java::lang::String::extract()`]: classes::java::lang::String::extract
 	unsafe fn extract(&self) -> String;
 }
 

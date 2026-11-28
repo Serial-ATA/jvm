@@ -39,12 +39,12 @@ enum SubCommand {
 		dry_run: bool,
 		/// Exclude files matching the supplied comma separated pattern list
 		///
-		/// Each element using one the following forms: <glob-pattern>, glob:<glob-pattern> or regex:<regex-pattern>
+		/// Each element using one the following forms: `<glob-pattern>`, `glob:<glob-pattern>` or `regex:<regex-pattern>`
 		#[arg(long)]
 		exclude: Option<String>,
 		/// Compute and record hashes to tie a packaged module
 		///
-		/// This will work with modules matching the given <regex-pattern> and depending upon it directly or indirectly.
+		/// This will work with modules matching the given `<regex-pattern>` and depending upon it directly or indirectly.
 		#[arg(long)]
 		hash_modules: Option<String>,
 		#[arg(long, help = "Location of header files")]
@@ -70,7 +70,7 @@ enum SubCommand {
 	Extract {
 		/// Exclude files matching the supplied comma separated pattern list
 		///
-		/// Each element using one the following forms: <glob-pattern>, glob:<glob-pattern> or regex:<regex-pattern>
+		/// Each element using one the following forms: `<glob-pattern>`, `glob:<glob-pattern>` or `regex:<regex-pattern>`
 		#[arg(long)]
 		exclude: Option<String>,
 		#[arg(long, help = "Target directory for extract", default_value = ".")]
@@ -99,12 +99,12 @@ enum SubCommand {
 		dry_run: bool,
 		/// Exclude files matching the supplied comma separated pattern list
 		///
-		/// Each element using one the following forms: <glob-pattern>, glob:<glob-pattern> or regex:<regex-pattern>
+		/// Each element using one the following forms: `<glob-pattern>`, `glob:<glob-pattern>` or `regex:<regex-pattern>`
 		#[arg(long)]
 		exclude: Option<String>,
 		/// Compute and record hashes to tie a packaged module
 		///
-		/// This will work with modules matching the given <regex-pattern> and depending upon it directly or indirectly.
+		/// This will work with modules matching the given `<regex-pattern>` and depending upon it directly or indirectly.
 		#[arg(long)]
 		hash_modules: Option<String>,
 		#[arg(long, short = 'p', help = "Module path")]

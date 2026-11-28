@@ -89,7 +89,7 @@ impl Field {
 	/// [`ClassInstance`]: crate::objects::instance::class::ClassInstance
 	/// [`Instance`]: crate::objects::instance::Instance
 	/// [indices]: Self::index
-	/// [`MirrorInstance`]: crate::objects::instance::MirrorInstance
+	/// [`MirrorInstance`]: crate::objects::instance::mirror::MirrorInstance
 	pub fn offset(&self) -> usize {
 		unsafe { *self.offset.get() }
 	}

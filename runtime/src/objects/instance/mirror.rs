@@ -167,6 +167,8 @@ impl Debug for MirrorInstanceRef {
 /// ```
 ///
 /// `c` is a mirror instance, with a target of `java.lang.String`.
+///
+/// [`Class`]: crate::objects::class::Class
 pub struct MirrorInstance {
 	header: Header,
 	/// The offset from the `FIELD_BASE` where static fields start
@@ -252,9 +254,9 @@ impl MirrorInstance {
 	///
 	/// This should **never** be used outside of initialization.
 	///
-	/// All primitive mirrors are available in [`crate::globals::mirrors`]. For example, [`primitive_int_mirror()`].
+	/// All primitive mirrors are available in [`crate::globals::mirrors`]. For example, [`primitive_integer_mirror()`].
 	///
-	/// [`primitive_int_mirror()`]: crate::globals::mirrors::primitive_int_mirror
+	/// [`primitive_integer_mirror()`]: crate::globals::mirrors::primitive_integer_mirror
 	pub fn new_primitive(target: FieldType) -> MirrorInstanceRef {
 		assert!(
 			target.is_primitive(),

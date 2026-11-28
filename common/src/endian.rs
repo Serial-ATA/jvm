@@ -69,7 +69,7 @@ impl Endian {
 	///
 	/// # Errors
 	///
-	/// See [`JavaLittleEndianRead::read_u1()`] and [`JavaReadExt::read_u1()`]
+	/// See [`JavaReadExt::read_u1()`]
 	pub fn read_u1<R>(self, reader: &mut R) -> Result<u1>
 	where
 		R: Read,

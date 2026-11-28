@@ -415,8 +415,8 @@ impl Module {
 	///   * The [`location`] is "jrt:/jdk.", its loader is one of the builtin loaders and its version
 	///     is the same as module `java.base`'s version
 	///
-	/// [version]: Self::version
-	/// [location]: Self::location
+	/// [`version`]: Self::version
+	/// [`location`]: Self::location
 	pub fn should_show_version(&self) -> bool {
 		if self.version().is_none() || self.name().is_none() {
 			return false;

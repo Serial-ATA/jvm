@@ -94,15 +94,11 @@ impl From<jdouble> for JValue {
 	}
 }
 
-macro_rules! define_object_types {
+macro_rules! define_object_type {
 	(
-        $(
         $(#[$meta:meta])*
         struct $name:ident($ty:path)
-        );+
-        $(;)?
     ) => {
-        $(
         $(#[$meta])*
 		#[repr(transparent)]
 		#[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -144,29 +140,58 @@ macro_rules! define_object_types {
 				JObject(value.0)
 			}
 		}
-        )+
 	};
 }
 
-define_object_types! {
+define_object_type!(
 	/// An instance of java.lang.Class
-	struct JClass(jni_sys::jclass);
-	struct JThrowable(jni_sys::jthrowable);
+	struct JClass(jni_sys::jclass)
+);
+define_object_type!(
+	/// An instance of java.lang.Throwable
+	struct JThrowable(jni_sys::jthrowable)
+);
+define_object_type!(
 	/// An instance of java.lang.String
-	struct JString(jni_sys::jstring);
-	struct JWeak(jni_sys::jweak);
+	struct JString(jni_sys::jstring)
+);
+define_object_type!(
+	/// A weak reference to an object
+	struct JWeak(jni_sys::jweak)
+);
+define_object_type!(
+	/// An instance of an array (of any type)
+	struct JArray(jni_sys::jarray)
+);
 
-	struct JArray(jni_sys::jarray);
-	struct JBooleanArray(jni_sys::jbooleanArray);
-	struct JByteArray(jni_sys::jbyteArray);
-	struct JCharArray(jni_sys::jcharArray);
-	struct JShortArray(jni_sys::jshortArray);
-	struct JIntArray(jni_sys::jintArray);
-	struct JLongArray(jni_sys::jlongArray);
-	struct JFloatArray(jni_sys::jfloatArray);
-	struct JDoubleArray(jni_sys::jdoubleArray);
-	struct JObjectArray(jni_sys::jobjectArray);
+// Same as `define_object_type!()`, but *also* allows converting to `JArray`
+macro_rules! define_array_type {
+    (
+        $(#[$meta:meta])*
+        struct $name:ident($ty:path)
+    ) => {
+        define_object_type!(
+            $(#[$meta])*
+            struct $name($ty)
+        );
+
+        impl From<$name> for JArray {
+            fn from(value: $name) -> Self {
+                JArray(value.0)
+            }
+        }
+    }
 }
+
+define_array_type!(struct JBooleanArray(jni_sys::jbooleanArray));
+define_array_type!(struct JByteArray(jni_sys::jbyteArray));
+define_array_type!(struct JCharArray(jni_sys::jcharArray));
+define_array_type!(struct JShortArray(jni_sys::jshortArray));
+define_array_type!(struct JIntArray(jni_sys::jintArray));
+define_array_type!(struct JLongArray(jni_sys::jlongArray));
+define_array_type!(struct JFloatArray(jni_sys::jfloatArray));
+define_array_type!(struct JDoubleArray(jni_sys::jdoubleArray));
+define_array_type!(struct JObjectArray(jni_sys::jobjectArray));
 
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]

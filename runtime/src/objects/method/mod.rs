@@ -455,6 +455,8 @@ impl Method {
 	///
 	/// This will parse the `descriptor` and call `java.lang.invoke.MethodHandleNatives#findMethodHandleType` on
 	/// the current thread.
+	///
+	/// [`Class`]: crate::objects::class::Class
 	pub fn method_type_for(class: ClassPtr, descriptor: &str) -> Throws<Reference> {
 		let descriptor = MethodDescriptor::parse(&mut descriptor.as_bytes()).unwrap(); // TODO: Error handling
 		let parameters = Self::parameter_types_inner(class, &descriptor)?;

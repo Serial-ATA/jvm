@@ -251,6 +251,8 @@ impl Class {
 	/// Get the mirror for this class
 	///
 	/// See [`MirrorInstance`] for information on mirrors.
+	///
+	/// [`MirrorInstance`]: crate::objects::instance::mirror::MirrorInstance
 	pub fn mirror(&self) -> MirrorInstanceRef {
 		// SAFETY: The mirror is only uninitialized for a few classes few early in VM initialization
 		//         due to them loading *before* `java.lang.Class`. Afterwards, all classes are
@@ -752,7 +754,7 @@ impl Class {
 	///
 	/// # Safety
 	///
-	/// This should never be used outside of the ClassLoader. The resulting [`ClassRef`] needs to
+	/// This should never be used outside of the ClassLoader. The resulting [`ClassPtr`] needs to
 	/// be handled properly, as some fields remain uninitialized.
 	pub unsafe fn new(
 		mut parsed_file: ClassFile,
@@ -979,7 +981,7 @@ impl Class {
 	///
 	/// # Safety
 	///
-	/// This should never be used outside of the ClassLoader. The resulting [`ClassRef`] needs to
+	/// This should never be used outside of the ClassLoader. The resulting [`ClassPtr`] needs to
 	/// be handled properly, as some fields remain uninitialized.
 	pub unsafe fn new_array(
 		name: Symbol,
