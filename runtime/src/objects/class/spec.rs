@@ -13,6 +13,7 @@ use crate::thread::JavaThread;
 use crate::thread::exceptions::{Throws, throw};
 
 use std::cell::UnsafeCell;
+use std::collections::HashSet;
 use std::sync::{Condvar, Mutex, MutexGuard};
 
 use classfile::FieldType;
@@ -320,7 +321,7 @@ impl Class {
 		}
 
 		// 2. Otherwise, if C declares a method with the name and descriptor specified by the interface method reference, method lookup succeeds.
-		for method in self.vtable() {
+		for method in self.vtable().iter_local() {
 			if method.name == name && method.descriptor_sym() == descriptor {
 				return Throws::Ok(method);
 			}
@@ -361,6 +362,44 @@ impl Class {
 		descriptor: Symbol,
 		maximally_specific: bool,
 	) -> Option<&'static Method> {
+		let mut visited = HashSet::new();
+		let mut stack = Vec::new();
+		let mut candidates = Vec::new();
+
+		stack.extend_from_slice(&self.interfaces);
+		for parent in self.parent_iter() {
+			stack.extend_from_slice(&parent.interfaces);
+		}
+
+		while let Some(interface) = stack.pop() {
+			if !visited.insert(interface) {
+				continue;
+			}
+
+			stack.extend_from_slice(&interface.interfaces);
+
+			// TODO: Some way to provide negative flags
+			if let Some(method) =
+				interface
+					.vtable()
+					.find_local(method_name, descriptor, MethodAccessFlags::NONE)
+			{
+				if method.is_private() || method.is_static() {
+					continue;
+				}
+
+				if !maximally_specific {
+					return Some(method);
+				}
+
+				candidates.push(method);
+			}
+		}
+
+		if !maximally_specific {
+			return None;
+		}
+
 		// A maximally-specific superinterface method of a class or interface C for a particular method name and descriptor is any method for which all of the following are true:
 		//
 		//     The method is declared in a superinterface (direct or indirect) of C.
@@ -370,49 +409,20 @@ impl Class {
 		//     The method has neither its ACC_PRIVATE flag nor its ACC_STATIC flag set.
 		//
 		//     Where the method is declared in interface I, there exists no other maximally-specific superinterface method of C with the specified name and descriptor that is declared in a subinterface of I.
-		let mut maximally_specific_definition = None;
 
-		for interface in &self.interfaces {
-			if let Some(method) = interface.resolve_method_in_superinterfaces(
-				method_name,
-				descriptor,
-				maximally_specific,
-			) {
-				return Some(method);
-			}
+		let mut maximally_specific_candidates = candidates.iter().copied().filter(|method| {
+			!method.is_abstract()
+				&& !candidates.iter().any(|other| {
+					other.class() != method.class() && other.class().implements(method.class())
+				})
+		});
 
-			// TODO: Some way to provide negative flags
-			if let Some(method) =
-				interface
-					.vtable()
-					.find(method_name, descriptor, MethodAccessFlags::NONE)
-			{
-				if method.is_private() || method.is_static() {
-					continue;
-				}
-
-				if maximally_specific {
-					if method.is_abstract() {
-						continue;
-					}
-
-					match maximally_specific_definition {
-						Some(_) => maximally_specific_definition = None,
-						None => maximally_specific_definition = Some(method),
-					}
-
-					continue;
-				}
-
-				return Some(method);
-			}
+		let first = maximally_specific_candidates.next()?;
+		if maximally_specific_candidates.next().is_some() {
+			return None;
 		}
 
-		if maximally_specific {
-			return maximally_specific_definition;
-		}
-
-		None
+		Some(first)
 	}
 
 	// https://docs.oracle.com/javase/specs/jvms/se23/html/jvms-5.html#jvms-5.5

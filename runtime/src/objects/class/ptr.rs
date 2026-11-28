@@ -20,7 +20,7 @@ use std::ops::Deref;
 ///
 /// [metadata]: ClassPtr::metadata()
 #[repr(transparent)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Hash, PartialEq, Eq)]
 pub struct ClassPtr(*mut Class);
 
 // SAFETY: Synchronization handled manually
@@ -218,12 +218,6 @@ impl Deref for ClassPtr {
 impl Debug for ClassPtr {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		self.deref().fmt(f)
-	}
-}
-
-impl PartialEq for ClassPtr {
-	fn eq(&self, other: &Self) -> bool {
-		self.0 == other.0
 	}
 }
 
