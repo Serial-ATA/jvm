@@ -38,49 +38,73 @@ pub fn find_classpath_entry(loader: &ClassLoader, name: Symbol) -> Option<Vec<u1
 	}
 
 	for entry in &CLASSPATH.read().unwrap().entries {
-		match entry {
-			ClassPathEntry::Dir(path) => {
-				let class_path = path.join(&name);
-				if class_path.exists() {
-					return Some(std::fs::read(class_path).unwrap());
-				}
-			},
-			ClassPathEntry::Zip(archive) => {
-				let mut archive = archive.lock().unwrap();
-				if let Ok(mut file) = archive.by_name(&name) {
-					let mut file_contents = Vec::with_capacity(file.size() as usize);
-					file.read_to_end(&mut file_contents).unwrap();
-					return Some(file_contents);
-				}
-			},
+		let ret = entry.find(&name);
+		if ret.is_some() {
+			return ret;
 		}
 	}
 
 	None
 }
 
+/// A zip (.zip/.jar) classpath entry
+enum ZipEntry {
+	Unopened(PathBuf),
+	Open(ZipArchive<File>),
+}
+
 pub enum ClassPathEntry {
 	Dir(PathBuf),
-	Zip(Mutex<ZipArchive<File>>),
+	Zip(Mutex<ZipEntry>),
 }
 
 impl ClassPathEntry {
 	pub fn new<P: AsRef<Path>>(path: P) -> Self {
 		let path = path.as_ref();
-		assert!(path.exists());
-
-		if path.is_dir() {
-			return Self::Dir(path.to_path_buf());
+		match path.extension().and_then(|ext| ext.to_str()) {
+			Some("jar") | Some("zip") => {
+				Self::Zip(Mutex::new(ZipEntry::Unopened(path.to_path_buf())))
+			},
+			_ => Self::Dir(path.to_path_buf()),
 		}
+	}
 
-		let extension = path.extension().map(|ext| ext.to_str().unwrap());
-		if extension == Some("jar") || extension == Some("zip") {
-			return Self::Zip(Mutex::new(
-				ZipArchive::new(File::open(path).unwrap()).unwrap(),
-			));
+	/// Attempt to find an entry by `name`
+	fn find(&self, name: &str) -> Option<Vec<u1>> {
+		// TODO: Zero error handling... not even a little bit
+		match self {
+			ClassPathEntry::Dir(path) => {
+				let class_path = path.join(&name);
+				if class_path.exists() {
+					return Some(std::fs::read(class_path).unwrap());
+				}
+
+				None
+			},
+			ClassPathEntry::Zip(entry) => {
+				let mut zip_entry = entry.lock().unwrap();
+				if let ZipEntry::Unopened(path) = &*zip_entry {
+					let Ok(file) = File::open(path) else {
+						return None;
+					};
+
+					let archive = ZipArchive::new(file).unwrap();
+					*zip_entry = ZipEntry::Open(archive);
+				}
+
+				let ZipEntry::Open(archive) = &mut *zip_entry else {
+					unreachable!();
+				};
+
+				if let Ok(mut file) = archive.by_name(name) {
+					let mut file_contents = Vec::with_capacity(file.size() as usize);
+					file.read_to_end(&mut file_contents).unwrap();
+					return Some(file_contents);
+				}
+
+				None
+			},
 		}
-
-		panic!("")
 	}
 }
 

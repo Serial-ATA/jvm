@@ -1,6 +1,6 @@
 use crate::options::logging::LogParseError;
 
-use std::fmt::{Display, Write};
+use std::fmt::Display;
 use std::str::Utf8Error;
 
 pub enum SizeTarget {

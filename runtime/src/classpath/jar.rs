@@ -1,4 +1,4 @@
-use crate::classpath::ClassPathEntry;
+use crate::classpath::{ClassPathEntry, ZipEntry};
 
 use std::fs::File;
 use std::io::Read;
@@ -28,7 +28,7 @@ pub fn main_class_from_jar_manifest(jar_path: &Path) -> Option<String> {
 
 	if main_class.is_some() {
 		// Valid JAR file, add it to the classpath
-		super::add_classpath_entry(ClassPathEntry::Zip(Mutex::new(zip_archive)));
+		super::add_classpath_entry(ClassPathEntry::Zip(Mutex::new(ZipEntry::Open(zip_archive))));
 	}
 
 	main_class

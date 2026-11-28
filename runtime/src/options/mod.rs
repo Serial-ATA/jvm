@@ -153,7 +153,9 @@ impl JvmOptions {
 				_ if let Some(system_prop) = key.strip_prefix("-D") => {
 					let val = opt_split.next().unwrap();
 					if system_prop == "java.class.path" {
-						add_classpath_entry(ClassPathEntry::new(val));
+						for entry in val.split(':') {
+							add_classpath_entry(ClassPathEntry::new(entry));
+						}
 					}
 
 					let key = String::from(system_prop);
